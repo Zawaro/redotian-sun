@@ -1,0 +1,72 @@
+# Project License for Redotian Sun
+
+This repository contains both code and media assets. Different licensing terms apply to each:
+
+1. **Code**: All original code in this repository is licensed under the MIT License.
+2. **Media Assets**: Media assets created for this project (excluding assets from *Command & Conquer: Tiberian Sun*) are licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0).
+3. **Original *Tiberian Sun* Assets**: This repository does not include any original assets from *Command & Conquer: Tiberian Sun*. Users may need to extract these assets from their own legally acquired copy of the game for full functionality. 
+
+---
+
+## MIT License for Code
+
+The code in this repository is licensed under the MIT License:
+
+MIT License
+
+Copyright (c) 2024 Zawaro
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## CC BY-NC License for Media Assets
+
+The custom media assets in this repository, including but not limited to models, textures, images, audio files, and video, are licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0).
+
+**You are free to:**
+- **Share** — copy and redistribute the material in any medium or format.
+- **Adapt** — remix, transform, and build upon the material.
+
+**Under the following terms:**
+- **Attribution** — You must give appropriate credit, provide a link to the license, and indicate if changes were made.
+- **NonCommercial** — You may not use the material for commercial purposes.
+
+**For more details, see** [https://creativecommons.org/licenses/by-nc/4.0/](https://creativecommons.org/licenses/by-nc/4.0/).
+
+---
+
+## Disclaimer Regarding *Command & Conquer: Tiberian Sun* Assets
+
+This project includes derivative works created to resemble assets from *Command & Conquer: Tiberian Sun*, which is the intellectual property of Westwood Studios and Electronic Arts (EA). 
+
+**No original assets from *Command & Conquer: Tiberian Sun* are distributed in this repository.** For certain game features, users will need to extract original assets from their legally obtained copy of *Command & Conquer: Tiberian Sun*. 
+
+**Copyright Notice:**
+*Command & Conquer: Tiberian Sun* © 1999 Westwood Studios and Electronic Arts (EA). All rights reserved. This project is a fan-made homage and is not affiliated with, endorsed by, or sponsored by Westwood Studios, EA, or any of their affiliates.
+
+---
+
+## Summary
+
+- **Code** is under the MIT License.
+- **Custom media assets** are under CC BY-NC 4.0.
+- **Original *Tiberian Sun* assets** are not distributed here and must be extracted by the user.
+
+By using this repository, you agree to comply with the terms and conditions of each license.
