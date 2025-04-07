@@ -1,0 +1,107 @@
+[gd_scene load_steps=3 format=3 uid="uid://bqgqoidrni3ed"]
+
+[ext_resource type="Texture2D" uid="uid://dmciog08645ax" path="res://assets/ui/tsmenu2k.png" id="1_2jylt"]
+[ext_resource type="PackedScene" uid="uid://dhest216bogc2" path="res://ui/main_menu_item01.tscn" id="2_0k7i3"]
+
+[node name="MainMenu01" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TextureRect" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_2jylt")
+expand_mode = 2
+stretch_mode = 6
+
+[node name="Exit" parent="." instance=ExtResource("2_0k7i3")]
+position = Vector2(340, 992)
+scale = Vector2(1.4, 1.4)
+text = "Exit"
+
+[node name="Credits" parent="." instance=ExtResource("2_0k7i3")]
+position = Vector2(1477, 77)
+scale = Vector2(1.4, 1.4)
+text = "Credits"
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_constants/separation = 85
+alignment = 1
+
+[node name="Control" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="NewCampaign" parent="MarginContainer/HBoxContainer/VBoxContainer/Control" instance=ExtResource("2_0k7i3")]
+scale = Vector2(1.4, 1.4)
+text = "New Campaign"
+
+[node name="Control2" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="LoadMission" parent="MarginContainer/HBoxContainer/VBoxContainer/Control2" instance=ExtResource("2_0k7i3")]
+position = Vector2(0, -4)
+scale = Vector2(1.4, 1.4)
+text = "Load Mission"
+
+[node name="Control3" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Lan" parent="MarginContainer/HBoxContainer/VBoxContainer/Control3" instance=ExtResource("2_0k7i3")]
+position = Vector2(0, -8)
+scale = Vector2(1.4, 1.4)
+text = "Lan"
+is_disabled = true
+
+[node name="Control4" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Internet" parent="MarginContainer/HBoxContainer/VBoxContainer/Control4" instance=ExtResource("2_0k7i3")]
+position = Vector2(0, -12)
+scale = Vector2(1.4, 1.4)
+text = "Internet"
+
+[node name="Control5" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Skirmish" parent="MarginContainer/HBoxContainer/VBoxContainer/Control5" instance=ExtResource("2_0k7i3")]
+position = Vector2(0, -12)
+scale = Vector2(1.4, 1.4)
+text = "Skirmish"
+
+[node name="Control6" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Options" parent="MarginContainer/HBoxContainer/VBoxContainer/Control6" instance=ExtResource("2_0k7i3")]
+position = Vector2(0, -12)
+scale = Vector2(1.4, 1.4)
+text = "Options"
