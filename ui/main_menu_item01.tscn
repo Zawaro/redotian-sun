@@ -1,0 +1,149 @@
+[gd_scene load_steps=13 format=3 uid="uid://dhest216bogc2"]
+
+[ext_resource type="Script" path="res://ui/main_menu_item01.gd" id="1_7stqp"]
+[ext_resource type="FontFile" uid="uid://bnmsxmohilbv4" path="res://assets/fonts/Poppins/Poppins-SemiBold.ttf" id="2_hxt0y"]
+[ext_resource type="Shader" path="res://ui/main_menu_item01_blur.gdshader" id="2_nu6c1"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jjmnf"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_0mr61"]
+font = ExtResource("2_hxt0y")
+font_size = 32
+font_color = Color(0.117647, 0.34902, 0.380392, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3v1ae"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_y4txo"]
+font = ExtResource("2_hxt0y")
+font_size = 32
+font_color = Color(0, 0, 0, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cln0v"]
+shader = ExtResource("2_nu6c1")
+shader_parameter/blur_strength = 20.0
+shader_parameter/blur_boost = 8.213
+shader_parameter/tint_color = Color(0.2108, 0.62526, 0.68, 0.439216)
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_thrrj"]
+viewport_path = NodePath("TextGlowSubViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dgb6g"]
+shader = ExtResource("2_nu6c1")
+shader_parameter/blur_strength = 6.499
+shader_parameter/blur_boost = 2.5
+shader_parameter/tint_color = Color(1, 1, 1, 1)
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_t8kb3"]
+viewport_path = NodePath("TextFogSubViewport")
+
+[sub_resource type="LabelSettings" id="LabelSettings_kemg6"]
+font = ExtResource("2_hxt0y")
+font_size = 32
+outline_size = 1
+outline_color = Color(0, 0, 0, 0.32549)
+shadow_size = 6
+shadow_color = Color(0, 0, 0, 1)
+shadow_offset = Vector2(0, 2)
+
+[node name="MainMenuItem" type="Node2D"]
+script = ExtResource("1_7stqp")
+text = "Start Game"
+
+[node name="TextGlowSubViewport" type="SubViewport" parent="."]
+transparent_bg = true
+size = Vector2i(512, 64)
+render_target_update_mode = 1
+
+[node name="TextGlow" type="Label" parent="TextGlowSubViewport"]
+material = SubResource("ShaderMaterial_jjmnf")
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -93.0
+offset_top = -23.0
+offset_right = 93.0
+offset_bottom = 23.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+text = "Start Game"
+label_settings = SubResource("LabelSettings_0mr61")
+horizontal_alignment = 1
+
+[node name="TextFogSubViewport" type="SubViewport" parent="."]
+transparent_bg = true
+size = Vector2i(512, 64)
+render_target_update_mode = 1
+
+[node name="TextFog" type="Label" parent="TextFogSubViewport"]
+material = SubResource("ShaderMaterial_3v1ae")
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -93.0
+offset_top = -23.0
+offset_right = 93.0
+offset_bottom = 23.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+text = "Start Game"
+label_settings = SubResource("LabelSettings_y4txo")
+horizontal_alignment = 1
+
+[node name="TextGlowTextureRect" type="TextureRect" parent="."]
+material = SubResource("ShaderMaterial_cln0v")
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -128.0
+offset_top = -32.0
+offset_right = 128.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = SubResource("ViewportTexture_thrrj")
+
+[node name="TextFogTextureRect" type="TextureRect" parent="."]
+material = SubResource("ShaderMaterial_dgb6g")
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -128.0
+offset_top = -32.0
+offset_right = 128.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = SubResource("ViewportTexture_t8kb3")
+
+[node name="Text" type="Label" parent="."]
+modulate = Color(0.164706, 0.905882, 0.992157, 1)
+material = SubResource("ShaderMaterial_jjmnf")
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -93.0
+offset_top = -23.0
+offset_right = 93.0
+offset_bottom = 23.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+text = "Start Game"
+label_settings = SubResource("LabelSettings_kemg6")
+horizontal_alignment = 1
