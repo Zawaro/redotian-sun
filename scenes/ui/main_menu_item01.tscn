@@ -1,8 +1,8 @@
 [gd_scene load_steps=13 format=3 uid="uid://dhest216bogc2"]
 
-[ext_resource type="Script" path="res://ui/main_menu_item01.gd" id="1_7stqp"]
+[ext_resource type="Script" uid="uid://cv8k8i4ikwufg" path="res://scripts/ui/main_menu_item01.gd" id="1_7stqp"]
 [ext_resource type="FontFile" uid="uid://bnmsxmohilbv4" path="res://assets/fonts/Poppins/Poppins-SemiBold.ttf" id="2_hxt0y"]
-[ext_resource type="Shader" path="res://ui/main_menu_item01_blur.gdshader" id="2_nu6c1"]
+[ext_resource type="Shader" uid="uid://cqti6t7bptwc3" path="res://shaders/ui/main_menu_item01_blur.gdshader" id="2_nu6c1"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_jjmnf"]
 
@@ -130,7 +130,7 @@ size_flags_vertical = 4
 texture = SubResource("ViewportTexture_t8kb3")
 
 [node name="Text" type="Label" parent="."]
-modulate = Color(0.164706, 0.905882, 0.992157, 1)
+modulate = Color(0.16470589, 0.90588236, 0.99215686, 1)
 material = SubResource("ShaderMaterial_jjmnf")
 anchors_preset = 8
 anchor_left = 0.5
