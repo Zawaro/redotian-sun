@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://lyypxbj55k8q"]
+
+[node name="LightPivot" type="Node3D"]
+transform = Transform3D(0.997564, -0.0414927, -0.0560742, 0, 0.803857, -0.594823, 0.0697565, 0.593374, 0.801899, 0, 0, 0)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 100, 0)
+light_angular_distance = 1.1
+shadow_enabled = true
+shadow_bias = 0.12
+shadow_opacity = 0.9
+shadow_blur = 0.9
+directional_shadow_split_1 = 0.08
+directional_shadow_split_2 = 0.1
+
