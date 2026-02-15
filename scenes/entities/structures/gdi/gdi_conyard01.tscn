@@ -1,0 +1,5 @@
+[gd_scene load_steps=2 format=3 uid="uid://den71k232h2cy"]
+
+[ext_resource type="PackedScene" uid="uid://cb368bn118ky" path="res://assets/models/gdi_conyard01.glb" id="1_vt8ly"]
+
+[node name="gdi_conyard01" instance=ExtResource("1_vt8ly")]
