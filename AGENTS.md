@@ -32,12 +32,12 @@ Redotian Sun is an unofficial fan remake of *Command & Conquer: Tiberian Sun*,
 
 ## Redot Documentation
 
-- **Redot Engine Overview** – https://docs.redotengine.org/en/stable/ 
-- **Shader Language Reference** – https://docs.redotengine.org/en/stable/tutorials/shaders/overview.html
-- **Rendering and Shading** – https://docs.redotengine.org/en/stable/tutorials/shaders/rendering.html
-- **2D Systems** – https://docs.redotengine.org/en/stable/tutorials/2d/index.html
-- **GDScript Basics** – https://docs.redotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html
-- **3D Systems** – https://docs.redotengine.org/en/stable/tutorials/3d/index.html
+- **Redot Engine Overview** – https://docs.redotengine.org/
+- **Shader Language Reference** – https://docs.redotengine.org/tutorials/shaders/
+- **Rendering and Shading** – https://docs.redotengine.org/tutorials/shaders/
+- **2D Systems** – https://docs.redotengine.org/tutorials/2d/
+- **GDScript Basics** – https://docs.redotengine.org/tutorials/scripting/gdscript/
+- **3D Systems** – https://docs.redotengine.org/lts-26.1/tutorials/3d/index.html
 
 Feel free to add or remove agents as needed.
 
