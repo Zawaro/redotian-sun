@@ -27,7 +27,7 @@ This project is **not affiliated with or endorsed by EA**.
 
 ## Links
 
-- [Redot Engine GitHub Repository](https://github.com/Redot-Engine/redot-engine)
+- [Redot Engine GitHub Repository](https://github.com/Redot-Engine/redot-engine) - Documentation: https://docs.redotengine.org/
 - [EA Command & Conquer Modding FAQ](https://www.ea.com/games/command-and-conquer/modding-faq)
 - [Creative Commons BY-NC 4.0 License](https://creativecommons.org/licenses/by-nc/4.0/)
 - [MIT License](https://opensource.org/licenses/MIT)
