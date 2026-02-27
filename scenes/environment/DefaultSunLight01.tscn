@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://lyypxbj55k8q"]
+[gd_scene load_steps=0 format=3 uid="uid://lyypxbj55k8q"]
 
 [node name="LightPivot" type="Node3D"]
 transform = Transform3D(0.997564, -0.0414927, -0.0560742, 0, 0.803857, -0.594823, 0.0697565, 0.593374, 0.801899, 0, 0, 0)

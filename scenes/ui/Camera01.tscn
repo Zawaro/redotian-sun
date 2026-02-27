@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://b53rjho7dyptw"]
 
-[ext_resource type="Script" uid="uid://c7r05pxaa1shs" path="res://scripts/ui/camera01_pivot.gd" id="1_xqebq"]
-[ext_resource type="Script" uid="uid://cd8l5705n7hog" path="res://scripts/ui/camera01.gd" id="2_u1hoy"]
+[ext_resource type="Script" uid="uid://u4oh4cqqwvqd" path="res://scripts/ui/CameraPivot01.gd" id="1_xqebq"]
+[ext_resource type="Script" path="res://scripts/ui/Camera01.gd" id="2_u1hoy"]
 
 [node name="CameraPivot" type="Node3D"]
 transform = Transform3D(0.707107, 0.612372, 0.353553, 0, 0.5, -0.866025, -0.707107, 0.612372, 0.353553, 0, 0, 0)
