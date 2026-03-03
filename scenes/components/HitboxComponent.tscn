@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://clfyqn8olrw56"]
+
+[ext_resource type="Script" uid="uid://bbmp5kwcoo1s2" path="res://scripts/components/HitboxComponent.gd" id="1_w7o76"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_nystl"]
+size = Vector3(6, 3, 6)
+
+[node name="HitboxComponent" type="Area3D"]
+script = ExtResource("1_w7o76")
+
+[node name="CollisionObject3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("BoxShape3D_nystl")

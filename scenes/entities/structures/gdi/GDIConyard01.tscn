@@ -1,5 +1,33 @@
-[gd_scene load_steps=2 format=3 uid="uid://den71k232h2cy"]
+[gd_scene load_steps=6 format=3 uid="uid://dsflj6w0e68dx"]
 
 [ext_resource type="PackedScene" uid="uid://cb368bn118ky" path="res://assets/models/gdi_conyard01.glb" id="1_vt8ly"]
+[ext_resource type="PackedScene" uid="uid://dxwdv0jilr7ln" path="res://scenes/components/SelectComponent.tscn" id="2_jar2m"]
+[ext_resource type="PackedScene" uid="uid://ckdl6l7cp8lxg" path="res://scenes/components/HealthComponent.tscn" id="3_3aw02"]
+[ext_resource type="PackedScene" uid="uid://clfyqn8olrw56" path="res://scenes/components/HitboxComponent.tscn" id="4_gqjhy"]
+[ext_resource type="Material" uid="uid://qy7uudkw26gq" path="res://assets/resources/materials/DefaultMaterial01.tres" id="5_3aw02"]
 
 [node name="gdi_conyard01" instance=ExtResource("1_vt8ly")]
+
+[node name="TS_Fact_Crane_001" parent="." index="0"]
+surface_material_override/0 = ExtResource("5_3aw02")
+
+[node name="TS_Fact_Crane_Attach_001" parent="." index="1"]
+surface_material_override/0 = ExtResource("5_3aw02")
+
+[node name="TS_Fact_Crane_Cables_001" parent="." index="2"]
+surface_material_override/0 = ExtResource("5_3aw02")
+
+[node name="TS_Fact_Main_001" parent="." index="3"]
+surface_material_override/0 = ExtResource("5_3aw02")
+
+[node name="HealthComponent" parent="." index="4" instance=ExtResource("3_3aw02")]
+
+[node name="HitboxComponent" parent="." index="5" node_paths=PackedStringArray("health_component") instance=ExtResource("4_gqjhy")]
+health_component = NodePath("../HealthComponent")
+size = Vector3(6, 3, 6)
+
+[node name="SelectComponent" parent="." index="6" node_paths=PackedStringArray("health_component", "hit_box_component") instance=ExtResource("2_jar2m")]
+health_component = NodePath("../HealthComponent")
+hit_box_component = NodePath("../HitboxComponent")
+select_box_type = 2
+is_selected = true

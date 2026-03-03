@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3 uid="uid://clfyqn8olrw57"]
+
+[node name="BoxShape3D" type="BoxShape3D"]
+size = {1, 1, 1}

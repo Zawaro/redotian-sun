@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dxwdv0jilr7ln"]
+
+[ext_resource type="Script" uid="uid://b3tkpeq66r7id" path="res://scripts/components/SelectComponent.gd" id="1_cdwed"]
+
+[node name="SelectComponent" type="Node3D"]
+collision_layer = 1
+script = ExtResource("1_cdwed")
