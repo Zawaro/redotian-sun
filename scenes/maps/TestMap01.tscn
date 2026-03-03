@@ -1,0 +1,23 @@
+[gd_scene load_steps=5 format=3 uid="uid://bg11u8n6a0w53"]
+
+[ext_resource type="PackedScene" uid="uid://ce077cqvy5f6p" path="res://scenes/maps/MapBase01.tscn" id="1_gkgsa"]
+[ext_resource type="PackedScene" uid="uid://dsflj6w0e68dx" path="res://scenes/entities/structures/gdi/GDIConyard01.tscn" id="2_h8fgv"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_gkgsa"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_h8fgv"]
+size = Vector3(2, 1, 2)
+
+[node name="MapBase01" instance=ExtResource("1_gkgsa")]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." index="4"]
+transform = Transform3D(9.435, 0, 0, 0, 1, 0, 0, 0, 9.435, 0, 0, 0)
+mesh = SubResource("PlaneMesh_gkgsa")
+
+[node name="Area3D" type="Area3D" parent="MeshInstance3D" index="0"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="MeshInstance3D/Area3D" index="0"]
+transform = Transform3D(0.9999998, 0, 0, 0, 1, 0, 0, 0, 0.9999998, 0, 0, 0)
+shape = SubResource("BoxShape3D_h8fgv")
+
+[node name="gdi_conyard01" parent="." index="5" instance=ExtResource("2_h8fgv")]
