@@ -1,47 +1,38 @@
 extends Node3D
 class_name MouseHandler
 
-@export var camera_pivot: CameraPivot
+@export var camera_controller: CameraController
 @export var raycast_distance: float = 500.0
 @export var selection_manager: SelectionManager
 
-var viewport_rect: Rect2i
-
 func _ready():
-    if has_node("../SelectionManager"):
-        selection_manager = get_node("../SelectionManager") as SelectionManager
+    if selection_manager:
         print("✅ SelectionManager found!")
     else:
         push_error("❌ SelectionManager not found — please add it as a sibling")
-    
-    viewport_rect = get_viewport().get_visible_rect()
-
-func _process(_delta):
-    var mouse_pos = get_viewport().get_mouse_position()
-    handle_hover_preview(mouse_pos)
 
 func _input(event: InputEvent):
-    if event is InputEventMouseButton:
-        handle_mouse_button(event)
+    if event is InputEventMouseMotion:
+        var mouse_pos = get_viewport().get_mouse_position()
+        handle_hover_preview(mouse_pos)
+
+func _process(_delta):
+    handle_input_actions()
+
+func handle_input_actions():
+    if Input.is_action_just_pressed("select_entity"):
+        var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+        var mouse_pos = get_viewport().get_mouse_position()
+        handle_single_click(mouse_pos, shift_pressed)
+    
+    elif Input.is_action_just_pressed("deselect_entity"):
+        assert(selection_manager, "SelectionManager is not set")
+        selection_manager.deselect_all()
 
 func get_camera_3d() -> Camera3D:
-    if camera_pivot and camera_pivot.has_node("Camera3D"):
-        return camera_pivot.get_node("Camera3D") as Camera3D
+    if camera_controller and camera_controller.has_node("Camera3D"):
+        return camera_controller.get_node("Camera3D") as Camera3D
     return null
-
-func handle_mouse_button(event: InputEventMouseButton):
-    var mouse_pos = get_viewport().get_mouse_position()
-    
-    match event.button_index:
-        MOUSE_BUTTON_LEFT:
-            if event.pressed:
-                # Left click = select unit at position
-                var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
-                handle_single_click(mouse_pos, shift_pressed)
-        
-        MOUSE_BUTTON_RIGHT:
-            if event.pressed and not event.shift_pressed:
-                selection_manager.deselect_all()
 
 func handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
     var camera = get_camera_3d()
@@ -50,7 +41,7 @@ func handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
     
     var from = camera.project_ray_origin(mouse_pos)
     var dir = -camera.global_transform.basis.z.normalized()
-    var to = from + dir * 5000.0
+    var to = from + dir * raycast_distance
     
     var space_state = get_world_3d().direct_space_state
     var query = PhysicsRayQueryParameters3D.create(from, to)
@@ -58,10 +49,11 @@ func handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
     query.collide_with_areas = true
     
     var result = space_state.intersect_ray(query)
-    
+
     if result and result.collider:
         var select_comp = _find_select_component(result.collider)
         if select_comp:
+            assert(selection_manager, "SelectionManager is not set")
             selection_manager.select_unit(select_comp, shift_pressed)
 
 func handle_hover_preview(mouse_pos: Vector2):
@@ -71,7 +63,7 @@ func handle_hover_preview(mouse_pos: Vector2):
     
     var from = camera.project_ray_origin(mouse_pos)
     var dir = -camera.global_transform.basis.z.normalized()
-    var to = from + dir * 5000.0
+    var to = from + dir * raycast_distance
     
     var space_state = get_world_3d().direct_space_state
     var query = PhysicsRayQueryParameters3D.create(from, to)

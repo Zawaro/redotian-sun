@@ -10,7 +10,8 @@ var is_hovering: bool = false
 var hovered_entity: SelectComponent = null
 
 func _ready():
-    print("✅ SelectionManager loaded successfully!")
+    if not Engine.is_editor_hint():
+        print("✅ SelectionManager loaded successfully!")
 
 func select_unit(unit: SelectComponent, shift_pressed: bool = false):
     if not unit:
