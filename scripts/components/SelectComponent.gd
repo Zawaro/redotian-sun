@@ -1,13 +1,13 @@
-extends Node3D
-class_name SelectComponent
+@tool
+class_name SelectComponent extends Area3D
 
 @export var health_component: HealthComponent
-@export var hit_box_component: HitboxComponent
 @export var is_selectable: bool = true
-@export_enum("Infantry", "Vehicle", "Structure") var select_box_type: int = 0
 @export var is_selected: bool = false
-
-@onready var hitbox_collision_shape: CollisionShape3D = hit_box_component.get_node("CollisionObject3D")
+@export var is_hovering: bool = false
+@export_enum("Infantry", "Vehicle", "Structure") var select_box_type: int = 0
+@export var selection_size: Vector3 = Vector3(2.0, 2.0, 2.0)
+@export var outline_size: Vector3 = Vector3(2.0, 2.0, 2.0)
 
 enum SelectBoxType {
     Infantry,
@@ -19,22 +19,41 @@ enum SelectBoxType {
 const HEALTH_BAR_CUBE_SIZE = 0.33333333
 var health_bar: MeshInstance3D
 
-func _ready():    
+func _update_selection_shape():
+    $SelectionHitbox.shape.size = selection_size
+    $SelectionHitbox.position = Vector3(0, selection_size.y / 2.0, 0)
+    
+func _update_outline_shape():
+    $SelectOutline.shape.size = outline_size
+    $SelectOutline.position = Vector3(0, outline_size.y / 2.0, 0)
+
+func _ready():
+    _update_selection_shape()
+    _update_outline_shape()
+
+    if health_component:
+        health_component.health_changed.connect(_on_health_changed)
+        update_health_bar()
+
+    var select_outline_shape = $SelectOutline.shape
+    
     match select_box_type:
         SelectBoxType.Infantry:
             # Create a small 2D select box for infantry
             var infantry_select_box = MeshInstance3D.new()
+            infantry_select_box.name = "InfantrySelectBox"
             infantry_select_box.mesh = QuadMesh.new()
             infantry_select_box.scale = Vector3(0.5, 0.5, 0.5)
             add_child(infantry_select_box)
         SelectBoxType.Vehicle:
             # Create a large 2D select box for vehicles
             var vehicle_select_box = MeshInstance3D.new()
+            vehicle_select_box.name = "VehicleSelectBox"
             vehicle_select_box.mesh = QuadMesh.new()
             vehicle_select_box.scale = Vector3(1.0, 1.0, 1.0)
             add_child(vehicle_select_box)
         SelectBoxType.Structure:
-            var hit_box_size = hitbox_collision_shape.shape.size
+            var hit_box_size = select_outline_shape.size
             var min_x: float = hit_box_size.x / - 2
             var max_x: float = hit_box_size.x / 2
             var min_y: float = 0.01
@@ -53,6 +72,7 @@ func _ready():
             # Create a 3D select box for buildings
             var building_select_box = MeshInstance3D.new()
             var immediate_mesh = ImmediateMesh.new()
+            building_select_box.name = "BuildingSelectBox"
             building_select_box.mesh = immediate_mesh
             building_select_box.cast_shadow = false
             
@@ -147,23 +167,28 @@ func _ready():
                 health_bar_grid_mesh.surface_end()
 
             add_child(health_bar_grid)
+    
+    _update_visibility()
 
-func _process(_delta):
-    for child in get_children():
-        child.visible = is_selected
+func update_health_bar():
+    print(health_bar)
+    if not health_bar:
+        return
+        
+    var select_outline_shape = $SelectOutline.shape
+    var hit_box_size = select_outline_shape.size
+    var min_z: float = hit_box_size.z / - 2
+    var max_z: float = hit_box_size.z / 2
+    var health_value = float(health_component.current_health) / float(health_component.max_health)
+    var health_bar_length = (max_z - min_z) * health_value
+    var health_bar_z_pos = -((max_z - min_z) - health_bar_length) / 2
+    health_bar.position = Vector3(health_bar.position.x, health_bar.position.y, health_bar_z_pos)
+    health_bar.scale = Vector3(health_bar.scale.x, health_bar.scale.y, health_bar_length)
+    var health_bar_material = health_bar.material_override
+    health_bar_material.albedo_color = get_health_color(health_value)
 
-    if health_bar and hit_box_component and hit_box_component.get_child(0):
-        var hit_box_collision_shape = hit_box_component.get_child(0)
-        var hit_box_size = hit_box_collision_shape.shape.size
-        var min_z: float = hit_box_size.z / - 2
-        var max_z: float = hit_box_size.z / 2
-        var health_value = float(health_component.current_health) / float(health_component.max_health)
-        var health_bar_length = (max_z - min_z) * health_value
-        var health_bar_z_pos = -((max_z - min_z) - health_bar_length) / 2
-        health_bar.position = Vector3(health_bar.position.x, health_bar.position.y, health_bar_z_pos)
-        health_bar.scale = Vector3(health_bar.scale.x, health_bar.scale.y, health_bar_length)
-        var health_bar_material = health_bar.material_override
-        health_bar_material.albedo_color = get_health_color(health_value)
+func _on_health_changed() -> void:
+    update_health_bar()
 
 func get_health_color(health_value: float) -> Color:
     if health_value > 0.5:
@@ -174,30 +199,20 @@ func get_health_color(health_value: float) -> Color:
         return Color.RED
     else:
         return Color.GREEN
-
-func set_is_selected(value: bool) -> void:
-    is_selected = value
-    for child in get_children():
-        child.visible = is_selected
         
+func set_is_hovering(value: bool):
+    is_hovering = value
+    if is_selected == false:
+        health_bar.visible = value
+
+func set_is_selected(value: bool):
+    is_selected = value
+    _update_visibility()
+
 func _on_deselected():
     is_selected = false
+    _update_visibility()
+    
+func _update_visibility():
     for child in get_children():
         child.visible = is_selected
-
-static func find_select_component(collider):
-    var current = collider
-    while current:
-        if current.has_method("set_is_selected"):
-            return current
-        if current.has_class("SelectComponent"):
-            return current
-        
-        for child in current.get_children():
-            var found = find_select_component(child)
-            if found:
-                return found
-        
-        current = current.get_parent()
-    return null
-    

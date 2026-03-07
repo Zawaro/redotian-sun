@@ -1,7 +1,25 @@
-[gd_scene load_steps=2 format=3 uid="uid://dxwdv0jilr7ln"]
+[gd_scene load_steps=4 format=3 uid="uid://dxwdv0jilr7ln"]
 
 [ext_resource type="Script" uid="uid://b3tkpeq66r7id" path="res://scripts/components/SelectComponent.gd" id="1_cdwed"]
 
-[node name="SelectComponent" type="Node3D"]
-collision_layer = 1
+[sub_resource type="BoxShape3D" id="BoxShape3D_cdwed"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_dg4h1"]
+size = Vector3(2, 2, 2)
+
+[node name="SelectComponent" type="Area3D"]
+collision_layer = 32768
+collision_mask = 32768
 script = ExtResource("1_cdwed")
+
+[node name="SelectionHitbox" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+visible = false
+shape = SubResource("BoxShape3D_cdwed")
+
+[node name="SelectOutline" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+visible = false
+shape = SubResource("BoxShape3D_dg4h1")
+debug_color = Color(0.8508454, 0.37290415, 3.85046e-07, 0.41960785)
