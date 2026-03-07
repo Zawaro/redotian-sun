@@ -1,6 +1,5 @@
 @tool
-extends Node3D
-class_name CameraPivot
+class_name CameraController extends Node3D
 
 @export var camera_size: float = 20
 var fixed_toggle_point = Vector2(0, 0)

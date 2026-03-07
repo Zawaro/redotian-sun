@@ -35,9 +35,10 @@ The camera and selection system forms the foundation of RTS gameplay, enabling p
 scenes/ui/
 ├── CameraRoot.tscn (Node3D)
 │   ├── MainCamera (Camera3D + CameraController.gd)
-│   └── MouseHandler.gd (@tool)
-scenes/core/
-└── SelectionManager.gd (@tool singleton)
+scenes/maps/
+└── MapBase01.tscn (Node3D)
+    └── SelectionManager (Node + SelectionManager.gd @tool)
+    └── MouseHandler.gd (@tool)
 scripts/components/
 └── SelectComponent.gd
 ```
@@ -128,8 +129,8 @@ func select_in_box(box_position: Vector2, box_size: Vector2, shift_pressed: bool
 
 func _project_to_screen(world_pos: Vector3) -> Vector2:
     var viewport = get_viewport()
-    var screen_pos = viewport.get_camera_3d().unproject_position(world_pos)
-    return Vector2(screen_pos.x / screen_pos.w, screen_pos.y / screen_pos.w)
+    var camera = viewport.get_camera_3d()
+    return camera.project_position(world_pos)
 
 func is_point_in_box(point: Vector2, box_pos: Vector2, box_size: Vector2) -> bool:
     var min_x = min(box_pos.x, box_pos.x + box_size.x)
