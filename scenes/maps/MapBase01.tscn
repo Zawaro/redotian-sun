@@ -12,11 +12,12 @@
 [node name="SelectionManager" type="Node" parent="."]
 script = ExtResource("1_drtgo")
 
-[node name="MouseHandler" type="Node3D" parent="." node_paths=PackedStringArray("camera_pivot")]
+[node name="MouseHandler" type="Node3D" parent="." node_paths=PackedStringArray("camera_pivot", "selection_manager")]
 script = ExtResource("6_4u5nk")
-camera_pivot = NodePath("../CameraPivot")
+camera_pivot = NodePath("../Camera")
+selection_manager = NodePath("../SelectionManager")
 
-[node name="CameraPivot" parent="." instance=ExtResource("1_uw0ss")]
+[node name="Camera" parent="." instance=ExtResource("1_uw0ss")]
 
 [node name="FpsCounter" parent="." instance=ExtResource("2_drtgo")]
 

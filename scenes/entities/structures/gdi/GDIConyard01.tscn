@@ -26,8 +26,8 @@ surface_material_override/0 = ExtResource("5_3aw02")
 health_component = NodePath("../HealthComponent")
 size = Vector3(6, 3, 6)
 
-[node name="SelectComponent" parent="." index="6" node_paths=PackedStringArray("health_component", "hit_box_component") instance=ExtResource("2_jar2m")]
+[node name="SelectComponent" parent="." index="6" node_paths=PackedStringArray("health_component") instance=ExtResource("2_jar2m")]
 health_component = NodePath("../HealthComponent")
-hit_box_component = NodePath("../HitboxComponent")
 select_box_type = 2
-is_selected = true
+selection_size = Vector3(6, 2, 6)
+outline_size = Vector3(6, 2, 6)
