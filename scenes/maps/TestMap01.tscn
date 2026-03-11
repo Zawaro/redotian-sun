@@ -21,3 +21,7 @@ transform = Transform3D(0.9999998, 0, 0, 0, 1, 0, 0, 0, 0.9999998, 0, 0, 0)
 shape = SubResource("BoxShape3D_h8fgv")
 
 [node name="gdi_conyard01" parent="." index="5" instance=ExtResource("2_h8fgv")]
+
+[node name="BoundsSystem" parent="." index="8"]
+map_size = Vector2(48, 64)
+visible_bounds_size = Vector2(44, 56)

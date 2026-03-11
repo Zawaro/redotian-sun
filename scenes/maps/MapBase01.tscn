@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://ce077cqvy5f6p"]
+[gd_scene load_steps=8 format=3 uid="uid://ce077cqvy5f6p"]
 
 [ext_resource type="Script" uid="uid://3rhaj8dqrwil" path="res://scripts/core/SelectionManager.gd" id="1_drtgo"]
 [ext_resource type="PackedScene" uid="uid://b53rjho7dyptw" path="res://scenes/ui/Camera01.tscn" id="1_uw0ss"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/environment/DefaultSunLight01.tscn" id="3_4u5nk"]
 [ext_resource type="PackedScene" uid="uid://6bkboqg3gg1r" path="res://scenes/environment/DefaultWorldEnvironment01.tscn" id="4_cuur3"]
 [ext_resource type="Script" uid="uid://ql1ql31or6ui" path="res://scripts/ui/MouseHandler.gd" id="6_4u5nk"]
+[ext_resource type="PackedScene" uid="uid://cc6aa27pj3dbs" path="res://scenes/core/BoundsSystem.tscn" id="7_cuur3"]
 
 [node name="MapBase01" type="Node3D"]
 
@@ -17,10 +18,15 @@ script = ExtResource("6_4u5nk")
 camera_controller = NodePath("../Camera")
 selection_manager = NodePath("../SelectionManager")
 
-[node name="Camera" parent="." instance=ExtResource("1_uw0ss")]
+[node name="Camera" parent="." node_paths=PackedStringArray("bounds_system") instance=ExtResource("1_uw0ss")]
+bounds_system = NodePath("../BoundsSystem")
 
 [node name="FpsCounter" parent="." instance=ExtResource("2_drtgo")]
 
 [node name="LightPivot" parent="." instance=ExtResource("3_4u5nk")]
 
 [node name="WorldEnvironment" parent="." instance=ExtResource("4_cuur3")]
+
+[node name="BoundsSystem" parent="." instance=ExtResource("7_cuur3")]
+map_size = Vector2(512, 512)
+visible_bounds_size = Vector2(512, 512)
