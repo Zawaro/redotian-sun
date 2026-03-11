@@ -29,5 +29,5 @@ size = Vector3(6, 3, 6)
 [node name="SelectComponent" parent="." index="6" node_paths=PackedStringArray("health_component") instance=ExtResource("2_jar2m")]
 health_component = NodePath("../HealthComponent")
 select_box_type = 2
-selection_size = Vector3(6, 2, 6)
+selection_size = Vector2(6, 6)
 outline_size = Vector3(6, 2, 6)
