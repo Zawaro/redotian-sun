@@ -6,7 +6,7 @@
 size = Vector3(2, 0.01, 2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_dg4h1"]
-size = Vector3(2, 2, 2)
+size = Vector3(6, 2, 6)
 
 [node name="SelectComponent" type="Area3D"]
 collision_layer = 32768
