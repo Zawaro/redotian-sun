@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://b3tkpeq66r7id" path="res://scripts/components/SelectComponent.gd" id="1_cdwed"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_cdwed"]
-size = Vector3(2, 0.01, 2)
+size = Vector3(6, 0.01, 6)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_dg4h1"]
 size = Vector3(6, 2, 6)
@@ -12,13 +12,14 @@ size = Vector3(6, 2, 6)
 collision_layer = 32768
 collision_mask = 32768
 script = ExtResource("1_cdwed")
-selection_size = Vector3(2, 2, 2)
 
 [node name="SelectionHitbox" type="CollisionShape3D" parent="."]
+visible = false
 shape = SubResource("BoxShape3D_cdwed")
 
 [node name="SelectOutline" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+visible = false
 shape = SubResource("BoxShape3D_dg4h1")
 disabled = true
 debug_color = Color(0.8508454, 0.37290415, 3.85046e-07, 0.41960785)

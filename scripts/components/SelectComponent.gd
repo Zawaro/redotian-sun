@@ -27,6 +27,8 @@ func _update_outline_shape():
     $SelectOutline.position = Vector3(0, outline_size.y / 2.0, 0)
 
 func _ready():
+    if select_box_type != SelectBoxType.Structure:
+        add_to_group("units")
     _update_selection_shape()
     _update_outline_shape()
 
