@@ -27,12 +27,8 @@ func _update_outline_shape():
     $SelectOutline.position = Vector3(0, outline_size.y / 2.0, 0)
 
 func _ready():
-    print(selection_size)
-    print("outline", select_box_type, $SelectOutline.shape.size)
     self._update_selection_shape()
     self._update_outline_shape()
-    print("outline", select_box_type, $SelectOutline.shape.size)
-    print(selection_size)
     
     if select_box_type != SelectBoxType.Structure:
         add_to_group("units")

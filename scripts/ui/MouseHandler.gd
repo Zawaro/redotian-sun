@@ -1,4 +1,4 @@
-extends Node3D
+extends Control
 class_name MouseHandler
 
 @export var camera_controller: CameraController
@@ -31,7 +31,7 @@ func _input(event: InputEvent) -> void:
         selection_rect.size = Vector2.ZERO
     elif event.is_action_released("select_entity"):
         if mouse_dragging and threshold_exceeded:
-            if  selection_rect.size.x >= 0.1 and not shift_pressed:
+            if not shift_pressed:
                 selection_manager.deselect_all()
             if active_rect:
                 _select_entities_2d_projected(active_rect)
@@ -43,14 +43,25 @@ func _input(event: InputEvent) -> void:
     elif event.is_action_released("deselect_entity"):
         assert(selection_manager, "SelectionManager is not set")
         selection_manager.deselect_all()
+        
+    if mouse_dragging and event is InputEventMouseMotion:
+        var m_start := drag_start_position
+        var m_end: Vector2 = event.position
+        var diff = m_end - m_start
+        active_rect = Rect2(m_start, diff).abs()
+        selection_rect.position = active_rect.position
+        selection_rect.size = active_rect.size
+    elif event is InputEventMouseMotion:
+        var mouse_pos = get_viewport().get_mouse_position()
+        _handle_hover_preview(mouse_pos)
 
-func get_camera_3d() -> Camera3D:
+func _get_camera_3d() -> Camera3D:
     if camera_controller and camera_controller.has_node("Camera3D"):
         return camera_controller.get_node("Camera3D") as Camera3D
     return null
 
-func handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
-    var camera = get_camera_3d()
+func _handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
+    var camera = _get_camera_3d()
     if not camera or not camera.is_current():
         return
     
@@ -58,7 +69,7 @@ func handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
     var dir = -camera.global_transform.basis.z.normalized()
     var to = from + dir * raycast_distance
     
-    var space_state = get_world_3d().direct_space_state
+    var space_state = camera.get_world_3d().direct_space_state
     var query = PhysicsRayQueryParameters3D.create(from, to)
     query.collision_mask = 1 << 15
     query.collide_with_areas = true
@@ -71,8 +82,8 @@ func handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
             assert(selection_manager, "SelectionManager is not set")
             selection_manager.select_entity(select_comp, shift_pressed)
 
-func handle_hover_preview(mouse_pos: Vector2):
-    var camera = get_camera_3d()
+func _handle_hover_preview(mouse_pos: Vector2):
+    var camera = _get_camera_3d()
     if not camera:
         return
     
@@ -80,7 +91,7 @@ func handle_hover_preview(mouse_pos: Vector2):
     var dir = -camera.global_transform.basis.z.normalized()
     var to = from + dir * raycast_distance
     
-    var space_state = get_world_3d().direct_space_state
+    var space_state = camera.get_world_3d().direct_space_state
     var query = PhysicsRayQueryParameters3D.create(from, to)
     query.collision_mask = 1 << 15
     query.collide_with_areas = true
