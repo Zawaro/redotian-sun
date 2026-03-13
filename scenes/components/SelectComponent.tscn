@@ -4,7 +4,7 @@
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_cdwed"]
 resource_local_to_scene = true
-size = Vector3(2, 0.01, 2)
+size = Vector3(2, 2, 2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_dg4h1"]
 resource_local_to_scene = true
@@ -17,10 +17,12 @@ script = ExtResource("1_cdwed")
 selection_size = Vector3(2, 2, 2)
 
 [node name="SelectionHitbox" type="CollisionShape3D" parent="."]
+visible = false
 shape = SubResource("BoxShape3D_cdwed")
 
 [node name="SelectOutline" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+visible = false
 shape = SubResource("BoxShape3D_dg4h1")
 disabled = true
 debug_color = Color(0.8508454, 0.37290415, 3.85046e-07, 0.41960785)

@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://c0blgqnig6dyh"]
+
+[ext_resource type="Script" uid="uid://ql1ql31or6ui" path="res://scripts/ui/MouseHandler.gd" id="1_lurs2"]
+
+[node name="MouseHandler" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_lurs2")
+
+[node name="SelectionRect" type="ReferenceRect" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+border_color = Color(1, 1, 1, 1)
+editor_only = false
