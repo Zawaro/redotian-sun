@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://bg11u8n6a0w53"]
+[gd_scene load_steps=7 format=3 uid="uid://bg11u8n6a0w53"]
 
 [ext_resource type="PackedScene" uid="uid://ce077cqvy5f6p" path="res://scenes/maps/MapBase01.tscn" id="1_gkgsa"]
 [ext_resource type="PackedScene" uid="uid://dsflj6w0e68dx" path="res://scenes/entities/structures/gdi/GDIConyard01.tscn" id="2_h8fgv"]
+[ext_resource type="PackedScene" uid="uid://b7wirjdspueke" path="res://scenes/entities/units/nod/NodBuggy.tscn" id="3_vfa0v"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_gkgsa"]
 
@@ -22,6 +23,10 @@ shape = SubResource("BoxShape3D_h8fgv")
 
 [node name="GDIConYard" parent="." index="5" instance=ExtResource("2_h8fgv")]
 
-[node name="BoundsSystem" parent="." index="8"]
+[node name="NodBuggy" parent="." index="7" instance=ExtResource("3_vfa0v")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 7, 0, 0)
+visible = false
+
+[node name="BoundsSystem" parent="." index="9"]
 map_size = Vector2(48, 64)
 visible_bounds_size = Vector2(44, 56)
