@@ -2,20 +2,24 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://lvj1b7l3tbnt"
-path="res://.godot/imported/placeholder_terrain01_Strand_1m x 1m.png-afc91f860ffbe58ae754de0d923416dc.ctex"
+uid="uid://d08qaw808qr0c"
+path.s3tc="res://.godot/imported/placeholder_terrain01_Strand_1m x 1m.png-afc91f860ffbe58ae754de0d923416dc.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "9331c0c744ae873598d6d0af03bc930b"
 }
 
 [deps]
 
 source_file="res://assets/textures/placeholder_terrain01_Strand_1m x 1m.png"
-dest_files=["res://.godot/imported/placeholder_terrain01_Strand_1m x 1m.png-afc91f860ffbe58ae754de0d923416dc.ctex"]
+dest_files=["res://.godot/imported/placeholder_terrain01_Strand_1m x 1m.png-afc91f860ffbe58ae754de0d923416dc.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -23,7 +27,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -37,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
