@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://clfyqn8olrw56" path="res://scenes/components/HitboxComponent.tscn" id="4_gqjhy"]
 [ext_resource type="Material" uid="uid://qy7uudkw26gq" path="res://assets/resources/materials/DefaultMaterial01.tres" id="5_3aw02"]
 
-[node name="gdi_conyard01" instance=ExtResource("1_vt8ly")]
+[node name="GDIConYard" instance=ExtResource("1_vt8ly")]
 
 [node name="TS_Fact_Crane_001" parent="." index="0"]
 surface_material_override/0 = ExtResource("5_3aw02")
@@ -29,5 +29,5 @@ size = Vector3(6, 3, 6)
 [node name="SelectComponent" parent="." index="6" node_paths=PackedStringArray("health_component") instance=ExtResource("2_jar2m")]
 health_component = NodePath("../HealthComponent")
 select_box_type = 2
-selection_size = Vector2(6, 6)
+selection_size = Vector3(6, 0.01, 6)
 outline_size = Vector3(6, 2, 6)

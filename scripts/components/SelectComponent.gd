@@ -6,7 +6,7 @@ class_name SelectComponent extends Area3D
 @export var is_selected: bool = false
 @export var is_hovering: bool = false
 @export_enum("Infantry", "Vehicle", "Structure") var select_box_type: int = 0
-@export var selection_size := Vector2(2.0, 2.0)
+@export var selection_size := Vector3(2.0, 0.01, 2.0)
 @export var outline_size := Vector3(2.0, 2.0, 2.0)
 
 enum SelectBoxType {
@@ -20,15 +20,22 @@ const HEALTH_BAR_CUBE_SIZE = 0.33333333
 var health_bar: MeshInstance3D
 
 func _update_selection_shape():
-    $SelectionHitbox.shape.size = Vector3(selection_size.x, 0.01, selection_size.y)
+    $SelectionHitbox.shape.size = selection_size
     
 func _update_outline_shape():
     $SelectOutline.shape.size = outline_size
     $SelectOutline.position = Vector3(0, outline_size.y / 2.0, 0)
 
 func _ready():
-    _update_selection_shape()
-    _update_outline_shape()
+    print(selection_size)
+    print("outline", select_box_type, $SelectOutline.shape.size)
+    self._update_selection_shape()
+    self._update_outline_shape()
+    print("outline", select_box_type, $SelectOutline.shape.size)
+    print(selection_size)
+    
+    if select_box_type != SelectBoxType.Structure:
+        add_to_group("units")
 
     if health_component:
         health_component.health_changed.connect(_on_health_changed)
