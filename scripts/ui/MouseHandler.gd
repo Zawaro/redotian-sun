@@ -5,27 +5,42 @@ class_name MouseHandler
 @export var raycast_distance: float = 500.0
 @export var selection_manager: SelectionManager
 
+@onready var selection_rect: ReferenceRect = $SelectionRect
+
+var MOUSE_DRAG_THRESHOLD = 0.1
+
+var mouse_dragging := false
+var drag_start_position: Vector2
+var active_rect: Rect2
+
 func _ready():
     if selection_manager:
         print("✅ SelectionManager found!")
     else:
         push_error("❌ SelectionManager not found — please add it as a sibling")
 
-func _input(event: InputEvent):
-    if event is InputEventMouseMotion:
-        var mouse_pos = get_viewport().get_mouse_position()
-        handle_hover_preview(mouse_pos)
-
-func _process(_delta):
-    handle_input_actions()
-
-func handle_input_actions():
-    if Input.is_action_just_pressed("select_entity"):
-        var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
-        var mouse_pos = get_viewport().get_mouse_position()
-        handle_single_click(mouse_pos, shift_pressed)
+func _input(event: InputEvent) -> void:
+    var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+    var threshold_exceeded = selection_rect.size.x >= MOUSE_DRAG_THRESHOLD
     
-    elif Input.is_action_just_pressed("deselect_entity"):
+    if event.is_action_pressed("select_entity"):
+        mouse_dragging = true
+        drag_start_position = event.position
+        selection_rect.show()
+        selection_rect.position = drag_start_position
+        selection_rect.size = Vector2.ZERO
+    elif event.is_action_released("select_entity"):
+        if mouse_dragging and threshold_exceeded:
+            if  selection_rect.size.x >= 0.1 and not shift_pressed:
+                selection_manager.deselect_all()
+            if active_rect:
+                _select_entities_2d_projected(active_rect)
+        else:
+            var mouse_pos = get_viewport().get_mouse_position()
+            _handle_single_click(mouse_pos, shift_pressed)
+        mouse_dragging = false
+        selection_rect.hide()
+    elif event.is_action_released("deselect_entity"):
         assert(selection_manager, "SelectionManager is not set")
         selection_manager.deselect_all()
 
@@ -54,7 +69,7 @@ func handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
         var select_comp = _find_select_component(result.collider)
         if select_comp:
             assert(selection_manager, "SelectionManager is not set")
-            selection_manager.select_unit(select_comp, shift_pressed)
+            selection_manager.select_entity(select_comp, shift_pressed)
 
 func handle_hover_preview(mouse_pos: Vector2):
     var camera = get_camera_3d()
@@ -69,7 +84,7 @@ func handle_hover_preview(mouse_pos: Vector2):
     var query = PhysicsRayQueryParameters3D.create(from, to)
     query.collision_mask = 1 << 15
     query.collide_with_areas = true
-    # query.exclude = [local_player_unit.get_rid()]   # optional: ignore own unit if needed
+    # query.exclude = [local_player_entity.get_rid()]   # optional: ignore own entity if needed
     
     var result = space_state.intersect_ray(query)
     
@@ -80,6 +95,19 @@ func handle_hover_preview(mouse_pos: Vector2):
             return
     
     selection_manager.clear_hover_preview()
+    
+func _select_entities_2d_projected(rect: Rect2) -> void:
+    var all_entities = get_tree().get_nodes_in_group("entities")
+    var camera = _get_camera_3d()
+    for entity in all_entities:
+        if not (entity is SelectComponent):
+            continue
+            
+        var select_component: SelectComponent = entity
+        
+        if rect.has_point(camera.unproject_position(select_component.global_position)):
+            if not selection_manager.is_entity_selected(select_component):
+                selection_manager.add_entity(select_component)
 
 func _find_select_component(node: Node) -> SelectComponent:
     while node:

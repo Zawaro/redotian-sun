@@ -13,8 +13,8 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 ## Phase 1: Core RTS Systems (Priority: Critical)
 
 ### 1.1 Camera & Selection System
-- [ ] Implement RTS-style camera controls (pan, zoom, rotate)
-- [ ] Create box selection and multi-select functionality
+- [x] Implement RTS-style camera controls (pan, zoom, rotate)
+- [x] Create box selection and multi-select functionality
 - [ ] Build unit highlighting UI system
 - [ ] Add smart camera positioning on events
 - [ ] Test with basic unit movement

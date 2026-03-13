@@ -2,10 +2,10 @@
 extends Node
 class_name SelectionManager
 
-signal selection_changed(selected_units: Array[SelectComponent])
+signal selection_changed(selected_entities: Array[SelectComponent])
 signal hover_changed(entity: SelectComponent)
 
-var selected_units: Array[SelectComponent] = []
+var selected_entities: Array[SelectComponent] = []
 var is_hovering: bool = false
 var hovered_entity: SelectComponent = null
 
@@ -13,57 +13,57 @@ func _ready():
     if not Engine.is_editor_hint():
         print("✅ SelectionManager loaded successfully!")
 
-func select_unit(unit: SelectComponent, shift_pressed: bool = false):
-    if not unit:
+func select_entity(entity: SelectComponent, shift_pressed: bool = false):
+    if not entity:
         return
     
     # Shift pressed + already selected: toggle off (deselect)
-    if shift_pressed and unit in selected_units:
-        remove_unit(unit)
+    if shift_pressed and entity in selected_entities:
+        remove_entity(entity)
         return
     
     # Shift pressed + not selected: add to selection (multi-select)
     if shift_pressed:
-        add_unit(unit)
+        add_entity(entity)
     else:
         deselect_all()
-        add_unit(unit)
+        add_entity(entity)
 
-func deselect_unit(unit: SelectComponent):
-    remove_unit(unit)
+func deselect_entity(entity: SelectComponent):
+    remove_entity(entity)
 
 func deselect_all():
-    for unit in selected_units:
-        if unit.has_method("set_is_selected"):
-            unit.set_is_selected(false)
-    selected_units.clear()
+    for entity in selected_entities:
+        if entity.has_method("set_is_selected"):
+            entity.set_is_selected(false)
+    selected_entities.clear()
     emit_signal("selection_changed", [])
 
-func add_unit(unit: SelectComponent):
-    if unit and not selected_units.has(unit):
-        selected_units.append(unit)
+func add_entity(entity: SelectComponent):
+    if entity and not selected_entities.has(entity):
+        selected_entities.append(entity)
         
         # Enable selection visuals via method call
-        if unit.has_method("set_is_selected"):
-            unit.set_is_selected(true)
+        if entity.has_method("set_is_selected"):
+            entity.set_is_selected(true)
             
-        emit_signal("selection_changed", selected_units.duplicate())
+        emit_signal("selection_changed", selected_entities.duplicate())
 
-func remove_unit(unit: SelectComponent):
-    if unit in selected_units:
-        selected_units.erase(unit)
+func remove_entity(entity: SelectComponent):
+    if entity in selected_entities:
+        selected_entities.erase(entity)
         
         # Disable selection visuals via method call
-        if unit.has_method("set_is_selected"):
-            unit.set_is_selected(false)
+        if entity.has_method("set_is_selected"):
+            entity.set_is_selected(false)
             
-        emit_signal("selection_changed", selected_units.duplicate())
+        emit_signal("selection_changed", selected_entities.duplicate())
 
-func toggle_unit(unit: SelectComponent):
-    if unit in selected_units:
-        remove_unit(unit)
+func toggle_entity(entity: SelectComponent):
+    if entity in selected_entities:
+        remove_entity(entity)
     else:
-        add_unit(unit)
+        add_entity(entity)
 
 func set_hover_preview(enabled: bool, entity: SelectComponent = null):
     is_hovering = enabled
@@ -81,8 +81,8 @@ func set_hover_preview(enabled: bool, entity: SelectComponent = null):
 func clear_hover_preview():
     set_hover_preview(false, null)
 
-func is_unit_selected(unit: SelectComponent) -> bool:
-    return selected_units.has(unit)
+func is_entity_selected(entity: SelectComponent) -> bool:
+    return selected_entities.has(entity)
 
-func get_selected_units():
-    return selected_units
+func get_selected_entities():
+    return selected_entities

@@ -3,10 +3,10 @@
 [ext_resource type="Script" uid="uid://bbmp5kwcoo1s2" path="res://scripts/components/HitboxComponent.gd" id="1_w7o76"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_nystl"]
+resource_local_to_scene = true
 size = Vector3(2, 2, 2)
 
 [node name="HitboxComponent" type="Area3D"]
-collision_mask = 32769
 script = ExtResource("1_w7o76")
 
 [node name="CollisionObject3D" type="CollisionShape3D" parent="."]

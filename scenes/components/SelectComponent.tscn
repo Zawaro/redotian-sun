@@ -3,9 +3,11 @@
 [ext_resource type="Script" uid="uid://b3tkpeq66r7id" path="res://scripts/components/SelectComponent.gd" id="1_cdwed"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_cdwed"]
+resource_local_to_scene = true
 size = Vector3(2, 0.01, 2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_dg4h1"]
+resource_local_to_scene = true
 size = Vector3(2, 2, 2)
 
 [node name="SelectComponent" type="Area3D"]
