@@ -9,6 +9,8 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_h8fgv"]
 size = Vector3(2, 1, 2)
 
+[sub_resource type="BoxMesh" id="BoxMesh_vfa0v"]
+
 [node name="MapBase01" instance=ExtResource("1_gkgsa")]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." index="4"]
@@ -30,3 +32,7 @@ visible = false
 [node name="BoundsSystem" parent="." index="9"]
 map_size = Vector2(48, 64)
 visible_bounds_size = Vector2(44, 56)
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." index="10"]
+transform = Transform3D(1, 0, 0, 0, 3, 0, 0, 0, 1, -6, 1.5, 0)
+mesh = SubResource("BoxMesh_vfa0v")
