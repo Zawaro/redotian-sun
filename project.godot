@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="Redotian Sun"
-run/main_scene="res://scenes/ui/main_menu01.tscn"
+run/main_scene="uid://c6s5n02jefgmd"
 config/features=PackedStringArray("26.1", "Forward Plus", "Redot")
 config/icon="res://icon.svg"
+
+[autoload]
+
+SelectionManager="*res://scripts/core/SelectionManager.gd"
 
 [display]
 

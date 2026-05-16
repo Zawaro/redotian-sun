@@ -14,6 +14,7 @@ var drag_start_position: Vector2
 var active_rect: Rect2
 
 func _ready():
+    selection_rect.hide()
     if selection_manager:
         print("✅ SelectionManager found!")
     else:
@@ -39,7 +40,6 @@ func _input(event: InputEvent) -> void:
             var mouse_pos = get_viewport().get_mouse_position()
             _handle_single_click(mouse_pos, shift_pressed)
         mouse_dragging = false
-        selection_rect.hide()
     elif event.is_action_released("deselect_entity"):
         assert(selection_manager, "SelectionManager is not set")
         selection_manager.deselect_all()
@@ -54,6 +54,9 @@ func _input(event: InputEvent) -> void:
     elif event is InputEventMouseMotion:
         var mouse_pos = get_viewport().get_mouse_position()
         _handle_hover_preview(mouse_pos)
+        
+    if not mouse_dragging:
+        selection_rect.hide()
 
 func _get_camera_3d() -> Camera3D:
     if camera_controller and camera_controller.has_node("Camera3D"):
