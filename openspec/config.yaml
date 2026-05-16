@@ -1,0 +1,17 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  Engine: Redot 26.1 LTS (Forward Plus renderer)
+  Language: GDScript only — no C# bindings (.gdnlib / .gdns files exist in project yet)
+  Genre: RTS remake of Command & Conquer: Tiberian Sun
+  
+rules:
+  proposal:
+    - Identify affected scenes and scripts before proposing changes
+    - Consider backward compatibility with existing packed scenes (.tscn)
+  specs:
+    - Reference existing component patterns (HealthComponent, SelectComponent) before inventing new ones
+  tasks:
+    - Break into chunks small enough to implement in one session within the Redot editor
