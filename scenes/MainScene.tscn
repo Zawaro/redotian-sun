@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3 uid="uid://c6s5n02jefgmd"]
+
+[ext_resource type="PackedScene" uid="uid://bqgqoidrni3ed" path="res://scenes/ui/MainMenu01.tscn" id="1_echbf"]
+[ext_resource type="PackedScene" uid="uid://evckb76qoeyd" path="res://scenes/LoadingScreen.tscn" id="2_ibiss"]
+
+[node name="Window" type="Window"]
+oversampling_override = 1.0
+size = Vector2i(1920, 1080)
+
+[node name="Gameplay" type="Node" parent="."]
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainMenu01" parent="UI" instance=ExtResource("1_echbf")]
+layout_mode = 1
+
+[node name="LoadingScreen" parent="UI" instance=ExtResource("2_ibiss")]
+visible = false
