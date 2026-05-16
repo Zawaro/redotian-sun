@@ -1,6 +1,4 @@
-@tool
 extends Node
-class_name SelectionManager
 
 signal selection_changed(selected_entities: Array[SelectComponent])
 signal hover_changed(entity: SelectComponent)
