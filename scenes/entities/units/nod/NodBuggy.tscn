@@ -15,3 +15,4 @@ health_component = NodePath("../HealthComponent")
 [node name="SelectComponent" parent="." index="9" node_paths=PackedStringArray("health_component") instance=ExtResource("4_4jto7")]
 health_component = NodePath("../HealthComponent")
 select_box_type = 1
+selection_size = Vector3(1.5, 1.5, 1.5)
