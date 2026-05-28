@@ -1,82 +1,53 @@
-# Unit Movement Fixes - Implementation Plan
+# Unit Movement Implementation
 
-## Summary of Changes
+## Summary
 
-Three issues found in the unit movement system need fixing: INF validation bug, stale task documentation, and missing debug logging.
+Complete rewrite of MovementController: cell-to-cell waypoint chasing replaced with Catmull-Rom spline path following, analytic tangent direction, multi-unit repulsion steering, ahead-only speed modulation, spline re-projection, SpatialHash autoload for O(N²)→O(9) neighbor queries.
 
----
+## Changes
 
-## Fix 1: `scripts/components/MovementController.gd` line ~45 — Vector3.INF Validation Bug
+### scripts/components/MovementController.gd — Full rewrite
 
-**Problem:** `is_instance_valid(target)` returns true for any valid object instance — including `Vector3.INF`. A Vector3 with INF coordinates IS a valid GDScript object, so it passes this check and corrupts `_current_target`, causing units to fly off into infinity.
+| Change | Description |
+|--------|-------------|
+| Waypoint chasing → Catmull-Rom spline | `_waypoint_index`/`_waypoints[i]` replaced by `_spline_t` monotonically advancing 0→num_segments, Catmull-Rom eval via `_get_spline_pos(t)` and `_get_spline_tangent(t)` |
+| Analytic tangent direction | `_get_spline_tangent(_spline_t).normalized()` in both `_handle_rotating` and `_handle_moving_movement` — eliminates zero-vector at t=0 |
+| Spline re-projection | 20% lerp back to spline each MOVING frame — unit stays within mm of spline, no offset at arrival |
+| Repulsion steering | 3×3 neighbor cell query via `SpatialHash.instance.get_entries()`, push = normalize / dist² × REPULSION_STRENGTH × repulsion_weight |
+| Repulsion weight fade | `clampf(dist_to_final / (cell_radius * 4.0), 0.0, 1.0)` — repulsion fades to 0 at destination |
+| Deviation clamp fade | `limit_length(0.3 * repulsion_weight)` — clamp also fades, pure spline direction at arrival |
+| Ahead-only speed modulation | `min_neighbor_dist_ahead` — only neighbors with `to_neighbor.dot(spline_dir) > 0` count; `smoothstep(0→1, t)` → speed 0.3→1.0 |
+| Speed jitter | `randf_range(0.95, 1.0)` per unit at `_ready()`, applied in `step` computation |
+| Approach phase | After spline exhaustion: `(final_pos - parent_pos).limit_length(move_speed * delta)`, snap at <0.001 |
+| Re-path on IDLE cell | Every 10 frames, checks if next waypoint cell is IDLE-occupied → `set_target_position(final)` |
+| WAIT timeout | 60-frame fallback, backs up `_spline_t` to `num_segments - 0.01` and retries ROTATING |
+| `_build_blocked_cells` | Uses `SpatialHash.instance.all_entries()` instead of `get_tree().get_nodes_in_group("entities")` |
+| `_is_cell_occupied_by_idle` | Delegates to `SpatialHash.instance.is_cell_idle(cell)` |
+| `corner_blend_radius` removed | No longer needed — spline handles curvature intrinsically |
+| `STEERING_RADIUS` → `REPULSION_STRENGTH` | `0.1` constant, inverse-square push away from neighbors |
 
-**Change at line 45 (in `set_target_position`):**
+### scripts/core/SpatialHash.gd — New autoload
 
-```gdscript
-# BEFORE:
-func set_target_position(target: Vector3) -> void:
-	if not is_instance_valid(target):
-		return
+| Component | Description |
+|-----------|-------------|
+| `class_name SpatialHash` | Type alias for static references |
+| `static var instance` | Set in `_enter_tree()` |
+| `_process` | Calls `rebuild()` every frame |
+| `rebuild()` | Clears grid, iterates `"entities"` group, maps cell_key → [{ node, mc }] |
+| `get_entries(cell)` | Returns array of entries for a given cell |
+| `all_entries()` | Flattens all grid entries into single array |
+| `is_cell_idle(cell)` | Returns true if any entry in cell has `_state == IDLE` |
 
-# AFTER:
-func set_target_position(target: Vector3) -> void:
-	if target.is_nan() or !target.is_finite():
-		printerr("[MovementController] Ignoring invalid target position: ", target)
-		return
+### project.godot — Autoload registration
+
+```ini
+SpatialHashSingleton="*res://scripts/core/SpatialHash.gd"
 ```
 
-This catches both `Vector3.INF`, `Vector3(-INF, -INF, -INF)`, and NaN values. GDScript's `is_finite()` returns true only if ALL components are finite (not INF or NAN).
+### scenes/entities/units/nod/NodBuggy.tscn
 
----
+- `rotation_speed = 240.0` — faster rotation for responsive turning
 
-## Fix 2: OpenSpec tasks.md — Uncheck Stale/Incomplete Tasks + Update Descriptions
+### scripts/core/DebugVisualizer.gd
 
-**File:** `openspec/changes/unit-movement/tasks.md`
-
-### Task 1.4 — UNCHECK [x] → [ ] and update description
-```markdown
-- [ ] 1.4 Implement set_target_position(target: Vector3): sets _current_target, transitions to MOVING if currently IDLE. NOTE: Target validation for INF/NaN positions is a known gap (tracked as Fix #5 in unit-movement fixes plan). Arrived signal only emitted on arrival detection — no early-return emission.
-```
-
-### Task 2.1 — Keep checked [x] but update description to match actual implementation
-The task originally said "casts a ray from camera through mouse cursor targeting default collision layer (mask = 1), returning result.position or Vector3.INF sentinel" but the **actual implementation** uses `Plane(Vector3.UP, 0.0).intersects_ray()` — pure math intersection with Y=0 ground plane, not a physics query to layer 1. This is intentional per Phase 1 design (GroundPlane.tscn collision shapes are decoration only; world space Y=0 intersect is the target for this phase).
-
-```markdown
-- [x] 2.1 In `scripts/hud/MouseHandler.gd`, implement `_get_ground_position_at_mouse()` that uses Plane math: casts a ray from camera through mouse cursor position and intersects it with the Y=0 ground plane (`Plane(Vector3.UP, 0.0).intersects_ray(from, dir)`), returning intersection point or Vector3.INF sentinel. NOTE: Phase 1 intentionally uses mathematical plane intersection rather than physics query to collision layer 1 — GroundPlane.tscn static body is decoration only for this phase.
-```
-
----
-
-## Fix 3: `scripts/hud/MouseHandler.gd` — Add Debug Logging for Camera Failures
-
-**Problem:** When `camera_controller` export fails (e.g., scene hierarchy issues, base map not loaded), all raycasting silently returns null/INF with zero indication of why. The existing print statements at lines 20-23 only check for SelectionManager but never log camera state.
-
-### Change in `_handle_single_click()` — add camera debug logging around line 91:
-```gdscript
-func _get_camera_3d() -> Camera3D:
-    if camera_controller and camera_controller.has_node("Camera3D"):
-        return camera_controller.get_node("Camera3D") as Camera3D
-    
-    # Debug logging for diagnosis of missing camera in raycasting flow
-    printerr("[MouseHandler] _get_camera_3d() returned null — " + \
-        ("camera_controller is not set. " if !camera_controller else \
-         "camera_controller has no 'Camera3D' child node. "))
-    return null
-```
-
-### Change in `_ready()` — add camera debug logging around line 18:
-```gdscript
-func _ready():
-    selection_rect.hide()
-    
-    # Debug logging for raycasting infrastructure
-    if not camera_controller:
-        printerr("[MouseHandler] WARNING: camera_controller export is null. " + \
-            "All mouse-based interactions (selection, movement) will fail silently.")
-    else:
-        var cam3d = _get_camera_3d()
-        if !cam3d:
-            printerr("[MouseHandler] Camera3D not found under camera_controller path.")
-    
-    if selection_manager:
-        print("SelectionManager found!")
+- `_get_or_create_material(name: …)` → `_get_or_create_material(material_name: …)` — fixes `Node.name` shadowing warning

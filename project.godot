@@ -18,6 +18,8 @@ config/icon="res://icon.svg"
 [autoload]
 
 SelectionManager="*res://scripts/core/SelectionManager.gd"
+DebugVisualizer="*res://scripts/core/DebugVisualizer.gd"
+SpatialHashSingleton="*res://scripts/core/SpatialHash.gd"
 
 [display]
 

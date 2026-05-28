@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_01"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_01"]
+size = Vector3(512, 1, 512)
+
+[node name="Ground" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." index="-1"]
+mesh = SubResource("PlaneMesh_01")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." index="0"]
+shape = SubResource("BoxShape3D_01")

@@ -140,9 +140,122 @@ Web references for manual lookup:
 
 *Agents should always prefer Redot docs over upstream Godot docs when there are differences.*
 
+## GDScript Best Practices
+
+### Naming Conventions
+
+| Category | Convention | Example |
+|----------|-----------|---------|
+| Classes / Scripts | PascalCase + `class_name` | `class_name HealthComponent extends Node3D` |
+| Signals | past_tense_snake_case (describe what happened) | `signal health_changed(current: int)` |
+| Constants | SCREAMING_SNAKE_CASE | `const MAX_SPEED: float = 200.0` |
+| Variables / Functions | snake_case (`_snake_case` for private) | `var current_health`, `_clamp_value()` |
+
+### Type Hints — REQUIRED
+
+Use explicit type hints on every variable, parameter, and return value. Redot's GDScript provides autocomplete and compile-time checks when types are declared.
+
+```gdscript
+@onready var sprite_3d: Sprite3D = $Sprite3D
+var speed: float = 100.0
+func take_damage(amount: int) -> void: ...
+signal score_updated(new_score: int, old_score: int)
+```
+
+### Node References
+
+| Prefer | Avoid |
+|--------|-------|
+| `@onready var x: Type = $Path` (≤2 levels deep) | `get_node()` inside `_ready()`, deep paths `$A/B/C/D/E/F` |
+| `%UniqueName` for autoloaded/root-wired nodes | Hardcoded string paths to sibling scenes' children |
+
+### Signal-Driven Architecture — "Signal Up, Call Down"
+
+Children emit signals; parents connect and react. Children must **never** directly call parent methods or hold references upward through the scene tree.
+
+```gdscript
+# Child emits (no knowledge of parent)
+signal health_changed(current: int, maximum: int)
+func take_damage(amount: int) -> void:
+    _current_health = maxi(0, _current_health - amount)
+    health_changed.emit(_current_health, max_health)
+
+# Parent connects and reacts
+@onready var health_component: HealthComponent = $HealthComponent
+func _ready() -> void:
+    health_component.health_changed.connect(_on_health_changed)
+```
+
+### Resource Loading Strategy
+
+| Mechanism | When to Use | Example |
+|-----------|-------------|---------|
+| `preload()` | Compile-time resolved, small/critical assets | `const BULLET_SCENE: PackedScene = preload("res://scenes/bullet.tscn")` |
+| `load()` at runtime | Dynamic/optional content only (never in `_process`) | `return load(scene_path) as PackedScene` |
+| Threaded loading | Large scenes/assets to prevent frame stutter | `ResourceLoader.load_threaded_request(path)` |
+
+### Script Structure Template
+
+Order sections **in this exact order** in every GDScript file:
+
+1. `class_name` + doc comments
+2. Signals (consumers connect here)
+3. Enums
+4. `@export` fields
+5. Constants (`const`)
+6. Public variables (`var`)
+7. Private variables (`_var`)
+8. `@onready` cached node references
+9. Lifecycle methods: `_enter_tree()` → `_ready()` → `_process()` / `_physics_process()` → `_unhandled_input()` → `_exit_tree()`
+10. Public methods (callable from other nodes)
+11. Private methods (`_method`)
+
+### Editor Tool Scripts — `@tool` Annotation
+
+Use `@tool` for editor-time scripts with custom inspectors, real-time preview, and scene validation. Always guard runtime-only calls:
+
+```gdscript
+@tool
+extends Node3D
+
+func _get_configuration_warnings() -> PackedStringArray:
+    var issues := validate_entity_scene() as PackedStringArray
+    if not issues.is_empty(): return PackedStringArray(issues)
+    return PackedStringArray([])
+
+func _enter_tree() -> void:
+    if Engine.is_editor_hint():
+        # Editor-specific logic here
+```
+
+### Common Anti-Patterns to Avoid
+
+| Anti-Pattern | Problem | Solution |
+|--------------|---------|----------|
+| Polling in `_process()` for infrequent changes | Wastes CPU every frame | Use signals or `await` with timers |
+| `get_parent().get_parent()...` chains | Tight coupling, breaks on refactor | Connect via signals, use `%UniqueName` |
+| Deep node paths `$A/B/C/D/E/F` | Fragile to scene reorganization | Use `@onready var x: Type = $SiblingOrChild` |
+| Calling `load()` in `_process()` / tight loops | Frame stutter, memory churn | Move to `_ready()`, use `preload()` or cache with `const`/`@onready var` |
+| String-based signals (`emit_signal("x", val)`) | Typos silently ignored; no autocomplete | Use typed signal declarations + `.emit(value)` |
+| Untyped `@onready var x = $NodePath` | Loses type hints, disables IDE autocomplete | Always add explicit type: `@onready var sprite_3d: Sprite3D = $Sprite3D` |
+| Logic inside autoload singletons (GameManager with all rules) | Hard to test; couples every subsystem together | Keep autoloads thin — expose only state + signals |
+| Magic numbers (`if speed > 200 and damage == 15`) | Unclear meaning, impossible to tune | Extract into named constants or `@export` fields |
+| `node != null` check after potential free | Freed nodes are non-null in GDScript — accessing crashes | Use `is_instance_valid(node)` instead |
+
+### Redot Engine 26.1 LTS API Notes
+
+- **Renderer**: Forward Plus only (`StandardMaterial3D` / `ORMMaterial3D`).
+- **Collision layers**: StaticBody3D defaults to layer 1. Set masks via bit shifts: `collision_mask = 1 << LAYER_NUMBER`.
+- **await syntax**: Full GDScript `await` support — use for timers, signals (`await node.timeout`). No need for deprecated `yield()`.
+- **Process modes**: `PROCESS_MODE_INHERIT`, `PROCESS_MODE_PAUSED`, `PROCESS_MODE_ALWAYS`, `PROCESS_MODE_WHEN_PAUSED`.
+
 ## Key Conventions Observed in Codebase
 
 - **Naming**: PascalCase for classes, scripts, scenes; snake_case is not used. Scene files mirror their script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Assertions over error handling** — `MouseHandler.gd` uses GDScript's built-in `assert()` calls for precondition guards rather than try/catch or explicit checks.
 - **Scene composition**: Component scripts are attached to component scenes (`components/*.tscn`) which are then instantiated as children of entity scenes (e.g., entities/units/nod/NodBuggy.tscn). Core systems like `BoundsSystem` and camera/mouse input have dedicated scene instances in the gameplay hierarchy.
 - **Autoloads**: Only one autoload is registered — `SelectionManager`. Additional singletons should be added via project settings, not hardcoded references.
+
+## Full Skill Reference
+
+For complete GDScript best practices (state machines, object pooling, save/load patterns, export annotations reference), see `.agents/skills/redot-engine-best-practices/SKILL.md`.

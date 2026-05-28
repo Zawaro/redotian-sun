@@ -1,17 +1,17 @@
 # Navigation & Pathfinding System - Redotian Sun
 
 ## Overview
-The navigation system provides pathfinding capabilities for all moving entities, enabling units to traverse terrain efficiently while avoiding obstacles and respecting movement constraints.
+The navigation system provides pathfinding capabilities for all moving entities, enabling units to traverse terrain efficiently while avoiding obstacles and respecting movement constraints. The grid cell size is **2m × 2m** — each vehicle unit occupies exactly one cell (radius = 1.0). In Phase 1, obstacle avoidance uses radial repulsion steering on a kinematic basis; navmesh-based A* pathfinding arrives in Phase 2 after the input flow and player feel are validated.
 
 ## Core Requirements
 
 ### 1. Pathfinding Approach Selection
-- **Algorithm**: A* (A-Star) with navmesh or grid-based approach
-- **Grid Resolution**: 0.5m cells for precision, optimized for performance
-- **Dynamic Updates**: Real-time obstacle avoidance during path execution
-- **Multi-layer Navigation**: Different movement types use separate nav layers
+- **Phase 1 (current)**: No global pathfinding — straight-line movement with local radial repulsion steering for obstacle avoidance between units on a shared grid. Movement is kinematic (`global_position += direction * speed * delta`), no physics bodies.
+- **Phase 2**: A* or navmesh-based pathfinding via Redot's `NavigationServer3D`. Units follow waypoint arrays computed from the navigation mesh, with local repulsion steering layered on top for dynamic obstacles (other units).
+- **Grid Resolution**: 2m cells — each vehicle unit occupies exactly one cell. Occupancy radius = 1.0 m per unit center. Pathfinding queries snap to nearest walkable cell node.
+- **Dynamic Updates**: Real-time obstacle avoidance via radial repulsion steering in Phase 1; navmesh carving or dynamic cost updates for destructible terrain in later phases.
 
-### 2. Terrain Cost Modifiers
+### 2. Terrain Cost Modifiers (Phase 2+)
 | Terrain Type | Movement Cost | Notes |
 |--------------|---------------|-------|
 | Flat Ground | 1.0x | Standard speed |
@@ -22,10 +22,15 @@ The navigation system provides pathfinding capabilities for all moving entities,
 | Road Networks | 0.7x | Speed bonus for vehicles |
 
 ### 3. Dynamic Obstacle Avoidance
-- Units act as moving obstacles to each other
-- Path recalculates when blocked mid-navigation
-- Separation forces prevent unit clustering
-- Emergency stop on imminent collision detection
+- **Phase 1**: Radial repulsion steering — each unit checks nearby entities within ~3m radius and adds push-away forces normalized by distance² to its movement direction, causing natural flow-around behavior without global pathfinding.
+- Phase 2+: Navmesh-based avoidance with dynamic obstacle recalculation when blocked mid-navigation; separation forces prevent clustering; emergency stop on imminent collision detection.
+
+### 4. Cell Occupancy Rules (Phase 1+)
+| Rule | Behavior |
+|------|----------|
+| One vehicle per cell | Each unit declares a circular occupancy radius of ~1.0 m (half the 2m cell size) |
+| Smooth sliding between cells | Movement is continuous — units glide across cell boundaries without snapping or grid-lock stepping |
+| Path around via repulsion | Radial repulsion steering causes units to naturally flow around each other when their paths converge, preventing stacking and creating Tiberian Sun-style traffic behavior |
 
 ### 4. Path Smoothing
 - Raw path points smoothed for natural movement curves
