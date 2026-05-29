@@ -13,12 +13,16 @@ enum State { IDLE, ROTATING, MOVING, WAIT }
 
 const REPULSION_STRENGTH: float = 0.1
 
+static var _scattered_this_frame: Dictionary = {}
+static var _last_physics_frame: int = -1
+
 var _state: State = State.IDLE
 var _waypoints: PackedVector3Array = PackedVector3Array()
 var _spline_t: float = 0.0
 var _rotation_target: Node3D
 var _parent: Node3D
 var _wait_frames: int = 0
+var _wait_threshold: float = 60.0
 var _repair_frames: int = 0
 var _speed_jitter: float = 1.0
 
@@ -27,6 +31,7 @@ func _ready() -> void:
     _parent = get_parent() as Node3D
     _resolve_rotation_target()
     _speed_jitter = randf_range(0.95, 1.0)
+    _wait_threshold = 10.0 + randf_range(0.0, 15.0)
 
 
 func _num_segments() -> int:
@@ -38,9 +43,16 @@ func set_target_position(target: Vector3) -> void:
         printerr("[MovementController] Ignoring invalid target position: ", target)
         return
 
-    var path: PackedVector3Array = Pathfinder.find_path(_parent.global_position, target, _build_blocked_cells())
+    var target_cell := Pathfinder.world_to_cell(target)
+    if _is_cell_occupied_by_idle(target_cell):
+        var free := _find_nearest_free_cell(target_cell)
+        target = Pathfinder.cell_to_world(free)
+
+    var blocked := _build_blocked_cells()
+    var path: PackedVector3Array = Pathfinder.find_path(_parent.global_position, target, blocked)
 
     if path.is_empty():
+        _scatter_blockers()
         return
 
     var full_path: PackedVector3Array = [_parent.global_position]
@@ -68,6 +80,11 @@ func _resolve_rotation_target() -> void:
 func _physics_process(delta: float) -> void:
     if Engine.is_editor_hint():
         return
+
+    var frame := Engine.get_process_frames()
+    if frame != _last_physics_frame:
+        _last_physics_frame = frame
+        _scattered_this_frame.clear()
 
     match _state:
         State.ROTATING:
@@ -172,8 +189,9 @@ func _handle_moving_movement(delta: float) -> void:
 
         var approach_step := (final_pos - _parent.global_position).limit_length(move_speed * delta)
         if approach_step.length() < 0.001:
-            _parent.global_position = final_pos
+            _parent.global_position = Pathfinder.cell_to_world(Pathfinder.world_to_cell(_parent.global_position))
             _state = State.IDLE
+            SpatialHash.instance.release_cell(Pathfinder.world_to_cell(_parent.global_position))
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
             arrived.emit(_parent.global_position)
@@ -188,17 +206,29 @@ func _handle_moving_movement(delta: float) -> void:
 func _handle_wait() -> void:
     _wait_frames += 1
 
-    if _wait_frames > 60:
+    if _wait_frames == 15:
+        _scatter_blockers()
+
+    if _wait_frames > _wait_threshold:
         _wait_frames = 0
-        _spline_t = maxf(0.0, float(_num_segments()) - 0.01)
-        _state = State.ROTATING
+        _scatter_blockers()
+        var final_cell := Pathfinder.world_to_cell(_waypoints[_waypoints.size() - 1])
+        var free_cell := _find_nearest_free_cell(final_cell)
+        set_target_position(Pathfinder.cell_to_world(free_cell))
         return
 
     var final_cell := Pathfinder.world_to_cell(_waypoints[_waypoints.size() - 1])
     if not _is_cell_occupied_by_idle(final_cell):
-        _wait_frames = 0
-        _spline_t = maxf(0.0, float(_num_segments()) - 0.01)
-        _state = State.ROTATING
+        var cell_center := Pathfinder.cell_to_world(final_cell)
+        _parent.global_position = _parent.global_position.lerp(cell_center, 0.3)
+        if _parent.global_position.distance_to(cell_center) < 0.05:
+            _parent.global_position = cell_center
+            _state = State.IDLE
+            SpatialHash.instance.release_cell(final_cell)
+            if debug_show_path:
+                DebugVisualizer.clear_path(get_path())
+            arrived.emit(_parent.global_position)
+        return
 
 
 func squaref(v: float) -> float:
@@ -252,17 +282,55 @@ static func _catmull_rom_tangent(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vect
 
 
 func _build_blocked_cells() -> Dictionary:
-    var blocked: Dictionary = {}
-    for entry in SpatialHash.instance.all_entries():
-        var parent := entry.node as Node3D
-        if not is_instance_valid(parent) or parent == _parent:
-            continue
-        var mc := entry.mc as MovementController
-        if mc._state == State.IDLE:
-            var cell := Pathfinder.world_to_cell(parent.global_position)
-            blocked[str(cell.x) + "," + str(cell.y)] = true
-    return blocked
+    var result: Dictionary = SpatialHash.instance.get_blocked_cells().duplicate()
+    var cell := Pathfinder.world_to_cell(_parent.global_position)
+    result.erase(str(cell.x) + "," + str(cell.y))
+    for key in SpatialHash.instance.get_reserved():
+        result.erase(key)
+    return result
 
 
 func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
     return SpatialHash.instance.is_cell_idle(cell)
+
+
+func _find_nearest_free_cell(cell: Vector2i) -> Vector2i:
+    if not _is_cell_occupied_by_idle(cell):
+        return cell
+    for radius in range(1, 5):
+        for dx in range(-radius, radius + 1):
+            for dz in range(-radius, radius + 1):
+                if abs(dx) != radius and abs(dz) != radius:
+                    continue
+                var n := cell + Vector2i(dx, dz)
+                if not _is_cell_occupied_by_idle(n):
+                    return n
+    return cell
+
+
+func _scatter_blockers() -> void:
+    var cell := Pathfinder.world_to_cell(_parent.global_position)
+    var blocked := SpatialHash.instance.get_blocked_cells()
+    for radius in range(1, 4):
+        for dx in range(-radius, radius + 1):
+            for dz in range(-radius, radius + 1):
+                if abs(dx) != radius and abs(dz) != radius:
+                    continue
+                var ncell := cell + Vector2i(dx, dz)
+                var nkey := str(ncell.x) + "," + str(ncell.y)
+                if not blocked.has(nkey):
+                    continue
+                if _scattered_this_frame.has(nkey):
+                    continue
+                var push_dir := Vector2i(sign(dx), sign(dz))
+                var push_cell := ncell + push_dir
+                if SpatialHash.instance.is_cell_idle(push_cell):
+                    continue
+                if not SpatialHash.instance.reserve_cell(push_cell):
+                    continue
+                _scattered_this_frame[nkey] = true
+                SpatialHash.instance.force_reserve(ncell)
+                for entry in SpatialHash.instance.get_entries(ncell):
+                    var mc := entry.mc as MovementController
+                    if mc and mc._state == State.IDLE and mc != self:
+                        mc.set_target_position(Pathfinder.cell_to_world(push_cell))
