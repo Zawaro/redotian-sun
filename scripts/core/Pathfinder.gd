@@ -23,14 +23,16 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
 	if start_cell == end_cell:
 		return PackedVector3Array()
 
-	var open_set: Array[Vector2i] = [start_cell]
+	var open_heap: Array[Vector2i] = [start_cell]
+	var open_lookup: Dictionary = {}
+	open_lookup[_cell_key(start_cell)] = true
+	var closed_set: Dictionary = {}
 	var came_from: Dictionary = {}
 	var g_score: Dictionary = {}
 	var f_score: Dictionary = {}
 
-	var key: String = _cell_key(start_cell)
-	g_score[key] = 0.0
-	f_score[key] = _heuristic(start_cell, end_cell)
+	g_score[_cell_key(start_cell)] = 0.0
+	f_score[_cell_key(start_cell)] = _heuristic(start_cell, end_cell)
 
 	var neighbor_dirs := [
 		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
@@ -38,24 +40,36 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
 	]
 	var neighbor_costs: Array[float] = [1.0, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2]
 
-	while not open_set.is_empty():
-		var current: Vector2i = open_set[0]
+	const MAX_ITER: int = 1500
+	const STAGNANT_LIMIT: int = 500
+	var iter: int = 0
+	var stagnant: int = 0
+	var best_cell: Vector2i = start_cell
+	var best_dist: float = _heuristic(start_cell, end_cell)
+
+	while not open_heap.is_empty():
+		var current: Vector2i = _heap_pop(open_heap, f_score)
 		var current_key: String = _cell_key(current)
-		var current_f: float = f_score.get(current_key, INF)
-		var lowest_idx := 0
-		for i in range(1, open_set.size()):
-			var ck: String = _cell_key(open_set[i])
-			var f: float = f_score.get(ck, INF)
-			if f < current_f:
-				current = open_set[i]
-				current_key = ck
-				current_f = f
-				lowest_idx = i
+		open_lookup.erase(current_key)
+
+		if closed_set.has(current_key):
+			continue
+		closed_set[current_key] = true
+		iter += 1
 
 		if current == end_cell:
 			return _reconstruct_path(came_from, current, start_cell)
 
-		open_set.remove_at(lowest_idx)
+		var h := _heuristic(current, end_cell)
+		if h < best_dist:
+			best_dist = h
+			best_cell = current
+			stagnant = 0
+		else:
+			stagnant += 1
+
+		if stagnant > STAGNANT_LIMIT or iter > MAX_ITER:
+			return _path_or_fallback(came_from, start_cell, best_cell)
 
 		for i in 8:
 			var neighbor: Vector2i = current + neighbor_dirs[i]
@@ -69,12 +83,12 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
 			if tentative_g < g_score.get(nkey, INF):
 				came_from[nkey] = current
 				g_score[nkey] = tentative_g
-				f_score[nkey] = tentative_g + _heuristic(neighbor, end_cell)
-				if not _is_in_open_set(open_set, neighbor):
-					open_set.append(neighbor)
+				f_score[nkey] = tentative_g + _heuristic(neighbor, end_cell) * 1.2
+				if not open_lookup.has(nkey):
+					_heap_push(open_heap, f_score, neighbor)
+					open_lookup[nkey] = true
 
-	push_warning("[Pathfinder] No path found from ", start_cell, " to ", end_cell)
-	return PackedVector3Array()
+	return _path_or_fallback(came_from, start_cell, best_cell)
 
 static func _cell_key(cell: Vector2i) -> String:
 	return str(cell.x) + "," + str(cell.y)
@@ -100,8 +114,60 @@ static func _reconstruct_path(came_from: Dictionary, current: Vector2i, start: V
 		result.append(cell_to_world(cell))
 	return result
 
-static func _is_in_open_set(open_set: Array[Vector2i], cell: Vector2i) -> bool:
-	for c in open_set:
-		if c == cell:
-			return true
-	return false
+
+static func _path_or_fallback(came_from: Dictionary, start: Vector2i, best: Vector2i) -> PackedVector3Array:
+	if best == start:
+		return PackedVector3Array()
+	return _reconstruct_path(came_from, best, start)
+
+static func _heap_push(heap: Array[Vector2i], f_scores: Dictionary, cell: Vector2i) -> void:
+	heap.append(cell)
+	var idx: int = heap.size() - 1
+	while idx > 0:
+		var parent_idx: int = (idx - 1) / 2
+		var cf: float = f_scores.get(_cell_key(heap[idx]), INF)
+		var pf: float = f_scores.get(_cell_key(heap[parent_idx]), INF)
+		if cf >= pf:
+			break
+		var tmp: Vector2i = heap[idx]
+		heap[idx] = heap[parent_idx]
+		heap[parent_idx] = tmp
+		idx = parent_idx
+
+static func _heap_pop(heap: Array[Vector2i], f_scores: Dictionary) -> Vector2i:
+	var result: Vector2i = heap[0]
+	var last: Vector2i = heap[heap.size() - 1]
+	heap[0] = last
+	heap.remove_at(heap.size() - 1)
+
+	if heap.is_empty():
+		return result
+
+	var idx: int = 0
+	var size: int = heap.size()
+	while true:
+		var smallest: int = idx
+		var left: int = idx * 2 + 1
+		var right: int = idx * 2 + 2
+
+		if left < size:
+			var lf: float = f_scores.get(_cell_key(heap[left]), INF)
+			var sf: float = f_scores.get(_cell_key(heap[smallest]), INF)
+			if lf < sf:
+				smallest = left
+
+		if right < size:
+			var rf: float = f_scores.get(_cell_key(heap[right]), INF)
+			var sf: float = f_scores.get(_cell_key(heap[smallest]), INF)
+			if rf < sf:
+				smallest = right
+
+		if smallest == idx:
+			break
+
+		var tmp: Vector2i = heap[idx]
+		heap[idx] = heap[smallest]
+		heap[smallest] = tmp
+		idx = smallest
+
+	return result
