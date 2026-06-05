@@ -20,12 +20,17 @@ config/icon="res://icon.svg"
 SelectionManager="*res://scripts/core/SelectionManager.gd"
 DebugVisualizer="*res://scripts/core/DebugVisualizer.gd"
 SpatialHashSingleton="*res://scripts/core/SpatialHash.gd"
+TerrainSystem="*res://scripts/core/TerrainSystem.gd"
 
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="viewport"
+
+[gdscript]
+
+warnings/integer_division=0
 
 [input]
 
