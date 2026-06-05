@@ -114,6 +114,7 @@ func create_bounds_edges():
         var map_material = ORMMaterial3D.new()
         map_material.albedo_color = line_color
         map_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+        map_material.render_priority = 2
         
         immediate_map_mesh.surface_begin(Mesh.PRIMITIVE_LINES, map_material)
         
@@ -123,17 +124,17 @@ func create_bounds_edges():
         var min_z = -half_map_y  # Y dimension becomes Z in world space
         var max_z = half_map_y
         
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, map_line_width / 2.0, min_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, map_line_width / 2.0, min_z))  # Top edge
+        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, min_z))
+        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, min_z))  # Top edge
         
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, map_line_width / 2.0, max_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, map_line_width / 2.0, max_z))  # Bottom edge
+        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, max_z))
+        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, max_z))  # Bottom edge
         
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, map_line_width / 2.0, min_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, map_line_width / 2.0, max_z))  # Left edge
+        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, min_z))
+        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, max_z))  # Left edge
         
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, map_line_width / 2.0, min_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, map_line_width / 2.0, max_z))  # Right edge
+        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, min_z))
+        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, max_z))  # Right edge
         
         immediate_map_mesh.surface_end()
     
@@ -142,6 +143,7 @@ func create_bounds_edges():
         var visible_material = ORMMaterial3D.new()
         visible_material.albedo_color = visible_bounds_color
         visible_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+        visible_material.render_priority = 2
         
         immediate_visible_mesh.surface_begin(Mesh.PRIMITIVE_LINES, visible_material)
         
@@ -151,17 +153,17 @@ func create_bounds_edges():
         var min_z_vis = -half_visible_y  # Y dimension becomes Z in world space
         var max_z_vis = half_visible_y
         
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, visible_line_width / 2.0, min_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, visible_line_width / 2.0, min_z_vis))  # Top edge
+        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, min_z_vis))
+        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, min_z_vis))  # Top edge
         
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, visible_line_width / 2.0, max_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, visible_line_width / 2.0, max_z_vis))  # Bottom edge
+        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, max_z_vis))
+        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, max_z_vis))  # Bottom edge
         
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, visible_line_width / 2.0, min_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, visible_line_width / 2.0, max_z_vis))  # Left edge
+        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, min_z_vis))
+        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, max_z_vis))  # Left edge
         
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, visible_line_width / 2.0, min_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, visible_line_width / 2.0, max_z_vis))  # Right edge
+        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, min_z_vis))
+        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, max_z_vis))  # Right edge
         
         immediate_visible_mesh.surface_end()
     

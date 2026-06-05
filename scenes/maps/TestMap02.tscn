@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" uid="uid://ce077cqvy5f6p" path="res://scenes/maps/MapBase01.tscn" id="1_mapbase"]
+[ext_resource type="Script" path="res://scripts/maps/TestMap02.gd" id="2_script"]
+
+[node name="TestMap02" instance=ExtResource("1_mapbase")]
+script = ExtResource("2_script")
+
+[node name="BoundsSystem" parent="." index="10"]
+map_size = Vector2(32, 32)
+visible_bounds_size = Vector2(28, 28)

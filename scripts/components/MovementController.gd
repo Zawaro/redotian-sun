@@ -58,6 +58,10 @@ func set_target_position(target: Vector3) -> void:
     var full_path: PackedVector3Array = [_parent.global_position]
     full_path.append_array(path)
 
+    for i in range(1, full_path.size()):
+        var wp_cell := Pathfinder.world_to_cell(full_path[i])
+        full_path[i].y = TerrainSystem.get_height_at_world(full_path[i])
+
     _waypoints = full_path
     _spline_t = 0.001
     _wait_frames = 0
@@ -187,9 +191,11 @@ func _handle_moving_movement(delta: float) -> void:
             _state = State.WAIT
             return
 
-        var approach_step := (final_pos - _parent.global_position).limit_length(move_speed * delta)
+        var approach_dir := (final_pos - _parent.global_position).normalized()
+        var approach_step := approach_dir * move_speed * delta
         if approach_step.length() < 0.001:
-            _parent.global_position = Pathfinder.cell_to_world(Pathfinder.world_to_cell(_parent.global_position))
+            var target_pos := Pathfinder.cell_to_world_with_height(Pathfinder.world_to_cell(_parent.global_position))
+            _parent.global_position = target_pos
             _state = State.IDLE
             SpatialHash.instance.release_cell(Pathfinder.world_to_cell(_parent.global_position))
             if debug_show_path:
@@ -197,10 +203,12 @@ func _handle_moving_movement(delta: float) -> void:
             arrived.emit(_parent.global_position)
         else:
             _parent.global_position += approach_step
+            _interpolate_height()
     else:
         _parent.global_position += step
         var spline_pos := _get_spline_pos(_spline_t)
         _parent.global_position = _parent.global_position.lerp(spline_pos, 0.2)
+        _interpolate_height()
 
 
 func _handle_wait() -> void:
@@ -212,8 +220,8 @@ func _handle_wait() -> void:
     if _wait_frames > _wait_threshold:
         _wait_frames = 0
         _scatter_blockers()
-        var final_cell := Pathfinder.world_to_cell(_waypoints[_waypoints.size() - 1])
-        var free_cell := _find_nearest_free_cell(final_cell)
+        var target_cell := Pathfinder.world_to_cell(_waypoints[_waypoints.size() - 1])
+        var free_cell := _find_nearest_free_cell(target_cell)
         set_target_position(Pathfinder.cell_to_world(free_cell))
         return
 
@@ -334,3 +342,37 @@ func _scatter_blockers() -> void:
                     var mc := entry.mc as MovementController
                     if mc and mc._state == State.IDLE and mc != self:
                         mc.set_target_position(Pathfinder.cell_to_world(push_cell))
+
+
+func _interpolate_height() -> void:
+    var cell := Pathfinder.world_to_cell(_parent.global_position)
+    var cell_world_pos := Pathfinder.cell_to_world(cell)
+    var local_pos := _parent.global_position - cell_world_pos
+    var progress_x := clampf((local_pos.x + Pathfinder.CELL_SIZE * 0.5) / Pathfinder.CELL_SIZE, 0.0, 1.0)
+    var progress_z := clampf((local_pos.z + Pathfinder.CELL_SIZE * 0.5) / Pathfinder.CELL_SIZE, 0.0, 1.0)
+    var cell_data: Dictionary = TerrainSystem.get_cell(cell)
+    if cell_data.is_empty():
+        _parent.global_position.y = 0.0
+        return
+    var height: int = cell_data.get("height", 0)
+    var mesh_data := TerrainSystem.calculate_cell_mesh(cell)
+    var terrain_type: String = mesh_data.get("type", "clear")
+    if terrain_type == "clear":
+        _parent.global_position.y = height * TerrainSystem.HEIGHT_STEP
+    elif terrain_type == "slope":
+        var direction: String = mesh_data.get("direction", "north")
+        var t: float = 0.0
+        match direction:
+            "north":
+                t = progress_z
+            "south":
+                t = 1.0 - progress_z
+            "east":
+                t = progress_x
+            "west":
+                t = 1.0 - progress_x
+        var low_y: float = height * TerrainSystem.HEIGHT_STEP
+        var high_y: float = (height + 1) * TerrainSystem.HEIGHT_STEP
+        _parent.global_position.y = low_y + (high_y - low_y) * t
+    else:
+        _parent.global_position.y = height * TerrainSystem.HEIGHT_STEP
