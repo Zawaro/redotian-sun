@@ -47,8 +47,6 @@ func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh) -> void:
 	static_body.add_child(collision_shape_node)
 	var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
 	var world_pos := Pathfinder.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
-	world_pos.x += Pathfinder.CELL_SIZE * 0.5
-	world_pos.z += Pathfinder.CELL_SIZE * 0.5
 	var height: int = data.get("height", 0)
 	world_pos.y = height * TerrainSystem.HEIGHT_STEP
 	var rotation: float = data.get("rotation", 0.0)

@@ -104,15 +104,52 @@ func get_cell(cell: Vector2i) -> Dictionary:
     return _cells.get(key, {})
 
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
-    var cell := Pathfinder.world_to_cell(world_pos)
+    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+    var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
+    var cell := Pathfinder.world_to_cell(adjusted)
     return get_cell(cell)
 
 func get_height_at_world(world_pos: Vector3) -> float:
-    var cell := Pathfinder.world_to_cell(world_pos)
+    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+    var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
+    var cell := Pathfinder.world_to_cell(adjusted)
     var data := get_cell(cell)
     if data.is_empty():
         return 0.0
     return data.get("height", 0) * HEIGHT_STEP
+
+func get_height_at_world_smooth(world_pos: Vector3) -> float:
+    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+    var vx: float = (world_pos.x + grid_half) / CELL_SIZE
+    var vz: float = (world_pos.z + grid_half) / CELL_SIZE
+    var x0 := floori(vx)
+    var x1 := x0 + 1
+    var z0 := floori(vz)
+    var z1 := z0 + 1
+    var fx: float = vx - float(x0)
+    var fz: float = vz - float(z0)
+    var h00: float = float(get_vertex(x0, z0))
+    var h10: float = float(get_vertex(x1, z0))
+    var h01: float = float(get_vertex(x0, z1))
+    var h11: float = float(get_vertex(x1, z1))
+    var h0: float = h00 + (h10 - h00) * fx
+    var h1: float = h01 + (h11 - h01) * fx
+    return (h0 + (h1 - h0) * fz) * HEIGHT_STEP
+
+func get_normal_at_world(world_pos: Vector3) -> Vector3:
+    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+    var vx: float = (world_pos.x + grid_half) / CELL_SIZE
+    var vz: float = (world_pos.z + grid_half) / CELL_SIZE
+    var x0 := floori(vx)
+    var x1 := x0 + 1
+    var z0 := floori(vz)
+    var z1 := z0 + 1
+    var h00: float = float(get_vertex(x0, z0)) * HEIGHT_STEP
+    var h10: float = float(get_vertex(x1, z0)) * HEIGHT_STEP
+    var h01: float = float(get_vertex(x0, z1)) * HEIGHT_STEP
+    var edge_x := Vector3(CELL_SIZE, h10 - h00, 0.0)
+    var edge_z := Vector3(0.0, h01 - h00, CELL_SIZE)
+    return edge_z.cross(edge_x).normalized()
 
 func get_all_cells() -> Dictionary:
     return _cells.duplicate()
@@ -301,7 +338,6 @@ func import_from_json(path: String) -> void:
     for key in old_keys:
         cell_changed.emit(key, {})
     _cells.clear()
-    _init_vertex_grid()
     var file: FileAccess = FileAccess.open(path, FileAccess.READ)
     if not file:
         return
@@ -314,6 +350,9 @@ func import_from_json(path: String) -> void:
     if not data is Dictionary:
         return
 
+    var json_grid_cells: int = int(data.get("grid_cells", grid_cells))
+    init_grid(json_grid_cells)
+
     var vertices: Dictionary = data.get("vertices", {})
     for vkey in vertices:
         var parts: PackedStringArray = vkey.split(",")
@@ -323,8 +362,14 @@ func import_from_json(path: String) -> void:
             if vx >= 0 and vx <= grid_cells and vz >= 0 and vz <= grid_cells:
                 _vertex_grid[vx][vz] = clampi(vertices[vkey], 0, MAX_HEIGHT)
 
+    var center: float = float(grid_cells) * 0.5
     for cx in grid_cells:
         for cz in grid_cells:
+            var cell_x: float = float(cx) + 0.5
+            var cell_z: float = float(cz) + 0.5
+            if center > 0.0:
+                if absf(cell_x - center) / center + absf(cell_z - center) / center >= 1.0:
+                    continue
             var key := _cell_key(Vector2i(cx, cz))
             _cells[key] = _compute_cell_from_vertices(Vector2i(cx, cz))
 

@@ -25,6 +25,7 @@ var _wait_frames: int = 0
 var _wait_threshold: float = 60.0
 var _repair_frames: int = 0
 var _speed_jitter: float = 1.0
+var _rotation_yaw: float = 0.0
 
 
 func _ready() -> void:
@@ -59,13 +60,14 @@ func set_target_position(target: Vector3) -> void:
     full_path.append_array(path)
 
     for i in range(1, full_path.size()):
-        var wp_cell := Pathfinder.world_to_cell(full_path[i])
-        full_path[i].y = TerrainSystem.get_height_at_world(full_path[i])
+        full_path[i].y = TerrainSystem.get_height_at_world_smooth(full_path[i])
 
     _waypoints = full_path
     _spline_t = 0.001
     _wait_frames = 0
     _repair_frames = 0
+    if is_instance_valid(_rotation_target):
+        _rotation_yaw = _rotation_target.global_rotation.y
     _state = State.ROTATING
     if debug_show_path:
         DebugVisualizer.draw_path(get_path(), _parent.global_position, _waypoints, 0)
@@ -98,7 +100,7 @@ func _physics_process(delta: float) -> void:
         State.WAIT:
             _handle_wait()
         State.IDLE:
-            _parent.global_position = Pathfinder.cell_to_world(Pathfinder.world_to_cell(_parent.global_position))
+            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(_parent.global_position)
 
 
 func _handle_rotating(delta: float) -> void:
@@ -112,15 +114,22 @@ func _handle_rotating(delta: float) -> void:
         return
 
     var target_yaw := atan2(-tangent.x, -tangent.z)
-    var current_yaw := _rotation_target.global_rotation.y
     var step := deg_to_rad(rotation_speed) * delta
 
-    if abs(angle_difference(current_yaw, target_yaw)) < max(step, deg_to_rad(rotation_angle_threshold)):
-        _rotation_target.global_rotation.y = target_yaw
+    if abs(angle_difference(_rotation_yaw, target_yaw)) < max(step, deg_to_rad(rotation_angle_threshold)):
         _spline_t = 0.001
         _state = State.MOVING
     else:
-        _rotation_target.global_rotation.y = current_yaw + sign(angle_difference(current_yaw, target_yaw)) * step
+        _rotation_yaw += sign(angle_difference(_rotation_yaw, target_yaw)) * step
+        var forward := Vector3(-sin(_rotation_yaw), 0.0, -cos(_rotation_yaw))
+        var normal := TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
+        var projected := (forward - forward.dot(normal) * normal).normalized()
+        var right := projected.cross(normal).normalized()
+        var basis := Basis()
+        basis.x = right
+        basis.y = normal
+        basis.z = -projected
+        _rotation_target.global_transform.basis = basis
 
 
 func _handle_moving_movement(delta: float) -> void:
@@ -141,7 +150,9 @@ func _handle_moving_movement(delta: float) -> void:
                 return
     
     var parent_pos := _parent.global_position
-    var spline_dir := _get_spline_tangent(_spline_t).normalized()
+    var spline_dir := _get_spline_tangent(_spline_t)
+    spline_dir.y = 0.0
+    spline_dir = spline_dir.normalized()
     var direction := spline_dir
 
     var final_pos := _waypoints[_waypoints.size() - 1]
@@ -179,7 +190,15 @@ func _handle_moving_movement(delta: float) -> void:
     var final_direction := (spline_dir + deviation).normalized()
 
     if is_instance_valid(_rotation_target):
-        _rotation_target.look_at(parent_pos + Vector3(final_direction.x, parent_pos.y, final_direction.z))
+        var forward := Vector3(final_direction.x, 0.0, final_direction.z).normalized()
+        var normal := TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
+        var projected := (forward - forward.dot(normal) * normal).normalized()
+        var right := projected.cross(normal).normalized()
+        var basis := Basis()
+        basis.x = right
+        basis.y = normal
+        basis.z = -projected
+        _rotation_target.global_transform.basis = basis
 
     var step := final_direction * move_speed * _speed_jitter * speed_factor * delta
     _spline_t += step.length() / seg_length
@@ -191,24 +210,22 @@ func _handle_moving_movement(delta: float) -> void:
             _state = State.WAIT
             return
 
-        var approach_dir := (final_pos - _parent.global_position).normalized()
-        var approach_step := approach_dir * move_speed * delta
+        var approach_step := (final_pos - _parent.global_position).limit_length(move_speed * delta)
         if approach_step.length() < 0.001:
-            var target_pos := Pathfinder.cell_to_world_with_height(Pathfinder.world_to_cell(_parent.global_position))
-            _parent.global_position = target_pos
+            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(_parent.global_position)
             _state = State.IDLE
             SpatialHash.instance.release_cell(Pathfinder.world_to_cell(_parent.global_position))
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
             arrived.emit(_parent.global_position)
         else:
-            _parent.global_position += approach_step
-            _interpolate_height()
+            _parent.global_position += Vector3(approach_step.x, 0.0, approach_step.z)
     else:
         _parent.global_position += step
         var spline_pos := _get_spline_pos(_spline_t)
-        _parent.global_position = _parent.global_position.lerp(spline_pos, 0.2)
-        _interpolate_height()
+        var lerped := _parent.global_position.lerp(spline_pos, 0.2)
+        _parent.global_position = Vector3(lerped.x, _parent.global_position.y, lerped.z)
+        _snap_to_terrain()
 
 
 func _handle_wait() -> void:
@@ -344,35 +361,6 @@ func _scatter_blockers() -> void:
                         mc.set_target_position(Pathfinder.cell_to_world(push_cell))
 
 
-func _interpolate_height() -> void:
-    var cell := Pathfinder.world_to_cell(_parent.global_position)
-    var cell_world_pos := Pathfinder.cell_to_world(cell)
-    var local_pos := _parent.global_position - cell_world_pos
-    var progress_x := clampf((local_pos.x + Pathfinder.CELL_SIZE * 0.5) / Pathfinder.CELL_SIZE, 0.0, 1.0)
-    var progress_z := clampf((local_pos.z + Pathfinder.CELL_SIZE * 0.5) / Pathfinder.CELL_SIZE, 0.0, 1.0)
-    var cell_data: Dictionary = TerrainSystem.get_cell(cell)
-    if cell_data.is_empty():
-        _parent.global_position.y = 0.0
-        return
-    var height: int = cell_data.get("height", 0)
-    var mesh_data := TerrainSystem.calculate_cell_mesh(cell)
-    var terrain_type: String = mesh_data.get("type", "clear")
-    if terrain_type == "clear":
-        _parent.global_position.y = height * TerrainSystem.HEIGHT_STEP
-    elif terrain_type == "slope":
-        var direction: String = mesh_data.get("direction", "north")
-        var t: float = 0.0
-        match direction:
-            "north":
-                t = progress_z
-            "south":
-                t = 1.0 - progress_z
-            "east":
-                t = progress_x
-            "west":
-                t = 1.0 - progress_x
-        var low_y: float = height * TerrainSystem.HEIGHT_STEP
-        var high_y: float = (height + 1) * TerrainSystem.HEIGHT_STEP
-        _parent.global_position.y = low_y + (high_y - low_y) * t
-    else:
-        _parent.global_position.y = height * TerrainSystem.HEIGHT_STEP
+func _snap_to_terrain() -> void:
+    var terrain_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    _parent.global_position.y = lerpf(_parent.global_position.y, terrain_y, 0.95)

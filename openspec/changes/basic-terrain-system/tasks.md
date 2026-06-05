@@ -81,17 +81,17 @@
 ## 11. Test Map
 
 - [x] 11.1 Create `scenes/maps/TestMap02.tscn`
-- [x] 11.2 Load terrain from JSON file
+- [x] 11.2 Add TerrainRenderer node to TestMap02.tscn
 - [x] 11.3 Place test units (Nod Buggy)
-- [x] 11.4 Verify Y-snap works on slopes
-- [x] 11.5 Test pathfinding across terrain height changes
+- [ ] 11.4 Verify Y-snap works on slopes
+- [ ] 11.5 Test pathfinding across terrain height changes
 
 ## 12. Integration Testing
 
 - [x] 12.1 Test terrain save/load cycle
 - [x] 12.2 Test unit movement on flat terrain (regression)
-- [x] 12.3 Test unit movement on slopes
-- [x] 12.4 Test collision with terrain
+- [ ] 12.3 Test unit movement on slopes
+- [ ] 12.4 Test collision with terrain
 - [x] 12.5 Test map editor height painting
 
 ## 13. Audit Fixes
@@ -113,7 +113,7 @@
 
 ### 13.4 Waypoint Height Query
 
-- [x] 13.4.1 Adjust waypoint Y values in `MovementController.set_target_position()` using `TerrainSystem.get_height_at_world()`
+- [x] 13.4.1 Adjust waypoint Y values in `MovementController.set_target_position()` using `TerrainSystem.get_height_at_world_smooth()`
 
 ### 13.5 Slope Normal Alignment
 
@@ -130,3 +130,27 @@
 ### 13.8 JSON Import Visual Cleanup
 
 - [x] 13.8.1 Call `TerrainRenderer.clear_all()` in `TerrainSystem.import_from_json()` before loading new data
+
+## 14. Terrain-Aware Pathfinding
+
+### 14.1 Bilinear Height Interpolation
+
+- [x] 14.1.1 Add `get_height_at_world_smooth()` to TerrainSystem using bilinear vertex interpolation
+- [x] 14.1.2 Replace `MovementController._interpolate_height()` with smooth interpolation
+- [x] 14.1.3 Update `set_target_position()` to set waypoint Y using smooth height
+
+### 14.2 Terrain Click Detection
+
+- [x] 14.2.1 Replace `MouseHandler._get_ground_position_at_mouse()` with iterative terrain intersection
+- [x] 14.2.2 Update `MapEditor._update_hovered_cell()` to use mathematical terrain intersection
+
+### 14.3 TerrainCollision Cleanup
+
+- [x] 14.3.1 Remove TerrainCollision from TestMap02.tscn (gameplay scenes use math intersection)
+- [x] 14.3.2 Remove TerrainCollision from MapEditor.tscn
+- [x] 14.3.3 Clean up TerrainCollision references in MapEditor.gd
+
+### 14.4 Future: HeightMapShape3D for Projectile Collision
+
+- [ ] 14.4.1 Add single HeightMapShape3D to gameplay scenes for weapon projectile physics collision
+- [ ] 14.4.2 Regenerate heightmap image on terrain deformation

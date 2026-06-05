@@ -1,8 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://bg6lf1t861p2w"]
+[gd_scene load_steps=4 format=3 uid="uid://bg6lf1t861p2w"]
 
 [ext_resource type="Script" uid="uid://c6hp7isi5rsjo" path="res://scripts/editor/MapEditor.gd" id="1_map"]
 [ext_resource type="Script" uid="uid://daixg6wgj6fyd" path="res://scripts/core/TerrainRenderer.gd" id="2_terrain"]
-[ext_resource type="Script" uid="uid://ccp1jvu1uyusw" path="res://scripts/core/TerrainCollision.gd" id="3_collision"]
 [ext_resource type="PackedScene" uid="uid://6bkboqg3gg1r" path="res://scenes/environment/DefaultWorldEnvironment01.tscn" id="4_env"]
 
 [node name="MapEditor" type="Node3D"]
@@ -18,6 +17,3 @@ shadow_enabled = true
 
 [node name="TerrainRenderer" type="Node" parent="."]
 script = ExtResource("2_terrain")
-
-[node name="TerrainCollision" type="Node" parent="."]
-script = ExtResource("3_collision")

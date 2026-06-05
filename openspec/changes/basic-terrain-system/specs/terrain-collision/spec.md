@@ -1,5 +1,10 @@
 ## ADDED Requirements
 
+### Scope Note
+TerrainCollision (per-cell trimesh) is used **only in the MapEditor** for terrain editing workflows. Gameplay scenes (TestMap02, MapBase01, future maps) use mathematical terrain intersection via `TerrainSystem.get_height_at_world_smooth()` for click detection and movement — no collision shapes needed.
+
+**Future**: For weapon projectile collision (rockets, artillery), a `HeightMapShape3D` covering the entire terrain will replace per-cell trimesh. This provides efficient physics collision for projectile impact detection while keeping a single collision shape.
+
 ### Requirement: TerrainCollision shall manage collision bodies per cell
 The TerrainCollision system SHALL create and manage StaticBody3D nodes with CollisionShape3D for each terrain cell. Collision bodies are organized under a "TerrainCollision" parent node.
 

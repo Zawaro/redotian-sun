@@ -180,7 +180,7 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
     selection_manager.clear_hover_preview()
 
 
-## Return where the camera ray through mouse cursor intersects Y=0 ground plane (no collision query).
+## Return where the camera ray through mouse cursor intersects terrain surface (iterative solve).
 func _get_ground_position_at_mouse() -> Vector3:
     var camera := _get_camera_3d()
     if not camera:
@@ -190,15 +190,23 @@ func _get_ground_position_at_mouse() -> Vector3:
     var from = camera.project_ray_origin(mouse_pos)
     var dir := camera.project_ray_normal(mouse_pos).normalized()
     
-    # Intersect ray with Y=0 ground plane using Godot's built-in Plane class.
     var ground_plane := Plane(Vector3.UP, 0.0) as Plane
     var intersection = ground_plane.intersects_ray(from, dir)
     
-    if intersection != null:
-        var hit_pos := (intersection as Vector3)
-        # Reject hits beyond raycast_distance or above the camera (behind it).
-        var dist_sq: float = from.distance_squared_to(hit_pos)
-        if 0.0 < dist_sq and dist_sq <= raycast_distance * raycast_distance:
-            return hit_pos
+    if intersection == null:
+        return Vector3.INF
+    
+    var hit_pos := intersection as Vector3
+    for i in 4:
+        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
+        var adjusted := Plane(Vector3.UP, terrain_y)
+        var new_hit = adjusted.intersects_ray(from, dir)
+        if new_hit == null:
+            break
+        hit_pos = new_hit as Vector3
+    
+    var dist_sq: float = from.distance_squared_to(hit_pos)
+    if 0.0 < dist_sq and dist_sq <= raycast_distance * raycast_distance:
+        return hit_pos
     
     return Vector3.INF
