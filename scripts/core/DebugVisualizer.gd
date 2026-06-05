@@ -43,12 +43,12 @@ func draw_path(entity_id: String, start_pos: Vector3, waypoints: PackedVector3Ar
     var remaining_material := _get_or_create_material("remaining", Color(0.0, 1.0, 0.0, 0.8))
 
     var start := start_pos
-    start.y = 0.1
+    start.y = start_pos.y + 0.05
     var prev_point: Vector3 = mesh_instance.to_local(start)
 
     for i in waypoints.size():
         var wp_world := waypoints[i]
-        wp_world.y = 0.1
+        wp_world.y = wp_world.y + 0.05
         var wp_local := mesh_instance.to_local(wp_world)
         var mat := reached_material if i < reached_index else remaining_material
 

@@ -17,7 +17,7 @@
 
 ### 2. Extend MouseHandler with left-click ground raycast for movement
 
-- [x] 2.1 Implement `_get_ground_position_at_mouse()` using Plane math
+- [x] 2.1 Implement `_get_ground_position_at_mouse()` using iterative terrain intersection
 - [x] 2.2 Modify `_handle_single_click()` with ground raycast fallback
 - [x] 2.3 Preserve right-click behavior
 - [x] 2.4 Preserve left-click entity selection path

@@ -52,12 +52,12 @@ When the player left-clicks, after checking for entity hit at mask 1 << 15 with 
 - **WHEN** player right-clicks anywhere on screen
 - **THEN** `selection_manager.deselect_all()` is called immediately; no raycast or movement logic runs
 
-#### Scenario: Left-click with terrain miss (no collision geometry) produces no error
-- **WHEN** the ground plane has no StaticBody3D/collision at the clicked location, or map scene lacks a GroundPlane entirely
+#### Scenario: Left-click with terrain miss (no terrain data) produces no error
+- **WHEN** there is no terrain data at the clicked location (empty cells, or map scene lacks terrain entirely)
 - **THEN** `_get_ground_position_at_mouse()` returns `Vector3.INF` sentinel and MouseHandler issues no move command; no crash, log spam, or visual glitch occurs
 
-### Requirement: Map scenes include collision-enabled ground plane on physics layer 1
-Every playtest map scene (MapBase01.tscn, TestMap01.tscn, and future maps) SHALL contain a GroundPlane component with StaticBody3D and CollisionShape3D configured as the first child node. This ensures the MouseHandler ground raycast has geometry to hit on default collision layer 1.
+### Requirement: Click detection uses mathematical terrain intersection
+`MouseHandler._get_ground_position_at_mouse()` SHALL intersect the camera ray with the terrain surface using iterative mathematical solve via `TerrainSystem.get_height_at_world_smooth()`. No physics collision shapes are required for click detection in gameplay scenes.
 
 ### Requirement: SelectionManager broadcasts movement commands to selected entities
 `SelectionManager` SHALL expose `request_move(position)` method that iterates over all currently selected entities, checks for a `MovementController` child node, and calls its target-setting API. The selection data structure (existing) is reused; no new tracking structures are introduced.

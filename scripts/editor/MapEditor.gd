@@ -35,9 +35,6 @@ func _exit_tree() -> void:
     var renderer := get_node_or_null("TerrainRenderer")
     if renderer and renderer.has_method("clear_all"):
         renderer.clear_all()
-    var collision := get_node_or_null("TerrainCollision")
-    if collision and collision.has_method("clear_all"):
-        collision.clear_all()
 
 func _process(_delta: float) -> void:
     if Engine.is_editor_hint():
@@ -80,10 +77,9 @@ func _prefill_terrain() -> void:
     for x in range(cells):
         for z in range(cells):
             var cell := Vector2i(x, z)
-            var world_center := Pathfinder.cell_to_world(cell) + Vector3(Pathfinder.CELL_SIZE * 0.5, 0, Pathfinder.CELL_SIZE * 0.5)
-            var offset := world_center - Vector3(center_world, 0, center_world)
+            var world_center := Pathfinder.cell_to_world(cell) - Vector3(center_world, 0, center_world)
             if half_extent > 0.0:
-                if absf(offset.x) / half_extent + absf(offset.z) / half_extent >= 1.0:
+                if absf(world_center.x) / half_extent + absf(world_center.z) / half_extent >= 1.0:
                     continue
             if TerrainSystem.get_cell(cell).is_empty():
                 TerrainSystem.compute_and_emit_cell(cell)
@@ -189,28 +185,19 @@ func _update_hovered_cell() -> void:
     var mouse_pos := get_viewport().get_mouse_position()
     var ray_origin := _camera.project_ray_origin(mouse_pos)
     var ray_direction := _camera.project_ray_normal(mouse_pos)
-    var params := PhysicsRayQueryParameters3D.new()
-    params.from = ray_origin
-    params.to = ray_origin + ray_direction * 5000.0
-    params.collision_mask = 1
-    var result := get_world_3d().direct_space_state.intersect_ray(params)
-    var cell: Vector2i
-    if result and result.collider is StaticBody3D:
-        var body_name: String = result.collider.name
-        if body_name.begins_with("Collision_"):
-            var parts := body_name.trim_prefix("Collision_").split(",")
-            if parts.size() == 2:
-                cell = Vector2i(int(parts[0]), int(parts[1]))
-            else:
-                cell = Pathfinder.world_to_cell(result.position)
-        else:
-            cell = Pathfinder.world_to_cell(result.position)
-    else:
-        var plane := Plane(Vector3.UP, 0.0)
-        var intersection: Variant = plane.intersects_ray(ray_origin, ray_direction)
-        if not intersection:
-            return
-        cell = Pathfinder.world_to_cell(intersection)
+    var ground_plane := Plane(Vector3.UP, 0.0)
+    var intersection = ground_plane.intersects_ray(ray_origin, ray_direction)
+    if not intersection:
+        return
+    var hit_pos := intersection as Vector3
+    for i in 4:
+        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
+        var adjusted := Plane(Vector3.UP, terrain_y)
+        var new_hit = adjusted.intersects_ray(ray_origin, ray_direction)
+        if not new_hit:
+            break
+        hit_pos = new_hit as Vector3
+    var cell := Pathfinder.world_to_cell(hit_pos)
     if cell != _hovered_cell:
         _hovered_cell = cell
         _update_cell_highlight()
@@ -226,8 +213,6 @@ func _update_cell_highlight() -> void:
     var mesh := ImmediateMesh.new()
     var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
     var world_pos := Pathfinder.cell_to_world(_hovered_cell) - Vector3(grid_half, 0, grid_half)
-    world_pos.x += Pathfinder.CELL_SIZE * 0.5
-    world_pos.z += Pathfinder.CELL_SIZE * 0.5
     var height: int = cell_data.get("max_height", cell_data.get("height", 0))
     world_pos.y = float(height) * TerrainSystem.HEIGHT_STEP + 0.02
     var half: float = Pathfinder.CELL_SIZE * 0.475
