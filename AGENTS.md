@@ -142,6 +142,10 @@ Web references for manual lookup:
 
 ## GDScript Best Practices
 
+### Indentation — Spaces Only
+
+Use **4 spaces** for indentation in all GDScript files. Never use tabs. Mixing tabs and spaces causes parse errors in Redot's GDScript parser. If editing a file that already uses a different convention, convert the entire file to 4-space indentation before saving.
+
 ### Naming Conventions
 
 | Category | Convention | Example |
