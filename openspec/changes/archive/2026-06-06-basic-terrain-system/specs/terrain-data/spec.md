@@ -170,6 +170,14 @@ The system SHALL maintain a Dictionary caching computed cell data. Cached per ce
 - **WHEN** `TerrainSystem.clear()` is called
 - **THEN** the vertex grid and cell cache are reset to defaults
 
+#### Scenario: init_grid reinitializes grid
+- **WHEN** `TerrainSystem.init_grid(64)` is called
+- **THEN** the vertex grid is reallocated to the new size (old data lost), existing cell cache persists until explicitly cleared
+
+#### Scenario: get_all_cells returns deep copy
+- **WHEN** `TerrainSystem.get_all_cells()` is called
+- **THEN** the returned Dictionary is a deep copy — mutations to nested cell dictionaries do not affect internal state
+
 ### Requirement: System shall export terrain to JSON
 The TerrainSystem SHALL export terrain to JSON format including both vertex data and cached cell data.
 

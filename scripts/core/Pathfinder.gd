@@ -3,6 +3,8 @@ class_name Pathfinder
 const CELL_SIZE: float = 2.0
 const SQRT2: float = 1.41421356237
 
+static var _terrain_system: Node = null
+
 static func world_to_cell(world_pos: Vector3) -> Vector2i:
     return Vector2i(
         floori(world_pos.x / CELL_SIZE),
@@ -25,15 +27,16 @@ static func cell_to_world_with_height(cell: Vector2i) -> Vector3:
     )
 
 static func get_terrain_height(cell: Vector2i) -> float:
-    var tree: SceneTree = Engine.get_main_loop() as SceneTree
-    if not tree:
-        return 0.0
-    var ts: Node = tree.root.get_node_or_null("TerrainSystem")
-    if not ts:
-        return 0.0
-    var grid_half: float = float(ts.grid_cells) * CELL_SIZE * 0.5
+    if _terrain_system == null or not is_instance_valid(_terrain_system):
+        var tree: SceneTree = Engine.get_main_loop() as SceneTree
+        if not tree:
+            return 0.0
+        _terrain_system = tree.root.get_node_or_null("TerrainSystem")
+        if not _terrain_system:
+            return 0.0
+    var grid_half: float = float(_terrain_system.grid_cells) * CELL_SIZE * 0.5
     var world_pos := cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
-    return ts.get_height_at_world(world_pos)
+    return _terrain_system.get_height_at_world(world_pos)
 
 static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: Dictionary = {}) -> PackedVector3Array:
     var start_cell := world_to_cell(start_world)
@@ -90,6 +93,8 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
         if stagnant > STAGNANT_LIMIT or iter > MAX_ITER:
             return _path_or_fallback(came_from, start_cell, best_cell)
 
+        var current_height := get_terrain_height(current)
+
         for i in 8:
             var neighbor: Vector2i = current + neighbor_dirs[i]
             var nkey: String = _cell_key(neighbor)
@@ -97,8 +102,8 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
             if blocked_cells.has(nkey):
                 continue
 
-            var height_diff: float = get_terrain_height(neighbor) - get_terrain_height(current)
-            var height_cost: float = abs(height_diff) * 0.5
+            var neighbor_height: float = get_terrain_height(neighbor)
+            var height_cost: float = abs(neighbor_height - current_height) * 0.5
             var tentative_g: float = g_score.get(current_key, INF) + neighbor_costs[i] + height_cost
 
             if tentative_g < g_score.get(nkey, INF):

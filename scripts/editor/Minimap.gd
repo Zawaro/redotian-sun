@@ -8,6 +8,7 @@ extends SubViewportContainer
 var _sub_viewport: SubViewport
 var _camera: Camera3D
 var _terrain_mesh: MeshInstance3D
+var _needs_rebuild: bool = false
 
 func _ready() -> void:
 	_setup_container()
@@ -15,6 +16,11 @@ func _ready() -> void:
 	_setup_camera()
 	_setup_terrain_visualization()
 	TerrainSystem.cell_changed.connect(_on_cell_changed)
+
+func _process(_delta: float) -> void:
+	if _needs_rebuild:
+		_needs_rebuild = false
+		_update_visualization()
 
 func _setup_container() -> void:
 	custom_minimum_size = minimap_size
@@ -82,7 +88,7 @@ func _update_visualization() -> void:
 	_terrain_mesh.mesh = mesh
 
 func _on_cell_changed(_cell_key: String, _cell_data: Dictionary) -> void:
-	_update_visualization()
+	_needs_rebuild = true
 
 func get_clicked_world_pos(click_pos: Vector2) -> Vector3:
 	var viewport_click: Vector2 = click_pos * Vector2(size) / Vector2(minimap_size)

@@ -115,10 +115,10 @@
 
 ### 14. Test & verify Phase 3
 
-- [ ] 14.1 Unit follows smooth spline path instead of cell-to-cell straight lines
-- [ ] 14.2 Multi-unit repulsion keeps units apart mid-path without stutter
-- [ ] 14.3 Units slow when ahead neighbor is close, front units maintain full speed
-- [ ] 14.4 Smooth S-curve speed ramps, no hard cutoffs
-- [ ] 14.5 Unit lands at cell center without visual snap or drift
-- [ ] 14.6 Back unit re-paths around front IDLE unit blocking its waypoint
-- [ ] 14.7 100+ units maintain stable framerate with SpatialHash
+- [x] 14.1 Unit follows smooth spline path instead of cell-to-cell straight lines
+- [x] 14.2 Multi-unit repulsion keeps units apart mid-path without stutter
+- [x] 14.3 Units slow when ahead neighbor is close, front units maintain full speed
+- [x] 14.4 Smooth S-curve speed ramps, no hard cutoffs
+- [x] 14.5 Unit lands at cell center without visual snap or drift
+- [x] 14.6 Back unit re-paths around front IDLE unit blocking its waypoint
+- [x] 14.7 100+ units maintain stable framerate with SpatialHash

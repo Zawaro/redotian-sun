@@ -65,7 +65,7 @@ func _setup_multimesh_nodes() -> void:
         multimesh.mesh = entry["mesh"]
         multimesh.transform_format = MultiMesh.TRANSFORM_3D
         multimesh.instance_count = MAX_INSTANCES_PER_MESH
-        multimesh.visible_instance_count = MAX_INSTANCES_PER_MESH
+        multimesh.visible_instance_count = 0
         var mmi := MultiMeshInstance3D.new()
         mmi.multimesh = multimesh
         var mats: Array = entry["materials"]
@@ -89,7 +89,10 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
         return
     var multimesh: MultiMesh = _multimesh_meshes[mesh_name]
     var idx: int = _active_counts[mesh_name]
+    if idx >= MAX_INSTANCES_PER_MESH:
+        return
     _active_counts[mesh_name] = idx + 1
+    multimesh.visible_instance_count = idx + 1
     var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
     var world_pos := Pathfinder.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
     var height: int = data.get("height", 0)
@@ -138,12 +141,15 @@ func remove_cell(cell: Vector2i) -> void:
             _index_to_key[mesh_name + ":" + str(idx)] = last_key
             _index_to_key.erase(mesh_name + ":" + str(last_idx))
     _active_counts[mesh_name] = last_idx
+    multimesh.visible_instance_count = last_idx
     multimesh.set_instance_transform(last_idx, Transform3D(Basis(), Vector3(-9999, -9999, -9999)))
     _instance_data.erase(key)
 
 func clear_all() -> void:
     for mesh_name in _multimesh_meshes:
         _active_counts[mesh_name] = 0
+        var multimesh: MultiMesh = _multimesh_meshes[mesh_name]
+        multimesh.visible_instance_count = 0
     _instance_data.clear()
     _index_to_key.clear()
     _multimesh_aabb.clear()
@@ -175,12 +181,3 @@ func _get_mesh_name(terrain_type: String, variant: int) -> String:
         _:
             prefix = "clear"
     return prefix + str(variant).pad_zeros(2)
-
-func _find_mesh_node(node: Node, mesh_name: String) -> MeshInstance3D:
-    if node is MeshInstance3D and node.name.begins_with(mesh_name):
-        return node
-    for child in node.get_children():
-        var result := _find_mesh_node(child, mesh_name)
-        if result:
-            return result
-    return null

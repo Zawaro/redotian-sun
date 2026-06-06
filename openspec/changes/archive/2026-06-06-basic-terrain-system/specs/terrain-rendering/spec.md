@@ -1,11 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: TerrainRenderer shall use MultiMesh for efficient rendering
-The TerrainRenderer SHALL use MultiMeshInstance3D for each mesh variant (clear01-08, slope01-06). Each MultiMesh supports up to 10,000 instances. Cells are placed into the correct MultiMesh based on their mesh name.
+The TerrainRenderer SHALL use MultiMeshInstance3D for each mesh variant (clear01-08, slope01-06). Each MultiMesh supports up to 10,000 instances. Cells are placed into the correct MultiMesh based on their mesh name. MultiMeshes SHALL start with `visible_instance_count = 0` and grow dynamically as instances are added.
 
 #### Scenario: MultiMesh per variant
 - **WHEN** TerrainRenderer initializes
 - **THEN** one MultiMeshInstance3D is created for each mesh variant found in the GLB
+
+#### Scenario: MultiMesh starts empty
+- **WHEN** TerrainRenderer initializes
+- **THEN** each MultiMesh has `visible_instance_count = 0` (no instances rendered until cells are added)
 
 ### Requirement: GLB mesh loading shall be centralized
 The TerrainRenderer SHALL load the terrain GLB as a PackedScene once and extract meshes by node name. Meshes are stored in a cache keyed by clean name (e.g., "clear01", "slope01").
@@ -47,7 +51,7 @@ Terrain cell meshes SHALL retain the materials embedded in the GLB. Materials ar
 - **THEN** its surface materials are duplicated and preserved
 
 ### Requirement: Renderer shall replace existing instances on cell update
-When a cell is rendered and already has an instance in the MultiMesh, the old instance SHALL be removed (swap-with-last) before the new instance is added.
+When a cell is rendered and already has an instance in the MultiMesh, the old instance SHALL be removed (swap-with-last) before the new instance is added. The renderer SHALL enforce a maximum of `MAX_INSTANCES_PER_MESH` instances per variant — if the limit is reached, new cells for that variant are silently dropped.
 
 #### Scenario: Cell update replaces instance
 - **WHEN** cell (5, 3) is re-rendered with a different mesh variant
@@ -56,6 +60,10 @@ When a cell is rendered and already has an instance in the MultiMesh, the old in
 #### Scenario: Cell deletion removes instance
 - **WHEN** a `cell_changed` signal is received with empty data
 - **THEN** the cell's instance is removed from its MultiMesh
+
+#### Scenario: Instance limit enforced
+- **WHEN** a MultiMesh has 10,000 active instances and a new cell is added
+- **THEN** the new cell is silently dropped (no crash, no render)
 
 ### Requirement: Renderer shall track instance positions
 The renderer SHALL maintain a dictionary mapping cell keys to their mesh name and instance index within the MultiMesh. This enables O(1) removal via swap-with-last.
@@ -70,6 +78,13 @@ The renderer SHALL maintain a custom AABB for each MultiMesh that encompasses al
 #### Scenario: AABB update
 - **WHEN** a new instance is added to a MultiMesh
 - **THEN** the MultiMesh's `custom_aabb` is merged to include the new instance's position
+
+### Requirement: Renderer shall reset state on clear_all
+When `clear_all()` is called, the renderer SHALL reset all instance counts to 0, set `visible_instance_count = 0` on each MultiMesh, and clear all tracking dictionaries. This ensures no stale geometry is rendered.
+
+#### Scenario: clear_all resets visible instances
+- **WHEN** `clear_all()` is called after rendering 500 cells
+- **THEN** each MultiMesh has `visible_instance_count = 0` and no stale transforms remain
 
 ### Requirement: Batch signal emission ensures single render per cell
 The deformation system emits `cell_changed` for all affected cells in a single batch after all calculations complete. Each cell emits exactly once with complete data (height, type, variant, direction, rotation).

@@ -83,15 +83,15 @@
 - [x] 11.1 Create `scenes/maps/TestMap02.tscn`
 - [x] 11.2 Add TerrainRenderer node to TestMap02.tscn
 - [x] 11.3 Place test units (Nod Buggy)
-- [ ] 11.4 Verify Y-snap works on slopes
-- [ ] 11.5 Test pathfinding across terrain height changes
+- [x] 11.4 Verify Y-snap works on slopes
+- [x] 11.5 Test pathfinding across terrain height changes
 
 ## 12. Integration Testing
 
 - [x] 12.1 Test terrain save/load cycle
 - [x] 12.2 Test unit movement on flat terrain (regression)
-- [ ] 12.3 Test unit movement on slopes
-- [ ] 12.4 Test collision with terrain
+- [x] 12.3 Test unit movement on slopes
+- [x] 12.4 Test collision with terrain
 - [x] 12.5 Test map editor height painting
 
 ## 13. Audit Fixes
@@ -117,7 +117,7 @@
 
 ### 13.5 Slope Normal Alignment
 
-- [ ] 13.5.1 Query `TerrainSystem.get_normal_at_world()` in `MovementController._interpolate_height()` and apply rotation to `_rotation_target`
+- [x] 13.5.1 Query `TerrainSystem.get_normal_at_world()` in `MovementController._interpolate_height()` and apply rotation to `_rotation_target`
 
 ### 13.6 Grid Hover Highlight
 
@@ -152,5 +152,5 @@
 
 ### 14.4 Future: HeightMapShape3D for Projectile Collision
 
-- [ ] 14.4.1 Add single HeightMapShape3D to gameplay scenes for weapon projectile physics collision
-- [ ] 14.4.2 Regenerate heightmap image on terrain deformation
+- [x] 14.4.1 Add single HeightMapShape3D to gameplay scenes for weapon projectile physics collision
+- [x] 14.4.2 Regenerate heightmap image on terrain deformation

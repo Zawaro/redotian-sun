@@ -39,11 +39,15 @@ The CollisionShape3D SHALL use a ConcavePolygonShape3D created via `Mesh.create_
 - **THEN** its collision shape exactly matches the slope mesh geometry
 
 ### Requirement: Collision bodies shall be on layer 1
-All terrain StaticBody3D nodes SHALL have collision_layer = 1 and collision_mask = 0 (receives collisions, does not cast).
+All terrain StaticBody3D nodes SHALL have collision_layer = 1 and collision_mask = 0. This means terrain is passive: it occupies layer 1 (so other objects can detect it) but does not detect other objects itself (collision_mask = 0). Physics raycasts will detect terrain if their collision_mask includes layer 1.
 
 #### Scenario: Collision layer setup
 - **WHEN** a TerrainCollision's StaticBody3D is created
 - **THEN** collision_layer = 1 and collision_mask = 0
+
+#### Scenario: Raycast detects terrain
+- **WHEN** a PhysicsRayQueryParameters3D with collision_mask including layer 1 is cast through a terrain cell
+- **THEN** the ray intersects the terrain's StaticBody3D
 
 ### Requirement: Collision shall be positioned with the cell
 The StaticBody3D SHALL be positioned at the cell's world position: (cell_x * CELL_SIZE + CELL_SIZE * 0.5, height * HEIGHT_STEP, cell_y * CELL_SIZE + CELL_SIZE * 0.5). Rotation SHALL be applied for slope direction.

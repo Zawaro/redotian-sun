@@ -2,6 +2,8 @@ extends Node
 
 signal height_changed(cell: Vector2i, new_base_height: int)
 
+var editor: Node3D = null
+
 var _is_painting: bool = false
 var _last_cell: Vector2i = Vector2i(-999, -999)
 var _start_mouse_y: float = 0.0
@@ -24,8 +26,7 @@ func _start_painting(mouse_pos: Vector2) -> void:
     _is_painting = true
     _start_mouse_y = mouse_pos.y
     _accumulated_delta = 0.0
-    var editor := get_parent() as Node3D
-    if editor and editor.has_method("get_hovered_cell"):
+    if editor:
         _last_cell = editor.get_hovered_cell()
 
 func _stop_painting() -> void:
@@ -34,8 +35,7 @@ func _stop_painting() -> void:
     _accumulated_delta = 0.0
 
 func _process_painting(mouse_pos: Vector2) -> void:
-    var editor := get_parent() as Node3D
-    if not editor or not editor.has_method("get_hovered_cell"):
+    if not editor:
         return
     var current_cell: Vector2i = editor.get_hovered_cell()
     var mouse_delta: float = _start_mouse_y - mouse_pos.y

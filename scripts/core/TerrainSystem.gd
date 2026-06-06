@@ -152,7 +152,7 @@ func get_normal_at_world(world_pos: Vector3) -> Vector3:
     return edge_z.cross(edge_x).normalized()
 
 func get_all_cells() -> Dictionary:
-    return _cells.duplicate()
+    return _cells.duplicate(true)
 
 func compute_and_emit_cell(cell: Vector2i) -> void:
     var key := _cell_key(cell)
@@ -347,7 +347,7 @@ func import_from_json(path: String) -> void:
     if error != OK:
         return
     var data: Variant = json.data
-    if not data is Dictionary:
+    if data == null or not data is Dictionary:
         return
 
     var json_grid_cells: int = int(data.get("grid_cells", grid_cells))

@@ -42,22 +42,46 @@ func draw_path(entity_id: String, start_pos: Vector3, waypoints: PackedVector3Ar
     var reached_material := _get_or_create_material("reached", Color(0.5, 0.5, 0.5, 0.6))
     var remaining_material := _get_or_create_material("remaining", Color(0.0, 1.0, 0.0, 0.8))
 
-    var start := start_pos
-    start.y = start_pos.y + 0.05
-    var prev_point: Vector3 = mesh_instance.to_local(start)
+    var h: float = Pathfinder.CELL_SIZE * 0.5
+    var y_off: float = 0.05
+    var n: int = waypoints.size()
+    var start_y := TerrainSystem.get_height_at_world_smooth(start_pos) + y_off
+    var start_local := mesh_instance.to_local(Vector3(start_pos.x, start_y, start_pos.z))
 
-    for i in waypoints.size():
-        var wp_world := waypoints[i]
-        wp_world.y = wp_world.y + 0.05
-        var wp_local := mesh_instance.to_local(wp_world)
+    for i in n:
+        var wp := waypoints[i]
         var mat := reached_material if i < reached_index else remaining_material
+        var cx: float = wp.x
+        var cz: float = wp.z
+        var y: float = TerrainSystem.get_height_at_world_smooth(wp) + y_off
+
+        var center := mesh_instance.to_local(Vector3(cx, y, cz))
+
+        var next_wp: Vector3 = waypoints[i] if i == n - 1 else waypoints[i + 1]
+        var edge_xz := _edge_xz(cx, cz, next_wp.x, next_wp.z, h)
+        var edge_y := TerrainSystem.get_height_at_world_smooth(Vector3(edge_xz.x, 0.0, edge_xz.y)) + y_off
+        var exit_p := mesh_instance.to_local(Vector3(edge_xz.x, edge_y, edge_xz.y))
 
         immesh.surface_begin(Mesh.PRIMITIVE_LINES, mat)
-        immesh.surface_add_vertex(prev_point)
-        immesh.surface_add_vertex(wp_local)
+        immesh.surface_add_vertex(start_local)
+        immesh.surface_add_vertex(center)
+        immesh.surface_add_vertex(center)
+        immesh.surface_add_vertex(exit_p)
         immesh.surface_end()
 
-        prev_point = wp_local
+        start_local = exit_p
+
+
+func _edge_xz(cx: float, cz: float, ox: float, oz: float, h: float) -> Vector2:
+    var dx: float = signf(ox - cx)
+    var dz: float = signf(oz - cz)
+    if dx == 0.0 and dz == 0.0:
+        return Vector2(cx, cz)
+    if dx != 0.0 and dz != 0.0:
+        return Vector2(cx + dx * h, cz + dz * h)
+    if dx != 0.0:
+        return Vector2(cx + dx * h, cz)
+    return Vector2(cx, cz + dz * h)
 
 
 func clear_path(entity_id: String) -> void:
