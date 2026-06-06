@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Pathfinder shall query terrain height for movement cost
-The Pathfinder SHALL query TerrainSystem.get_height_at_world() to determine terrain height at each cell and apply movement cost modifiers.
+The Pathfinder SHALL query TerrainSystem.get_height_at_world() to determine terrain height at each cell and apply movement cost modifiers. The Pathfinder SHALL cache the TerrainSystem node reference to avoid repeated scene tree lookups. During A* expansion, the current cell's height SHALL be queried once, then reused for all 8 neighbor evaluations.
 
 #### Scenario: Height query during pathfinding
 - **WHEN** Pathfinder.find_path() is called
@@ -10,6 +10,10 @@ The Pathfinder SHALL query TerrainSystem.get_height_at_world() to determine terr
 #### Scenario: Default height when no terrain
 - **WHEN** TerrainSystem has no data for a cell
 - **THEN** Pathfinder assumes height 0 (flat ground)
+
+#### Scenario: Cached node reference
+- **WHEN** Pathfinder.get_terrain_height() is called multiple times
+- **THEN** the TerrainSystem node is looked up via scene tree only on the first call; subsequent calls use the cached reference
 
 ### Requirement: MovementController shall interpolate Y-position on slopes
 When a unit moves onto a slope cell, the MovementController SHALL interpolate the Y-position based on progress through the cell (0.0 to 1.0).

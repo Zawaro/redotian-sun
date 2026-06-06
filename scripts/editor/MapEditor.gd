@@ -16,6 +16,8 @@ var _height_painter: Node
 var _height_label: Label
 var _save_dialog: FileDialog
 var _load_dialog: FileDialog
+var _highlight_quad_mat: ORMMaterial3D
+var _highlight_line_mat: ORMMaterial3D
 
 func _ready() -> void:
     if Engine.is_editor_hint():
@@ -64,10 +66,22 @@ func _setup_grid_overlay() -> void:
     _cell_highlight.name = "CellHighlight"
     _cell_highlight.top_level = true
     add_child(_cell_highlight)
+    _highlight_quad_mat = ORMMaterial3D.new()
+    _highlight_quad_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    _highlight_quad_mat.albedo_color = Color(1, 1, 0, 0.3)
+    _highlight_quad_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    _highlight_quad_mat.render_priority = 1
+    _highlight_line_mat = ORMMaterial3D.new()
+    _highlight_line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    _highlight_line_mat.albedo_color = Color(0, 0, 0, 0.5)
+    _highlight_line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    _highlight_line_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+    _highlight_line_mat.render_priority = 1
 
 func _setup_height_painter() -> void:
     _height_painter = preload("res://scripts/editor/HeightPainter.gd").new()
     _height_painter.name = "HeightPainter"
+    _height_painter.editor = self
     add_child(_height_painter)
 
 func _prefill_terrain() -> void:
@@ -190,15 +204,13 @@ func _update_hovered_cell() -> void:
     if not intersection:
         return
     var hit_pos := intersection as Vector3
-    for i in 4:
-        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
-        var adjusted := Plane(Vector3.UP, terrain_y)
-        var new_hit = adjusted.intersects_ray(ray_origin, ray_direction)
-        if not new_hit:
-            break
-        hit_pos = new_hit as Vector3
-    var cell := Pathfinder.world_to_cell(hit_pos)
-    if cell != _hovered_cell:
+    var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
+    if terrain_y > 0.01:
+        var t := (terrain_y - ray_origin.y) / ray_direction.y
+        hit_pos = ray_origin + ray_direction * t
+    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
+    var cell := Pathfinder.world_to_cell(hit_pos + Vector3(grid_half, 0, grid_half))
+    if cell != _hovered_cell and not TerrainSystem.get_cell(cell).is_empty():
         _hovered_cell = cell
         _update_cell_highlight()
 
@@ -216,12 +228,7 @@ func _update_cell_highlight() -> void:
     var height: int = cell_data.get("max_height", cell_data.get("height", 0))
     world_pos.y = float(height) * TerrainSystem.HEIGHT_STEP + 0.02
     var half: float = Pathfinder.CELL_SIZE * 0.475
-    var quad_mat := ORMMaterial3D.new()
-    quad_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    quad_mat.albedo_color = Color(1, 1, 0, 0.3)
-    quad_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    quad_mat.render_priority = 1
-    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, quad_mat)
+    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _highlight_quad_mat)
     var y: float = world_pos.y
     var x0: float = world_pos.x - half
     var x1: float = world_pos.x + half
@@ -234,13 +241,7 @@ func _update_cell_highlight() -> void:
     mesh.surface_add_vertex(Vector3(x1, y, z1))
     mesh.surface_add_vertex(Vector3(x0, y, z1))
     mesh.surface_end()
-    var line_mat := ORMMaterial3D.new()
-    line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    line_mat.albedo_color = Color(0, 0, 0, 0.5)
-    line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    line_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-    line_mat.render_priority = 1
-    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, line_mat)
+    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _highlight_line_mat)
     var drop: float = 2.0
     var lw: float = 0.04
     var corners: Array[Vector3] = [

@@ -220,6 +220,7 @@ func _handle_moving_movement(delta: float) -> void:
             arrived.emit(_parent.global_position)
         else:
             _parent.global_position += Vector3(approach_step.x, 0.0, approach_step.z)
+            _snap_to_terrain()
     else:
         _parent.global_position += step
         var spline_pos := _get_spline_pos(_spline_t)

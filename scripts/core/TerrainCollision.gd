@@ -106,12 +106,3 @@ func _get_mesh_name(terrain_type: String, variant: int) -> String:
 		_:
 			prefix = "clear"
 	return prefix + str(variant).pad_zeros(2)
-
-func _find_mesh_node(node: Node, mesh_name: String) -> MeshInstance3D:
-	if node is MeshInstance3D and node.name.begins_with(mesh_name):
-		return node
-	for child in node.get_children():
-		var result := _find_mesh_node(child, mesh_name)
-		if result:
-			return result
-	return null
