@@ -169,6 +169,7 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 ## Phase 9: Testing & Polish (Priority: High - Ongoing)
 
 ### 9.1 Quality Assurance
+- [ ] Set up GUT testing framework (v9.x)
 - [ ] Unit testing for all core systems
 - [ ] Integration testing across modules
 - [ ] Playtesting sessions with gameplay feedback

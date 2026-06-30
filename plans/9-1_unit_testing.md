@@ -1,84 +1,95 @@
 # Unit Testing for Core Systems - Redotian Sun
 
 ## Overview
-Comprehensive unit testing ensures code quality and reliability across all core RTS systems. Tests validate functionality before integration with other modules.
+Unit testing via [GUT](https://github.com/bitwes/Gut) (Godot Unit Test) v9.x. Tests run in-editor, from CLI, and in GitHub Actions CI.
 
-## Test Coverage Requirements
+## Setup
 
-### 1. Camera & Selection System Tests
-- **Camera Movement**: Verify smooth panning/zooming within bounds
-- **Box Selection**: Test raycasting accuracy for multi-select
-- **Group Management**: Validate hotkey-based group save/load
-- **Smart Centering**: Confirm camera auto-positioning on selection
+### Install GUT
+1. `AssetLib` → search "GUT" → install, OR
+2. `git clone https://github.com/bitwes/Gut.git addons/gut`
+3. Enable plugin in `Project > Project Settings > Plugins`
 
-### 2. Base Building System Tests
-- **Placement Validation**: Test terrain/power/proximity rules
-- **Construction Queue**: Verify FIFO ordering and completion timing
-- **Power Grid**: Check overload protection and visual feedback
-- **Destruction Logic**: Validate resource refunds on building death
-
-### 3. Economy & Resources Tests
-- **Resource Generation**: Confirm income rates calculate correctly
-- **Expense Validation**: Test affordability checks before production
-- **Tiberium Harvesting**: Verify collection loop (harvester → refinery)
-- **Storage Limits**: Ensure caps are enforced properly
-
-### 4. Unit Production Pipeline Tests
-- **Queue Management**: Validate slot limits and priority ordering
-- **Prerequisite Checks**: Confirm tech tree unlock requirements work
-- **Spawn Logic**: Test unit instantiation at production locations
-- **Cancel Refunds**: Verify partial refund calculations
-
-## Technical Implementation
-
-### Testing Framework
-- Use Godot's built-in `@tool` scripts for editor testing
-- Leverage `ClassDB` and `SceneTree` mocks where needed
-- Implement integration tests using test scenes with mocked systems
-- Run tests via CI/CD pipeline on every commit
-
-### Test Example Structure
-```gdscript
-@tool
-extends SceneTester
-
-func test_camera_zoom_clamping():
-    var camera = get_test_instance("MainCamera")
-    
-    # Zoom beyond minimum should clamp to min value
-    camera.zoom_to(20.0)
-    assert(camera.zoom == 50.0, "Zoom clamped to minimum")
-    
-    # Zoom beyond maximum should clamp to max value  
-    camera.zoom_to(1000.0)
-    assert(camera.zoom == 400.0, "Zoom clamped to maximum")
-
-func test_box_selection_raycasting():
-    var selection = get_test_instance("SelectionSystem")
-    
-    # Define box corners in screen space
-    var box_points = [Vector2(100, 100), Vector2(300, 100), 
-                       Vector2(300, 300), Vector2(100, 300)]
-    
-    # Cast rays and verify units selected
-    var selected = selection.get_selected_in_box(box_points)
-    assert(selected.size() == 5, "Should select 5 units in box")
+### Directory Structure
+```
+test/
+├── unit/
+│   ├── test_pathfinder.gd
+│   ├── test_terrain_system.gd
+│   └── test_spatial_hash.gd
+├── integration/
+│   └── test_movement.gd
+└── .gutconfig.json
 ```
 
-### Test Data Setup
-- Create predefined map layouts for reproducible tests
-- Mock unit/building instances with known stats
-- Seed random generators for deterministic testing
-- Use fixtures for common setup/teardown logic
+### `.gutconfig.json`
+```json
+{
+  "dirs": ["res://test/unit/", "res://test/integration/"],
+  "include_subdirs": true,
+  "log_level": 1
+}
+```
 
-## Integration Points
-- Connect to economy system for resource test scenarios
-- Link with production manager for queue validation tests
-- Coordinate with camera system for movement boundary checks
-- Interface with save/load for persistence test cases
+### CLI Run
+```bash
+godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit
+```
 
-## Future Enhancements
-- Automated performance profiling in test suite
-- Visual regression testing for UI changes
-- A/B testing for balance adjustments
-- Coverage reporting dashboard for development tracking
+## Test Coverage
+
+### Phase 1 — Pure Functions (no SceneTree)
+| Function | File | What to assert |
+|----------|------|----------------|
+| `world_to_cell` | Pathfinder.gd | Known positions → expected cells |
+| `cell_to_world` | Pathfinder.gd | Known cells → expected positions |
+| `_cell_key` | Pathfinder.gd | Deterministic string output |
+
+### Phase 2 — Autoload Singletons
+| System | What to assert |
+|--------|----------------|
+| TerrainSystem | `init_grid`, `get_cell`, `set_cell`, `clear` |
+| SpatialHash | `occupy_cell`, `release_cell`, `is_occupied` |
+| SelectionManager | `select`, `deselect`, `get_selected` |
+
+### Phase 3 — Integration
+| Scenario | What to assert |
+|----------|----------------|
+| Pathfinder + TerrainSystem | Height queries return valid floats |
+| MovementController | `arrived` signal emitted after path complete |
+
+## CI/CD (GitHub Actions)
+
+### Workflow: `.github/workflows/test.yml`
+```yaml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Godot Heads-Up
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: "4.4.1"
+          mono: false
+      - name: Import project
+        run: godot --headless --import
+      - name: Run tests
+        run: godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit -gjunit_xml_file=results.xml
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: results.xml
+```
+
+## Conventions
+- Test files: `test_<module_name>.gd`
+- Test classes: `extends GutTest`
+- Test methods: `func test_<what>():`
+- One assert per behavior (or group related asserts in same test)
+- Use `before_each()` for setup, `after_each()` for cleanup
+- No `load()` in tests — use `preload()` or mock data
