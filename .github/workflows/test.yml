@@ -44,12 +44,12 @@ jobs:
           curl -L -o ~/redot/redot.zip \
             "https://github.com/Redot-Engine/redot-engine/releases/download/redot-26.1-stable/Redot_v26.1-stable_linux_x64.zip"
           cd ~/redot && unzip redot.zip
-          chmod +x ~/redot/Redot_v26.1-stable_linux.x86_64
+          chmod +x ~/redot/redot.linuxbsd.editor.x86_64
 
       - name: Import project assets
         run: |
-          ~/redot/Redot_v26.1-stable_linux.x86_64 --headless --import
+          ~/redot/redot.linuxbsd.editor.x86_64 --headless --import
 
       - name: Run tests
         run: |
-          ~/redot/Redot_v26.1-stable_linux.x86_64 --headless -s test/run_tests.gd
+          ~/redot/redot.linuxbsd.editor.x86_64 --headless -s test/run_tests.gd
