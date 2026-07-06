@@ -6,6 +6,7 @@ var _ts: Node = null
 var _test_passed := 0
 var _test_failed := 0
 
+
 func test_init_grid_sets_grid_cells():
     if _ts == null:
         _test_failed += 1
@@ -20,6 +21,7 @@ func test_init_grid_sets_grid_cells():
     else:
         _test_failed += 1
         print("    FAIL: expected grid_cells=16, got %d" % got)
+
 
 func test_init_grid_resets_vertex_data():
     if _ts == null:
@@ -38,6 +40,7 @@ func test_init_grid_resets_vertex_data():
         _test_failed += 1
         print("    FAIL: before=%d, after=%d" % [before, after])
 
+
 func test_set_cell_stores_data():
     if _ts == null:
         _test_failed += 1
@@ -55,6 +58,7 @@ func test_set_cell_stores_data():
         _test_failed += 1
         print("    FAIL: expected non-empty data, got %s" % data)
 
+
 func test_get_cell_empty_for_unset():
     if _ts == null:
         _test_failed += 1
@@ -68,6 +72,7 @@ func test_get_cell_empty_for_unset():
     else:
         _test_failed += 1
         print("    FAIL: expected empty, got %s" % data)
+
 
 func test_clear_empties_cells():
     if _ts == null:

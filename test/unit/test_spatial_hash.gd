@@ -6,6 +6,7 @@ var _sh: Node = null
 var _test_passed := 0
 var _test_failed := 0
 
+
 func test_reserve_cell_succeeds():
     if _sh == null:
         _test_failed += 1
@@ -21,6 +22,7 @@ func test_reserve_cell_succeeds():
     else:
         _test_failed += 1
         print("    FAIL: expected true, got false")
+
 
 func test_reserve_cell_fails_when_taken():
     if _sh == null:
@@ -39,6 +41,7 @@ func test_reserve_cell_fails_when_taken():
         _test_failed += 1
         print("    FAIL: expected false, got true")
 
+
 func test_release_cell_frees():
     if _sh == null:
         _test_failed += 1
@@ -56,6 +59,7 @@ func test_release_cell_frees():
     else:
         _test_failed += 1
         print("    FAIL: expected true after release, got false")
+
 
 func test_is_cell_idle_reflects_blocked():
     if _sh == null:

@@ -7,6 +7,7 @@ var _sm: Node = null
 var _test_passed := 0
 var _test_failed := 0
 
+
 func test_selected_entities_initially_empty():
     if _sm == null:
         _test_failed += 1
@@ -21,6 +22,7 @@ func test_selected_entities_initially_empty():
         _test_failed += 1
         print("    FAIL: expected 0, got %d" % count)
 
+
 func test_deselect_all_clears():
     if _sm == null:
         _test_failed += 1
@@ -34,6 +36,7 @@ func test_deselect_all_clears():
     else:
         _test_failed += 1
         print("    FAIL: expected 0, got %d" % count)
+
 
 func test_select_entity_ignores_null():
     if _sm == null:
