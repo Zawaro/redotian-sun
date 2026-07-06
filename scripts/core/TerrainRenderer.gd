@@ -13,6 +13,7 @@ var _instance_data: Dictionary = {}
 var _index_to_key: Dictionary = {}
 var _terrain_parent: Node3D
 var _glb_instance: Node = null
+var _on_cell_changed_count: int = 0
 
 func _ready() -> void:
     _terrain_scene = load(TERRAIN_GLB_PATH) as PackedScene
@@ -22,8 +23,10 @@ func _ready() -> void:
     _extract_meshes()
     _setup_multimesh_nodes()
     TerrainSystem.cell_changed.connect(_on_cell_changed)
-    for key in TerrainSystem.get_all_cells():
-        _on_cell_changed(key, TerrainSystem.get_all_cells()[key])
+    var existing := TerrainSystem.get_all_cells()
+    print("[TerrainRenderer] _ready: mesh_names=", _multimesh_meshes.keys(), " existing_cells=", existing.size())
+    for key in existing:
+        _on_cell_changed(key, existing[key])
 
 func _exit_tree() -> void:
     if TerrainSystem.cell_changed.is_connected(_on_cell_changed):
@@ -86,6 +89,7 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
     var variant: int = data.get("variant", 1)
     var mesh_name := _get_mesh_name(terrain_type, variant)
     if not _multimesh_meshes.has(mesh_name):
+        print("[TerrainRenderer] No mesh for ", mesh_name, " (type=", terrain_type, " variant=", variant, ")")
         return
     var multimesh: MultiMesh = _multimesh_meshes[mesh_name]
     var idx: int = _active_counts[mesh_name]
@@ -155,6 +159,9 @@ func clear_all() -> void:
     _multimesh_aabb.clear()
 
 func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
+    _on_cell_changed_count += 1
+    if _on_cell_changed_count <= 3 or _on_cell_changed_count % 200 == 0:
+        print("[TerrainRenderer] _on_cell_changed #", _on_cell_changed_count, " key=", cell_key, " empty=", cell_data.is_empty())
     var parts := cell_key.split(",")
     if parts.size() == 2:
         var cell := Vector2i(int(parts[0]), int(parts[1]))

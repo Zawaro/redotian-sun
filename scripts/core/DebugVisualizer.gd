@@ -6,6 +6,7 @@ var _meshes: Dictionary = {}
 var _cached_immeshes: Dictionary = {}
 var _cached_materials: Dictionary = {}
 
+
 func _get_or_create_material(material_name: String, color: Color) -> ORMMaterial3D:
     var key: String = material_name
     if _cached_materials.has(key):
@@ -16,7 +17,10 @@ func _get_or_create_material(material_name: String, color: Color) -> ORMMaterial
     _cached_materials[key] = mat
     return mat
 
-func draw_path(entity_id: String, start_pos: Vector3, waypoints: PackedVector3Array, reached_index: int) -> void:
+
+func draw_path(
+    entity_id: String, start_pos: Vector3, waypoints: PackedVector3Array, reached_index: int
+) -> void:
     if not enabled:
         return
 
@@ -59,7 +63,9 @@ func draw_path(entity_id: String, start_pos: Vector3, waypoints: PackedVector3Ar
 
         var next_wp: Vector3 = waypoints[i] if i == n - 1 else waypoints[i + 1]
         var edge_xz := _edge_xz(cx, cz, next_wp.x, next_wp.z, h)
-        var edge_y := TerrainSystem.get_height_at_world_smooth(Vector3(edge_xz.x, 0.0, edge_xz.y)) + y_off
+        var edge_y := (
+            TerrainSystem.get_height_at_world_smooth(Vector3(edge_xz.x, 0.0, edge_xz.y)) + y_off
+        )
         var exit_p := mesh_instance.to_local(Vector3(edge_xz.x, edge_y, edge_xz.y))
 
         immesh.surface_begin(Mesh.PRIMITIVE_LINES, mat)

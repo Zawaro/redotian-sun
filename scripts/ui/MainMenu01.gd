@@ -1,8 +1,8 @@
 extends Control
 
-
 # Called when the node enters the scene tree for the first time.
 # Main menu controller – handles button clicks and exit logic
+
 
 func _input(event):
     if event is InputEventMouseButton and event.pressed:
@@ -13,6 +13,7 @@ func _input(event):
                 var lbl = child.get_node_or_null("Text")
                 if lbl and lbl.get_global_rect().has_point(mouse_pos):
                     _handle_click(lbl.text)
+
 
 func _handle_click(button_text: String) -> void:
     match button_text:

@@ -17,22 +17,25 @@ func _ready():
     if not Engine.is_editor_hint():
         print("✅ SelectionManager loaded successfully!")
 
+
 func select_entity(entity: SelectComponent, shift_pressed: bool = false):
     if not entity:
         return
-    
+
     if shift_pressed and entity in selected_entities:
         remove_entity(entity)
         return
-    
+
     if shift_pressed:
         add_entity(entity)
     else:
         deselect_all()
         add_entity(entity)
 
+
 func deselect_entity(entity: SelectComponent):
     remove_entity(entity)
+
 
 func deselect_all():
     for entity in selected_entities:
@@ -41,23 +44,26 @@ func deselect_all():
     selected_entities.clear()
     emit_signal("selection_changed", [])
 
+
 func add_entity(entity: SelectComponent):
     if entity and not selected_entities.has(entity):
         selected_entities.append(entity)
-        
+
         if entity.has_method("set_is_selected"):
             entity.set_is_selected(true)
-            
+
         emit_signal("selection_changed", selected_entities.duplicate())
+
 
 func remove_entity(entity: SelectComponent):
     if entity in selected_entities:
         selected_entities.erase(entity)
-        
+
         if entity.has_method("set_is_selected"):
             entity.set_is_selected(false)
-            
+
         emit_signal("selection_changed", selected_entities.duplicate())
+
 
 func toggle_entity(entity: SelectComponent):
     if entity in selected_entities:
@@ -65,17 +71,19 @@ func toggle_entity(entity: SelectComponent):
     else:
         add_entity(entity)
 
+
 func set_hover_preview(enabled: bool, entity: SelectComponent = null):
     is_hovering = enabled
-    
+
     if hovered_entity and hovered_entity != entity:
         hovered_entity.set_is_hovering(false)
         hovered_entity = null
-        
+
     if enabled and entity:
         hovered_entity = entity
         hovered_entity.set_is_hovering(true)
         emit_signal("hover_changed", entity)
+
 
 func clear_hover_preview():
     set_hover_preview(false, null)
@@ -112,15 +120,14 @@ func request_move(target_position: Vector3) -> void:
             continue
 
         var offset := parent.global_position - center
-        var cell_offset := Vector2i(
-            roundi(offset.x / CELL_SIZE),
-            roundi(offset.z / CELL_SIZE)
-        )
+        var cell_offset := Vector2i(roundi(offset.x / CELL_SIZE), roundi(offset.z / CELL_SIZE))
         if abs(cell_offset.x) > 2 or abs(cell_offset.y) > 2:
             cell_offset.x = clampi(cell_offset.x, -2, 2)
             cell_offset.y = clampi(cell_offset.y, -2, 2)
 
-        var target := target_position + Vector3(cell_offset.x * CELL_SIZE, 0, cell_offset.y * CELL_SIZE)
+        var target := (
+            target_position + Vector3(cell_offset.x * CELL_SIZE, 0, cell_offset.y * CELL_SIZE)
+        )
 
         var cell := Pathfinder.world_to_cell(target)
         if not SpatialHash.instance.reserve_cell(cell):
@@ -164,6 +171,7 @@ func _fallback_target(target: Vector3) -> Vector3:
 
 func is_entity_selected(entity: SelectComponent) -> bool:
     return selected_entities.has(entity)
+
 
 func get_selected_entities():
     return selected_entities
