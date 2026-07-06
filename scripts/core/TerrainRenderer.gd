@@ -15,6 +15,7 @@ var _terrain_parent: Node3D
 var _glb_instance: Node = null
 var _on_cell_changed_count: int = 0
 
+
 func _ready() -> void:
     _terrain_scene = load(TERRAIN_GLB_PATH) as PackedScene
     _terrain_parent = Node3D.new()
@@ -24,9 +25,11 @@ func _ready() -> void:
     _setup_multimesh_nodes()
     TerrainSystem.cell_changed.connect(_on_cell_changed)
     var existing := TerrainSystem.get_all_cells()
-    print("[TerrainRenderer] _ready: mesh_names=", _multimesh_meshes.keys(), " existing_cells=", existing.size())
+    var mesh_keys := _multimesh_meshes.keys()
+    print("[TerrainRenderer] _ready: mesh_names=", mesh_keys, " existing_cells=", existing.size())
     for key in existing:
         _on_cell_changed(key, existing[key])
+
 
 func _exit_tree() -> void:
     if TerrainSystem.cell_changed.is_connected(_on_cell_changed):
@@ -36,11 +39,13 @@ func _exit_tree() -> void:
         _glb_instance.queue_free()
         _glb_instance = null
 
+
 func _extract_meshes() -> void:
     var instance := _terrain_scene.instantiate()
     _find_all_meshes(instance)
     instance.visible = false
     _glb_instance = instance
+
 
 func _find_all_meshes(node: Node) -> void:
     if node is MeshInstance3D:
@@ -57,9 +62,10 @@ func _find_all_meshes(node: Node) -> void:
                     mat = mat.duplicate()
                     mesh_dupe.surface_set_material(i, mat)
                 mats.append(mat)
-            _mesh_cache[clean_name] = { "mesh": mesh_dupe, "materials": mats }
+            _mesh_cache[clean_name] = {"mesh": mesh_dupe, "materials": mats}
     for child in node.get_children():
         _find_all_meshes(child)
+
 
 func _setup_multimesh_nodes() -> void:
     for mesh_name in _mesh_cache:
@@ -81,6 +87,7 @@ func _setup_multimesh_nodes() -> void:
         _multimesh_meshes[mesh_name] = multimesh
         _active_counts[mesh_name] = 0
 
+
 func render_cell(cell: Vector2i, data: Dictionary) -> void:
     var key := _cell_key(cell)
     if _instance_data.has(key):
@@ -89,7 +96,15 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
     var variant: int = data.get("variant", 1)
     var mesh_name := _get_mesh_name(terrain_type, variant)
     if not _multimesh_meshes.has(mesh_name):
-        print("[TerrainRenderer] No mesh for ", mesh_name, " (type=", terrain_type, " variant=", variant, ")")
+        print(
+            "[TerrainRenderer] No mesh for ",
+            mesh_name,
+            " (type=",
+            terrain_type,
+            " variant=",
+            variant,
+            ")"
+        )
         return
     var multimesh: MultiMesh = _multimesh_meshes[mesh_name]
     var idx: int = _active_counts[mesh_name]
@@ -105,14 +120,16 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
     var transform := Transform3D(Basis(), world_pos)
     transform.basis = Basis(Vector3.UP, deg_to_rad(rotation))
     multimesh.set_instance_transform(idx, transform)
-    _instance_data[key] = { "mesh_name": mesh_name, "index": idx }
+    _instance_data[key] = {"mesh_name": mesh_name, "index": idx}
     _index_to_key[mesh_name + ":" + str(idx)] = key
     _update_multimesh_aabb(mesh_name, multimesh, world_pos)
+
 
 func _update_multimesh_aabb(mesh_name: String, multimesh: MultiMesh, world_pos: Vector3) -> void:
     var half_size := Pathfinder.CELL_SIZE * 0.5
     var cell_min := world_pos - Vector3(half_size, 0.0, half_size)
-    var cell_size := Vector3(Pathfinder.CELL_SIZE, maxf(TerrainSystem.HEIGHT_STEP, 0.1), Pathfinder.CELL_SIZE)
+    var step := maxf(TerrainSystem.HEIGHT_STEP, 0.1)
+    var cell_size := Vector3(Pathfinder.CELL_SIZE, step, Pathfinder.CELL_SIZE)
     var cell_aabb := AABB(cell_min, cell_size)
     if not _multimesh_aabb.has(mesh_name):
         _multimesh_aabb[mesh_name] = cell_aabb
@@ -121,6 +138,7 @@ func _update_multimesh_aabb(mesh_name: String, multimesh: MultiMesh, world_pos: 
         var merged: AABB = _multimesh_aabb[mesh_name].merge(cell_aabb)
         _multimesh_aabb[mesh_name] = merged
         multimesh.custom_aabb = merged
+
 
 func remove_cell(cell: Vector2i) -> void:
     var key := _cell_key(cell)
@@ -149,6 +167,7 @@ func remove_cell(cell: Vector2i) -> void:
     multimesh.set_instance_transform(last_idx, Transform3D(Basis(), Vector3(-9999, -9999, -9999)))
     _instance_data.erase(key)
 
+
 func clear_all() -> void:
     for mesh_name in _multimesh_meshes:
         _active_counts[mesh_name] = 0
@@ -158,10 +177,19 @@ func clear_all() -> void:
     _index_to_key.clear()
     _multimesh_aabb.clear()
 
+
 func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
     _on_cell_changed_count += 1
     if _on_cell_changed_count <= 3 or _on_cell_changed_count % 200 == 0:
-        print("[TerrainRenderer] _on_cell_changed #", _on_cell_changed_count, " key=", cell_key, " empty=", cell_data.is_empty())
+        var empty := cell_data.is_empty()
+        print(
+            "[TerrainRenderer] _on_cell_changed #",
+            _on_cell_changed_count,
+            " key=",
+            cell_key,
+            " empty=",
+            empty
+        )
     var parts := cell_key.split(",")
     if parts.size() == 2:
         var cell := Vector2i(int(parts[0]), int(parts[1]))
@@ -173,8 +201,10 @@ func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
                 mesh_data = TerrainSystem.calculate_cell_mesh(cell)
             render_cell(cell, mesh_data)
 
+
 func _cell_key(cell: Vector2i) -> String:
     return str(cell.x) + "," + str(cell.y)
+
 
 func _get_mesh_name(terrain_type: String, variant: int) -> String:
     var prefix := ""
