@@ -6,7 +6,6 @@ class_name CameraController extends Node3D
 var fixed_toggle_point = Vector2(0, 0)
 var is_panning = false
 var navigation_speed: float = 3.0
-var keyboard_navigation_divider: float = 3.0
 var border_panning_threshold: float = 7.0
 
 
@@ -14,7 +13,7 @@ var border_panning_threshold: float = 7.0
 func _process(_delta):
     if not Engine.is_editor_hint():
         # Frame-rate independent movement speed
-        var axis_speed := 1.0 / keyboard_navigation_divider
+        var axis_speed := 20.0
         var forward := Vector3(1, 0, 1)
 
         # Handle middle mouse panning
