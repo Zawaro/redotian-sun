@@ -5,9 +5,6 @@ extends Node3D
 @export var visible_bounds_size: Vector2 = Vector2(54.0, 54.0)
 @export var show_grid: bool = true
 
-var grid_size: Vector2i:
-    get: return Vector2i(ceili(map_size.x * sqrt(2)), ceili(map_size.y * sqrt(2)))
-
 var _grid_overlay: MeshInstance3D
 var _cell_highlight: MeshInstance3D
 var _hovered_cell: Vector2i = Vector2i(-999, -999)
@@ -18,6 +15,7 @@ var _save_dialog: FileDialog
 var _load_dialog: FileDialog
 var _highlight_quad_mat: ORMMaterial3D
 var _highlight_line_mat: ORMMaterial3D
+
 
 func _ready() -> void:
     if Engine.is_editor_hint():
@@ -30,6 +28,7 @@ func _ready() -> void:
     _prefill_terrain()
     _setup_ui()
 
+
 func _exit_tree() -> void:
     if Engine.is_editor_hint():
         return
@@ -38,11 +37,13 @@ func _exit_tree() -> void:
     if renderer and renderer.has_method("clear_all"):
         renderer.clear_all()
 
+
 func _process(_delta: float) -> void:
     if Engine.is_editor_hint():
         return
     _update_hovered_cell()
     _update_height_label()
+
 
 func _setup_camera() -> void:
     var camera_scene := preload("res://scenes/hud/Camera01.tscn")
@@ -55,6 +56,7 @@ func _setup_camera() -> void:
     bounds.visible_bounds_size = visible_bounds_size
     add_child(bounds)
     camera_instance.bounds_system = bounds
+
 
 func _setup_grid_overlay() -> void:
     _grid_overlay = MeshInstance3D.new()
@@ -78,11 +80,13 @@ func _setup_grid_overlay() -> void:
     _highlight_line_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
     _highlight_line_mat.render_priority = 1
 
+
 func _setup_height_painter() -> void:
     _height_painter = preload("res://scripts/editor/HeightPainter.gd").new()
     _height_painter.name = "HeightPainter"
     _height_painter.editor = self
     add_child(_height_painter)
+
 
 func _prefill_terrain() -> void:
     var cells := TerrainSystem.grid_cells
@@ -91,12 +95,15 @@ func _prefill_terrain() -> void:
     for x in range(cells):
         for z in range(cells):
             var cell := Vector2i(x, z)
-            var world_center := Pathfinder.cell_to_world(cell) - Vector3(center_world, 0, center_world)
+            var world_center := (
+                Pathfinder.cell_to_world(cell) - Vector3(center_world, 0, center_world)
+            )
             if half_extent > 0.0:
                 if absf(world_center.x) / half_extent + absf(world_center.z) / half_extent >= 1.0:
                     continue
             if TerrainSystem.get_cell(cell).is_empty():
                 TerrainSystem.compute_and_emit_cell(cell)
+
 
 func _setup_ui() -> void:
     var ui := CanvasLayer.new()
@@ -147,6 +154,7 @@ func _setup_ui() -> void:
         minimap.position = Vector2(10, 80)
         ui.add_child(minimap)
 
+
 func _draw_grid() -> void:
     var mesh := ImmediateMesh.new()
     var material := ORMMaterial3D.new()
@@ -193,6 +201,7 @@ func _draw_grid() -> void:
     _grid_overlay.mesh = mesh
     _grid_overlay.material_override = material
 
+
 func _update_hovered_cell() -> void:
     if not _camera:
         return
@@ -213,6 +222,7 @@ func _update_hovered_cell() -> void:
     if cell != _hovered_cell and not TerrainSystem.get_cell(cell).is_empty():
         _hovered_cell = cell
         _update_cell_highlight()
+
 
 func _update_cell_highlight() -> void:
     if not _cell_highlight:
@@ -245,8 +255,10 @@ func _update_cell_highlight() -> void:
     var drop: float = 2.0
     var lw: float = 0.04
     var corners: Array[Vector3] = [
-        Vector3(x0, y, z0), Vector3(x1, y, z0),
-        Vector3(x1, y, z1), Vector3(x0, y, z1),
+        Vector3(x0, y, z0),
+        Vector3(x1, y, z0),
+        Vector3(x1, y, z1),
+        Vector3(x0, y, z1),
     ]
     for c in corners:
         var cx: float = c.x
@@ -270,6 +282,7 @@ func _update_cell_highlight() -> void:
     _cell_highlight.material_override = null
     _cell_highlight.position = Vector3.ZERO
 
+
 func _update_height_label() -> void:
     if not _height_label:
         return
@@ -277,20 +290,26 @@ func _update_height_label() -> void:
     var height: int = cell_data.get("height", 0)
     _height_label.text = "Height: %d" % height
 
+
 func _on_save_pressed() -> void:
     _save_dialog.popup_centered(Vector2i(400, 300))
+
 
 func _on_load_pressed() -> void:
     _load_dialog.popup_centered(Vector2i(400, 300))
 
+
 func _on_save_file_selected(path: String) -> void:
     TerrainSystem.export_to_json(path)
+
 
 func _on_load_file_selected(path: String) -> void:
     TerrainSystem.import_from_json(path)
 
+
 func get_hovered_cell() -> Vector2i:
     return _hovered_cell
+
 
 func _on_height_changed(cell: Vector2i, _new_height: int) -> void:
     if cell == _hovered_cell:
