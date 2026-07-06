@@ -32,3 +32,30 @@ This project is **not affiliated with or endorsed by EA**.
 - [Creative Commons BY-NC 4.0 License](https://creativecommons.org/licenses/by-nc/4.0/)
 - [MIT License](https://opensource.org/licenses/MIT)
 
+---
+
+## Development
+
+### Prerequisites
+
+- [Redot Engine 26.1 LTS](https://github.com/Redot-Engine/redot-engine/releases)
+- Python 3.x (for linting)
+
+### Running Tests
+
+```bash
+redot --headless -s test/run_tests.gd
+```
+
+### Linting
+
+```bash
+pip install gdtoolkit
+gdlint scripts/**/*.gd test/**/*.gd
+gdformat --check scripts/**/*.gd test/**/*.gd
+```
+
+### CI
+
+GitHub Actions runs lint, format check, and tests on every push and PR. See `.github/workflows/test.yml`.
+

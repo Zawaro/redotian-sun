@@ -1,0 +1,13 @@
+# gdtoolkit linter configuration
+# https://github.com/Scony/godot-gdscript-toolkit
+
+disable:
+  - function-name  # PascalCase functions in existing code (e.g., test helpers)
+  - max-function-lines  # Some functions are longer than default during prototyping
+  - class-definitions-order  # @onready after exports is common pattern
+  - class-variable-name  # SCREAMING_SNAKE for non-const class vars (MOUSE_DRAG_THRESHOLD, etc.)
+  - enum-element-name  # PascalCase enum elements (Infantry, Vehicle, Structure)
+  - function-variable-name  # SCREAMING_SNAKE in functions (GODOT_CELL_SCALE)
+  - function-preload-variable-name  # preload var naming conventions
+  - no-elif-return  # elif after return is fine in match-like patterns
+  - no-else-return  # else after return is fine for readability
