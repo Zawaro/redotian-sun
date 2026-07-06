@@ -6,6 +6,7 @@ var _ts: Node = null
 var _test_passed := 0
 var _test_failed := 0
 
+
 func test_get_terrain_height_returns_float():
     if _ts == null:
         _test_failed += 1
@@ -23,6 +24,7 @@ func test_get_terrain_height_returns_float():
         _test_failed += 1
         print("    FAIL: got NaN or Inf: %f" % height)
 
+
 func test_find_path_returns_array():
     if _ts == null:
         _test_failed += 1
@@ -39,6 +41,7 @@ func test_find_path_returns_array():
     else:
         _test_failed += 1
         print("    FAIL: expected waypoints, got empty array")
+
 
 func test_find_path_empty_for_same_cell():
     if _ts == null:

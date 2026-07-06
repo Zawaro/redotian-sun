@@ -6,6 +6,7 @@ extends Node
 var _test_passed := 0
 var _test_failed := 0
 
+
 func test_world_to_cell_origin():
     var got: Vector2i = Pathfinder.world_to_cell(Vector3.ZERO)
     var expected: Vector2i = Vector2i(0, 0)
@@ -15,6 +16,7 @@ func test_world_to_cell_origin():
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
+
 
 func test_world_to_cell_positive():
     var got: Vector2i = Pathfinder.world_to_cell(Vector3(5.0, 0.0, 5.0))
@@ -26,6 +28,7 @@ func test_world_to_cell_positive():
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
 
+
 func test_world_to_cell_negative():
     var got: Vector2i = Pathfinder.world_to_cell(Vector3(-3.0, 0.0, -3.0))
     var expected: Vector2i = Vector2i(-2, -2)
@@ -35,6 +38,7 @@ func test_world_to_cell_negative():
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
+
 
 func test_cell_to_world_origin():
     var got: Vector3 = Pathfinder.cell_to_world(Vector2i(0, 0))
@@ -46,6 +50,7 @@ func test_cell_to_world_origin():
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
 
+
 func test_cell_to_world_roundtrip():
     var cell: Vector2i = Vector2i(5, 3)
     var world: Vector3 = Pathfinder.cell_to_world(cell)
@@ -56,6 +61,7 @@ func test_cell_to_world_roundtrip():
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [cell, back])
+
 
 func test_cell_key_deterministic():
     var key1: String = Pathfinder._cell_key(Vector2i(3, 5))
