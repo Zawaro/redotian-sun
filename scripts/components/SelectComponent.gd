@@ -9,11 +9,7 @@ class_name SelectComponent extends Area3D
 @export var selection_size := Vector3(2.0, 0.01, 2.0)
 @export var outline_size := Vector3(2.0, 2.0, 2.0)
 
-enum SelectBoxType {
-    Infantry,
-    Vehicle,
-    Structure
-}
+enum SelectBoxType { Infantry, Vehicle, Structure }
 
 # Health bar consists of 6 cubes per 1 cell, 1 cell equals 2 godot units
 const HEALTH_BAR_CUBE_SIZE = 0.33333333
@@ -24,23 +20,27 @@ var _vehicle_health_material: ORMMaterial3D
 # Cached Vehicle health bar dimensions (computed in _ready from outline shape)
 var VEHICLE_HEALTH_BAR_HEIGHT := 0.1
 
+
 func _update_selection_shape():
     $SelectionHitbox.shape.size = selection_size
-    
+
+
 func _update_outline_shape():
     $SelectOutline.shape.size = outline_size
     $SelectOutline.position = Vector3(0, outline_size.y / 2.0, 0)
 
+
 func _ready():
     self._update_selection_shape()
     self._update_outline_shape()
-    
+
     if select_box_type != SelectBoxType.Structure:
         add_to_group("entities")
 
     if health_component is HealthComponent:
         health_component.connect("health_changed", _on_health_changed)
-        update_health_bar()   # may return early for Vehicle until match branch runs below, but that's fine — structure bar built inline
+        # May return early for Vehicle until match branch runs below
+        update_health_bar()
 
     var select_outline_shape = $SelectOutline.shape
 
@@ -76,22 +76,21 @@ func _ready():
                 # BL corner — L shape (up + right from bottom-left vertex)
                 [Vector3(-half_w, -half_h, 0), Vector3(-half_w, -half_h + corner_inset, 0)],
                 [Vector3(-half_w, -half_h, 0), Vector3(-half_w + corner_inset, -half_h, 0)],
-
                 # BR corner — L shape (up + left from bottom-right vertex)
-                [Vector3(+half_w, -half_h, 0), Vector3(+half_w, -half_h + corner_inset, 0)],
-                [Vector3(+half_w, -half_h, 0), Vector3(half_w - corner_inset, -half_h, 0)],
-
+                [Vector3(half_w, -half_h, 0), Vector3(half_w, -half_h + corner_inset, 0)],
+                [Vector3(half_w, -half_h, 0), Vector3(half_w - corner_inset, -half_h, 0)],
                 # TL corner — L shape (down + right from top-left vertex)
                 [Vector3(-half_w, half_h, 0), Vector3(-half_w, half_h - corner_inset, 0)],
                 [Vector3(-half_w, half_h, 0), Vector3(-half_w + corner_inset, half_h, 0)],
-
                 # TR corner — L shape (down + left from top-right vertex)
-                [Vector3(+half_w, half_h, 0), Vector3(+half_w, half_h - corner_inset, 0)],
-                [Vector3(+half_w, half_h, 0), Vector3(half_w - corner_inset, half_h, 0)],
+                [Vector3(half_w, half_h, 0), Vector3(half_w, half_h - corner_inset, 0)],
+                [Vector3(half_w, half_h, 0), Vector3(half_w - corner_inset, half_h, 0)],
             ]
 
             for line in lines:
-                vehicle_select_box.mesh.surface_begin(Mesh.PRIMITIVE_LINES, vehicle_outline_material)
+                vehicle_select_box.mesh.surface_begin(
+                    Mesh.PRIMITIVE_LINES, vehicle_outline_material
+                )
                 vehicle_select_box.mesh.surface_add_vertex(line[0])
                 vehicle_select_box.mesh.surface_add_vertex(line[1])
                 vehicle_select_box.mesh.surface_end()
@@ -118,20 +117,24 @@ func _ready():
                 # Store material reference for direct access in update_health_bar()
                 _vehicle_health_material = bar_material
 
-                # Size: full width, centered on Y axis (spans -VEHICLE_HEALTH_BAR_HEIGHT to +VEHICLE_HEALTH_BAR_HEIGHT)
-                health_bar.mesh.size = Vector2(outline_shape_size.x, VEHICLE_HEALTH_BAR_HEIGHT * 2.0)
+                # Size: full width, centered on Y axis
+                health_bar.mesh.size = Vector2(
+                    outline_shape_size.x, VEHICLE_HEALTH_BAR_HEIGHT * 2.0
+                )
 
-                vehicle_health_bar.position = Vector3(0, half_w + corner_inset + VEHICLE_HEALTH_BAR_HEIGHT + 0.12, 0)
+                vehicle_health_bar.position = Vector3(
+                    0, half_w + corner_inset + VEHICLE_HEALTH_BAR_HEIGHT + 0.12, 0
+                )
                 vehicle_health_bar.visible = false
                 add_child(vehicle_health_bar)
 
         SelectBoxType.Structure:
             var hit_box_size = select_outline_shape.size
-            var min_x: float = hit_box_size.x / - 2
+            var min_x: float = hit_box_size.x / -2
             var max_x: float = hit_box_size.x / 2
             var min_y: float = 0.01
             var max_y: float = hit_box_size.y
-            var min_z: float = hit_box_size.z / - 2
+            var min_z: float = hit_box_size.z / -2
             var max_z: float = hit_box_size.z / 2
 
             var x_line_length = min((max_x - min_x) / 4, 1)
@@ -148,34 +151,43 @@ func _ready():
             building_select_box.name = "BuildingSelectBox"
             building_select_box.mesh = immediate_mesh
             building_select_box.cast_shadow = MeshInstance3D.SHADOW_CASTING_SETTING_OFF
-            
+
             # Generate the lines for the select box
             var lines = [
                 [Vector3(min_x, min_y, min_z), Vector3(min_x, min_y + y_line_length, min_z)],
                 [Vector3(min_x, min_y, min_z), Vector3(min_x + x_line_length, min_y, min_z)],
                 [Vector3(min_x, min_y, min_z), Vector3(min_x, min_y, min_z + z_line_length)],
-                
                 [Vector3(max_x, min_y, min_z), Vector3(max_x, min_y + y_line_length, min_z)],
                 [Vector3(max_x, min_y, min_z), Vector3(max_x - x_line_length, min_y, min_z)],
                 [Vector3(max_x, min_y, min_z), Vector3(max_x, min_y, min_z + z_line_length)],
-                
                 [Vector3(min_x, min_y, max_z), Vector3(min_x, min_y + y_line_length, max_z)],
                 [Vector3(min_x, min_y, max_z), Vector3(min_x + x_line_length, min_y, max_z)],
                 [Vector3(min_x, min_y, max_z), Vector3(min_x, min_y, max_z - z_line_length)],
-                
                 [Vector3(max_x, min_y, max_z), Vector3(max_x, min_y + y_line_length, max_z)],
                 [Vector3(max_x, min_y, max_z), Vector3(max_x - x_line_length, min_y, max_z)],
                 [Vector3(max_x, min_y, max_z), Vector3(max_x, min_y, max_z - z_line_length)],
                 # top up
-                [Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z), Vector3(min_x, max_y - y_line_length, min_z)],
-                [Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z), Vector3(min_x + x_line_length, max_y, min_z)],
+                [
+                    Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z),
+                    Vector3(min_x, max_y - y_line_length, min_z)
+                ],
+                [
+                    Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z),
+                    Vector3(min_x + x_line_length, max_y, min_z)
+                ],
                 # top right
                 [Vector3(max_x, max_y, min_z), Vector3(max_x, max_y - y_line_length, min_z)],
                 [Vector3(max_x, max_y, min_z), Vector3(max_x - x_line_length, max_y, min_z)],
                 [Vector3(max_x, max_y, min_z), Vector3(max_x, max_y, min_z + z_line_length)],
                 # top left
-                [Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, max_z), Vector3(min_x, max_y - y_line_length, max_z)],
-                [Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, max_z), Vector3(min_x + x_line_length, max_y, max_z)],
+                [
+                    Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, max_z),
+                    Vector3(min_x, max_y - y_line_length, max_z)
+                ],
+                [
+                    Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, max_z),
+                    Vector3(min_x + x_line_length, max_y, max_z)
+                ],
             ]
 
             for line in lines:
@@ -189,21 +201,29 @@ func _ready():
             if health_component:
                 # draw health bar
                 # health bar length that is stepped by HEALTH_BAR_CUBE_SIZE
-                var health_value: float = float(health_component.current_health) / float(health_component.max_health)
+                var health_value: float = (
+                    float(health_component.current_health) / float(health_component.max_health)
+                )
                 var health_bar_length = (max_z - min_z) * health_value
                 var health_bar_z_pos: float = -((max_z - min_z) - health_bar_length) / 2
                 health_bar = MeshInstance3D.new()
                 health_bar.mesh = BoxMesh.new()
                 health_bar.name = "HealthBar"
-                health_bar.scale = Vector3(HEALTH_BAR_CUBE_SIZE - 0.02, HEALTH_BAR_CUBE_SIZE - 0.02, health_bar_length)
-                health_bar.position = Vector3(min_x + HEALTH_BAR_CUBE_SIZE / 2, max_y - HEALTH_BAR_CUBE_SIZE / 2, health_bar_z_pos)
+                health_bar.scale = Vector3(
+                    HEALTH_BAR_CUBE_SIZE - 0.02, HEALTH_BAR_CUBE_SIZE - 0.02, health_bar_length
+                )
+                health_bar.position = Vector3(
+                    min_x + HEALTH_BAR_CUBE_SIZE / 2,
+                    max_y - HEALTH_BAR_CUBE_SIZE / 2,
+                    health_bar_z_pos
+                )
                 health_bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
                 var health_bar_material = ORMMaterial3D.new()
                 health_bar_material.albedo_color = get_health_color(health_value)
                 health_bar.material_override = health_bar_material
                 health_bar.visible = false
                 add_child(health_bar)
-                
+
                 # draw health bar grid
                 var health_bar_grid_material = ORMMaterial3D.new()
                 health_bar_grid_material.albedo_color = Color(0, 0, 0)
@@ -213,47 +233,101 @@ func _ready():
                 var health_bar_grid_mesh = ImmediateMesh.new()
                 health_bar_grid.mesh = health_bar_grid_mesh
                 health_bar_grid.cast_shadow = false
-                # create for loop that takes health_bar_length and substracts it by HEALTH_BAR_CUBE_SIZE and create vertex for each cube
-                var health_bar_grid_segments: int = int(ceil(health_bar_grid_length / HEALTH_BAR_CUBE_SIZE))
+                # Create vertex for each health bar cube segment
+                var health_bar_grid_segments: int = int(
+                    ceil(health_bar_grid_length / HEALTH_BAR_CUBE_SIZE)
+                )
                 for i in range(health_bar_grid_segments):
                     var health_bar_grid_around_lines = [
-                        [Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z + i * HEALTH_BAR_CUBE_SIZE), Vector3(min_x, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE)],
-                        [Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, min_z + i * HEALTH_BAR_CUBE_SIZE), Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE)],
-                        [Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z + i * HEALTH_BAR_CUBE_SIZE), Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, min_z + i * HEALTH_BAR_CUBE_SIZE)],
-                        [Vector3(min_x, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE), Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE)],
+                        [
+                            Vector3(
+                                min_x,
+                                max_y - HEALTH_BAR_CUBE_SIZE,
+                                min_z + i * HEALTH_BAR_CUBE_SIZE
+                            ),
+                            Vector3(min_x, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE)
+                        ],
+                        [
+                            Vector3(
+                                min_x + HEALTH_BAR_CUBE_SIZE,
+                                max_y - HEALTH_BAR_CUBE_SIZE,
+                                min_z + i * HEALTH_BAR_CUBE_SIZE
+                            ),
+                            Vector3(
+                                min_x + HEALTH_BAR_CUBE_SIZE,
+                                max_y,
+                                min_z + i * HEALTH_BAR_CUBE_SIZE
+                            )
+                        ],
+                        [
+                            Vector3(
+                                min_x,
+                                max_y - HEALTH_BAR_CUBE_SIZE,
+                                min_z + i * HEALTH_BAR_CUBE_SIZE
+                            ),
+                            Vector3(
+                                min_x + HEALTH_BAR_CUBE_SIZE,
+                                max_y - HEALTH_BAR_CUBE_SIZE,
+                                min_z + i * HEALTH_BAR_CUBE_SIZE
+                            )
+                        ],
+                        [
+                            Vector3(min_x, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE),
+                            Vector3(
+                                min_x + HEALTH_BAR_CUBE_SIZE,
+                                max_y,
+                                min_z + i * HEALTH_BAR_CUBE_SIZE
+                            )
+                        ],
                     ]
 
                     for line in health_bar_grid_around_lines:
-                        health_bar_grid_mesh.surface_begin(Mesh.PRIMITIVE_LINES, health_bar_grid_material)
+                        health_bar_grid_mesh.surface_begin(
+                            Mesh.PRIMITIVE_LINES, health_bar_grid_material
+                        )
                         health_bar_grid_mesh.surface_add_vertex(line[0])
                         health_bar_grid_mesh.surface_add_vertex(line[1])
                         health_bar_grid_mesh.surface_end()
 
                 var health_bar_grid_length_lines = [
                     [Vector3(min_x, max_y, min_z), Vector3(min_x, max_y, max_z)],
-                    [Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z), Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, max_z)],
-                    [Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z), Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, max_z)],
-                    [Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, min_z), Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, max_z)],
+                    [
+                        Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z),
+                        Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, max_z)
+                    ],
+                    [
+                        Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z),
+                        Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, max_z)
+                    ],
+                    [
+                        Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, min_z),
+                        Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, max_z)
+                    ],
                 ]
 
                 for line in health_bar_grid_length_lines:
-                    health_bar_grid_mesh.surface_begin(Mesh.PRIMITIVE_LINES, health_bar_grid_material)
+                    health_bar_grid_mesh.surface_begin(
+                        Mesh.PRIMITIVE_LINES, health_bar_grid_material
+                    )
                     health_bar_grid_mesh.surface_add_vertex(line[0])
                     health_bar_grid_mesh.surface_add_vertex(line[1])
                     health_bar_grid_mesh.surface_end()
 
                 add_child(health_bar_grid)
-    
+
     _update_visibility()
+
 
 func update_health_bar():
     if not is_instance_valid(health_bar) or not health_component:
         return
-    
+
     match select_box_type:
         SelectBoxType.Vehicle:
             var vehicle_health_bar_width = $SelectOutline.shape.size.x
-            var current_value := float(health_component.current_health) / float(health_component.max_health)
+            var current_value := (
+                float(health_component.current_health) / float(health_component.max_health)
+            )
             var new_width := float(vehicle_health_bar_width * clampf(current_value, 0.0, 1.0))
 
             # Only update size — mesh was built in _ready()
@@ -268,18 +342,24 @@ func update_health_bar():
         SelectBoxType.Structure:
             var select_outline_shape = $SelectOutline.shape
             var hit_box_size = select_outline_shape.size
-            var min_z: float = hit_box_size.z / - 2
+            var min_z: float = hit_box_size.z / -2
             var max_z: float = hit_box_size.z / 2
-            var health_value = float(health_component.current_health) / float(health_component.max_health)
+            var health_value = (
+                float(health_component.current_health) / float(health_component.max_health)
+            )
             var health_bar_length = (max_z - min_z) * health_value
             var health_bar_z_pos = -((max_z - min_z) - health_bar_length) / 2
-            health_bar.position = Vector3(health_bar.position.x, health_bar.position.y, health_bar_z_pos)
+            health_bar.position = Vector3(
+                health_bar.position.x, health_bar.position.y, health_bar_z_pos
+            )
             health_bar.scale = Vector3(health_bar.scale.x, health_bar.scale.y, health_bar_length)
             var health_bar_material = health_bar.material_override
             health_bar_material.albedo_color = get_health_color(health_value)
 
+
 func _on_health_changed(_new_health, _old_health) -> void:
     update_health_bar()
+
 
 func get_health_color(health_value: float) -> Color:
     if health_value > 0.5:
@@ -289,19 +369,18 @@ func get_health_color(health_value: float) -> Color:
     elif health_value > 0.0:
         return Color.RED
     else:
-        return Color(0.5, 0.0, 0.0)   # dark red for dead units instead of green
-        
+        return Color(0.5, 0.0, 0.0)  # dark red for dead units instead of green
+
+
 func set_is_hovering(value: bool):
     is_hovering = value
     _update_visibility()
+
 
 func set_is_selected(value: bool):
     is_selected = value
     _update_visibility()
 
-func _on_deselected():
-    is_selected = false
-    _update_visibility()
 
 func _update_visibility():
     if health_bar != null:

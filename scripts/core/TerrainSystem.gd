@@ -14,12 +14,15 @@ var _cells: Dictionary = {}
 
 var _corner_to_dir: Array[String] = ["west", "north", "south", "east"]
 
+
 func _init() -> void:
     _init_vertex_grid()
+
 
 func init_grid(cells: int) -> void:
     grid_cells = cells
     _init_vertex_grid()
+
 
 func _init_vertex_grid() -> void:
     var v_count := grid_cells + 1
@@ -30,21 +33,26 @@ func _init_vertex_grid() -> void:
         row.resize(v_count)
         _vertex_grid[vx] = row
 
+
 func _exit_tree() -> void:
     clear()
+
 
 func clear() -> void:
     _init_vertex_grid()
     _cells.clear()
 
+
 # ========================================
 # Vertex API
 # ========================================
+
 
 func get_vertex(vx: int, vz: int) -> int:
     if vx < 0 or vx > grid_cells or vz < 0 or vz > grid_cells:
         return 0
     return _vertex_grid[vx][vz]
+
 
 func set_vertex(vx: int, vz: int, height: int) -> void:
     if vx < 0 or vx > grid_cells or vz < 0 or vz > grid_cells:
@@ -52,12 +60,15 @@ func set_vertex(vx: int, vz: int, height: int) -> void:
     _vertex_grid[vx][vz] = clampi(height, 0, MAX_HEIGHT)
     _cascade_from_vertices([Vector2i(vx, vz)])
 
+
 func _set_vertex_no_cascade(vx: int, vz: int, height: int) -> void:
     _vertex_grid[vx][vz] = height
+
 
 # ========================================
 # Cell Painting API
 # ========================================
+
 
 func raise_cell(cell: Vector2i) -> void:
     var cx := cell.x
@@ -77,6 +88,7 @@ func raise_cell(cell: Vector2i) -> void:
     if not origins.is_empty():
         _cascade_from_vertices(origins)
 
+
 func lower_cell(cell: Vector2i) -> void:
     var cx := cell.x
     var cz := cell.y
@@ -95,19 +107,23 @@ func lower_cell(cell: Vector2i) -> void:
     if not origins.is_empty():
         _cascade_from_vertices(origins)
 
+
 # ========================================
 # Cell Queries (from cache)
 # ========================================
 
+
 func get_cell(cell: Vector2i) -> Dictionary:
     var key := _cell_key(cell)
     return _cells.get(key, {})
+
 
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
     var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
     var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
     var cell := Pathfinder.world_to_cell(adjusted)
     return get_cell(cell)
+
 
 func get_height_at_world(world_pos: Vector3) -> float:
     var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
@@ -117,6 +133,7 @@ func get_height_at_world(world_pos: Vector3) -> float:
     if data.is_empty():
         return 0.0
     return data.get("height", 0) * HEIGHT_STEP
+
 
 func get_height_at_world_smooth(world_pos: Vector3) -> float:
     var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
@@ -136,6 +153,7 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
     var h1: float = h01 + (h11 - h01) * fx
     return (h0 + (h1 - h0) * fz) * HEIGHT_STEP
 
+
 func get_normal_at_world(world_pos: Vector3) -> Vector3:
     var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
     var vx: float = (world_pos.x + grid_half) / CELL_SIZE
@@ -151,20 +169,25 @@ func get_normal_at_world(world_pos: Vector3) -> Vector3:
     var edge_z := Vector3(0.0, h01 - h00, CELL_SIZE)
     return edge_z.cross(edge_x).normalized()
 
+
 func get_all_cells() -> Dictionary:
     return _cells.duplicate(true)
+
 
 func compute_and_emit_cell(cell: Vector2i) -> void:
     var key := _cell_key(cell)
     _cells[key] = _compute_cell_from_vertices(cell)
     cell_changed.emit(key, _cells[key])
 
+
 func calculate_cell_mesh(cell: Vector2i) -> Dictionary:
     return _compute_cell_from_vertices(cell)
+
 
 # ========================================
 # Cascade (4-directional vertex-to-vertex)
 # ========================================
+
 
 func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
     var queue: Array[Vector2i] = origins.duplicate()
@@ -172,7 +195,7 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
     var affected_cells: Dictionary = {}
 
     for v in origins:
-        visited[_vkey(v)] = true
+        visited[_cell_key(v)] = true
         _add_cells_for_vertex(v.x, v.y, affected_cells)
 
     while not queue.is_empty():
@@ -186,7 +209,7 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
             Vector2i(cur.x + 1, cur.y),
         ]
         for nbr in neighbors:
-            var nkey := _vkey(nbr)
+            var nkey := _cell_key(nbr)
             if visited.has(nkey):
                 continue
             visited[nkey] = true
@@ -213,6 +236,7 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
         if not data.is_empty():
             cell_changed.emit(key, data)
 
+
 func _add_cells_for_vertex(vx: int, vz: int, cells: Dictionary) -> void:
     for cx in [vx - 1, vx]:
         if cx < 0 or cx >= grid_cells:
@@ -222,6 +246,7 @@ func _add_cells_for_vertex(vx: int, vz: int, cells: Dictionary) -> void:
                 continue
             cells[_cell_key(Vector2i(cx, cz))] = true
 
+
 func _recompute_cell(key: String) -> void:
     var parts: PackedStringArray = key.split(",")
     if parts.size() != 2:
@@ -229,9 +254,11 @@ func _recompute_cell(key: String) -> void:
     var cell := Vector2i(int(parts[0]), int(parts[1]))
     _cells[key] = _compute_cell_from_vertices(cell)
 
+
 # ========================================
 # Cell Type From Vertices
 # ========================================
+
 
 func _compute_cell_from_vertices(cell: Vector2i) -> Dictionary:
     var cx := cell.x
@@ -289,14 +316,19 @@ func _compute_cell_from_vertices(cell: Vector2i) -> Dictionary:
     result["max_height"] = h_max
     return result
 
+
 func _is_adjacent_corners(a: int, b: int) -> bool:
     var pairs: Array[Array] = [
-        [0, 1], [0, 2], [1, 3], [2, 3],
+        [0, 1],
+        [0, 2],
+        [1, 3],
+        [2, 3],
     ]
     for pair in pairs:
         if (a == pair[0] and b == pair[1]) or (a == pair[1] and b == pair[0]):
             return true
     return false
+
 
 func _edge_to_dir(a: int, b: int) -> String:
     if (a == 0 and b == 1) or (a == 1 and b == 0):
@@ -309,9 +341,11 @@ func _edge_to_dir(a: int, b: int) -> String:
         return "south"
     return "north"
 
+
 # ========================================
 # JSON Import / Export
 # ========================================
+
 
 func export_to_json(path: String) -> void:
     var vertices: Dictionary = {}
@@ -320,7 +354,7 @@ func export_to_json(path: String) -> void:
         for vz in v_count:
             var h: int = _vertex_grid[vx][vz]
             if h != 0:
-                vertices[_vkey(Vector2i(vx, vz))] = h
+                vertices[_cell_key(Vector2i(vx, vz))] = h
 
     var data: Dictionary = {
         "version": 2,
@@ -332,6 +366,7 @@ func export_to_json(path: String) -> void:
     if file:
         file.store_string(JSON.stringify(data, "\t"))
         file.close()
+
 
 func import_from_json(path: String) -> void:
     var old_keys: Array = _cells.keys().duplicate() as Array
@@ -376,15 +411,25 @@ func import_from_json(path: String) -> void:
     for key in _cells:
         cell_changed.emit(key, _cells[key])
 
+
 # ========================================
 # Helpers
 # ========================================
 
+
 func _make_clear(height: int) -> Dictionary:
-    return { "height": height, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0 }
+    return {"height": height, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0}
+
 
 func _make_slope(variant: int, direction: String, height: int) -> Dictionary:
-    return { "height": height, "type": "slope", "variant": variant, "direction": direction, "rotation": _direction_to_rotation(direction) }
+    return {
+        "height": height,
+        "type": "slope",
+        "variant": variant,
+        "direction": direction,
+        "rotation": _direction_to_rotation(direction)
+    }
+
 
 func _direction_to_rotation(dir: String) -> float:
     match dir:
@@ -398,6 +443,7 @@ func _direction_to_rotation(dir: String) -> float:
             return 90.0
     return 0.0
 
+
 func _rotate_dir_cw(dir: String) -> String:
     match dir:
         "north":
@@ -410,8 +456,6 @@ func _rotate_dir_cw(dir: String) -> String:
             return "north"
     return "north"
 
+
 func _cell_key(cell: Vector2i) -> String:
     return str(cell.x) + "," + str(cell.y)
-
-func _vkey(v: Vector2i) -> String:
-    return str(v.x) + "," + str(v.y)
