@@ -1,16 +1,16 @@
 ## Context
 
-Redotian Sun is an RTS remake with 23 GDScript files (~3,500 lines), 25 scenes, and 21 tests. A full codebase review (issue #16) found 16 validated issues across bugs, dead code, over-engineering, and style. All findings were confirmed against Redot 26.1 LTS documentation before this change was proposed.
+Redotian Sun is an RTS remake with 23 GDScript files (~3,500 lines), 25 scenes, and 21 tests. A full codebase review (issue #16) found 16 issues across bugs, dead code, over-engineering, and style. After verification against Redot 26.1 docs and codebase analysis, 11 were completed, 1 is valid remaining (#3 grid_cells setter), and 4 are deferred (#9 intentional, #12/#13 low-priority).
 
 The codebase is early-stage — many patterns were established quickly during prototyping. This change is the first systematic cleanup pass.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Fix all 4 bugs that cause crashes or incorrect behavior in release builds
-- Remove all 5 dead code items
-- Complete 5 refactorings that reduce complexity and improve separation of concerns
-- Fix 2 style violations
+- Fix all verified bugs (assert crash, camera desync, framerate multiplier, grid_cells desync)
+- Remove all dead code items
+- Complete safe refactorings (Pathfinder heap, SplineUtil extraction)
+- Fix style violations
 - Add CI linting to prevent style regressions
 - Update docs to reflect current project state
 
@@ -20,6 +20,11 @@ The codebase is early-stage — many patterns were established quickly during pr
 - Scene format migrations
 - Replacing the component architecture (1 component = 1 impl is fine at this stage)
 - Adding new tests (existing 21 tests are sufficient for regression checking)
+
+**Deferred (verified but low priority):**
+- #9 TestMap02 raise_cell duplicate: Intentional — each call increments height by 1, two calls needed for height 2. Removing one changes behavior.
+- #12 MapEditor UI to scene: 48 lines of simple programmatic UI, not 80 as claimed. Works fine, low ROI for refactoring.
+- #13 SelectComponent extraction: 286-line _ready(), tightly coupled to component state. Would require passing many parameters to a factory.
 
 ## Decisions
 

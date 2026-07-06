@@ -7,7 +7,10 @@ const HEIGHT_STEP: float = 0.815
 const MAX_HEIGHT: int = 10
 const DEFAULT_GRID_CELLS: int = 32
 
-var grid_cells: int = DEFAULT_GRID_CELLS
+var grid_cells: int = DEFAULT_GRID_CELLS:
+    set(value):
+        grid_cells = maxi(value, 1)
+        _init_vertex_grid()
 
 var _vertex_grid: Array = []
 var _cells: Dictionary = {}
@@ -20,8 +23,7 @@ func _init() -> void:
 
 
 func init_grid(cells: int) -> void:
-    grid_cells = cells
-    _init_vertex_grid()
+    grid_cells = cells  # setter calls _init_vertex_grid()
 
 
 func _init_vertex_grid() -> void:
