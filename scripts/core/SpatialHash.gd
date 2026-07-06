@@ -29,7 +29,7 @@ func rebuild() -> void:
         var key := str(cell.x) + "," + str(cell.y)
         if not _grid.has(key):
             _grid[key] = []
-        _grid[key].append({ "node": parent, "mc": mc })
+        _grid[key].append({"node": parent, "mc": mc})
         if mc._state == MovementController.State.IDLE:
             _blocked_cells[key] = true
 
