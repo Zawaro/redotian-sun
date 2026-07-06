@@ -3,26 +3,19 @@ class_name Pathfinder
 const CELL_SIZE: float = 2.0
 const SQRT2: float = 1.41421356237
 
+
 static func world_to_cell(world_pos: Vector3) -> Vector2i:
-    return Vector2i(
-        floori(world_pos.x / CELL_SIZE),
-        floori(world_pos.z / CELL_SIZE)
-    )
+    return Vector2i(floori(world_pos.x / CELL_SIZE), floori(world_pos.z / CELL_SIZE))
+
 
 static func cell_to_world(cell: Vector2i) -> Vector3:
-    return Vector3(
-        (cell.x + 0.5) * CELL_SIZE,
-        0.0,
-        (cell.y + 0.5) * CELL_SIZE
-    )
+    return Vector3((cell.x + 0.5) * CELL_SIZE, 0.0, (cell.y + 0.5) * CELL_SIZE)
+
 
 static func cell_to_world_with_height(cell: Vector2i) -> Vector3:
     var height := get_terrain_height(cell)
-    return Vector3(
-        (cell.x + 0.5) * CELL_SIZE,
-        height,
-        (cell.y + 0.5) * CELL_SIZE
-    )
+    return Vector3((cell.x + 0.5) * CELL_SIZE, height, (cell.y + 0.5) * CELL_SIZE)
+
 
 static func get_terrain_height(cell: Vector2i) -> float:
     var tree: SceneTree = Engine.get_main_loop() as SceneTree
@@ -35,14 +28,17 @@ static func get_terrain_height(cell: Vector2i) -> float:
     var world_pos := cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
     return ts.get_height_at_world(world_pos)
 
-static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: Dictionary = {}) -> PackedVector3Array:
+
+static func find_path(
+    start_world: Vector3, end_world: Vector3, blocked_cells: Dictionary = {}
+) -> PackedVector3Array:
     var start_cell := world_to_cell(start_world)
     var end_cell := world_to_cell(end_world)
 
     if start_cell == end_cell:
         return PackedVector3Array()
 
-    var open_heap: Array[Vector2i] = [start_cell]
+    var open_heap: Array = [{"cell": start_cell, "f": _heuristic(start_cell, end_cell)}]
     var open_lookup: Dictionary = {}
     open_lookup[_cell_key(start_cell)] = true
     var closed_set: Dictionary = {}
@@ -54,8 +50,14 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
     f_score[_cell_key(start_cell)] = _heuristic(start_cell, end_cell)
 
     var neighbor_dirs := [
-        Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
-        Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)
+        Vector2i(1, 0),
+        Vector2i(-1, 0),
+        Vector2i(0, 1),
+        Vector2i(0, -1),
+        Vector2i(1, 1),
+        Vector2i(1, -1),
+        Vector2i(-1, 1),
+        Vector2i(-1, -1)
     ]
     var neighbor_costs: Array[float] = [1.0, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2]
 
@@ -67,7 +69,8 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
     var best_dist: float = _heuristic(start_cell, end_cell)
 
     while not open_heap.is_empty():
-        var current: Vector2i = _heap_pop(open_heap, f_score)
+        var current_entry: Dictionary = _heap_pop(open_heap)
+        var current: Vector2i = current_entry["cell"]
         var current_key: String = _cell_key(current)
         open_lookup.erase(current_key)
 
@@ -106,22 +109,28 @@ static func find_path(start_world: Vector3, end_world: Vector3, blocked_cells: D
             if tentative_g < g_score.get(nkey, INF):
                 came_from[nkey] = current
                 g_score[nkey] = tentative_g
-                f_score[nkey] = tentative_g + _heuristic(neighbor, end_cell) * 1.2
+                var nf: float = tentative_g + _heuristic(neighbor, end_cell) * 1.2
+                f_score[nkey] = nf
                 if not open_lookup.has(nkey):
-                    _heap_push(open_heap, f_score, neighbor)
+                    _heap_push(open_heap, neighbor, nf)
                     open_lookup[nkey] = true
 
     return _path_or_fallback(came_from, start_cell, best_cell)
 
+
 static func _cell_key(cell: Vector2i) -> String:
     return str(cell.x) + "," + str(cell.y)
+
 
 static func _heuristic(a: Vector2i, b: Vector2i) -> float:
     var dx: float = abs(float(a.x - b.x))
     var dy: float = abs(float(a.y - b.y))
     return max(dx, dy) + (SQRT2 - 1.0) * min(dx, dy)
 
-static func _reconstruct_path(came_from: Dictionary, current: Vector2i, start: Vector2i) -> PackedVector3Array:
+
+static func _reconstruct_path(
+    came_from: Dictionary, current: Vector2i, start: Vector2i
+) -> PackedVector3Array:
     var path_cells: Array[Vector2i] = [current]
     var key: String = _cell_key(current)
     while came_from.has(key):
@@ -138,28 +147,30 @@ static func _reconstruct_path(came_from: Dictionary, current: Vector2i, start: V
     return result
 
 
-static func _path_or_fallback(came_from: Dictionary, start: Vector2i, best: Vector2i) -> PackedVector3Array:
+static func _path_or_fallback(
+    came_from: Dictionary, start: Vector2i, best: Vector2i
+) -> PackedVector3Array:
     if best == start:
         return PackedVector3Array()
     return _reconstruct_path(came_from, best, start)
 
-static func _heap_push(heap: Array[Vector2i], f_scores: Dictionary, cell: Vector2i) -> void:
-    heap.append(cell)
+
+static func _heap_push(heap: Array, cell: Vector2i, f: float) -> void:
+    heap.append({"cell": cell, "f": f})
     var idx: int = heap.size() - 1
     while idx > 0:
-        var parent_idx: int = (idx - 1) / 2
-        var cf: float = f_scores.get(_cell_key(heap[idx]), INF)
-        var pf: float = f_scores.get(_cell_key(heap[parent_idx]), INF)
-        if cf >= pf:
+        var parent_idx := floori(float(idx - 1) / 2.0)
+        if heap[idx]["f"] >= heap[parent_idx]["f"]:
             break
-        var tmp: Vector2i = heap[idx]
+        var tmp: Dictionary = heap[idx]
         heap[idx] = heap[parent_idx]
         heap[parent_idx] = tmp
         idx = parent_idx
 
-static func _heap_pop(heap: Array[Vector2i], f_scores: Dictionary) -> Vector2i:
-    var result: Vector2i = heap[0]
-    var last: Vector2i = heap[heap.size() - 1]
+
+static func _heap_pop(heap: Array) -> Dictionary:
+    var result: Dictionary = heap[0]
+    var last: Dictionary = heap[heap.size() - 1]
     heap[0] = last
     heap.remove_at(heap.size() - 1)
 
@@ -173,22 +184,16 @@ static func _heap_pop(heap: Array[Vector2i], f_scores: Dictionary) -> Vector2i:
         var left: int = idx * 2 + 1
         var right: int = idx * 2 + 2
 
-        if left < size:
-            var lf: float = f_scores.get(_cell_key(heap[left]), INF)
-            var sf: float = f_scores.get(_cell_key(heap[smallest]), INF)
-            if lf < sf:
-                smallest = left
+        if left < size and heap[left]["f"] < heap[smallest]["f"]:
+            smallest = left
 
-        if right < size:
-            var rf: float = f_scores.get(_cell_key(heap[right]), INF)
-            var sf: float = f_scores.get(_cell_key(heap[smallest]), INF)
-            if rf < sf:
-                smallest = right
+        if right < size and heap[right]["f"] < heap[smallest]["f"]:
+            smallest = right
 
         if smallest == idx:
             break
 
-        var tmp: Vector2i = heap[idx]
+        var tmp: Dictionary = heap[idx]
         heap[idx] = heap[smallest]
         heap[smallest] = tmp
         idx = smallest

@@ -40,7 +40,14 @@ func _num_segments() -> int:
 
 
 func set_target_position(target: Vector3) -> void:
-    if is_nan(target.x) or is_nan(target.y) or is_nan(target.z) or not is_finite(target.x) or not is_finite(target.y) or not is_finite(target.z):
+    if (
+        is_nan(target.x)
+        or is_nan(target.y)
+        or is_nan(target.z)
+        or not is_finite(target.x)
+        or not is_finite(target.y)
+        or not is_finite(target.z)
+    ):
         printerr("[MovementController] Ignoring invalid target position: ", target)
         return
 
@@ -100,7 +107,9 @@ func _physics_process(delta: float) -> void:
         State.WAIT:
             _handle_wait()
         State.IDLE:
-            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
+                _parent.global_position
+            )
 
 
 func _handle_rotating(delta: float) -> void:
@@ -116,7 +125,10 @@ func _handle_rotating(delta: float) -> void:
     var target_yaw := atan2(-tangent.x, -tangent.z)
     var step := deg_to_rad(rotation_speed) * delta
 
-    if abs(angle_difference(_rotation_yaw, target_yaw)) < max(step, deg_to_rad(rotation_angle_threshold)):
+    if (
+        abs(angle_difference(_rotation_yaw, target_yaw))
+        < max(step, deg_to_rad(rotation_angle_threshold))
+    ):
         _spline_t = 0.001
         _state = State.MOVING
     else:
@@ -125,11 +137,11 @@ func _handle_rotating(delta: float) -> void:
         var normal := TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
         var projected := (forward - forward.dot(normal) * normal).normalized()
         var right := projected.cross(normal).normalized()
-        var basis := Basis()
-        basis.x = right
-        basis.y = normal
-        basis.z = -projected
-        _rotation_target.global_transform.basis = basis
+        var rot_basis := Basis()
+        rot_basis.x = right
+        rot_basis.y = normal
+        rot_basis.z = -projected
+        _rotation_target.global_transform.basis = rot_basis
 
 
 func _handle_moving_movement(delta: float) -> void:
@@ -139,7 +151,7 @@ func _handle_moving_movement(delta: float) -> void:
     var seg_length := seg_begin.distance_to(seg_end)
     if seg_length < 0.01:
         seg_length = 0.01
-    
+
     if seg + 1 < _waypoints.size() - 1:
         _repair_frames += 1
         if _repair_frames >= 10:
@@ -148,7 +160,7 @@ func _handle_moving_movement(delta: float) -> void:
             if _is_cell_occupied_by_idle(next_cell):
                 set_target_position(_waypoints[_waypoints.size() - 1])
                 return
-    
+
     var parent_pos := _parent.global_position
     var spline_dir := _get_spline_tangent(_spline_t)
     spline_dir.y = 0.0
@@ -179,7 +191,10 @@ func _handle_moving_movement(delta: float) -> void:
                     min_neighbor_dist_ahead = neighbor_dist
 
                 if neighbor_dist < cell_radius * 2.0 and neighbor_dist > 0.01:
-                    var push_away: Vector3 = (parent_pos - entity_parent.global_position).normalized() / squaref(neighbor_dist)
+                    var push_away: Vector3 = (
+                        (parent_pos - entity_parent.global_position).normalized()
+                        / squaref(neighbor_dist)
+                    )
                     direction += push_away * REPULSION_STRENGTH * repulsion_weight
 
     var speed_factor: float = 1.0
@@ -194,11 +209,11 @@ func _handle_moving_movement(delta: float) -> void:
         var normal := TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
         var projected := (forward - forward.dot(normal) * normal).normalized()
         var right := projected.cross(normal).normalized()
-        var basis := Basis()
-        basis.x = right
-        basis.y = normal
-        basis.z = -projected
-        _rotation_target.global_transform.basis = basis
+        var rot_basis := Basis()
+        rot_basis.x = right
+        rot_basis.y = normal
+        rot_basis.z = -projected
+        _rotation_target.global_transform.basis = rot_basis
 
     var step := final_direction * move_speed * _speed_jitter * speed_factor * delta
     _spline_t += step.length() / seg_length
@@ -212,7 +227,9 @@ func _handle_moving_movement(delta: float) -> void:
 
         var approach_step := (final_pos - _parent.global_position).limit_length(move_speed * delta)
         if approach_step.length() < 0.001:
-            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
+                _parent.global_position
+            )
             _state = State.IDLE
             SpatialHash.instance.release_cell(Pathfinder.world_to_cell(_parent.global_position))
             if debug_show_path:
@@ -266,45 +283,11 @@ func _spline_segment() -> int:
 
 
 func _get_spline_pos(t: float) -> Vector3:
-    var n := _waypoints.size()
-    var seg := clampi(floori(t), 0, maxi(0, n - 2))
-    var local_t := clampf(t - float(seg), 0.0, 1.0)
-    var p0 := _waypoints[maxi(0, seg - 1)]
-    var p1 := _waypoints[seg]
-    var p2 := _waypoints[min(n - 1, seg + 1)]
-    var p3 := _waypoints[min(n - 1, seg + 2)]
-    return _catmull_rom(p0, p1, p2, p3, local_t)
+    return SplineUtil.evaluate(_waypoints, t)
 
 
 func _get_spline_tangent(t: float) -> Vector3:
-    var n := _waypoints.size()
-    var seg := clampi(floori(t), 0, maxi(0, n - 2))
-    var local_t := clampf(t - float(seg), 0.0, 1.0)
-    var p0 := _waypoints[maxi(0, seg - 1)]
-    var p1 := _waypoints[seg]
-    var p2 := _waypoints[min(n - 1, seg + 1)]
-    var p3 := _waypoints[min(n - 1, seg + 2)]
-    return _catmull_rom_tangent(p0, p1, p2, p3, local_t)
-
-
-static func _catmull_rom(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
-    var t2 := t * t
-    var t3 := t2 * t
-    return 0.5 * (
-        (2.0 * p1) +
-        (-p0 + p2) * t +
-        (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
-        (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
-    )
-
-
-static func _catmull_rom_tangent(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
-    var t2 := t * t
-    return 0.5 * (
-        (-p0 + p2) +
-        2.0 * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t +
-        3.0 * (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t2
-    )
+    return SplineUtil.tangent(_waypoints, t)
 
 
 func _build_blocked_cells() -> Dictionary:
