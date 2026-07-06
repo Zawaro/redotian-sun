@@ -27,22 +27,35 @@ Current implementation status:
 
 ## Folder Structure (Actual)
 
-### `scripts/` — GDScript source files (12 .gd files total)
+### `scripts/` — GDScript source files (23 .gd files total)
 
 ```
 scripts/
-├── components/     # Reusable entity behavior scripts + HitboxComponent.tres resource
+├── components/     # Reusable entity behavior scripts
 │   ├── HealthComponent.gd
 │   ├── HitboxComponent.gd
+│   ├── MovementController.gd
 │   └── SelectComponent.gd
 ├── core/           # Engine-level systems (autoloaded or wired in scenes)
 │   ├── BoundsSystem.gd
-│   ├── SceneManager.gd
-│   └── SelectionManager.gd    ← autoload singleton
+│   ├── DebugVisualizer.gd
+│   ├── Pathfinder.gd
+│   ├── SceneManager.gd       ← empty, pending deletion
+│   ├── SelectionManager.gd    ← autoload singleton
+│   ├── SpatialHash.gd
+│   ├── TerrainCollision.gd
+│   ├── TerrainRenderer.gd
+│   └── TerrainSystem.gd
+├── editor/         # Map editor tools
+│   ├── HeightPainter.gd
+│   ├── MapEditor.gd
+│   └── Minimap.gd
 ├── hud/            # Camera, mouse input handling for gameplay view
 │   ├── Camera01.gd
 │   ├── CameraController.gd
-│   └── MouseHandler.gd         ← uses assert() for precondition guards
+│   └── MouseHandler.gd
+├── maps/           # Map-specific scripts
+│   └── TestMap02.gd
 └── ui/             # Menu/UI logic (main menu items, FPS counter)
     ├── FPSCounterLabel01.gd
     ├── MainMenu01.gd
@@ -119,10 +132,28 @@ shaders/ui/MainMenuItemBlur01.gdshader   ← blur effect applied to main menu it
 
 ## What Does NOT Exist Yet (Important for Agents)
 
-- **No test framework** — no Godot tests (`*test.gd`, integration scenes, or CI). See `plans/9-1_unit_testing.md` for the planned approach.
 - **No build system** — no Makefile, Justfile, .editorconfig, Dockerfile, or shell scripts. The project is built entirely through the Redot editor and export templates.
 - **No C# / native library bindings** — no `.gdnlib`, `.gdns`, or `Godot.csproj` files. Everything is pure GDScript + scenes.
-- **No CI/CD pipeline** — development happens inside the engine; exports are done manually via Redot editor export presets.
+
+## Testing & Linting
+
+### Running Tests
+
+```bash
+redot --headless -s test/run_tests.gd
+```
+
+The test suite uses a minimal custom runner (`test/run_tests.gd`) — no external test framework. Tests are in `test/unit/` and `test/integration/`.
+
+### Linting
+
+```bash
+pip install gdtoolkit
+gdlint scripts/**/*.gd test/**/*.gd
+gdformat --check scripts/**/*.gd test/**/*.gd
+```
+
+CI runs lint + format check on every push and PR via GitHub Actions (`.github/workflows/test.yml`). Configuration is in `.gdlintrc`.
 
 ## Redot Documentation & Research Tools
 
@@ -145,6 +176,8 @@ Web references for manual lookup:
 ### Indentation — Spaces Only
 
 Use **4 spaces** for indentation in all GDScript files. Never use tabs. Mixing tabs and spaces causes parse errors in Redot's GDScript parser. If editing a file that already uses a different convention, convert the entire file to 4-space indentation before saving.
+
+**Important**: `gdformat` can occasionally introduce tab characters when reformatting multi-line strings. Always run `grep -P '\t' scripts/**/*.gd` after formatting to verify no tabs were introduced. If tabs are found, convert them back to 4 spaces before committing.
 
 ### Naming Conventions
 
@@ -255,10 +288,11 @@ func _enter_tree() -> void:
 
 ## Key Conventions Observed in Codebase
 
-- **Naming**: PascalCase for classes, scripts, scenes; snake_case is not used. Scene files mirror their script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
-- **Assertions over error handling** — `MouseHandler.gd` uses GDScript's built-in `assert()` calls for precondition guards rather than try/catch or explicit checks.
+- **Naming**: PascalCase for classes, scripts, scenes; snake_case for variables and functions. Scene files mirror their script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
+- **Error handling**: Use `push_error()` + `return` for runtime precondition guards. `assert()` is stripped in release builds — never use it for runtime checks.
 - **Scene composition**: Component scripts are attached to component scenes (`components/*.tscn`) which are then instantiated as children of entity scenes (e.g., entities/units/nod/NodBuggy.tscn). Core systems like `BoundsSystem` and camera/mouse input have dedicated scene instances in the gameplay hierarchy.
 - **Autoloads**: Only one autoload is registered — `SelectionManager`. Additional singletons should be added via project settings, not hardcoded references.
+- **Signal syntax**: Use typed `signal_name.emit(args)` instead of `emit_signal("name", args)` for autocomplete and compile-time checks.
 
 ## Full Skill Reference
 
