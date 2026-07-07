@@ -3,42 +3,22 @@ extends Node
 ## EntityFactory autoload — creates entities from EntityData resources
 ## and dynamically adds components based on data properties.
 
-const ENTITY_SCENE: PackedScene = preload(
-    "res://scenes/entities/Entity.tscn"
-)
-const STATS_COMPONENT_SCRIPT: GDScript = preload(
-    "res://scripts/components/StatsComponent.gd"
-)
-const HEALTH_COMPONENT_SCENE: PackedScene = preload(
-    "res://scenes/components/HealthComponent.tscn"
-)
-const HITBOX_COMPONENT_SCENE: PackedScene = preload(
-    "res://scenes/components/HitboxComponent.tscn"
-)
-const SELECT_COMPONENT_SCENE: PackedScene = preload(
-    "res://scenes/components/SelectComponent.tscn"
-)
-const COMBAT_COMPONENT_SCENE: PackedScene = preload(
-    "res://scenes/components/CombatComponent.tscn"
-)
+const ENTITY_SCENE: PackedScene = preload("res://scenes/entities/Entity.tscn")
+const STATS_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/StatsComponent.gd")
+const HEALTH_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/HealthComponent.tscn")
+const HITBOX_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/HitboxComponent.tscn")
+const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/SelectComponent.tscn")
+const COMBAT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/CombatComponent.tscn")
 const MOVEMENT_CONTROLLER_SCENE: PackedScene = preload(
     "res://scenes/components/MovementController.tscn"
 )
-const ART_COMPONENT_SCENE: PackedScene = preload(
-    "res://scenes/components/ArtComponent.tscn"
-)
+const ART_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/ArtComponent.tscn")
 const FOUNDATION_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/FoundationComponent.gd"
 )
-const POWER_COMPONENT_SCRIPT: GDScript = preload(
-    "res://scripts/components/PowerComponent.gd"
-)
-const RADAR_COMPONENT_SCRIPT: GDScript = preload(
-    "res://scripts/components/RadarComponent.gd"
-)
-const FACTORY_COMPONENT_SCRIPT: GDScript = preload(
-    "res://scripts/components/FactoryComponent.gd"
-)
+const POWER_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/PowerComponent.gd")
+const RADAR_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/RadarComponent.gd")
+const FACTORY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/FactoryComponent.gd")
 const TRANSPORT_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/TransportComponent.gd"
 )

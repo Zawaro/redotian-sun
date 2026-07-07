@@ -93,5 +93,15 @@ func validate() -> PackedStringArray:
 
 
 func has_special_abilities() -> bool:
-    return cloakable or self_healing or c4 or engineer or disguise \
-        or agent or thief or tiberium_proof or immune_to_veins or capturable
+    return (
+        cloakable
+        or self_healing
+        or c4
+        or engineer
+        or disguise
+        or agent
+        or thief
+        or tiberium_proof
+        or immune_to_veins
+        or capturable
+    )
