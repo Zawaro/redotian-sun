@@ -80,14 +80,11 @@ func _process(_delta):
         var threshold_exceeded: bool = selection_rect.size.x >= MOUSE_DRAG_THRESHOLD
 
         if mouse_dragging and threshold_exceeded:
-            if not shift_pressed:
-                if not selection_manager:
-                    push_error("[MouseHandler] SelectionManager is not set")
-                    return
+            if not shift_pressed and selection_manager:
                 selection_manager.deselect_all()
             if active_rect.has_area():
                 _select_entities_2d_projected(active_rect)
-        else:
+        elif selection_manager:
             var mouse_pos := get_viewport().get_mouse_position()
             _handle_single_click(mouse_pos, shift_pressed)
 
@@ -95,10 +92,7 @@ func _process(_delta):
         selection_rect.hide()
 
     # Right mouse button just released — always deselect.
-    if Input.is_action_just_released("deselect_entity"):
-        if not selection_manager:
-            push_error("[MouseHandler] SelectionManager is not set")
-            return
+    if Input.is_action_just_released("deselect_entity") and selection_manager:
         selection_manager.deselect_all()
 
     # Update drag rectangle while left mouse held and moving (polling).
