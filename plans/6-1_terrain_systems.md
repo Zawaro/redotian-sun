@@ -37,6 +37,45 @@ The terrain system defines the physical foundation of the game world, affecting 
 
 ## Technical Implementation
 
+### Entity System Integration
+Terrain objects (trees, rocks, fauna, flora) are entities with minimal components (see GitHub Issue #22):
+
+```
+EntityData.tres (entity_type = TERRAIN)
+    ↓ EntityFactory autoload
+Entity.tscn + optional components
+```
+
+- **Terrain entities** use the same `EntityData.gd` resource as all other entities
+- `entity_type = TERRAIN` — SelectComponent is NOT added (not selectable)
+- `strength = 0` → HealthComponent NOT added (indestructible)
+- `strength > 0` → HealthComponent added (destructible trees/rocks)
+- `foundation: Vector2i` → FoundationComponent added (terrain objects can have footprints)
+- Trees/rocks use `art_data: ArtData` for model and visual properties
+
+### Terrain Object Data Example
+```gdscript
+# Example: TREE01 (destructible)
+{
+    "id": "TREE01",
+    "display_name": "Tree",
+    "entity_type": "TERRAIN",
+    "strength": 200,          # from rules.ini TreeStrength=200
+    "armor": "wood",
+    "foundation": Vector2i(1, 1),
+    "art_data": preload("res://resources/art/terrain/tree01_art.tres")
+}
+
+# Example: SROCK01 (indestructible)
+{
+    "id": "SROCK01",
+    "display_name": "Small Rock",
+    "entity_type": "TERRAIN",
+    "strength": 0,            # 0 = indestructible
+    "foundation": Vector2i(1, 1)
+}
+```
+
 ### Scene Structure
 ```
 TerrainSystem.tscn (Autoload Singleton)
@@ -87,6 +126,18 @@ func get_terrain_modifier(position):
 - Link with base building for build placement validation
 - Coordinate with economy system for resource harvesting
 - Interface with minimap for terrain visualization
+
+## Related
+- **Entity System**: See GitHub Issue #22 — composition-based architecture (IMPLEMENTED)
+- **Map Design**: See `6-2_map_design.md` for terrain layout guidelines
+- **Navigation**: See `2-1_navigation.md` for pathfinding over terrain
+- **Data Population**: See GitHub Issue #23 for terrain entity .tres files
+- **MovementController**: Issue #34 — implement locomotor enforcement and movement zones
+
+## Implementation Status
+- ✅ EntityData.gd — terrain entities use `entity_type = TERRAIN`
+- ✅ .tres file created for TREE01 (destructible tree)
+- 🔄 Remaining: ~25 more terrain .tres files (Issue #23), locomotor enforcement (Issue #34)
 
 ## Future Enhancements
 - Destructible terrain (craters from explosions)

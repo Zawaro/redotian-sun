@@ -38,6 +38,53 @@ The base building system enables players to construct, upgrade, and manage their
 
 ## Technical Implementation
 
+### Entity System Integration
+Buildings are defined via the **composition-based entity system** (see GitHub Issue #22):
+
+```
+EntityData.tres (entity_type = BUILDING)
+    ↓ EntityFactory autoload
+Entity.tscn + dynamically added components
+```
+
+- **One `EntityData.gd`** resource class with ALL properties
+- Building-specific properties: `foundation`, `height`, `power`, `powered`, `adjacent`, `factory`, `capturable`, `radar`, `repairable`
+- Components added dynamically:
+  - `BuildingComponent` — foundation, placement rules
+  - `PowerComponent` — power output/consumption
+  - `RadarComponent` — radar availability
+  - `FactoryComponent` — unit production capability
+  - `CombatComponent` — if building has weapons (e.g., guard tower)
+  - `StatsComponent` — name, cost, tech level, armor
+  - `HealthComponent` — strength > 0
+  - `HitboxComponent` — always
+  - `SelectComponent` — always for buildings
+  - `ArtComponent` — visual data
+
+### Building Data Example
+```gdscript
+# Example: GDI Power Plant
+{
+    "id": "GAPOWR",
+    "display_name": "GDI Power Plant",
+    "entity_type": "BUILDING",
+    "strength": 750,
+    "armor": "wood",
+    "cost": 300,
+    "tech_level": 1,
+    "sight": 4,
+    "owner": ["GDI"],
+    "foundation": Vector2i(2, 2),
+    "height": 2.0,
+    "power": 100,              # positive = output
+    "powered": false,          # doesn't require power to function
+    "adjacent": 2,
+    "capturable": true,
+    "prerequisite": [],
+    "art_data": preload("res://resources/art/structures/gapowr_art.tres")
+}
+```
+
 ### Scene Structure
 ```
 BuildingManager.tscn (Node)
@@ -48,17 +95,16 @@ BuildingManager.tscn (Node)
 
 ### Key Scripts
 
-#### BuildingManager.gd
+#### BuildingManager.gd (EXISTING — updated)
 - Handle build mode toggle and placement input
 - Validate build locations against terrain/collision data
 - Manage construction queue with priority ordering
-- Deduct resources and spawn building instances on completion
+- Deduct resources and spawn building instances via EntityFactory
 
-#### Building.gd (Inherited by all structures)
-- Health/armor system for damage calculation
-- Power consumption tracking
-- Build state transitions (idle → constructing → complete)
-- Destruction logic with drop-on-death resource refunds
+#### EntityFactory.gd (Autoload)
+- Creates any entity from EntityData resource
+- Components added dynamically based on data properties
+- BuildingManager calls `EntityFactory.create_entity("GAPOWR")` to spawn buildings
 
 ### Placement Validation Logic
 ```gdscript
@@ -93,6 +139,21 @@ func can_build_at(position, building_type):
 - Link with camera system for auto-centering on new builds
 - Coordinate with minimap for construction progress indicators
 - Integrate with faction systems for unique building variants
+
+## Related
+- **Entity System**: See GitHub Issue #22 — composition-based architecture (IMPLEMENTED)
+- **Economy**: See `1-3_economy_resources.md` for resource management
+- **Unit Production**: See `1-4_unit_production.md` for FactoryComponent integration
+- **BuildingManager Integration**: See GitHub Issue #25 for migration from BuildingType to EntityFactory
+- **PowerComponent**: See GitHub Issue #33 for power grid implementation
+
+## Implementation Status
+- ✅ EntityData.gd — buildings use `entity_type = BUILDING`
+- ✅ EntityFactory.gd — creates buildings from data, adds components dynamically
+- ✅ BuildingManager.gd — handles build mode, placement validation, construction
+- ✅ .tres files created for: GACNST, GAPOWR, NAPOWR
+- ✅ CivilianGuardTower01 — placed via build menu (BuildingType .tres)
+- 🔄 Remaining: BuildingManager migration to EntityFactory (Issue #25), power grid (Issue #33)
 
 ## Future Enhancements
 - Building upgrades with tech tree prerequisites

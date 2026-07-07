@@ -40,11 +40,24 @@ Faction systems define unique mechanics, units, buildings, and strategies for ea
 
 ## Technical Implementation
 
+### Entity System Integration
+All faction entities (units, buildings, infantry) are defined via the **composition-based entity system** (see GitHub Issue #22):
+
+```
+EntityData.tres (single resource, all properties)
+    ↓ EntityFactory autoload
+Entity.tscn + dynamically added components
+```
+
+- **One `EntityData.gd`** resource class with ALL properties (no per-type subclasses)
+- Faction assignment via `owner: PackedStringArray` and `faction: String` fields
+- Faction-specific units are just EntityData instances with different component combinations
+- `GlobalRules.gd` holds faction-wide bonuses (e.g., GDI repair speed, Nod production speed)
+
 ### Scene Structure
 ```
 FactionSystem.tscn (Autoload Singleton)
 ├── FactionManager.gd (singleton faction logic)
-├── UnitVariant.gd (faction-specific unit templates)
 └── TechTreeResolver.gd (unlock validation)
 ```
 
@@ -52,15 +65,14 @@ FactionSystem.tscn (Autoload Singleton)
 
 #### FactionManager.gd (Singleton)
 - Track active faction per player
-- Provide faction bonuses and modifiers
+- Provide faction bonuses and modifiers via GlobalRules
 - Resolve faction-specific unit/building variants
 - Handle special ability cooldowns and costs
 
-#### UnitVariant.gd
-- Base template with faction overrides
-- Adjust stats: speed, damage, cost based on faction
-- Replace models/textures for visual differentiation
-- Define unique abilities per faction unit
+#### EntityFactory.gd (Autoload)
+- Creates any entity from EntityData resource
+- Components added dynamically based on data properties
+- Faction determines which .tres data files are loaded
 
 ### Faction Data Structure
 ```gdscript
@@ -96,6 +108,18 @@ func get_faction_bonus(faction, bonus_type):
 - Link with economy system for faction cost modifiers
 - Coordinate with combat AI for faction behavior patterns
 - Interface with UI system for faction-specific menus
+
+## Related
+- **Entity System**: See GitHub Issue #22 — composition-based architecture (IMPLEMENTED)
+- **Unit Roster**: See `7-2_unit_roster.md` for planned unit data
+- **Mod/DLC Support**: EntityFactory supports layered data sets for faction extensions
+- **Component Issues**: See GitHub Issues #28-40 for component-specific implementation tasks
+
+## Implementation Status
+- ✅ EntityData.gd — single resource class with all entity properties
+- ✅ EntityFactory.gd — creates entities from data, adds components dynamically
+- ✅ GlobalRules.gd — default game values from rules.ini, customizable armor types
+- 🔄 Remaining: Component logic (see issues #28-40), data population, integration
 
 ## Future Enhancements
 - Additional factions (Scrin, Nod splinter groups)

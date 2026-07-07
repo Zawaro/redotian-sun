@@ -36,25 +36,76 @@ The combat system handles all damage calculation, weapon mechanics, and unit hea
 
 ## Technical Implementation
 
-### Scene Structure
+### Entity System Integration
+Weapons are defined as `WeaponData` resources referenced by `EntityData.weapons: Array[WeaponData]` (see GitHub Issue #22):
+
 ```
-CombatSystem.tscn (Autoload Singleton)
-├── WeaponComponent.gd (attached to units)
-├── HealthComponent.gd (damage/take damage logic)
-└── CombatAI.gd (target selection & engagement)
+WeaponData.tres (per weapon type)
+    ↓ referenced by
+EntityData.tres (weapons array)
+    ↓ created by
+EntityFactory autoload → CombatComponent
+```
+
+- **Unlimited weapons per entity** — not just primary/secondary
+- Weapons stored as `Array[WeaponData]` in EntityData
+- CombatComponent added when `weapons.size() > 0`
+- Elite weapons stored separately in `EntityData.elite_weapons: Array[WeaponData]`
+
+### Warhead System
+Warheads define damage types and modifiers (from rules.ini [Warheads] section):
+
+```
+WarheadData extends Resource
+├── id: String              # "HE", "AP", "Fire", "Sonic", etc.
+├── damage_modifier: float  # multiplier vs armor types
+├── cell_spread: float      # area damage spread
+├── death_anim: String      # explosion animation
+└── ...
+```
+
+### Armor System (Customizable)
+Armor types stored in `GlobalRules.armor_types: Dictionary` — not hardcoded:
+
+```
+# From rules.ini Armor= field (string-based)
+"none":    { "modifier": 1.0 }
+"wood":    { "modifier": 0.7 }
+"light":   { "modifier": 0.6 }
+"heavy":   { "modifier": 0.4 }
+"concrete":{ "modifier": 0.3 }
+# Can add unlimited types: "flak", "energy", "shield", etc.
 ```
 
 ### Key Scripts
 
-#### WeaponComponent.gd
+#### WeaponData.gd (Resource)
+```gdscript
+class_name WeaponData extends Resource
+@export var id: String = ""
+@export var damage: int = 0
+@export var rate_of_fire: float = 1.0
+@export var range: float = 1.0           # in cells
+@export var warhead: String = "HE"
+@export var projectile: String = ""
+@export var fire_flh: Vector3 = Vector3.ZERO
+@export var barrel_length: float = 0.0
+@export var anti_air: bool = false
+@export var anti_ground: bool = true
+@export var splash_radius: float = 0.0
+@export var ammo: int = -1               # -1 = unlimited
+```
+
+#### CombatComponent.gd (Component)
 - Fire rate timer management
 - Range check against target distance
 - Accuracy roll for hit determination
 - Spawn projectiles or apply hitscan damage directly
+- Supports unlimited weapons via array iteration
 
-#### HealthComponent.gd
+#### HealthComponent.gd (EXISTING)
 - Track current health/max health ratio
-- Apply damage with armor calculation
+- Apply damage with armor calculation (from GlobalRules.armor_types)
 - Trigger death when health ≤ 0
 - Handle repair/regeneration over time
 
@@ -89,6 +140,22 @@ func take_damage(amount, damage_type):
 - Link with pathfinding for movement while attacking
 - Coordinate with selection for targeting feedback visuals
 - Interface with economy for death resource refunds
+
+## Related
+- **Entity System**: See GitHub Issue #22 — composition-based architecture (IMPLEMENTED)
+- **Unit Roster**: See `7-2_unit_roster.md` for unit weapon assignments
+- **Combat AI**: See `3-2_combat_ai.md` for target selection logic
+- **Component Issues**: See GitHub Issues #28-40 for component-specific implementation
+- **CombatComponent**: Issue #28 — implement firing logic, target acquisition, turret rotation
+- **HitboxComponent**: Issue #29 — implement damage detection and forwarding
+- **HealthComponent**: Issue #30 — implement armor calculation, death effects, regen
+
+## Implementation Status
+- ✅ WeaponData.gd — unlimited weapons per entity via `Array[WeaponData]`
+- ✅ WarheadData.gd — warhead type definitions
+- ✅ GlobalRules.armor_types — customizable armor dictionary
+- ✅ CombatComponent — stores weapons, turret info, threat posed
+- 🔄 Remaining: Firing logic (Issue #28), damage forwarding (Issue #29), armor calculation (Issue #30)
 
 ## Future Enhancements
 - Cover mechanics (units gain defense behind obstacles)
