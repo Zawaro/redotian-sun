@@ -1,0 +1,23 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" uid="uid://cq28pyiy5sh0f" path="res://assets/models/nod_buggy01.glb" id="1_h4yj8"]
+[ext_resource type="PackedScene" uid="uid://ckdl6l7cp8lxg" path="res://scenes/components/HealthComponent.tscn" id="2_xnp4x"]
+[ext_resource type="PackedScene" uid="uid://clfyqn8olrw56" path="res://scenes/components/HitboxComponent.tscn" id="3_g6ge8"]
+[ext_resource type="PackedScene" uid="uid://dxwdv0jilr7ln" path="res://scenes/components/SelectComponent.tscn" id="4_4jto7"]
+[ext_resource type="PackedScene" uid="uid://movctrl01" path="res://scenes/components/MovementController.tscn" id="5_movctlr"]
+
+[node name="NodBuggy" instance=ExtResource("1_h4yj8")]
+
+[node name="HealthComponent" parent="." index="7" instance=ExtResource("2_xnp4x")]
+
+[node name="HitboxComponent" parent="." index="8" node_paths=PackedStringArray("health_component") instance=ExtResource("3_g6ge8")]
+health_component = NodePath("../HealthComponent")
+
+[node name="SelectComponent" parent="." index="9" node_paths=PackedStringArray("health_component") instance=ExtResource("4_4jto7")]
+health_component = NodePath("../HealthComponent")
+select_box_type = 1
+selection_size = Vector3(1.5, 1.5, 1.5)
+
+[node name="MovementController" parent="." index="10" instance=ExtResource("5_movctlr")]
+rotation_speed = 240.0
+debug_show_path = true
