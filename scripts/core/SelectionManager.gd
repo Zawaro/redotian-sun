@@ -39,14 +39,14 @@ func deselect_entity(entity: SelectComponent):
 
 func deselect_all():
     for entity in selected_entities:
-        if entity.has_method("set_is_selected"):
+        if is_instance_valid(entity) and entity.has_method("set_is_selected"):
             entity.set_is_selected(false)
     selected_entities.clear()
     emit_signal("selection_changed", [])
 
 
 func add_entity(entity: SelectComponent):
-    if entity and not selected_entities.has(entity):
+    if entity and is_instance_valid(entity) and not selected_entities.has(entity):
         selected_entities.append(entity)
 
         if entity.has_method("set_is_selected"):
@@ -59,7 +59,7 @@ func remove_entity(entity: SelectComponent):
     if entity in selected_entities:
         selected_entities.erase(entity)
 
-        if entity.has_method("set_is_selected"):
+        if is_instance_valid(entity) and entity.has_method("set_is_selected"):
             entity.set_is_selected(false)
 
         emit_signal("selection_changed", selected_entities.duplicate())
@@ -73,13 +73,16 @@ func toggle_entity(entity: SelectComponent):
 
 
 func set_hover_preview(enabled: bool, entity: SelectComponent = null):
+    if enabled and entity == hovered_entity:
+        return
+
     is_hovering = enabled
 
-    if hovered_entity and hovered_entity != entity:
+    if hovered_entity and is_instance_valid(hovered_entity) and hovered_entity != entity:
         hovered_entity.set_is_hovering(false)
         hovered_entity = null
 
-    if enabled and entity:
+    if enabled and entity and is_instance_valid(entity):
         hovered_entity = entity
         hovered_entity.set_is_hovering(true)
         emit_signal("hover_changed", entity)
