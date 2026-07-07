@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Build menu displays available buildings
-A right-side UI panel SHALL display buttons for each available building type. Each button SHALL show the building's cameo texture (or placeholder) and display name.
+A right-side UI panel SHALL display buttons for each available building type. Each button SHALL show the building's cameo texture (or placeholder) and display name. Buttons SHALL be arranged in a 3-column grid layout with 128×96 cameo sizes.
 
 #### Scenario: Build menu is visible during gameplay
 - **WHEN** the game is running (not in main menu)
@@ -47,6 +47,18 @@ MouseHandler._process() SHALL check BuildingManager.is_build_mode. When true, Mo
 - **WHEN** the player is NOT in build mode
 - **AND** left-clicks on an entity
 - **THEN** the entity is selected as normal
+
+### Requirement: MouseHandler ignores clicks on build menu
+MouseHandler._process() SHALL detect when the hovered control is inside the BuildMenu panel and skip selection/movement processing. This prevents clicks on build menu buttons from triggering entity selection or movement commands.
+
+#### Scenario: Click on build menu does not trigger selection
+- **WHEN** the player clicks on a build menu button
+- **THEN** no entity selection occurs
+- **AND** no movement command is issued
+
+#### Scenario: Click on game area works normally
+- **WHEN** the player clicks on the game area (not on BuildMenu)
+- **THEN** selection or movement processing proceeds as normal
 
 ### Requirement: Escape key cancels build mode
 The Escape key SHALL exit build mode when the player is in build mode.
