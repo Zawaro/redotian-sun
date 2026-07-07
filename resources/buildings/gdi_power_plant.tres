@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BuildingType" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/buildings/BuildingType.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/entities/structures/gdi/placeholder/GDIPowerPlant01.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_script")
+id = "gdi_power_plant"
+display_name = "Power Plant"
+footprint = Vector2i(2, 2)
+scene = ExtResource("2_scene")
+cost = 0
+build_time = 0.0

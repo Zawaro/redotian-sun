@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" uid="uid://dxwdv0jilr7ln" path="res://scenes/components/SelectComponent.tscn" id="1_sel"]
+[ext_resource type="PackedScene" uid="uid://ckdl6l7cp8lxg" path="res://scenes/components/HealthComponent.tscn" id="2_hp"]
+[ext_resource type="PackedScene" uid="uid://clfyqn8olrw56" path="res://scenes/components/HitboxComponent.tscn" id="3_hb"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_guardtower"]
+size = Vector3(2, 1.5, 2)
+
+[sub_resource type="StandardMaterial3D" id="Mat_guardtower"]
+albedo_color = Color(0.5, 0.5, 0.5, 1)
+
+[node name="GDIGuardTower" type="Node3D"]
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+mesh = SubResource("BoxMesh_guardtower")
+surface_material_override/0 = SubResource("Mat_guardtower")
+
+[node name="HealthComponent" parent="." instance=ExtResource("2_hp")]
+
+[node name="HitboxComponent" parent="." node_paths=PackedStringArray("health_component") instance=ExtResource("3_hb")]
+health_component = NodePath("../HealthComponent")
+size = Vector3(2, 3, 2)
+
+[node name="SelectComponent" parent="." node_paths=PackedStringArray("health_component") instance=ExtResource("1_sel")]
+health_component = NodePath("../HealthComponent")
+select_box_type = 2
+selection_size = Vector3(2, 0.01, 2)
+outline_size = Vector3(2, 3, 2)
