@@ -228,7 +228,7 @@ func _ready():
                 var health_bar_grid_material = ORMMaterial3D.new()
                 health_bar_grid_material.albedo_color = Color(0, 0, 0)
                 health_bar_grid_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-                var health_bar_grid_length = max_x - min_x
+                var health_bar_grid_length = max_z - min_z
                 var health_bar_grid = MeshInstance3D.new()
                 var health_bar_grid_mesh = ImmediateMesh.new()
                 health_bar_grid.mesh = health_bar_grid_mesh

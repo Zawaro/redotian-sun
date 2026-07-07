@@ -13,6 +13,9 @@ var MOUSE_DRAG_THRESHOLD := 5.0
 var mouse_dragging := false
 var drag_start_position := Vector2.ZERO
 var active_rect: Rect2
+var _last_hover_pos := Vector2.INF
+var _hover_miss_count := 0
+var _skip_release := false
 
 
 func _ready():
@@ -43,13 +46,32 @@ func _process(_delta):
     if Engine.is_editor_hint():
         return
 
+    var bm := get_node_or_null("/root/BuildingManager") as Node
+    if bm and bm.is_build_mode:
+        return
+
+    if bm and bm.exiting_build_mode:
+        bm.exiting_build_mode = false
+        mouse_dragging = false
+        _skip_release = true
+        return
+
+    if _skip_release:
+        if Input.is_action_just_released("select_entity"):
+            _skip_release = false
+        return
+
+    var hovered := get_viewport().gui_get_hovered_control()
+    if hovered and _is_inside_build_menu(hovered):
+        return
+
     var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
 
     # Left mouse button just pressed — start drag tracking.
     if Input.is_action_just_pressed("select_entity"):
         mouse_dragging = true
         drag_start_position = get_viewport().get_mouse_position()
-        selection_rect.show()
+        selection_rect.hide()
         selection_rect.position = drag_start_position
         selection_rect.size = Vector2.ZERO
 
@@ -70,6 +92,7 @@ func _process(_delta):
             _handle_single_click(mouse_pos, shift_pressed)
 
         mouse_dragging = false
+        selection_rect.hide()
 
     # Right mouse button just released — always deselect.
     if Input.is_action_just_released("deselect_entity"):
@@ -83,16 +106,17 @@ func _process(_delta):
         var m_end := get_viewport().get_mouse_position()
         var diff: Vector2 = m_end - drag_start_position
         active_rect = Rect2(drag_start_position, diff).abs()
-        selection_rect.position = active_rect.position
-        selection_rect.size = active_rect.size
+        if active_rect.size.x >= MOUSE_DRAG_THRESHOLD or active_rect.size.y >= MOUSE_DRAG_THRESHOLD:
+            selection_rect.show()
+            selection_rect.position = active_rect.position
+            selection_rect.size = active_rect.size
 
-    # Hover preview during mouse motion (when not dragging left button).
-    if not mouse_dragging and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-        var mouse_pos := get_viewport().get_mouse_position()
-        _handle_hover_preview(mouse_pos)
-
+    # Hover preview during mouse motion (when not dragging).
     if not mouse_dragging:
-        selection_rect.hide()
+        var mouse_pos := get_viewport().get_mouse_position()
+        if mouse_pos.distance_to(_last_hover_pos) > 2.0:
+            _last_hover_pos = mouse_pos
+            _handle_hover_preview(mouse_pos)
 
 
 func _get_camera_3d() -> Camera3D:
@@ -193,10 +217,14 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
         var collider := result.collider as Node
         var select_comp := _find_select_component(collider)
         if select_comp:
+            _hover_miss_count = 0
             selection_manager.set_hover_preview(true, select_comp)
             return
 
-    selection_manager.clear_hover_preview()
+    _hover_miss_count += 1
+    if _hover_miss_count > 3:
+        selection_manager.clear_hover_preview()
+        _hover_miss_count = 0
 
 
 ## Return where the camera ray through mouse cursor intersects terrain surface (iterative solve).
@@ -229,3 +257,11 @@ func _get_ground_position_at_mouse() -> Vector3:
         return hit_pos
 
     return Vector3.INF
+
+
+func _is_inside_build_menu(node: Node) -> bool:
+    while is_instance_valid(node):
+        if node.name == "BuildMenu":
+            return true
+        node = node.get_parent()
+    return false
