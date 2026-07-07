@@ -484,7 +484,9 @@ func _set_node_transparency(node: Node, alpha: float) -> void:
         var mesh_inst := node as MeshInstance3D
         var existing_mat := mesh_inst.get_surface_override_material(0)
         if not existing_mat:
-            existing_mat = mesh_inst.mesh.surface_get_material(0) if mesh_inst.mesh else null
+            existing_mat = mesh_inst.material_override
+        if not existing_mat and mesh_inst.mesh:
+            existing_mat = mesh_inst.mesh.surface_get_material(0)
         if existing_mat:
             var mat := existing_mat.duplicate()
             if mat is StandardMaterial3D:

@@ -9,4 +9,4 @@ albedo_texture = ExtResource("2_eiccy")
 [node name="civ_guardtower01" instance=ExtResource("1_jvv1o")]
 
 [node name="Cube" parent="." index="0"]
-material_override = SubResource("StandardMaterial3D_u80x2")
+surface_material_override/0 = SubResource("StandardMaterial3D_u80x2")
