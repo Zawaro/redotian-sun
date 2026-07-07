@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://ce077cqvy5f6p"]
+[gd_scene load_steps=10 format=3 uid="uid://ce077cqvy5f6p"]
 
 [ext_resource type="Script" uid="uid://3rhaj8dqrwil" path="res://scripts/core/SelectionManager.gd" id="1_drtgo"]
 [ext_resource type="PackedScene" uid="uid://b53rjho7dyptw" path="res://scenes/hud/Camera01.tscn" id="1_uw0ss"]
@@ -8,10 +8,13 @@
 [ext_resource type="PackedScene" uid="uid://6bkboqg3gg1r" path="res://scenes/environment/DefaultWorldEnvironment01.tscn" id="4_cuur3"]
 [ext_resource type="PackedScene" uid="uid://cc6aa27pj3dbs" path="res://scenes/core/BoundsSystem.tscn" id="7_cuur3"]
 [ext_resource type="PackedScene" path="res://scenes/components/GroundPlane.tscn" id="8_grndp"]
+[ext_resource type="PackedScene" path="res://scenes/ui/BuildMenu.tscn" id="9_build"]
 
 [node name="MapBase01" type="Node3D"]
 
 [node name="GroundPlane" parent="." instance=ExtResource("8_grndp")]
+
+[node name="Buildings" type="Node3D" parent="."]
 
 [node name="SelectionManager" type="Node" parent="."]
 script = ExtResource("1_drtgo")
@@ -32,3 +35,5 @@ bounds_system = NodePath("../BoundsSystem")
 [node name="BoundsSystem" parent="." instance=ExtResource("7_cuur3")]
 map_size = Vector2(512, 512)
 visible_bounds_size = Vector2(512, 512)
+
+[node name="BuildMenu" parent="." instance=ExtResource("9_build")]
