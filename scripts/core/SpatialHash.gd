@@ -4,6 +4,7 @@ static var instance: SpatialHash
 
 var _grid: Dictionary = {}
 var _blocked_cells: Dictionary = {}
+var _building_cells: Dictionary = {}
 var _reserved: Dictionary = {}
 
 
@@ -39,7 +40,10 @@ func get_entries(cell: Vector2i) -> Array:
 
 
 func get_blocked_cells() -> Dictionary:
-    return _blocked_cells
+    var result: Dictionary = _blocked_cells.duplicate()
+    for key in _building_cells:
+        result[key] = true
+    return result
 
 
 func all_entries() -> Array:
@@ -75,3 +79,21 @@ func clear_reservations() -> void:
 
 func get_reserved() -> Dictionary:
     return _reserved
+
+
+func register_building_cells(cells: Array[Vector2i]) -> void:
+    for cell in cells:
+        _building_cells[_cell_key(cell)] = true
+
+
+func unregister_building_cells(cells: Array[Vector2i]) -> void:
+    for cell in cells:
+        _building_cells.erase(_cell_key(cell))
+
+
+func get_building_cells() -> Dictionary:
+    return _building_cells
+
+
+func _cell_key(cell: Vector2i) -> String:
+    return str(cell.x) + "," + str(cell.y)
