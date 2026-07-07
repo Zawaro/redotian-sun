@@ -22,6 +22,7 @@ DebugVisualizer="*res://scripts/core/DebugVisualizer.gd"
 SpatialHashSingleton="*res://scripts/core/SpatialHash.gd"
 TerrainSystem="*res://scripts/core/TerrainSystem.gd"
 BuildingManager="*res://scripts/buildings/BuildingManager.gd"
+EntityFactory="*res://scripts/entities/EntityFactory.gd"
 
 [display]
 
