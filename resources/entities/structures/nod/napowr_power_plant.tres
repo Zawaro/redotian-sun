@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "NAPOWR"
+display_name = "Nod Power Plant"
+entity_type = 2
+strength = 750
+armor = "wood"
+cost = 300
+tech_level = 1
+sight = 4
+foundation = Vector2i(2, 2)
+height = 2.0
+power = 100
+powered = false
+capturable = true
+owner = PackedStringArray("Nod")

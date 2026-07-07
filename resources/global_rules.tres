@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="GlobalRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/GlobalRules.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+veteran_ratio = 10.0
+veteran_cap = 2
+initial_veteran = false
+veteran_combat = 0.25
+veteran_speed = 0.3
+veteran_sight = 0.0
+veteran_armor = 0.25
+veteran_rof = 0.2
+refund_percent = 0.5
+reload_rate = 0.5
+repair_percent = 0.2
+repair_rate = 0.016
+repair_step = 8
+build_speed = 0.8
+buildup_time = 0.06
+growth_rate = 5.0
+tiberium_grows = true
+tiberium_spreads = true
+separate_aircraft = true
+survivor_rate = 0.4
+survivor_divisor = 100
+placement_delay = 0.05
+weed_capacity = 56
+base_bias = 2
+base_defense_delay = 0.25
+close_enough = 2.25
+damage_delay = 1.0
+game_speed_bias = 1.0
+stray = 2.0
+flight_level = 600
+hover_height = 120
+hover_dampen = 0.4
+hover_bob = 0.04
+hover_boost = 1.5
+hover_acceleration = 0.02
+hover_brake = 0.03
+multiple_factory = 0.5
+min_production_speed = 0.5
+tracked_uphill = 0.5
+tracked_downhill = 1.1
+wheeled_uphill = 0.5
+wheeled_downhill = 1.2
+armor_types = {
+"none": {"modifier": 1.0},
+"wood": {"modifier": 0.7},
+"light": {"modifier": 0.6},
+"heavy": {"modifier": 0.4},
+"concrete": {"modifier": 0.3}
+}
+fog_of_war = false
+visceroids = false
+meteorites = false
+crew_escape = 0.5
+camera_range = 9
+maximum_queued_objects = 4
