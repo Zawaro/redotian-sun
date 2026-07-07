@@ -40,54 +40,78 @@ The unit roster defines all playable units across factions, including their stat
 
 ## Technical Implementation
 
-### Scene Structure
+### Entity System Integration
+All units are defined via the **composition-based entity system** (see GitHub Issue #22):
+
 ```
-UnitRoster.tscn (Resource database)
-├── UnitTemplate.gd (data asset for each unit type)
-├── CounterSystem.gd (rock-paper-scissors logic)
-└── UnlockManager.gd (tech progression tracking)
+EntityData.tres (single resource, all properties)
+    ↓ EntityFactory autoload
+Entity.tscn + dynamically added components
 ```
 
-### Key Scripts
+- **One `EntityData.gd`** resource class with ALL properties
+- Unit type determined by `entity_type` field (INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN)
+- Weapons stored as `Array[WeaponData]` — unlimited weapons per entity
+- Health via `strength` field → HealthComponent added if > 0
+- Movement via `speed` field → MovementController added if > 0
+- Combat via `weapons` array → CombatComponent added if non-empty
 
-#### UnitTemplate.gd (Data Asset)
-- Store all unit statistics in resource file format
-- Define faction assignment and production requirements
-- Specify weapon stats, health, speed, vision radius
-- Include special ability configurations
+### Data Files
+```
+resources/entities/
+├── infantry/
+│   ├── e1_rifle_infantry.tres    # EntityData instance
+│   ├── e2_disc_thrower.tres
+│   └── engineer.tres
+├── vehicles/
+│   ├── bggy_attack_buggy.tres
+│   ├── 4tnk_mammoth.tres
+│   └── harv_harvester.tres
+├── structures/
+│   ├── gdi_conyard.tres
+│   └── ...
+└── terrain/
+    ├── tree01.tres
+    └── ...
 
-#### CounterSystem.gd
-- Calculate damage multipliers based on unit type matchups
-- Apply counter bonuses (e.g., infantry vs vehicles = 2.0x)
-- Provide strategic recommendations in UI tooltips
-- Track unit losses for balance analysis
+resources/weapons/
+├── minigun.tres                  # WeaponData instance
+├── raider_cannon.tres
+├── 120mm.tres
+└── ...
 
-### Unit Template Example
+resources/art/
+├── infantry/
+│   ├── e1_rifle_infantry_art.tres
+│   └── ...
+└── vehicles/
+    ├── bggy_attack_buggy_art.tres
+    └── ...
+```
+
+### Unit Template (EntityData)
 ```gdscript
-@tool
-extends Resource
-class_name UnitTemplate
-
-@export var name: String = "Marine"
-@export var faction: String = "GDI"
-@export var cost_credits: int = 50
-@export var health: int = 40
-@export var speed: float = 1.5
-@export var vision_range: float = 200.0
-
-@export_group("Weapons")
-@export var damage_type: String = "bullet"
-@export var base_damage: float = 8.0
-@export var fire_rate: float = 0.5
-@export var range: float = 150.0
-
-@export_group("Abilities")
-@export var has_special_ability: bool = false
-@export var ability_cooldown: float = 30.0
+# Example: E1 Rifle Infantry
+{
+    "id": "E1",
+    "display_name": "Light Infantry",
+    "entity_type": "INFANTRY",
+    "strength": 125,
+    "armor": "none",           # customizable string, not hardcoded
+    "cost": 120,
+    "tech_level": 1,
+    "sight": 5,
+    "speed": 5.0,
+    "owner": ["GDI", "Nod"],
+    "weapons": [WeaponData("minigun")],
+    "movement_zone": "Infantry",
+    "c4": false,
+    "engineer": false
+}
 ```
 
 ### Counter System Logic
-- Define counters in data structure: `{"infantry": {"vehicles": 2.0}}`
+- Define counters in GlobalRules or separate CounterData resource
 - Apply multiplier when unit attacks counter target
 - Display advantage indicator in UI (green/red arrows)
 - Track combat effectiveness for balance tuning
@@ -98,8 +122,22 @@ class_name UnitTemplate
 - Coordinate with combat AI for targeted engagement
 - Interface with economy for cost validation
 
+## Related
+- **Entity System**: See GitHub Issue #22 — composition-based architecture (IMPLEMENTED)
+- **Faction Systems**: See `7-1_faction_systems.md` for faction bonuses/modifiers
+- **Combat Weapons**: See `3-1_combat_weapons.md` for WeaponData system
+- **Data Population**: See GitHub Issue #23 for .tres file creation
+- **Component Issues**: See GitHub Issues #28-40 for component-specific implementation
+
+## Implementation Status
+- ✅ EntityData.gd — single resource class with all entity properties
+- ✅ WeaponData.gd — unlimited weapons per entity
+- ✅ EntityFactory.gd — creates entities from data, adds components dynamically
+- ✅ .tres files created for: E1, BGGY, HARV, MCV, GACNST, GAPOWR, NAPOWR, TREE01
+- 🔄 Remaining: ~30 more .tres files (Issue #23), component logic (Issues #28-40)
+
 ## Future Enhancements
 - Dynamic unit balancing based on win rates
 - Custom unit creation tools for modders
-- Unit prestige systems ( veterancy levels)
+- Unit prestige systems (veterancy levels)
 - Synergy bonuses when combining specific units

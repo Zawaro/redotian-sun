@@ -6,7 +6,34 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 ## Current Status
 - **Engine Version**: Redot 26.1 LTS
 - **Project State**: Development in progress - Core Systems phase
-- **Last Updated**: 2026-02-26
+- **Last Updated**: 2026-07-07
+
+---
+
+## Entity System Foundation (GitHub Issue #22)
+
+**Status**: ✅ Implemented (architecture + core components)
+
+The composition-based entity system is a prerequisite for most game systems. All entities (buildings, units, infantry, terrain) are created from a single `EntityData.gd` resource with dynamically added components.
+
+**Implemented:**
+- `EntityData.gd` — single resource class with ALL entity properties
+- `EntityFactory.gd` — autoload that creates entities from data, adds components dynamically
+- `Entity.tscn` — single base scene (empty Node3D root)
+- `WeaponData.gd` — unlimited weapons per entity via `Array[WeaponData]`
+- `ArtData.gd` — separate visual properties per entity, model loading via ArtComponent
+- `GlobalRules.gd` — default game values from rules.ini, customizable armor types
+- 7 new components: StatsComponent, FoundationComponent, PowerComponent, RadarComponent, FactoryComponent, TransportComponent, SpecialAbilityComponent
+- Updated components: CombatComponent (unlimited weapons), MovementController (locomotor/movement_zone)
+- ArtComponent loads models from ArtData at runtime
+
+**Remaining work** (see GitHub Issues #23-40):
+- Data population: ~30 .tres files for entities, weapons, warheads, art
+- Component logic: Each component needs actual behavior (see component-specific issues)
+- Integration: BuildingManager migration, GlobalRules wiring
+- Validation: Component-level validation, graceful degradation
+
+**See**: GitHub Issue #22 for full architecture details
 
 ---
 
@@ -20,11 +47,12 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 - [ ] Test with basic unit movement
 
 ### 1.2 Base Building System
-- [ ] Implement building placement validation rules
-- [ ] Create construction queue with timing/resources
-- [ ] Build power grid management system
+- [x] Implement building placement validation rules
+- [x] Create construction queue with timing/resources
+- [ ] Build power grid management system (PowerComponent)
 - [ ] Add building states and destruction logic
 - [ ] Integrate with economy for costs
+- **Note**: Uses EntityFactory + EntityData for building definitions
 
 ### 1.3 Economy & Resources
 - [ ] Define resource types (Credits, Tiberium)
@@ -34,11 +62,12 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 - [ ] Add income/expense cycle tracking
 
 ### 1.4 Unit Production Pipeline
-- [ ] Create factory/barracks structure types
+- [ ] Create factory/barracks structure types (FactoryComponent)
 - [ ] Implement unit training queues
 - [ ] Build tech tree and prerequisite system
-- [ ] Add spawn logic for new units
+- [ ] Add spawn logic for new units via EntityFactory
 - [ ] Test with various faction units
+- **Note**: Units defined as EntityData .tres files
 
 ---
 
@@ -63,11 +92,12 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 ## Phase 3: Combat System (Priority: High)
 
 ### 3.1 Damage & Weapons
-- [ ] Define damage types (bullet, explosive, energy)
-- [ ] Create armor types and resistance calculations
-- [ ] Build weapon system with stats (range, fire rate, damage)
-- [ ] Implement projectile or hitscan systems
-- [ ] Add unit health/regeneration mechanics
+- [ ] Define damage types via WarheadData resources
+- [ ] Create armor types via GlobalRules.armor_types (customizable dictionary)
+- [ ] Build WeaponData resource system (unlimited weapons per entity)
+- [ ] Implement projectile or hitscan systems via CombatComponent
+- [ ] Add unit health/regeneration mechanics (HealthComponent)
+- **Note**: Weapons defined in resources/weapons/ .tres files
 
 ### 3.2 Combat AI
 - [ ] Create target selection logic for units
@@ -121,6 +151,7 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 - [ ] Add Tiberium fields distribution
 - [ ] Build environmental hazards if applicable
 - [ ] Test terrain interaction with units/buildings
+- **Note**: Terrain objects use EntityData with entity_type=TERRAIN
 
 ### 6.2 Map Design Tools
 - [ ] Create level editor or map import pipeline
@@ -138,13 +169,15 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 - [ ] Build unique unit/structure differences per faction
 - [ ] Add faction-specific tech trees
 - [ ] Test faction balance in combat scenarios
+- **Note**: Faction bonuses stored in GlobalRules.gd
 
 ### 7.2 Unit Roster
-- [ ] Implement infantry units (marines, engineers)
-- [ ] Create vehicle units (tanks, APCs)
+- [ ] Implement infantry units (EntityData .tres files)
+- [ ] Create vehicle units (EntityData .tres files)
 - [ ] Build aircraft units if applicable
 - [ ] Add hero/special units with unique abilities
 - [ ] Test all unit interactions and counters
+- **Note**: All units defined in resources/entities/ .tres files
 
 ---
 
@@ -158,11 +191,12 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 - [ ] Test multiplayer stability and latency handling
 
 ### 8.2 Modding Support
-- [ ] Create modding framework (custom units, maps)
+- [ ] Create modding framework via EntityFactory.register_data_set()
 - [ ] Build asset import/export tools
 - [ ] Add script extensibility points
 - [ ] Design mod distribution pipeline
 - [ ] Document modding API for community
+- **Note**: EntityFactory supports layered data sets for mods/DLCs
 
 ---
 
@@ -197,13 +231,16 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 
 ## Next Steps
 
-1. Focus on Phase 1 tasks first (Camera, Selection, Base Building)
-2. Create detailed issue tickets in repository for each checklist item
-3. Set up GitHub Projects board to track progress
-4. Begin implementation with Camera and Selection systems
-5. Conduct early playtesting to validate design decisions
-6. Review weekly and adjust timeline based on actual development velocity
+1. **Data Population** (Issue #23) — populate remaining .tres files for entities, weapons, warheads
+2. **Component Logic** (Issues #28-40) — implement actual behavior for each component
+   - **Highest priority**: HitboxComponent (#29), HealthComponent (#30), CombatComponent (#28) — core combat loop
+   - **Economy**: PowerComponent (#33), FactoryComponent (#31), TransportComponent (#32) — production and harvesting
+3. **GlobalRules Integration** (Issue #26) — wire armor calculation, veterancy, movement coefficients
+4. **BuildingManager Migration** (Issue #25) — move from BuildingType to EntityFactory
+5. **Debug Menu** (Issue #27) — in-game debug tools for testing
+6. Conduct early playtesting to validate design decisions
+7. Review weekly and adjust timeline based on actual development velocity
 
 ---
 
-*Last updated: 2026-02-26 by Core Systems Lead*
+*Last updated: 2026-07-07 — Entity System implemented, 18 GitHub issues created (#22-40)*
