@@ -145,6 +145,19 @@ func get_cell_max_height(cell: Vector2i) -> float:
     return float(h_max) * HEIGHT_STEP
 
 
+func get_cell_corner_heights(cell: Vector2i) -> Array[float]:
+    var offset := grid_cells >> 1
+    var cx := cell.x + offset
+    var cz := cell.y + offset
+    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+        return [0.0, 0.0, 0.0, 0.0]
+    var h_nw: float = float(_vertex_grid[cx][cz]) * HEIGHT_STEP
+    var h_ne: float = float(_vertex_grid[cx + 1][cz]) * HEIGHT_STEP
+    var h_sw: float = float(_vertex_grid[cx][cz + 1]) * HEIGHT_STEP
+    var h_se: float = float(_vertex_grid[cx + 1][cz + 1]) * HEIGHT_STEP
+    return [h_nw, h_ne, h_sw, h_se]
+
+
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
     var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
     var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)

@@ -259,33 +259,30 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
         child.queue_free()
     _building_preview = null
 
-    var inset := 0.1
-    var cell_size := Pathfinder.CELL_SIZE - inset * 2
-
     var green_mat := StandardMaterial3D.new()
     green_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     green_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    green_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
     green_mat.albedo_color = Color(0, 1, 0, 0.5)
 
     var red_mat := StandardMaterial3D.new()
     red_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     red_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    red_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
     red_mat.albedo_color = Color(1, 0, 0, 0.5)
 
     for dx in current_building_type.footprint.x:
         for dz in current_building_type.footprint.y:
             var cell := origin_cell + Vector2i(dx, dz)
-            var cell_world := Pathfinder.cell_to_world(cell)
-            var cell_height := TerrainSystem.get_cell_max_height(cell)
-
-            var plane_mesh := PlaneMesh.new()
-            plane_mesh.size = Vector2(cell_size, cell_size)
+            var mesh := _build_cell_mesh(cell)
+            if not mesh:
+                continue
 
             var mesh_instance := MeshInstance3D.new()
-            mesh_instance.mesh = plane_mesh
+            mesh_instance.mesh = mesh
             mesh_instance.material_override = green_mat if _is_cell_free(cell) else red_mat
-            mesh_instance.position = Vector3(cell_world.x, cell_height + 0.01, cell_world.z)
-
+            var cell_world := Pathfinder.cell_to_world(cell)
+            mesh_instance.position = Vector3(cell_world.x, 0, cell_world.z)
             _preview.add_child(mesh_instance)
 
     if current_building_type.scene:
@@ -299,6 +296,23 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
             _set_node_transparency(_building_preview, 0.33)
 
             _preview.add_child(_building_preview)
+
+
+func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:
+    var heights := TerrainSystem.get_cell_corner_heights(cell)
+    var cs := Pathfinder.CELL_SIZE
+    var half := cs * 0.5
+
+    var mesh := ImmediateMesh.new()
+    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+    mesh.surface_add_vertex(Vector3(-half, heights[0], -half))
+    mesh.surface_add_vertex(Vector3(-half, heights[2], half))
+    mesh.surface_add_vertex(Vector3(half, heights[1], -half))
+    mesh.surface_add_vertex(Vector3(half, heights[1], -half))
+    mesh.surface_add_vertex(Vector3(-half, heights[2], half))
+    mesh.surface_add_vertex(Vector3(half, heights[3], half))
+    mesh.surface_end()
+    return mesh
 
 
 func _set_node_transparency(node: Node, alpha: float) -> void:
