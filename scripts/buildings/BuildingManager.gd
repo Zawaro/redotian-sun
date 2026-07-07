@@ -13,11 +13,14 @@ var building_types: Array[Resource] = []
 var _preview: Node3D = null
 var _building_preview: Node3D = null
 var _buildings_parent: Node3D = null
+var _map_half_diag: int = 640
+var _play_area_half_diag: int = 256
 
 
 func _ready() -> void:
     _load_building_types()
     _find_buildings_parent()
+    _find_bounds_system()
     _create_preview()
 
 
@@ -81,6 +84,14 @@ func can_place(building_type: BuildingType, origin_cell: Vector2i) -> bool:
     for dx in building_type.footprint.x:
         for dz in building_type.footprint.y:
             var cell := origin_cell + Vector2i(dx, dz)
+
+            if not _is_in_bounds(cell):
+                result = false
+                break
+
+            if not _is_in_play_area(cell):
+                result = false
+                break
 
             var key := str(cell.x) + "," + str(cell.y)
             if SpatialHash.instance.get_building_cells().has(key):
@@ -195,6 +206,31 @@ func _find_buildings_parent() -> void:
         _buildings_parent.owner = root
 
 
+func _find_bounds_system() -> void:
+    var tree := get_tree()
+    if not tree:
+        return
+    var root := tree.current_scene
+    if not root:
+        return
+    var bs := root.get_node_or_null("BoundsSystem")
+    if bs and bs is BoundsSystem:
+        _map_half_diag = int(bs.map_size.x * Pathfinder.SQRT2 / 2.0)
+        _play_area_half_diag = int(bs.visible_bounds_size.x * Pathfinder.SQRT2 / 2.0)
+
+
+func _is_in_bounds(cell: Vector2i) -> bool:
+    var cx := absf(float(cell.x) + 0.5)
+    var cz := absf(float(cell.y) + 0.5)
+    return cx + cz <= float(_map_half_diag)
+
+
+func _is_in_play_area(cell: Vector2i) -> bool:
+    var cx := absf(float(cell.x) + 0.5)
+    var cz := absf(float(cell.y) + 0.5)
+    return cx + cz <= float(_play_area_half_diag)
+
+
 func _get_buildings_parent() -> Node3D:
     if not _buildings_parent:
         _find_buildings_parent()
@@ -271,23 +307,39 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
     red_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
     red_mat.albedo_color = Color(1, 0, 0, 0.75)
 
+    var any_out_of_bounds := false
     for dx in current_building_type.footprint.x:
         for dz in current_building_type.footprint.y:
             var cell := origin_cell + Vector2i(dx, dz)
+            if not _is_in_bounds(cell):
+                any_out_of_bounds = true
+                break
+        if any_out_of_bounds:
+            break
+
+    for dx in current_building_type.footprint.x:
+        for dz in current_building_type.footprint.y:
+            var cell := origin_cell + Vector2i(dx, dz)
+            if not _is_in_bounds(cell):
+                continue
+
             var mesh := _build_cell_mesh(cell)
             if not mesh:
                 continue
 
             var mesh_instance := MeshInstance3D.new()
             mesh_instance.mesh = mesh
-            mesh_instance.material_override = green_mat if _is_cell_free(cell) else red_mat
+            if not _is_in_play_area(cell):
+                mesh_instance.material_override = red_mat
+            else:
+                mesh_instance.material_override = green_mat if _is_cell_free(cell) else red_mat
             var cell_world := Pathfinder.cell_to_world(cell)
             mesh_instance.position = Vector3(cell_world.x, 0, cell_world.z)
             _preview.add_child(mesh_instance)
 
     _add_grid_and_indicators(origin_cell, current_building_type.footprint, red_mat)
 
-    if current_building_type.scene:
+    if not any_out_of_bounds and current_building_type.scene:
         _building_preview = current_building_type.scene.instantiate() as Node3D
         if _building_preview:
             var world_pos := _cell_origin_to_world(origin_cell, current_building_type.footprint)
@@ -328,8 +380,8 @@ func _add_grid_and_indicators(
     )
     var radius := maxf(float(footprint.x), float(footprint.y)) * 0.5 + 3.0
     var margin := 4
-    var grid_start := origin_cell - Vector2i(margin, margin)
-    var grid_end := origin_cell + footprint + Vector2i(margin, margin)
+    var grid_start := origin_cell - Vector2i(margin + 1, margin + 1)
+    var grid_end := origin_cell + footprint + Vector2i(margin + 1, margin + 1)
     var thick := 0.05
 
     var grid_mat := StandardMaterial3D.new()
@@ -344,6 +396,8 @@ func _add_grid_and_indicators(
     for z in range(grid_start.y, grid_end.y + 1):
         for x in range(grid_start.x, grid_end.x + 1):
             var cell := Vector2i(x, z)
+            if not _is_in_bounds(cell):
+                continue
             var cell_center := Vector2(x + 0.5, z + 0.5)
             if cell_center.distance_to(center) > radius:
                 continue
@@ -355,7 +409,14 @@ func _add_grid_and_indicators(
                 and z < origin_cell.y + footprint.y
             )
 
-            if not in_footprint and not _is_cell_free(cell):
+            var show_red := false
+            if not in_footprint:
+                if not _is_cell_free(cell):
+                    show_red = true
+                elif not _is_in_play_area(cell):
+                    show_red = true
+
+            if show_red:
                 var indicator := _build_cell_mesh(cell)
                 if indicator:
                     var inst := MeshInstance3D.new()
