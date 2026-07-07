@@ -1,0 +1,379 @@
+extends Node
+
+signal build_mode_changed(is_active: bool)
+signal building_placed(building: Node3D, building_type: BuildingType)
+
+var is_build_mode: bool = false
+var current_building_type: BuildingType = null
+var _buildings: Array[Dictionary] = []
+var exiting_build_mode: bool = false
+
+var building_types: Array[Resource] = []
+
+var _preview: Node3D = null
+var _building_preview: Node3D = null
+var _buildings_parent: Node3D = null
+
+
+func _ready() -> void:
+    _load_building_types()
+    _find_buildings_parent()
+    _create_preview()
+
+
+func _load_building_types() -> void:
+    var dir := DirAccess.open("res://resources/buildings/")
+    if not dir:
+        return
+    dir.list_dir_begin()
+    var file_name: String = dir.get_next()
+    while file_name != "":
+        if file_name.ends_with(".tres"):
+            var res := load("res://resources/buildings/" + file_name)
+            if res and res is BuildingType:
+                building_types.append(res)
+        file_name = dir.get_next()
+    dir.list_dir_end()
+
+
+func _process(_delta: float) -> void:
+    if Engine.is_editor_hint():
+        return
+
+    if not is_build_mode:
+        return
+
+    _update_preview_position()
+
+    if Input.is_action_just_pressed("select_entity"):
+        _try_place_building()
+    elif Input.is_action_just_pressed("deselect_entity"):
+        exit_build_mode()
+    elif Input.is_action_just_pressed("ui_cancel"):
+        exit_build_mode()
+
+
+func enter_build_mode(building_type: BuildingType) -> void:
+    if is_build_mode and current_building_type == building_type:
+        exit_build_mode()
+        return
+
+    current_building_type = building_type
+    is_build_mode = true
+    _show_preview(true)
+    build_mode_changed.emit(true)
+
+
+func exit_build_mode() -> void:
+    is_build_mode = false
+    current_building_type = null
+    _show_preview(false)
+    # Free preview building so its collision shapes leave the physics space
+    for child in _preview.get_children():
+        child.queue_free()
+    _building_preview = null
+    build_mode_changed.emit(false)
+
+
+func can_place(building_type: BuildingType, origin_cell: Vector2i) -> bool:
+    var result: bool = true
+
+    for dx in building_type.footprint.x:
+        for dz in building_type.footprint.y:
+            var cell := origin_cell + Vector2i(dx, dz)
+
+            var key := str(cell.x) + "," + str(cell.y)
+            if SpatialHash.instance.get_building_cells().has(key):
+                result = false
+                break
+
+            if SpatialHash.instance.is_cell_idle(cell):
+                result = false
+                break
+
+            var cell_type := TerrainSystem.get_cell_type(cell)
+            if cell_type != "" and cell_type != "clear":
+                result = false
+                break
+
+        if not result:
+            break
+
+    if result:
+        var min_h := INF
+        var max_h := -INF
+        for dx in building_type.footprint.x:
+            for dz in building_type.footprint.y:
+                var cell := origin_cell + Vector2i(dx, dz)
+                var h := TerrainSystem.get_cell_max_height(cell)
+                min_h = minf(min_h, h)
+                max_h = maxf(max_h, h)
+
+        if min_h != INF and (max_h - min_h) > TerrainSystem.HEIGHT_STEP:
+            result = false
+
+    return result
+
+
+func place_building(building_type: BuildingType, origin_cell: Vector2i) -> bool:
+    if not can_place(building_type, origin_cell):
+        return false
+
+    var building: Node3D = building_type.scene.instantiate() as Node3D
+    if not building:
+        push_error("[BuildingManager] Failed to instantiate building scene")
+        return false
+
+    var world_pos := _cell_origin_to_world(origin_cell, building_type.footprint)
+    var max_height := _get_max_height(origin_cell, building_type.footprint)
+    world_pos.y = max_height
+
+    building.position = world_pos
+    _get_buildings_parent().add_child(building)
+
+    var cells: Array[Vector2i] = []
+    for dx in building_type.footprint.x:
+        for dz in building_type.footprint.y:
+            cells.append(origin_cell + Vector2i(dx, dz))
+    SpatialHash.instance.register_building_cells(cells)
+
+    _buildings.append({
+        "node": building,
+        "type": building_type,
+        "origin": origin_cell,
+        "cells": cells,
+    })
+
+    building_placed.emit(building, building_type)
+    return true
+
+
+func get_all_buildings() -> Array[Dictionary]:
+    return _buildings
+
+
+func _cell_origin_to_world(origin: Vector2i, footprint: Vector2i) -> Vector3:
+    var center_x := (origin.x + footprint.x * 0.5) * Pathfinder.CELL_SIZE
+    var center_z := (origin.y + footprint.y * 0.5) * Pathfinder.CELL_SIZE
+    return Vector3(center_x, 0.0, center_z)
+
+
+func _get_max_height(origin: Vector2i, footprint: Vector2i) -> float:
+    var max_h := 0.0
+    for dx in footprint.x:
+        for dz in footprint.y:
+            var cell := origin + Vector2i(dx, dz)
+            var h := TerrainSystem.get_cell_max_height(cell)
+            max_h = maxf(max_h, h)
+    return max_h
+
+
+func _is_cell_free(cell: Vector2i) -> bool:
+    var key := str(cell.x) + "," + str(cell.y)
+    if SpatialHash.instance.get_building_cells().has(key):
+        return false
+    if SpatialHash.instance.is_cell_idle(cell):
+        return false
+    var cell_type := TerrainSystem.get_cell_type(cell)
+    if cell_type != "" and cell_type != "clear":
+        return false
+    return true
+
+
+func _find_buildings_parent() -> void:
+    var tree := get_tree()
+    if not tree:
+        return
+    var root := tree.current_scene
+    if not root:
+        return
+    _buildings_parent = root.get_node_or_null("Buildings")
+    if not _buildings_parent:
+        _buildings_parent = Node3D.new()
+        _buildings_parent.name = "Buildings"
+        root.add_child(_buildings_parent)
+        _buildings_parent.owner = root
+
+
+func _get_buildings_parent() -> Node3D:
+    if not _buildings_parent:
+        _find_buildings_parent()
+    return _buildings_parent
+
+
+func _create_preview() -> void:
+    _preview = Node3D.new()
+    _preview.name = "PlacementPreview"
+    _preview.visible = false
+    add_child(_preview)
+
+
+func _show_preview(show: bool) -> void:
+    if _preview:
+        _preview.visible = show
+
+
+func _update_preview_position() -> void:
+    if not _preview or not current_building_type:
+        return
+
+    var mouse_pos := get_viewport().get_mouse_position()
+    var camera := _get_camera_3d()
+    if not camera:
+        return
+
+    var from := camera.project_ray_origin(mouse_pos)
+    var dir := camera.project_ray_normal(mouse_pos)
+
+    var ground_plane := Plane(Vector3.UP, 0.0)
+    var intersection = ground_plane.intersects_ray(from, dir)
+    if intersection == null:
+        _preview.visible = false
+        return
+
+    var hit_pos := intersection as Vector3
+    for i in 4:
+        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
+        var adjusted := Plane(Vector3.UP, terrain_y)
+        var new_hit = adjusted.intersects_ray(from, dir)
+        if new_hit == null:
+            break
+        hit_pos = new_hit as Vector3
+
+    var mouse_cell := Pathfinder.world_to_cell(hit_pos)
+    var origin_cell := mouse_cell - Vector2i(
+        current_building_type.footprint.x >> 1,
+        current_building_type.footprint.y >> 1
+    )
+
+    var valid := can_place(current_building_type, origin_cell)
+    _update_preview_mesh(valid, origin_cell)
+    _preview.visible = true
+
+
+func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
+    if not _preview or not current_building_type:
+        return
+
+    for child in _preview.get_children():
+        child.queue_free()
+    _building_preview = null
+
+    var inset := 0.1
+    var cell_size := Pathfinder.CELL_SIZE - inset * 2
+
+    var green_mat := StandardMaterial3D.new()
+    green_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    green_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    green_mat.albedo_color = Color(0, 1, 0, 0.5)
+
+    var red_mat := StandardMaterial3D.new()
+    red_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    red_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    red_mat.albedo_color = Color(1, 0, 0, 0.5)
+
+    for dx in current_building_type.footprint.x:
+        for dz in current_building_type.footprint.y:
+            var cell := origin_cell + Vector2i(dx, dz)
+            var cell_world := Pathfinder.cell_to_world(cell)
+            var cell_height := TerrainSystem.get_cell_max_height(cell)
+
+            var plane_mesh := PlaneMesh.new()
+            plane_mesh.size = Vector2(cell_size, cell_size)
+
+            var mesh_instance := MeshInstance3D.new()
+            mesh_instance.mesh = plane_mesh
+            mesh_instance.material_override = green_mat if _is_cell_free(cell) else red_mat
+            mesh_instance.position = Vector3(cell_world.x, cell_height + 0.01, cell_world.z)
+
+            _preview.add_child(mesh_instance)
+
+    if current_building_type.scene:
+        _building_preview = current_building_type.scene.instantiate() as Node3D
+        if _building_preview:
+            var world_pos := _cell_origin_to_world(origin_cell, current_building_type.footprint)
+            var max_height := _get_max_height(origin_cell, current_building_type.footprint)
+            world_pos.y = max_height
+            _building_preview.position = world_pos
+
+            _set_node_transparency(_building_preview, 0.33)
+
+            _preview.add_child(_building_preview)
+
+
+func _set_node_transparency(node: Node, alpha: float) -> void:
+    if node is MeshInstance3D:
+        var mesh_inst := node as MeshInstance3D
+        var existing_mat := mesh_inst.get_surface_override_material(0)
+        if not existing_mat:
+            existing_mat = mesh_inst.mesh.surface_get_material(0) if mesh_inst.mesh else null
+        if existing_mat:
+            var mat := existing_mat.duplicate()
+            if mat is StandardMaterial3D:
+                mat.albedo_color.a = alpha
+                mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+                mesh_inst.set_surface_override_material(0, mat)
+            elif mat is ORMMaterial3D:
+                mat.albedo_color.a = alpha
+                mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+                mesh_inst.set_surface_override_material(0, mat)
+        else:
+            var mat := StandardMaterial3D.new()
+            mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+            mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+            mat.albedo_color = Color(1, 1, 1, alpha)
+            mesh_inst.material_override = mat
+    for child in node.get_children():
+        _set_node_transparency(child, alpha)
+
+
+func _try_place_building() -> void:
+    if not current_building_type:
+        return
+
+    var mouse_pos := get_viewport().get_mouse_position()
+    var camera := _get_camera_3d()
+    if not camera:
+        return
+
+    var from := camera.project_ray_origin(mouse_pos)
+    var dir := camera.project_ray_normal(mouse_pos)
+
+    var ground_plane := Plane(Vector3.UP, 0.0)
+    var intersection = ground_plane.intersects_ray(from, dir)
+    if intersection == null:
+        return
+
+    var hit_pos := intersection as Vector3
+    for i in 4:
+        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
+        var adjusted := Plane(Vector3.UP, terrain_y)
+        var new_hit = adjusted.intersects_ray(from, dir)
+        if new_hit == null:
+            break
+        hit_pos = new_hit as Vector3
+
+    var mouse_cell := Pathfinder.world_to_cell(hit_pos)
+    var origin_cell := mouse_cell - Vector2i(
+        current_building_type.footprint.x >> 1,
+        current_building_type.footprint.y >> 1
+    )
+    if not place_building(current_building_type, origin_cell):
+        # TODO: play invalid placement SFX
+        push_warning("[BuildingManager] Cannot place here")
+        return
+    exiting_build_mode = true
+    exit_build_mode()
+
+
+func _get_camera_3d() -> Camera3D:
+    var tree := get_tree()
+    if not tree:
+        return null
+    var root := tree.current_scene
+    if not root:
+        return null
+    var camera_controller := root.get_node_or_null("Camera")
+    if not camera_controller:
+        return null
+    return camera_controller.get_node_or_null("Camera3D") as Camera3D

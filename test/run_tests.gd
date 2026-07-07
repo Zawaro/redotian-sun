@@ -79,3 +79,5 @@ func _inject_autoloads(obj: Object) -> void:
             obj.set("_sh", child)
         elif child_name == "SelectionManager":
             obj.set("_sm", child)
+        elif child_name == "BuildingManager":
+            obj.set("_bm", child)
