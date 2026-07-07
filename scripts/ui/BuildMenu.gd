@@ -9,6 +9,7 @@ const CAMEO_COLORS: Array[Color] = [
     Color(0.6, 0.4, 0.2),  # Refinery
     Color(0.3, 0.4, 0.6),  # War Factory
     Color(0.5, 0.5, 0.5),  # Guard Tower
+    Color(0.6, 0.6, 0.5),  # Civilian Tower
 ]
 
 @onready var grid: GridContainer = %GridContainer
