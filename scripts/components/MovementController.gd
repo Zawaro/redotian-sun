@@ -10,6 +10,8 @@ enum State { IDLE, ROTATING, MOVING, WAIT }
 @export_range(1.0, 45.0) var rotation_angle_threshold: float = 5.0
 @export_node_path("MeshInstance3D") var rotation_target_path: NodePath
 @export var debug_show_path: bool = false
+@export var locomotor: String = ""
+@export var movement_zone: String = ""
 
 const REPULSION_STRENGTH: float = 0.1
 
