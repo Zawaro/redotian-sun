@@ -148,12 +148,17 @@ func place_building(building_type: BuildingType, origin_cell: Vector2i) -> bool:
             cells.append(origin_cell + Vector2i(dx, dz))
     SpatialHash.instance.register_building_cells(cells)
 
-    _buildings.append({
-        "node": building,
-        "type": building_type,
-        "origin": origin_cell,
-        "cells": cells,
-    })
+    (
+        _buildings
+        . append(
+            {
+                "node": building,
+                "type": building_type,
+                "origin": origin_cell,
+                "cells": cells,
+            }
+        )
+    )
 
     building_placed.emit(building, building_type)
     return true
@@ -277,9 +282,9 @@ func _update_preview_position() -> void:
         hit_pos = new_hit as Vector3
 
     var mouse_cell := Pathfinder.world_to_cell(hit_pos)
-    var origin_cell := mouse_cell - Vector2i(
-        current_building_type.footprint.x >> 1,
-        current_building_type.footprint.y >> 1
+    var origin_cell := (
+        mouse_cell
+        - Vector2i(current_building_type.footprint.x >> 1, current_building_type.footprint.y >> 1)
     )
 
     var valid := can_place(current_building_type, origin_cell)
@@ -527,9 +532,9 @@ func _try_place_building() -> void:
         hit_pos = new_hit as Vector3
 
     var mouse_cell := Pathfinder.world_to_cell(hit_pos)
-    var origin_cell := mouse_cell - Vector2i(
-        current_building_type.footprint.x >> 1,
-        current_building_type.footprint.y >> 1
+    var origin_cell := (
+        mouse_cell
+        - Vector2i(current_building_type.footprint.x >> 1, current_building_type.footprint.y >> 1)
     )
     if not place_building(current_building_type, origin_cell):
         # TODO: play invalid placement SFX

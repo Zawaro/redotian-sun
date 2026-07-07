@@ -20,13 +20,9 @@ func test_can_place_returns_true_on_valid_cells():
     for dx in 2:
         for dz in 2:
             var cell := origin + Vector2i(dx, dz)
-            var key := "%d,%d" % [
-                cell.x + offset, cell.y + offset
-            ]
+            var key := "%d,%d" % [cell.x + offset, cell.y + offset]
             TerrainSystem._cells[key] = {
-                "height": 0, "type": "clear",
-                "variant": 1, "direction": "",
-                "rotation": 0.0
+                "height": 0, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0
             }
     var result: bool = _bm.can_place(building_type, origin)
     if result == true:
@@ -53,13 +49,9 @@ func test_can_place_rejects_building_overlap():
     for dx in 2:
         for dz in 2:
             var cell := origin + Vector2i(dx, dz)
-            var key := "%d,%d" % [
-                cell.x + offset, cell.y + offset
-            ]
+            var key := "%d,%d" % [cell.x + offset, cell.y + offset]
             TerrainSystem._cells[key] = {
-                "height": 0, "type": "clear",
-                "variant": 1, "direction": "",
-                "rotation": 0.0
+                "height": 0, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0
             }
     var result: bool = _bm.can_place(building_type, origin)
     SpatialHash.instance._building_cells.clear()

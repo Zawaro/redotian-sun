@@ -23,13 +23,9 @@ func test_place_building_registers_cells():
     for dx in 2:
         for dz in 2:
             var cell := origin + Vector2i(dx, dz)
-            var key := "%d,%d" % [
-                cell.x + offset, cell.y + offset
-            ]
+            var key := "%d,%d" % [cell.x + offset, cell.y + offset]
             TerrainSystem._cells[key] = {
-                "height": 0, "type": "clear",
-                "variant": 1, "direction": "",
-                "rotation": 0.0
+                "height": 0, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0
             }
     var can_place: bool = _bm.can_place(building_type, origin)
     if can_place:
@@ -50,8 +46,7 @@ func test_place_building_registers_cells():
     else:
         _test_failed += 1
         print(
-            "    FAIL: can_place=%s, cells=%s%s%s%s"
-            % [can_place, has_55, has_65, has_56, has_66]
+            "    FAIL: can_place=%s, cells=%s%s%s%s" % [can_place, has_55, has_65, has_56, has_66]
         )
 
 
