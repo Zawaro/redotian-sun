@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "HARV"
+display_name = "Harvester"
+entity_type = 1
+strength = 1000
+armor = "heavy"
+cost = 1400
+tech_level = 1
+sight = 4
+speed = 5.0
+movement_zone = "Crusher"
+locomotor = "Track"
+rotation_speed = 180.0
+dock = "PROC"
+harvester = true
+storage = 28
+pip_scale = "Tiberium"
+owner = PackedStringArray("GDI", "Nod")

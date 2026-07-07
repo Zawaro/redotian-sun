@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "TREE01"
+display_name = "Tree"
+entity_type = 4
+strength = 200
+armor = "wood"
+foundation = Vector2i(1, 1)
+height = 1.0
+owner = PackedStringArray("Neutral")
