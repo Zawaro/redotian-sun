@@ -263,13 +263,13 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
     green_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     green_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     green_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-    green_mat.albedo_color = Color(0, 1, 0, 0.5)
+    green_mat.albedo_color = Color(0, 1, 0, 0.75)
 
     var red_mat := StandardMaterial3D.new()
     red_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     red_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     red_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-    red_mat.albedo_color = Color(1, 0, 0, 0.5)
+    red_mat.albedo_color = Color(1, 0, 0, 0.75)
 
     for dx in current_building_type.footprint.x:
         for dz in current_building_type.footprint.y:
@@ -284,6 +284,8 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
             var cell_world := Pathfinder.cell_to_world(cell)
             mesh_instance.position = Vector3(cell_world.x, 0, cell_world.z)
             _preview.add_child(mesh_instance)
+
+    _add_grid_and_indicators(origin_cell, current_building_type.footprint, red_mat)
 
     if current_building_type.scene:
         _building_preview = current_building_type.scene.instantiate() as Node3D
@@ -313,6 +315,102 @@ func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:
     mesh.surface_add_vertex(Vector3(half, heights[3], half))
     mesh.surface_end()
     return mesh
+
+
+func _add_grid_and_indicators(
+    origin_cell: Vector2i,
+    footprint: Vector2i,
+    red_mat: StandardMaterial3D,
+) -> void:
+    var center := Vector2(
+        origin_cell.x + footprint.x * 0.5,
+        origin_cell.y + footprint.y * 0.5,
+    )
+    var radius := maxf(float(footprint.x), float(footprint.y)) * 0.5 + 3.0
+    var margin := 4
+    var grid_start := origin_cell - Vector2i(margin, margin)
+    var grid_end := origin_cell + footprint + Vector2i(margin, margin)
+    var thick := 0.05
+
+    var grid_mat := StandardMaterial3D.new()
+    grid_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    grid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    grid_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+    grid_mat.albedo_color = Color(1, 1, 1, 0.1)
+
+    var grid_mesh := ImmediateMesh.new()
+    grid_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+
+    for z in range(grid_start.y, grid_end.y + 1):
+        for x in range(grid_start.x, grid_end.x + 1):
+            var cell := Vector2i(x, z)
+            var cell_center := Vector2(x + 0.5, z + 0.5)
+            if cell_center.distance_to(center) > radius:
+                continue
+
+            var in_footprint := (
+                x >= origin_cell.x
+                and x < origin_cell.x + footprint.x
+                and z >= origin_cell.y
+                and z < origin_cell.y + footprint.y
+            )
+
+            if not in_footprint and not _is_cell_free(cell):
+                var indicator := _build_cell_mesh(cell)
+                if indicator:
+                    var inst := MeshInstance3D.new()
+                    inst.mesh = indicator
+                    inst.material_override = red_mat
+                    var cw := Pathfinder.cell_to_world(cell)
+                    inst.position = Vector3(cw.x, 0, cw.z)
+                    _preview.add_child(inst)
+
+            var h := TerrainSystem.get_cell_corner_heights(cell)
+            var cs := Pathfinder.CELL_SIZE
+            var bx := x * cs
+            var bz := z * cs
+            var ht := thick * 0.5
+
+            var t0 := Vector3(bx, h[0], bz - ht)
+            var t1 := Vector3(bx + cs, h[1], bz - ht)
+            var t2 := Vector3(bx, h[0], bz + ht)
+            var t3 := Vector3(bx + cs, h[1], bz + ht)
+            _quad(grid_mesh, t0, t1, t2, t3)
+
+            var r0 := Vector3(bx + cs - ht, h[1], bz)
+            var r1 := Vector3(bx + cs + ht, h[1], bz)
+            var r2 := Vector3(bx + cs - ht, h[3], bz + cs)
+            var r3 := Vector3(bx + cs + ht, h[3], bz + cs)
+            _quad(grid_mesh, r0, r1, r2, r3)
+
+            var b0 := Vector3(bx, h[2], bz + cs - ht)
+            var b1 := Vector3(bx + cs, h[3], bz + cs - ht)
+            var b2 := Vector3(bx, h[2], bz + cs + ht)
+            var b3 := Vector3(bx + cs, h[3], bz + cs + ht)
+            _quad(grid_mesh, b0, b1, b2, b3)
+
+            var l0 := Vector3(bx - ht, h[0], bz)
+            var l1 := Vector3(bx + ht, h[0], bz)
+            var l2 := Vector3(bx - ht, h[2], bz + cs)
+            var l3 := Vector3(bx + ht, h[2], bz + cs)
+            _quad(grid_mesh, l0, l1, l2, l3)
+
+    grid_mesh.surface_end()
+
+    var grid_inst := MeshInstance3D.new()
+    grid_inst.mesh = grid_mesh
+    grid_inst.material_override = grid_mat
+    grid_inst.position.y = 0.001
+    _preview.add_child(grid_inst)
+
+
+func _quad(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+    mesh.surface_add_vertex(a)
+    mesh.surface_add_vertex(c)
+    mesh.surface_add_vertex(b)
+    mesh.surface_add_vertex(b)
+    mesh.surface_add_vertex(c)
+    mesh.surface_add_vertex(d)
 
 
 func _set_node_transparency(node: Node, alpha: float) -> void:
