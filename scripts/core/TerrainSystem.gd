@@ -120,6 +120,31 @@ func get_cell(cell: Vector2i) -> Dictionary:
     return _cells.get(key, {})
 
 
+func get_cell_type(cell: Vector2i) -> String:
+    var offset := grid_cells >> 1
+    var cx := cell.x + offset
+    var cz := cell.y + offset
+    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+        return ""
+    var key := _cell_key(Vector2i(cx, cz))
+    var data: Dictionary = _cells.get(key, {})
+    return data.get("type", "")
+
+
+func get_cell_max_height(cell: Vector2i) -> float:
+    var offset := grid_cells >> 1
+    var cx := cell.x + offset
+    var cz := cell.y + offset
+    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+        return 0.0
+    var v00: int = _vertex_grid[cx][cz]
+    var v10: int = _vertex_grid[cx + 1][cz]
+    var v01: int = _vertex_grid[cx][cz + 1]
+    var v11: int = _vertex_grid[cx + 1][cz + 1]
+    var h_max := maxi(maxi(v00, v10), maxi(v01, v11))
+    return float(h_max) * HEIGHT_STEP
+
+
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
     var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
     var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
