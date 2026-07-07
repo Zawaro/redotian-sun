@@ -1,3 +1,9 @@
 # Redot 4+ specific ignores
 .godot/
 /android/
+
+# Reference files (rules.ini, art.ini)
+references/
+
+# Copyrighted external assets (Westwood/EA)
+external_assets/
