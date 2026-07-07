@@ -120,8 +120,8 @@ func test_unregister_building_cells():
     _sh.unregister_building_cells(cells)
     var key55 := "5,5"
     var key65 := "6,5"
-    var has_55 := _sh._building_cells.has(key55)
-    var has_65 := _sh._building_cells.has(key65)
+    var has_55: bool = _sh._building_cells.has(key55)
+    var has_65: bool = _sh._building_cells.has(key65)
     var all_removed: bool = not has_55 and not has_65
     if all_removed:
         _test_passed += 1
