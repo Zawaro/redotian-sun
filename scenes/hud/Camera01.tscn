@@ -12,7 +12,7 @@ transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 300
 projection = 1
 current = true
 size = 20.0
-far = 5000.0
+far = 400.0
 script = ExtResource("2_u1hoy")
 camera_controller = NodePath("..")
 
