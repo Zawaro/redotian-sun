@@ -141,12 +141,17 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
             cells.append(origin_cell + Vector2i(dx, dz))
     SpatialHash.instance.register_building_cells(cells)
 
-    _buildings.append({
-        "node": building,
-        "type": building_type,
-        "origin": origin_cell,
-        "cells": cells,
-    })
+    (
+        _buildings
+        . append(
+            {
+                "node": building,
+                "type": building_type,
+                "origin": origin_cell,
+                "cells": cells,
+            }
+        )
+    )
 
     building_placed.emit(building, building_type)
     return true
