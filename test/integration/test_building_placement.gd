@@ -14,10 +14,12 @@ func test_place_building_registers_cells():
         return
     SpatialHash.instance._building_cells.clear()
     TerrainSystem.init_grid(32)
-    var building_type := BuildingType.new()
+    var building_type := EntityData.new()
     building_type.id = "test_building"
-    building_type.footprint = Vector2i(2, 2)
-    building_type.scene = null
+    building_type.foundation = Vector2i(2, 2)
+    building_type.entity_type = EntityData.EntityType.BUILDING
+    building_type.strength = 100
+    building_type.owner = ["GDI"]
     var origin := Vector2i(5, 5)
     var offset := TerrainSystem.grid_cells >> 1
     for dx in 2:
