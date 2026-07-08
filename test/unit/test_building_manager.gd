@@ -12,8 +12,8 @@ func test_can_place_returns_true_on_valid_cells():
         _test_failed += 1
         print("    FAIL: BuildingManager not injected")
         return
-    var building_type := BuildingType.new()
-    building_type.footprint = Vector2i(2, 2)
+    var building_type := EntityData.new()
+    building_type.foundation = Vector2i(2, 2)
     var origin := Vector2i(5, 5)
     TerrainSystem.init_grid(32)
     var offset := TerrainSystem.grid_cells >> 1
@@ -41,8 +41,8 @@ func test_can_place_rejects_building_overlap():
     SpatialHash.instance._building_cells.clear()
     var cells: Array[Vector2i] = [Vector2i(6, 6), Vector2i(7, 6)]
     SpatialHash.instance.register_building_cells(cells)
-    var building_type := BuildingType.new()
-    building_type.footprint = Vector2i(2, 2)
+    var building_type := EntityData.new()
+    building_type.foundation = Vector2i(2, 2)
     var origin := Vector2i(5, 5)
     TerrainSystem.init_grid(32)
     var offset := TerrainSystem.grid_cells >> 1
