@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/neutral/civ_guardtower_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+id = "CIV_GUARDTOWER"
+display_name = "Civilian Guard Tower"
+entity_type = 2
+strength = 400
+armor = "wood"
+cost = 0  # TODO: set actual cost — free infinite towers is only for testing
+tech_level = -1
+sight = 5
+foundation = Vector2i(1, 1)
+height = 3.0
+capturable = true
+buildable = true
+art_data = ExtResource("2_art")
+owner = PackedStringArray("Neutral")

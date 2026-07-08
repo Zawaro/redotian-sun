@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GAPOWR"
-display_name = "GDI Power Plant"
+id = "NAPOWR"
+display_name = "Nod Power Plant"
 entity_type = 2
 strength = 750
 armor = "wood"
@@ -17,4 +17,5 @@ height = 2.0
 power = 100
 powered = false
 capturable = true
-owner = PackedStringArray("GDI")
+buildable = true
+owner = PackedStringArray("Nod")

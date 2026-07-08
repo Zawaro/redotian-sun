@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "GDI War Factory"
+display_name = "War Factory"
+entity_type = 2
+strength = 1000
+armor = "heavy"
+cost = 2000
+tech_level = 1
+sight = 4
+foundation = Vector2i(4, 3)
+height = 2.5
+power = 0
+powered = false
+capturable = true
+buildable = true
+owner = PackedStringArray("GDI")

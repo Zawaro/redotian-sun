@@ -4,17 +4,18 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "NAPOWR"
-display_name = "Nod Power Plant"
+id = "GDI Refinery"
+display_name = "Refinery"
 entity_type = 2
-strength = 750
+strength = 900
 armor = "wood"
-cost = 300
+cost = 2000
 tech_level = 1
 sight = 4
-foundation = Vector2i(2, 2)
+foundation = Vector2i(4, 3)
 height = 2.0
-power = 100
+power = 0
 powered = false
 capturable = true
-owner = PackedStringArray("Nod")
+buildable = true
+owner = PackedStringArray("GDI")
