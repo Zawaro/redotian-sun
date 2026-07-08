@@ -10,6 +10,7 @@ class_name ArtData extends Resource
 @export var primary_fire_flh: Vector3 = Vector3.ZERO
 @export var secondary_fire_flh: Vector3 = Vector3.ZERO
 @export var model_path: String = ""
+@export var texture_path: String = ""
 @export var cameo_path: String = ""
 @export var buildup_scene: String = ""
 @export var active_anims: Array[ActiveAnimData] = []
