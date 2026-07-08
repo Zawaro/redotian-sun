@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3 uid="uid://bnbbkhraa1e0r"]
 
-[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://d2ip4ainuruet" path="res://scripts/data/WeaponData.gd" id="1_ppuab"]
+[ext_resource type="Script" uid="uid://vefqifmtliau" path="res://scripts/data/EntityData.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
@@ -15,7 +16,5 @@ sight = 4
 foundation = Vector2i(2, 2)
 height = 2.0
 power = 100
-powered = false
 capturable = true
 buildable = true
-owner = PackedStringArray("Nod")
