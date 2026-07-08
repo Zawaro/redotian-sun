@@ -68,6 +68,9 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN }
 @export var immune_to_veins: bool = false
 @export var capturable: bool = false
 
+## Build menu
+@export var buildable: bool = false
+
 ## Prerequisites
 @export var prerequisite: PackedStringArray = []
 @export var prerequisite_necessary: PackedStringArray = []
@@ -89,6 +92,8 @@ func validate() -> PackedStringArray:
     for weapon in weapons:
         if weapon and weapon.id.is_empty():
             errors.append("%s: weapon has empty id" % id)
+    if buildable and strength <= 0:
+        errors.append("%s: buildable building must have strength > 0" % id)
     return errors
 
 
