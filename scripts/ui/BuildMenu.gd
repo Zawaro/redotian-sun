@@ -25,9 +25,9 @@ func _ready() -> void:
 
 
 func _populate_buttons(bm: Node) -> void:
-    var building_types: Array[Resource] = bm.building_types as Array[Resource]
+    var building_types: Array[EntityData] = bm.building_types as Array[EntityData]
     for idx in building_types.size():
-        var bt: BuildingType = building_types[idx] as BuildingType
+        var bt: EntityData = building_types[idx] as EntityData
         if not bt:
             continue
 
@@ -75,7 +75,7 @@ func _populate_buttons(bm: Node) -> void:
         _building_buttons.append(btn)
 
 
-func _on_building_button_pressed(building_type: BuildingType) -> void:
+func _on_building_button_pressed(building_type: EntityData) -> void:
     var bm := get_node("/root/BuildingManager") as Node
     if bm:
         bm.enter_build_mode(building_type)
@@ -85,10 +85,10 @@ func _on_build_mode_changed(is_active: bool) -> void:
     var bm := get_node("/root/BuildingManager") as Node
     if not bm:
         return
-    var building_types: Array[Resource] = bm.building_types as Array[Resource]
+    var building_types: Array[EntityData] = bm.building_types as Array[EntityData]
     for i in range(_building_buttons.size()):
         var btn := _building_buttons[i]
-        var bt := building_types[i] as BuildingType
+        var bt := building_types[i] as EntityData
         if is_active and bm.current_building_type == bt:
             btn.modulate = Color(1.3, 1.3, 0.8)
         else:
