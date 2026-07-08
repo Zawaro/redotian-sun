@@ -1,14 +1,14 @@
 extends Node
 
 signal build_mode_changed(is_active: bool)
-signal building_placed(building: Node3D, building_type: BuildingType)
+signal building_placed(building: Node3D, entity_data: EntityData)
 
 var is_build_mode: bool = false
-var current_building_type: BuildingType = null
+var current_building_type: EntityData = null
 var _buildings: Array[Dictionary] = []
 var exiting_build_mode: bool = false
 
-var building_types: Array[Resource] = []
+var building_types: Array[EntityData] = []
 
 var _preview: Node3D = null
 var _building_preview: Node3D = null
@@ -25,18 +25,10 @@ func _ready() -> void:
 
 
 func _load_building_types() -> void:
-    var dir := DirAccess.open("res://resources/buildings/")
-    if not dir:
-        return
-    dir.list_dir_begin()
-    var file_name: String = dir.get_next()
-    while file_name != "":
-        if file_name.ends_with(".tres"):
-            var res := load("res://resources/buildings/" + file_name)
-            if res and res is BuildingType:
-                building_types.append(res)
-        file_name = dir.get_next()
-    dir.list_dir_end()
+    var all_buildings := EntityFactory.get_all_by_type(EntityData.EntityType.BUILDING)
+    for data in all_buildings:
+        if data.buildable:
+            building_types.append(data)
 
 
 func _process(_delta: float) -> void:
@@ -56,13 +48,14 @@ func _process(_delta: float) -> void:
         exit_build_mode()
 
 
-func enter_build_mode(building_type: BuildingType) -> void:
+func enter_build_mode(building_type: EntityData) -> void:
     if is_build_mode and current_building_type == building_type:
         exit_build_mode()
         return
 
     current_building_type = building_type
     is_build_mode = true
+    _create_building_preview()
     _show_preview(true)
     build_mode_changed.emit(true)
 
@@ -78,11 +71,11 @@ func exit_build_mode() -> void:
     build_mode_changed.emit(false)
 
 
-func can_place(building_type: BuildingType, origin_cell: Vector2i) -> bool:
+func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
     var result: bool = true
 
-    for dx in building_type.footprint.x:
-        for dz in building_type.footprint.y:
+    for dx in building_type.foundation.x:
+        for dz in building_type.foundation.y:
             var cell := origin_cell + Vector2i(dx, dz)
 
             if not _is_in_bounds(cell):
@@ -113,8 +106,8 @@ func can_place(building_type: BuildingType, origin_cell: Vector2i) -> bool:
     if result:
         var min_h := INF
         var max_h := -INF
-        for dx in building_type.footprint.x:
-            for dz in building_type.footprint.y:
+        for dx in building_type.foundation.x:
+            for dz in building_type.foundation.y:
                 var cell := origin_cell + Vector2i(dx, dz)
                 var h := TerrainSystem.get_cell_max_height(cell)
                 min_h = minf(min_h, h)
@@ -126,39 +119,34 @@ func can_place(building_type: BuildingType, origin_cell: Vector2i) -> bool:
     return result
 
 
-func place_building(building_type: BuildingType, origin_cell: Vector2i) -> bool:
+func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     if not can_place(building_type, origin_cell):
         return false
 
-    var building: Node3D = building_type.scene.instantiate() as Node3D
+    var building: Node3D = EntityFactory.create_entity(building_type.id)
     if not building:
-        push_error("[BuildingManager] Failed to instantiate building scene")
+        push_error("[BuildingManager] Failed to create building entity")
         return false
 
-    var world_pos := _cell_origin_to_world(origin_cell, building_type.footprint)
-    var max_height := _get_max_height(origin_cell, building_type.footprint)
+    var world_pos := _cell_origin_to_world(origin_cell, building_type.foundation)
+    var max_height := _get_max_height(origin_cell, building_type.foundation)
     world_pos.y = max_height
 
     building.position = world_pos
     _get_buildings_parent().add_child(building)
 
     var cells: Array[Vector2i] = []
-    for dx in building_type.footprint.x:
-        for dz in building_type.footprint.y:
+    for dx in building_type.foundation.x:
+        for dz in building_type.foundation.y:
             cells.append(origin_cell + Vector2i(dx, dz))
     SpatialHash.instance.register_building_cells(cells)
 
-    (
-        _buildings
-        . append(
-            {
-                "node": building,
-                "type": building_type,
-                "origin": origin_cell,
-                "cells": cells,
-            }
-        )
-    )
+    _buildings.append({
+        "node": building,
+        "type": building_type,
+        "origin": origin_cell,
+        "cells": cells,
+    })
 
     building_placed.emit(building, building_type)
     return true
@@ -284,7 +272,7 @@ func _update_preview_position() -> void:
     var mouse_cell := Pathfinder.world_to_cell(hit_pos)
     var origin_cell := (
         mouse_cell
-        - Vector2i(current_building_type.footprint.x >> 1, current_building_type.footprint.y >> 1)
+        - Vector2i(current_building_type.foundation.x >> 1, current_building_type.foundation.y >> 1)
     )
 
     var valid := can_place(current_building_type, origin_cell)
@@ -297,8 +285,8 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
         return
 
     for child in _preview.get_children():
-        child.queue_free()
-    _building_preview = null
+        if child != _building_preview:
+            child.queue_free()
 
     var green_mat := StandardMaterial3D.new()
     green_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -313,8 +301,8 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
     red_mat.albedo_color = Color(1, 0, 0, 0.75)
 
     var any_out_of_bounds := false
-    for dx in current_building_type.footprint.x:
-        for dz in current_building_type.footprint.y:
+    for dx in current_building_type.foundation.x:
+        for dz in current_building_type.foundation.y:
             var cell := origin_cell + Vector2i(dx, dz)
             if not _is_in_bounds(cell):
                 any_out_of_bounds = true
@@ -322,8 +310,8 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
         if any_out_of_bounds:
             break
 
-    for dx in current_building_type.footprint.x:
-        for dz in current_building_type.footprint.y:
+    for dx in current_building_type.foundation.x:
+        for dz in current_building_type.foundation.y:
             var cell := origin_cell + Vector2i(dx, dz)
             if not _is_in_bounds(cell):
                 continue
@@ -342,19 +330,27 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
             mesh_instance.position = Vector3(cell_world.x, 0, cell_world.z)
             _preview.add_child(mesh_instance)
 
-    _add_grid_and_indicators(origin_cell, current_building_type.footprint, red_mat)
+    _add_grid_and_indicators(origin_cell, current_building_type.foundation, red_mat)
 
-    if not any_out_of_bounds and current_building_type.scene:
-        _building_preview = current_building_type.scene.instantiate() as Node3D
-        if _building_preview:
-            var world_pos := _cell_origin_to_world(origin_cell, current_building_type.footprint)
-            var max_height := _get_max_height(origin_cell, current_building_type.footprint)
+    if _building_preview:
+        if any_out_of_bounds:
+            _building_preview.visible = false
+        else:
+            var world_pos := _cell_origin_to_world(origin_cell, current_building_type.foundation)
+            var max_height := _get_max_height(origin_cell, current_building_type.foundation)
             world_pos.y = max_height
             _building_preview.position = world_pos
+            _building_preview.visible = true
 
-            _set_node_transparency(_building_preview, 0.33)
 
-            _preview.add_child(_building_preview)
+func _create_building_preview() -> void:
+    if _building_preview:
+        _building_preview.queue_free()
+        _building_preview = null
+    _building_preview = EntityFactory.create_entity(current_building_type.id)
+    if _building_preview:
+        _set_node_transparency(_building_preview, 0.33)
+        _preview.add_child(_building_preview)
 
 
 func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:
@@ -489,14 +485,18 @@ func _set_node_transparency(node: Node, alpha: float) -> void:
             existing_mat = mesh_inst.mesh.surface_get_material(0)
         if existing_mat:
             var mat := existing_mat.duplicate()
-            if mat is StandardMaterial3D:
+            if mat is BaseMaterial3D:
                 mat.albedo_color.a = alpha
                 mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
                 mesh_inst.set_surface_override_material(0, mat)
-            elif mat is ORMMaterial3D:
-                mat.albedo_color.a = alpha
-                mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-                mesh_inst.set_surface_override_material(0, mat)
+            else:
+                var fallback := StandardMaterial3D.new()
+                fallback.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+                fallback.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+                fallback.albedo_color = Color(1, 1, 1, alpha)
+                if existing_mat.get("albedo_texture"):
+                    fallback.albedo_texture = existing_mat.albedo_texture
+                mesh_inst.set_surface_override_material(0, fallback)
         else:
             var mat := StandardMaterial3D.new()
             mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -536,7 +536,7 @@ func _try_place_building() -> void:
     var mouse_cell := Pathfinder.world_to_cell(hit_pos)
     var origin_cell := (
         mouse_cell
-        - Vector2i(current_building_type.footprint.x >> 1, current_building_type.footprint.y >> 1)
+        - Vector2i(current_building_type.foundation.x >> 1, current_building_type.foundation.y >> 1)
     )
     if not place_building(current_building_type, origin_cell):
         # TODO: play invalid placement SFX
