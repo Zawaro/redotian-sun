@@ -27,7 +27,6 @@ const SPECIAL_ABILITY_COMPONENT_SCRIPT: GDScript = preload(
 )
 
 var _entity_cache: Dictionary = {}
-var _art_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
 var _data_sets: Array[String] = []
 
@@ -140,6 +139,11 @@ func _add_select_component(entity: Node3D, data: EntityData) -> void:
                 component.select_box_type = 1
             EntityData.EntityType.BUILDING:
                 component.select_box_type = 2
+                var cell_size := 2.0
+                var w := data.foundation.x * cell_size
+                var d := data.foundation.y * cell_size
+                component.selection_size = Vector3(w, 0.01, d)
+                component.outline_size = Vector3(w, data.height, d)
         var health := entity.get_node_or_null("HealthComponent")
         if health:
             component.health_component = health
@@ -245,6 +249,14 @@ func _configure_components(entity: Node3D, data: EntityData) -> void:
 
 func get_entity_data(entity_id: String) -> EntityData:
     return _entity_cache.get(entity_id)
+
+
+func get_all_by_type(entity_type: EntityData.EntityType) -> Array[EntityData]:
+    var result: Array[EntityData] = []
+    for data in _entity_cache.values():
+        if data.entity_type == entity_type:
+            result.append(data)
+    return result
 
 
 func get_global_rules() -> GlobalRules:
