@@ -34,6 +34,10 @@ window/stretch/mode="viewport"
 
 warnings/integer_division=0
 
+[rendering]
+
+lights_and_shadows/directional_shadow/size=4096
+
 [input]
 
 move_map={
