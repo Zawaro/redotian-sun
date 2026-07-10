@@ -5,6 +5,7 @@ static var instance: SpatialHash
 var _grid: Dictionary = {}
 var _blocked_cells: Dictionary = {}
 var _building_cells: Dictionary = {}
+var _bib_cells: Dictionary = {}
 var _reserved: Dictionary = {}
 
 
@@ -84,6 +85,15 @@ func get_reserved() -> Dictionary:
 func register_building_cells(cells: Array[Vector2i]) -> void:
     for cell in cells:
         _building_cells[_cell_key(cell)] = true
+
+
+func register_bib_cells(cells: Array[Vector2i]) -> void:
+    for cell in cells:
+        _bib_cells[_cell_key(cell)] = true
+
+
+func is_bib_cell(cell: Vector2i) -> bool:
+    return _bib_cells.has(_cell_key(cell))
 
 
 func unregister_building_cells(cells: Array[Vector2i]) -> void:
