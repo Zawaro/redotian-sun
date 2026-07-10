@@ -35,14 +35,14 @@ func get_dock_id() -> String:
 func on_slot_available() -> void:
     if _state != State.QUEUED:
         return
-    var parent := get_parent() as Node3D
-    if parent:
-        _try_dock(parent)
+    var entity_parent := get_parent() as Node3D
+    if entity_parent:
+        _try_dock(entity_parent)
 
 
 func _process(delta: float) -> void:
-    var parent := get_parent() as Node3D
-    if not parent:
+    var entity_parent := get_parent() as Node3D
+    if not entity_parent:
         return
 
     _scan_cooldown -= delta
@@ -51,7 +51,7 @@ func _process(delta: float) -> void:
         State.IDLE:
             if _cargo <= 0 and _scan_cooldown <= 0.0:
                 _scan_cooldown = _scan_interval
-                var crystal := _find_nearest_crystal(parent)
+                var crystal := _find_nearest_crystal(entity_parent)
                 if crystal:
                     _current_crystal = crystal
                     _change_state(State.SEEK_NODE)
@@ -99,9 +99,9 @@ func _process(delta: float) -> void:
         State.QUEUED:
             if _scan_cooldown <= 0.0:
                 _scan_cooldown = _scan_interval
-                var parent := get_parent() as Node3D
-                if parent:
-                    _try_dock(parent)
+                var entity_parent := get_parent() as Node3D
+                if entity_parent:
+                    _try_dock(entity_parent)
 
 
 func set_target_node(node: Node3D) -> void:
@@ -118,8 +118,8 @@ func set_target_refinery(node: Node3D) -> void:
 
 
 func on_arrived() -> void:
-    var parent := get_parent() as Node3D
-    if not parent:
+    var entity_parent := get_parent() as Node3D
+    if not entity_parent:
         return
 
     match _state:
@@ -130,12 +130,12 @@ func on_arrived() -> void:
         State.FULL:
             _change_state(State.SEEK_REFINERY)
         State.SEEK_REFINERY:
-            _try_dock(parent)
+            _try_dock(entity_parent)
 
 
-func _try_dock(parent: Node3D) -> void:
+func _try_dock(entity_parent: Node3D) -> void:
     if not is_instance_valid(_current_dock):
-        var dock_entity := _find_nearest_dock(parent)
+        var dock_entity := _find_nearest_dock(entity_parent)
         if dock_entity:
             _current_dock = dock_entity
         else:
@@ -155,12 +155,12 @@ func _try_dock(parent: Node3D) -> void:
 
 
 func _orient_to_dock(dock: DockComponent) -> void:
-    var parent := get_parent() as Node3D
-    if not parent:
+    var entity_parent := get_parent() as Node3D
+    if not entity_parent:
         return
-    var offset := parent.global_transform.basis * dock.dock_position
+    var offset := entity_parent.global_transform.basis * dock.dock_position
     var target_pos := _current_dock.global_position + offset
-    var mc := parent.get_node_or_null("MovementController") as MovementController
+    var mc := entity_parent.get_node_or_null("MovementController") as MovementController
     if mc:
         mc.set_target_position(target_pos)
 
@@ -171,17 +171,17 @@ func _change_state(new_state: int) -> void:
     _state = new_state
     state_changed.emit(_state)
 
-    var parent := get_parent() as Node3D
-    if not parent:
+    var entity_parent := get_parent() as Node3D
+    if not entity_parent:
         return
-    var mc := parent.get_node_or_null("MovementController") as MovementController
+    var mc := entity_parent.get_node_or_null("MovementController") as MovementController
 
     match _state:
         State.SEEK_NODE:
             if is_instance_valid(_current_crystal):
                 mc.set_target_position(_current_crystal.global_position)
         State.FULL:
-            mc.set_target_position(parent.global_position)
+            mc.set_target_position(entity_parent.global_position)
         State.SEEK_REFINERY:
             if is_instance_valid(_current_dock):
                 mc.set_target_position(_current_dock.global_position)

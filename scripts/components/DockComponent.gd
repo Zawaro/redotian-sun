@@ -6,8 +6,8 @@ class_name DockComponent extends Node
 @export var unload_rate: float = 28.0
 @export var load_rate: float = 0.0
 
-var queue: Array = []
-var current_docker = null
+var queue: Array[Node] = []
+var current_docker: Node = null
 
 signal slot_available
 
@@ -22,8 +22,8 @@ func can_dock(entity_id: String) -> bool:
     return allowed_entities.is_empty() or entity_id in allowed_entities
 
 
-func request_dock(docker) -> bool:
-    var docker_id := docker.get_dock_id() if docker.has_method("get_dock_id") else ""
+func request_dock(docker: Node) -> bool:
+    var docker_id: String = docker.get_dock_id() if docker.has_method("get_dock_id") else ""
     if not can_dock(docker_id):
         return false
     if current_docker == null:
@@ -35,7 +35,7 @@ func request_dock(docker) -> bool:
     return false
 
 
-func leave_dock(docker) -> void:
+func leave_dock(docker: Node) -> void:
     if current_docker == docker:
         current_docker = null
         if not queue.is_empty():
