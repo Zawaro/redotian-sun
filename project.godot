@@ -23,6 +23,7 @@ SpatialHashSingleton="*res://scripts/core/SpatialHash.gd"
 TerrainSystem="*res://scripts/core/TerrainSystem.gd"
 EntityFactory="*res://scripts/entities/EntityFactory.gd"
 BuildingManager="*res://scripts/buildings/BuildingManager.gd"
+EconomyManager="*res://scripts/economy/EconomyManager.gd"
 
 [display]
 
