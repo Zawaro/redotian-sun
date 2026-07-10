@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "TIBTREE"
+display_name = "Tiberium Tree"
+entity_type = 4
+foundation = Vector2i(1, 1)
+height = 1.0
+owner = PackedStringArray("Neutral")
+tiberium_tree = true
+spawned_entity_id = "TIB"
+radius_cells = 8
+node_count = 12
+amount_per_node = 300
+max_amount_per_node = 300

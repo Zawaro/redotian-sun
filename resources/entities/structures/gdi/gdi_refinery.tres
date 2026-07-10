@@ -17,3 +17,6 @@ foundation = Vector2i(4, 3)
 height = 2.0
 capturable = true
 buildable = true
+bib_cells = Array[Vector2i]([Vector2i(0, -1), Vector2i(1, -1), Vector2i(2, -1), Vector2i(3, -1)])
+dock_position = Vector3(0, 0, -2)
+dock_rotation = 180.0

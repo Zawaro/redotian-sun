@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[node name="TiberiumCrystal" type="Node3D"]
+
+[node name="Stage0" type="MeshInstance3D" parent="."]
+visible = true
+mesh = CubeMesh
+
+[node name="Stage1" type="MeshInstance3D" parent="."]
+visible = false
+mesh = CubeMesh
+
+[node name="Stage2" type="MeshInstance3D" parent="."]
+visible = false
+mesh = CubeMesh
