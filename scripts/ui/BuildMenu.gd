@@ -12,9 +12,14 @@ const CAMEO_COLORS: Array[Color] = [
     Color(0.6, 0.6, 0.5),  # Civilian Tower
 ]
 
+const RED: Color = Color(1.0, 0.2, 0.2)
+const WHITE: Color = Color(1.0, 1.0, 1.0)
+
 @onready var grid: GridContainer = %GridContainer
+@onready var credits_label: Label = %CreditsLabel
 
 var _building_buttons: Array[Button] = []
+var _cheapest_cost: int = 0
 
 
 func _ready() -> void:
@@ -22,6 +27,36 @@ func _ready() -> void:
     if bm:
         bm.build_mode_changed.connect(_on_build_mode_changed)
         _populate_buttons(bm)
+        _compute_cheapest_cost(bm)
+    var em := get_node("/root/EconomyManager") as EconomyManager
+    if em:
+        em.credits_changed.connect(_on_credits_changed)
+        credits_label.text = "$%d" % em.get_balance(0)
+        _update_credits_color(em.get_balance(0))
+
+
+func _compute_cheapest_cost(bm: Node) -> void:
+    var building_types: Array[EntityData] = bm.building_types as Array[EntityData]
+    _cheapest_cost = 2147483647
+    for bt in building_types:
+        if bt and bt.cost > 0 and bt.cost < _cheapest_cost:
+            _cheapest_cost = bt.cost
+    if _cheapest_cost == 2147483647:
+        _cheapest_cost = 0
+
+
+func _update_credits_color(balance: int) -> void:
+    if _cheapest_cost > 0 and balance < _cheapest_cost:
+        credits_label.add_theme_color_override("font_color", RED)
+    else:
+        credits_label.add_theme_color_override("font_color", WHITE)
+
+
+func _on_credits_changed(player_id: int, new_balance: int, _reason: String) -> void:
+    if player_id != 0:
+        return
+    credits_label.text = "$%d" % new_balance
+    _update_credits_color(new_balance)
 
 
 func _populate_buttons(bm: Node) -> void:
