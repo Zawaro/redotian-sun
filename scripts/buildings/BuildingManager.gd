@@ -95,6 +95,10 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
                 result = false
                 break
 
+            if _has_tiberium_on_cell(cell):
+                result = false
+                break
+
             var cell_type := TerrainSystem.get_cell_type(cell)
             if cell_type != "" and cell_type != "clear":
                 result = false
@@ -123,6 +127,11 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     if not can_place(building_type, origin_cell):
         return false
 
+    var em := get_node("/root/EconomyManager") as EconomyManager
+    if em and not em.deduct(0, building_type.cost, "build:%s" % building_type.id):
+        push_warning("[BuildingManager] Insufficient funds for %s" % building_type.id)
+        return false
+
     var building: Node3D = EntityFactory.create_entity(building_type.id)
     if not building:
         push_error("[BuildingManager] Failed to create building entity")
@@ -140,6 +149,13 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
         for dz in building_type.foundation.y:
             cells.append(origin_cell + Vector2i(dx, dz))
     SpatialHash.instance.register_building_cells(cells)
+
+    if not building_type.bib_cells.is_empty():
+        var fc := building.get_node_or_null("FoundationComponent") as FoundationComponent
+        if fc:
+            var bib := fc.get_bib_cells(origin_cell)
+            if not bib.is_empty():
+                SpatialHash.instance.register_bib_cells(bib)
 
     (
         _buildings
@@ -183,10 +199,24 @@ func _is_cell_free(cell: Vector2i) -> bool:
         return false
     if SpatialHash.instance.is_cell_idle(cell):
         return false
+    if _has_tiberium_on_cell(cell):
+        return false
     var cell_type := TerrainSystem.get_cell_type(cell)
     if cell_type != "" and cell_type != "clear":
         return false
     return true
+
+
+func _has_tiberium_on_cell(cell: Vector2i) -> bool:
+    var sh := SpatialHash.instance
+    if not sh:
+        return false
+    var entries := sh.get_entries(cell)
+    for entry in entries:
+        var entity := entry.get("node") as Node3D
+        if entity and entity.get_node_or_null("TiberiumComponent"):
+            return true
+    return false
 
 
 func _find_buildings_parent() -> void:
