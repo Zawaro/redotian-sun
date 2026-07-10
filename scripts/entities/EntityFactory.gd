@@ -25,6 +25,12 @@ const TRANSPORT_COMPONENT_SCRIPT: GDScript = preload(
 const SPECIAL_ABILITY_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/SpecialAbilityComponent.gd"
 )
+const TIBERIUM_TREE_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/TiberiumTreeComponent.gd"
+)
+const TIBERIUM_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/TiberiumComponent.gd")
+const HARVEST_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/HarvestComponent.gd")
+const DOCK_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DockComponent.gd")
 
 var _entity_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
@@ -88,9 +94,11 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
 
 func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_stats_component(entity, data)
-    _add_health_component(entity, data)
-    _add_hitbox_component(entity, data)
-    _add_select_component(entity, data)
+    if not data.tiberium_tree:
+        _add_health_component(entity, data)
+        _add_hitbox_component(entity, data)
+    if not data.tiberium_tree and not data.tiberium_resource:
+        _add_select_component(entity, data)
     _add_combat_component(entity, data)
     _add_movement_controller(entity, data)
     _add_foundation_component(entity, data)
@@ -99,6 +107,10 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_factory_component(entity, data)
     _add_transport_component(entity, data)
     _add_special_ability_component(entity, data)
+    _add_tiberium_tree_component(entity, data)
+    _add_tiberium_component(entity, data)
+    _add_harvest_component(entity, data)
+    _add_dock_component(entity, data)
     _add_art_component(entity, data)
 
 
@@ -261,3 +273,39 @@ func get_all_by_type(entity_type: EntityData.EntityType) -> Array[EntityData]:
 
 func get_global_rules() -> GlobalRules:
     return _global_rules
+
+
+func _add_tiberium_tree_component(entity: Node3D, data: EntityData) -> void:
+    if data.tiberium_tree:
+        var component := Node.new()
+        component.name = "TiberiumTreeComponent"
+        component.set_script(TIBERIUM_TREE_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_tiberium_component(entity: Node3D, data: EntityData) -> void:
+    if data.tiberium_resource:
+        var component := Node.new()
+        component.name = "TiberiumComponent"
+        component.set_script(TIBERIUM_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_harvest_component(entity: Node3D, data: EntityData) -> void:
+    if data.harvester:
+        var component := Node.new()
+        component.name = "HarvestComponent"
+        component.set_script(HARVEST_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_dock_component(entity: Node3D, data: EntityData) -> void:
+    if data.dock_position != Vector3.ZERO:
+        var component := Node.new()
+        component.name = "DockComponent"
+        component.set_script(DOCK_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
