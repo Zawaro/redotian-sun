@@ -28,6 +28,9 @@ class_name GlobalRules extends Resource
 @export var growth_rate: float = 5.0
 @export var tiberium_grows: bool = true
 @export var tiberium_spreads: bool = true
+@export var starting_credits: int = 0
+@export var tiberium_value: float = 1.0
+@export var harvester_fill_rate: float = 2.0
 @export var separate_aircraft: bool = true
 @export var survivor_rate: float = 0.4
 @export var survivor_divisor: int = 100

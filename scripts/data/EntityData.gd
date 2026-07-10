@@ -37,6 +37,11 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN }
 ## Foundation
 @export var foundation: Vector2i = Vector2i(1, 1)
 @export var height: float = 1.0
+@export var bib_cells: Array[Vector2i] = []
+
+## Dock
+@export var dock_position: Vector3 = Vector3.ZERO
+@export var dock_rotation: float = 0.0
 
 ## Power
 @export var power: int = 0
@@ -55,6 +60,21 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN }
 @export var harvester: bool = false
 @export var storage: int = 0
 @export var pip_scale: String = ""
+
+## Tiberium tree spawner
+@export var tiberium_tree: bool = false
+@export var spawned_entity_id: String = ""
+@export var radius_cells: int = 0
+@export var node_count: int = 0
+@export var amount_per_node: int = 0
+@export var max_amount_per_node: int = 0
+
+## Tiberium crystal resource
+@export var tiberium_resource: bool = false
+@export var tiberium_amount: int = 0
+@export var tiberium_max_amount: int = 0
+@export var tiberium_type: int = 0
+@export var tiberium_regrowth_rate: float = -1.0
 
 ## Special abilities
 @export var cloakable: bool = false
