@@ -1,4 +1,4 @@
-extends PanelContainer
+extends Control
 
 const CAMEO_W := 128
 const CAMEO_H := 96
@@ -105,6 +105,7 @@ func _populate_buttons(bm: Node) -> void:
         label.add_theme_color_override("font_color", Color.WHITE)
         btn.add_child(label)
 
+        btn.tooltip_text = "$%d" % bt.cost
         btn.pressed.connect(_on_building_button_pressed.bind(bt))
         grid.add_child(btn)
         _building_buttons.append(btn)
