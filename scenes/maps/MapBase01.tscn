@@ -8,7 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://6bkboqg3gg1r" path="res://scenes/environment/DefaultWorldEnvironment01.tscn" id="4_cuur3"]
 [ext_resource type="PackedScene" uid="uid://cc6aa27pj3dbs" path="res://scenes/core/BoundsSystem.tscn" id="7_cuur3"]
 [ext_resource type="PackedScene" path="res://scenes/components/GroundPlane.tscn" id="8_grndp"]
-[ext_resource type="PackedScene" path="res://scenes/ui/BuildMenu.tscn" id="9_build"]
+[ext_resource type="PackedScene" path="res://scenes/ui/Sidebar.tscn" id="9_build"]
 
 [node name="MapBase01" type="Node3D"]
 
@@ -36,4 +36,4 @@ bounds_system = NodePath("../BoundsSystem")
 map_size = Vector2(512, 512)
 visible_bounds_size = Vector2(512, 512)
 
-[node name="BuildMenu" parent="." instance=ExtResource("9_build")]
+[node name="Sidebar" parent="." instance=ExtResource("9_build")]
