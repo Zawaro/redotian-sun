@@ -99,7 +99,7 @@ func _process(delta: float) -> void:
         State.QUEUED:
             if _scan_cooldown <= 0.0:
                 _scan_cooldown = _scan_interval
-                var entity_parent := get_parent() as Node3D
+                entity_parent = get_parent() as Node3D
                 if entity_parent:
                     _try_dock(entity_parent)
 
