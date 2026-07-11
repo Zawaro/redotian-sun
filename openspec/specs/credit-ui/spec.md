@@ -1,10 +1,10 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Credit display label in BuildMenu
-The system SHALL display the current credit balance as a Label node above the building cameo grid in `BuildMenu.tscn`.
+### Requirement: Credit display label in Sidebar
+The system SHALL display the current credit balance as a Label node above the building cameo grid in `Sidebar.tscn`.
 
 #### Scenario: Label shows current balance
-- **WHEN** `BuildMenu._ready()` runs
+- **WHEN** `Sidebar._ready()` runs
 - **THEN** a Label displays `EconomyManager.get_balance(0)` prefixed with "$"
 
 #### Scenario: Label updates on credit change
