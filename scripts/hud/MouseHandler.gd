@@ -255,7 +255,7 @@ func _get_ground_position_at_mouse() -> Vector3:
 
 func _is_inside_build_menu(node: Node) -> bool:
     while is_instance_valid(node):
-        if node.name == "BuildMenu":
+        if node.name == "Sidebar":
             return true
         node = node.get_parent()
     return false
