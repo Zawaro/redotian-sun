@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="GlobalRules" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="GlobalRules" load_steps=2 format=3 uid="uid://b7ai3dvldeg34"]
 
-[ext_resource type="Script" path="res://scripts/data/GlobalRules.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://b46r2xj1die61" path="res://scripts/data/GlobalRules.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
@@ -30,6 +30,12 @@ survivor_rate = 0.4
 survivor_divisor = 100
 placement_delay = 0.05
 weed_capacity = 56
+tree_growth_rate = 3.0
+tree_spawn_radius = 3
+growth_batch_trees = 10
+growth_batch_crystals = 500
+spread_amount = 50
+spread_max = 3
 base_bias = 2
 base_defense_delay = 0.25
 close_enough = 2.25
