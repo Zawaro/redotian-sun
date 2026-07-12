@@ -69,6 +69,13 @@ The system SHALL provide a `SpecialAbilityComponent.gd` (.gd only) for entities 
 - **WHEN** a SpecialAbilityComponent is configured with `engineer = true`
 - **THEN** the entity can capture or repair enemy buildings
 
+### Requirement: HitboxComponent size from EntityData
+The system SHALL allow EntityData to specify a custom hitbox size via `hitbox_size: Vector3`. When non-zero, EntityFactory passes this size to the HitboxComponent. When zero, the default BoxShape3D size (2, 2, 2) is used.
+
+#### Scenario: Harvester truck-shaped hitbox
+- **WHEN** a harvester EntityData has `hitbox_size = Vector3(1.5, 1.5, 3.0)`
+- **THEN** the HitboxComponent BoxShape3D is 1.5 wide, 1.5 tall, 3.0 long (truck proportions)
+
 ### Requirement: CombatComponent (updated)
 The CombatComponent SHALL support unlimited weapons via `weapons: Array[WeaponData]`. It SHALL be a .tscn scene (may need turret mesh child).
 

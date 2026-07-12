@@ -79,3 +79,26 @@ GlobalRules SHALL contain `harvester_fill_rate: float` defining tiberium units c
 #### Scenario: Default fill rate
 - **WHEN** GlobalRules is loaded with `harvester_fill_rate = 2.0`
 - **THEN** a harvester collects 2 tiberium units per second from a node
+
+### Requirement: Tiberium growth constants
+GlobalRules SHALL contain tiberium growth configuration fields for the TiberiumGrowthSystem autoload.
+
+#### Scenario: Tree growth rate
+- **WHEN** GlobalRules is loaded with `tree_growth_rate = 3.0`
+- **THEN** the tree timer fires every 3 minutes to spawn/grow tiberium around trees
+
+#### Scenario: Tree spawn radius
+- **WHEN** GlobalRules is loaded with `tree_spawn_radius = 3`
+- **THEN** trees spawn new tiberium in a circular area of radius 3 cells (7x7) around themselves
+
+#### Scenario: Tiberium growth rate
+- **WHEN** GlobalRules is loaded with `growth_rate = 5.0`
+- **THEN** the tiberium timer fires every 5 minutes for tiberium self-growth
+
+#### Scenario: Growth batch sizes
+- **WHEN** GlobalRules is loaded with `growth_batch_trees = 10` and `growth_batch_crystals = 500`
+- **THEN** only 10 trees and 500 tiberium entities are processed per timer tick, preventing frame spikes
+
+#### Scenario: Spread configuration
+- **WHEN** GlobalRules is loaded with `spread_amount = 50`, `spread_max = 3`
+- **THEN** tiberium spreads with 50 amount, max 3 spreads per entity
