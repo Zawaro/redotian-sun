@@ -28,7 +28,7 @@ func _ready() -> void:
         bm.build_mode_changed.connect(_on_build_mode_changed)
         _populate_buttons(bm)
         _compute_cheapest_cost(bm)
-    var em := get_node("/root/EconomyManager") as EconomyManager
+    var em := get_node("/root/EconomyManager")
     if em:
         em.credits_changed.connect(_on_credits_changed)
         credits_label.text = "$%d" % em.get_balance(0)
