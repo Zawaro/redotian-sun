@@ -4,6 +4,7 @@
 disable:
   - function-name  # PascalCase functions in existing code (e.g., test helpers)
   - max-function-lines  # Some functions are longer than default during prototyping
+  - max-public-methods  # Test files have many test_ methods
   - class-definitions-order  # @onready after exports is common pattern
   - class-variable-name  # SCREAMING_SNAKE for non-const class vars (MOUSE_DRAG_THRESHOLD, etc.)
   - enum-element-name  # PascalCase enum elements (Infantry, Vehicle, Structure)

@@ -13,6 +13,7 @@ armor = "heavy"
 cost = 600
 tech_level = 1
 sight = 6
+is_drag_selectable = false
 foundation = Vector2i(1, 1)
 height = 3.0
 power = 0

@@ -86,16 +86,20 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
                 result = false
                 break
 
-            var key := str(cell.x) + "," + str(cell.y)
+            var key := SpatialHash.instance._cell_key(cell)
             if SpatialHash.instance.get_building_cells().has(key):
                 result = false
                 break
 
-            if SpatialHash.instance.is_cell_idle(cell):
+            if SpatialHash.instance.is_cell_blocked(cell):
                 result = false
                 break
 
             if _has_tiberium_on_cell(cell):
+                result = false
+                break
+
+            if SpatialHash.instance.is_bib_cell(cell):
                 result = false
                 break
 
@@ -147,7 +151,9 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     var cells: Array[Vector2i] = []
     for dx in building_type.foundation.x:
         for dz in building_type.foundation.y:
-            cells.append(origin_cell + Vector2i(dx, dz))
+            var offset := Vector2i(dx, dz)
+            if not building_type.bib_cells.has(offset):
+                cells.append(origin_cell + offset)
     SpatialHash.instance.register_building_cells(cells)
 
     if not building_type.bib_cells.is_empty():
@@ -194,10 +200,12 @@ func _get_max_height(origin: Vector2i, footprint: Vector2i) -> float:
 
 
 func _is_cell_free(cell: Vector2i) -> bool:
-    var key := str(cell.x) + "," + str(cell.y)
+    var key := SpatialHash.instance._cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
         return false
-    if SpatialHash.instance.is_cell_idle(cell):
+    if SpatialHash.instance.is_cell_blocked(cell):
+        return false
+    if SpatialHash.instance.is_bib_cell(cell):
         return false
     if _has_tiberium_on_cell(cell):
         return false
@@ -384,6 +392,7 @@ func _create_building_preview() -> void:
         _building_preview = null
     _building_preview = EntityFactory.create_entity(current_building_type.id)
     if _building_preview:
+        _building_preview.set_meta("_preview", true)
         _set_node_transparency(_building_preview, 0.33)
         _preview.add_child(_building_preview)
 

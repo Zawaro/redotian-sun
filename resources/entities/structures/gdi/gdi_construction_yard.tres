@@ -13,6 +13,7 @@ armor = "heavy"
 cost = 2500
 tech_level = -1
 sight = 6
+is_drag_selectable = false
 foundation = Vector2i(3, 3)
 height = 1.5
 factory = "BuildingType"
