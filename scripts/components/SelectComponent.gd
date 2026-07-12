@@ -3,6 +3,7 @@ class_name SelectComponent extends Area3D
 
 @export var health_component: HealthComponent
 @export var is_selectable: bool = true
+@export var is_drag_selectable: bool = true
 @export var is_selected: bool = false
 @export var is_hovering: bool = false
 @export_enum("Infantry", "Vehicle", "Structure") var select_box_type: int = 0
@@ -35,7 +36,14 @@ func _ready():
     self._update_outline_shape()
 
     if select_box_type != SelectBoxType.Structure:
-        add_to_group("entities")
+        var entity_root := get_parent()
+        if entity_root:
+            if not entity_root.is_in_group("selectable"):
+                entity_root.add_to_group("selectable")
+            if not entity_root.is_in_group("entities"):
+                entity_root.add_to_group("entities")
+            if not entity_root.is_in_group("drag_selectable"):
+                entity_root.add_to_group("drag_selectable")
 
     if health_component is HealthComponent:
         health_component.connect("health_changed", _on_health_changed)

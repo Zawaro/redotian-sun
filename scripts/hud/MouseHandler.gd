@@ -49,7 +49,6 @@ func _process(_delta):
     var bm := get_node_or_null("/root/BuildingManager") as Node
     if bm and bm.is_build_mode:
         return
-
     if bm and bm.exiting_build_mode:
         bm.exiting_build_mode = false
         mouse_dragging = false
@@ -131,7 +130,7 @@ func _get_camera_3d() -> Camera3D:
     return null
 
 
-## Handle left-click raycast for entity select or ground movement command.
+## Handle left-click raycast for entity select.
 func _handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
     var camera := _get_camera_3d()
     if not camera or not camera.is_current():
@@ -139,43 +138,55 @@ func _handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
 
     var from = camera.project_ray_origin(mouse_pos)
     var dir := camera.project_ray_normal(mouse_pos).normalized()
-
-    # Phase 1: Check for entity hit at mask 1 << 15 (existing behavior preserved).
     var space_state = camera.get_world_3d().direct_space_state
     var query := PhysicsRayQueryParameters3D.create(from, from + dir * raycast_distance)
-    query.collision_mask = 1 << 15
     query.collide_with_areas = true
 
-    var result = space_state.intersect_ray(query)
-
+    # Pass 1: layer 16 — SelectComponent (units, buildings).
+    query.collision_mask = 1 << 15
+    var result := space_state.intersect_ray(query)
     if result.has("collider"):
-        # Task 2.4: Entity found — select it as before (existing behavior preserved).
         var collider := result.collider as Node
+        if not shift_pressed and _try_interact(collider):
+            return
         var select_comp := _find_select_component(collider)
-        if select_comp:
-            if not selection_manager:
-                push_error("[MouseHandler] SelectionManager is not set")
-                return
+        if select_comp and selection_manager:
             selection_manager.select_entity(select_comp, shift_pressed)
-    else:
-        # Task 2.1/2.2: No entity under cursor — cast ground plane ray for movement command.
-        var ground_pos := _get_ground_position_at_mouse()
-        if ground_pos != Vector3.INF and not selection_manager.selected_entities.is_empty():
-            if not selection_manager:
-                push_error("[MouseHandler] SelectionManager is not set")
-                return
-            selection_manager.request_move(ground_pos)
+        return
+
+    # Pass 2: layer 17 — interact hitboxes (tiberium, dock).
+    query.collision_mask = 1 << 16
+    result = space_state.intersect_ray(query)
+    if result.has("collider"):
+        _try_interact(result.collider as Node)
+        return
+
+    # No entity — movement command.
+    var ground_pos := _get_ground_position_at_mouse()
+    var has_selection := selection_manager and not selection_manager.selected_entities.is_empty()
+    if ground_pos != Vector3.INF and has_selection:
+        selection_manager.request_move(ground_pos)
+
+
+## Try harvest/dock interaction on an entity. Returns true if interaction issued.
+func _try_interact(collider: Node) -> bool:
+    var entity := _find_entity_parent(collider)
+    if not entity or not selection_manager or selection_manager.selected_entities.is_empty():
+        return false
+    if entity.get_node_or_null("TiberiumComponent"):
+        return selection_manager.request_harvest(entity)
+    if entity.get_node_or_null("DockComponent"):
+        return selection_manager.request_dock(entity)
+    return false
 
 
 ## Box-select: select entities whose projection falls inside the drag rectangle.
 func _select_entities_2d_projected(rect: Rect2):
-    var all_entities = get_tree().get_nodes_in_group("entities")
     var camera := _get_camera_3d()
-    for entity in all_entities:
-        if not (entity is SelectComponent):
+    for entity in get_tree().get_nodes_in_group("drag_selectable"):
+        var select_component := entity.get_node_or_null("SelectComponent") as SelectComponent
+        if not select_component:
             continue
-
-        var select_component: SelectComponent = entity
 
         if rect.has_point(camera.unproject_position(select_component.global_position)):
             if not selection_manager.is_entity_selected(select_component):
@@ -187,6 +198,19 @@ func _find_select_component(node: Node) -> SelectComponent:
     while is_instance_valid(node):
         if node is SelectComponent:
             return node as SelectComponent
+        node = node.get_parent()
+    return null
+
+
+## Walk up the node tree to find the entity root (first Node3D parent with components).
+func _find_entity_parent(node: Node) -> Node3D:
+    while is_instance_valid(node):
+        if node is Node3D and (
+            node.get_node_or_null("TiberiumComponent")
+            or node.get_node_or_null("DockComponent")
+            or node.get_node_or_null("SelectComponent")
+        ):
+            return node as Node3D
         node = node.get_parent()
     return null
 
