@@ -37,10 +37,11 @@ func test_place_building_registers_cells():
                 cells.append(origin + Vector2i(dx, dz))
         SpatialHash.instance.register_building_cells(cells)
     var blocked := SpatialHash.instance.get_blocked_cells()
-    var has_55 := blocked.has("5,5")
-    var has_65 := blocked.has("6,5")
-    var has_56 := blocked.has("5,6")
-    var has_66 := blocked.has("6,6")
+    var sh := SpatialHash.instance
+    var has_55 := blocked.has(sh._cell_key(Vector2i(5, 5)))
+    var has_65 := blocked.has(sh._cell_key(Vector2i(6, 5)))
+    var has_56 := blocked.has(sh._cell_key(Vector2i(5, 6)))
+    var has_66 := blocked.has(sh._cell_key(Vector2i(6, 6)))
     SpatialHash.instance._building_cells.clear()
     if can_place and has_55 and has_65 and has_56 and has_66:
         _test_passed += 1
@@ -68,7 +69,7 @@ func test_pathfinder_avoids_building_cells():
     var avoids_building := true
     for waypoint in path:
         var cell := Pathfinder.world_to_cell(waypoint)
-        var key := "%d,%d" % [cell.x, cell.y]
+        var key := Pathfinder._cell_key(cell)
         if blocked.has(key):
             avoids_building = false
             break
