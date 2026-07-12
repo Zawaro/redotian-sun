@@ -61,7 +61,7 @@ func test_release_cell_frees():
         print("    FAIL: expected true after release, got false")
 
 
-func test_is_cell_idle_reflects_blocked():
+func test_is_cell_blocked_reflects_blocked():
     if _sh == null:
         _test_failed += 1
         print("    FAIL: SpatialHash not injected")
@@ -69,14 +69,14 @@ func test_is_cell_idle_reflects_blocked():
     _sh.clear_reservations()
     _sh._blocked_cells.clear()
     var cell := Vector2i(10, 10)
-    var key: String = "%d,%d" % [cell.x, cell.y]
+    var key: int = _sh._cell_key(cell)
     _sh._blocked_cells[key] = true
-    var idle: bool = _sh.is_cell_idle(cell)
+    var idle: bool = _sh.is_cell_blocked(cell)
     var reserved: bool = _sh.reserve_cell(cell)
     _sh._blocked_cells.erase(key)
     if idle == true and reserved == false:
         _test_passed += 1
-        print("    PASS: is_cell_idle reflects blocked state")
+        print("    PASS: is_cell_blocked reflects blocked state")
     else:
         _test_failed += 1
         print("    FAIL: idle=%s, reserved=%s" % [idle, reserved])
@@ -90,15 +90,11 @@ func test_register_building_cells():
     _sh._building_cells.clear()
     var cells: Array[Vector2i] = [Vector2i(5, 5), Vector2i(6, 5), Vector2i(5, 6), Vector2i(6, 6)]
     _sh.register_building_cells(cells)
-    var key55 := "5,5"
-    var key65 := "6,5"
-    var key56 := "5,6"
-    var key66 := "6,6"
     var all_registered: bool = (
-        _sh._building_cells.has(key55)
-        and _sh._building_cells.has(key65)
-        and _sh._building_cells.has(key56)
-        and _sh._building_cells.has(key66)
+        _sh._building_cells.has(_sh._cell_key(Vector2i(5, 5)))
+        and _sh._building_cells.has(_sh._cell_key(Vector2i(6, 5)))
+        and _sh._building_cells.has(_sh._cell_key(Vector2i(5, 6)))
+        and _sh._building_cells.has(_sh._cell_key(Vector2i(6, 6)))
     )
     _sh._building_cells.clear()
     if all_registered:
@@ -118,10 +114,8 @@ func test_unregister_building_cells():
     var cells: Array[Vector2i] = [Vector2i(5, 5), Vector2i(6, 5)]
     _sh.register_building_cells(cells)
     _sh.unregister_building_cells(cells)
-    var key55 := "5,5"
-    var key65 := "6,5"
-    var has_55: bool = _sh._building_cells.has(key55)
-    var has_65: bool = _sh._building_cells.has(key65)
+    var has_55: bool = _sh._building_cells.has(_sh._cell_key(Vector2i(5, 5)))
+    var has_65: bool = _sh._building_cells.has(_sh._cell_key(Vector2i(6, 5)))
     var all_removed: bool = not has_55 and not has_65
     if all_removed:
         _test_passed += 1
@@ -138,13 +132,13 @@ func test_get_blocked_cells_merges_building_and_blocked():
         return
     _sh._blocked_cells.clear()
     _sh._building_cells.clear()
-    _sh._blocked_cells["10,10"] = true
+    _sh._blocked_cells[_sh._cell_key(Vector2i(10, 10))] = true
     var building_cells: Array[Vector2i] = [Vector2i(20, 20), Vector2i(21, 20)]
     _sh.register_building_cells(building_cells)
     var blocked: Dictionary = _sh.get_blocked_cells()
-    var has_blocked: bool = blocked.has("10,10")
-    var has_building1: bool = blocked.has("20,20")
-    var has_building2: bool = blocked.has("21,20")
+    var has_blocked: bool = blocked.has(_sh._cell_key(Vector2i(10, 10)))
+    var has_building1: bool = blocked.has(_sh._cell_key(Vector2i(20, 20)))
+    var has_building2: bool = blocked.has(_sh._cell_key(Vector2i(21, 20)))
     _sh._blocked_cells.clear()
     _sh._building_cells.clear()
     if has_blocked and has_building1 and has_building2:
@@ -153,3 +147,23 @@ func test_get_blocked_cells_merges_building_and_blocked():
     else:
         _test_failed += 1
         print("    FAIL: blocked=%s, b1=%s, b2=%s" % [has_blocked, has_building1, has_building2])
+
+
+func test_reserve_cell_fails_on_building_cell():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh.clear_reservations()
+    _sh._building_cells.clear()
+    var cell := Vector2i(50, 50)
+    _sh.register_building_cells([cell])
+    var result: bool = _sh.reserve_cell(cell)
+    _sh.clear_reservations()
+    _sh._building_cells.clear()
+    if result == false:
+        _test_passed += 1
+        print("    PASS: reserve_cell fails on building cell")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected false for building cell, got true")

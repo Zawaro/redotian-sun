@@ -64,12 +64,11 @@ func test_cell_to_world_roundtrip():
 
 
 func test_cell_key_deterministic():
-    var key1: String = Pathfinder._cell_key(Vector2i(3, 5))
-    var key2: String = Pathfinder._cell_key(Vector2i(3, 5))
-    var expected: String = "3,5"
-    if key1 == key2 and key1 == expected:
+    var key1: int = Pathfinder._cell_key(Vector2i(3, 5))
+    var key2: int = Pathfinder._cell_key(Vector2i(3, 5))
+    if key1 == key2 and key1 != 0:
         _test_passed += 1
-        print("    PASS: _cell_key deterministic, format '3,5'")
+        print("    PASS: _cell_key deterministic, returns non-zero int")
     else:
         _test_failed += 1
-        print("    FAIL: expected '%s', got key1='%s' key2='%s'" % [expected, key1, key2])
+        print("    FAIL: expected equal non-zero ints, got key1=%d key2=%d" % [key1, key2])
