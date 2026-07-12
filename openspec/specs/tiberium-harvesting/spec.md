@@ -67,8 +67,16 @@ The system SHALL provide a `HarvestComponent.gd` (script-attached Node) for harv
 - **THEN** cargo decreases at `DockComponent.unload_rate` per second and credits are added to the player's treasury
 
 #### Scenario: Manual order to specific node
-- **WHEN** a player right-clicks a Tiberium node with a harvester selected
+- **WHEN** a player left-clicks a Tiberium node with a harvester selected
 - **THEN** the HarvestComponent targets that specific node, overriding auto-seek
+
+#### Scenario: Manual order to dock at refinery
+- **WHEN** a player left-clicks a building with DockComponent while a harvester is selected
+- **THEN** the HarvestComponent targets that refinery for unloading
+
+#### Scenario: Crystal search via scene tree
+- **WHEN** a HarvestComponent searches for the nearest Tiberium crystal
+- **THEN** it iterates entities in the "entities" group and filters by TiberiumComponent presence (NOT SpatialHash, which only tracks entities with MovementController)
 
 ### Requirement: DockComponent
 The system SHALL provide a `DockComponent.gd` (script-attached Node) for buildings that accept docking entities (refineries, airpads, repair pads).

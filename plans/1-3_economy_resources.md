@@ -1,16 +1,25 @@
 # Economy & Resources System - Redotian Sun
 
 ## Overview
-The economy system manages Tiberium harvesting, credit tracking, and spending — the core RTS resource loop. Unlike SimCity, there is **no passive income**. Every credit comes from the harvest cycle: harvester → Tiberium crystal → fill → refinery → dump → credits.
+The economy system manages Tiberium harvesting, credit tracking, and spending — the core RTS resource loop. Unlike SimCity, there is **no passive income**. Every credit comes from the harvest cycle: harvester → Tiberium pod → fill → refinery → dump → credits.
 
 ## Core Loop
 ```
 TiberiumTree (persistent spawner on map)
-  └── spawns Tiberium crystal entities (one per cell within radius)
-        └── Harvester drives to crystal → fills cargo (crystal depletes)
+  └── spawns Tiberium pod entities (one per cell within radius)
+        └── Harvester drives to pod → fills cargo (pod depletes)
               → drives to nearest refinery → docks at bib platform → dumps cargo → credits added
-              → repeats (or finds new crystal if current is depleted)
+              → repeats (or finds new pod if current is depleted)
 ```
+
+## Overlay Concept
+Tiberium and Tiberium Tree entities are **overlays** — TERRAIN-type entities with 1×1 foundation that:
+- **Block building placement** (checked by `_has_tiberium_on_cell()`)
+- **Do NOT block unit movement or pathfinding**
+- Are indestructible by weapons (no HealthComponent)
+- Are unselectable by the player (no SelectComponent)
+- Tiberium pods use **pseudo-foundation**: blocks building placement via FoundationComponent but has no collision shape for units
+- Tiberium trees use **true 1×1 foundation**: blocks everything (like a building cell)
 
 ## Architecture
 
@@ -42,47 +51,54 @@ Credits deducted when an item enters a **production queue** (building at Constru
 ## Components
 
 ### TiberiumTreeComponent
-Attached to a TiberiumTree TERRAIN entity (1x1 foundation, indestructible, unselectable). The tree is a persistent spawner placed by map designers — it does NOT disappear when crystals are depleted. Future: growth/spread ticks managed here.
+Attached to a TiberiumTree TERRAIN entity (1x1 true foundation, indestructible, unselectable). The tree is a persistent spawner placed by map designers — it does NOT disappear when pods are depleted. Future: growth/spread ticks managed here.
 ```gdscript
 class_name TiberiumTreeComponent extends Node
-@export var spawned_entity_id: String = ""   # EntityData ID of crystal to spawn (e.g. "TIB")
+@export var spawned_entity_id: String = ""   # EntityData ID of pod to spawn (e.g. "TIB")
 @export var radius_cells: int = 8            # spawn radius in grid cells
 @export var tiberium_type: int = 0           # 0 = green, 1 = blue
-@export var node_count: int = 12             # how many crystal entities to spawn
-@export var amount_per_node: int = 300       # tiberium per crystal entity
+@export var node_count: int = 12             # how many pod entities to spawn
+@export var amount_per_node: int = 300       # tiberium per pod entity
 @export var max_amount_per_node: int = 300   # fully grown amount
 @export var regrowth_rate: float = -1.0      # -1 = use GlobalRules.growth_rate
 ```
-- On `_ready()` with `call_deferred()`: spawn `node_count` crystal entities via `EntityFactory.create_entity(spawned_entity_id)` scattered within `radius_cells` with 2-cell minimum spacing
-- Each spawned crystal gets TiberiumComponent configured from tree parameters
-- Tree persists on map regardless of crystal depletion
+- On `_ready()` with `call_deferred()`: spawn `node_count` pod entities via `EntityFactory.create_entity(spawned_entity_id)` scattered within `radius_cells` with 2-cell minimum spacing
+- Each spawned pod gets TiberiumComponent configured from tree parameters
+- Tree persists on map regardless of pod depletion
+- Placeholder art: a thin pole (`0.33 × 2.0 × 0.33` BoxMesh) via ArtComponent placeholder_size. Named "Tiberium Tree Art" to distinguish from future normal tree art.
 
 ### TiberiumComponent
-Attached to TERRAIN-type entity instances (individual Tiberium crystals, one per cell).
+Attached to TERRAIN-type entity instances (individual Tiberium pods, one per cell). Acts as an overlay.
 ```gdscript
 class_name TiberiumComponent extends Node
-@export var amount: int = 0          # current Tiberium in this crystal
+@export var amount: int = 0          # current Tiberium in this pod
 @export var max_amount: int = 0      # initial / fully grown amount
 @export var tiberium_type: int = 0   # 0 = green, 1 = blue
 @export var regrowth_rate: float = -1.0  # -1 = use GlobalRules.growth_rate
 ```
 - EntityData gets `@export var tiberium_resource: bool = false` so EntityFactory attaches TiberiumComponent
 - **Pseudo-foundation**: 1x1 cell blocks building placement but NOT unit movement. `BuildingManager.can_place()` checks for TiberiumComponent in footprint cells.
-- 3 visual stages based on remaining amount:
-  1. 3 small cube meshes (low amount)
-  2. 2 big cubes + 3 small cubes (medium amount)
-  3. 5 big cubes (full/max amount)
+- 3 visual stages based on remaining amount, rendered as procedurally generated cube clusters. Cube sizes and positions are seeded per-cell using `RandomNumberGenerator.seed = hash(cell_position)` for unique visual variety per cell:
+  1. **Stage 0 (≤33%, low amount)**: 3 small cubes (random size 0.15–0.35).
+  2. **Stage 1 (34–66%, medium amount)**: 2 big cubes (0.35–0.55) + 3 small cubes (0.15–0.25).
+  3. **Stage 2 (≥67%, full amount)**: 5 big cubes (0.35–0.55).
+- All cubes are green-tinted (`Color(0.2, 0.8, 0.2)`).
+- `_update_visual()` is called after each `collect()` to switch visible stages.
+- When `amount <= 0` after a `collect()` call, the entity self-destructs via `get_parent().queue_free()`.
+  `queue_free()` is deferred (end-of-frame), so the harvest loop releases `_current_tiberium_node = null`
+  in the same frame safely. All `is_instance_valid()` guards in HarvestComponent handle this.
 
 ### HarvestComponent
 Harvester behavior logic. References TransportComponent for cargo capacity.
-- States: IDLE → SEEK_NODE → APPROACH_NODE → HARVESTING → FULL → SEEK_REFINERY → APPROACH_REFINERY → DOCKING → UNLOADING → IDLE
-- SEEK_NODE: query SpatialHash for nearest cell with TiberiumComponent (ignoring pseudo-foundation — units pass through)
-- HARVESTING: tick fill rate at `GlobalRules.harvester_fill_rate`, deplete crystal amount. When full (storage == TransportComponent.storage) or crystal depleted → FULL
+- States: IDLE → SEEK_NODE → HARVESTING → FULL → SEEK_REFINERY → DOCKING → UNLOADING → IDLE
+- SEEK_NODE: search scene tree for nearest entity with TiberiumComponent (tiberium pods are TERRAIN entities without MovementController, so they are NOT in SpatialHash._grid — crystal search iterates `get_tree().get_nodes_in_group("entities")` and filters by TiberiumComponent)
+- HARVESTING: tick fill rate at `GlobalRules.harvester_fill_rate`, deplete pod amount via `TiberiumComponent.collect()`. When full (storage == TransportComponent.storage) or pod depleted → FULL
+- **Cell occupation**: No special harvester positioning logic — MovementController pathfinds to the pod normally. The pod's TiberiumComponent blocks building placement via `_has_tiberium_on_cell()` while alive. When depleted and freed, the cell becomes available. No SpatialHash registration needed.
 - SEEK_REFINERY: scan for nearest building with DockComponent where allowed_entities includes "HARV"
 - DOCKING: navigate to dock position, orient to dock rotation
 - UNLOADING: tick cargo → credits via DockComponent.unload_rate. When empty → IDLE
-- Auto-targets nearest Tiberium crystal when idle with no cargo
-- Can be manually ordered to a specific crystal via right-click
+- Auto-targets nearest Tiberium pod when idle with no cargo
+- Can be manually ordered to a specific pod via left-click (context-sensitive: click tiberium → harvest, click refinery → dock)
 
 ### DockComponent
 Attached to refineries (and future airpads, repair pads).
@@ -110,6 +126,26 @@ signal slot_available()
 - Bib cells are soft-blocked in SpatialHash — passable only for dock-queued harvesters
 - EntityData gets `@export var bib_cells: PackedVector2i = []`
 
+### Refinery Placeholder Art
+The GDI Refinery uses an ArtData resource with `placeholder_size = Vector3(7, 2, 5)` — 1 unit smaller in XZ than the foundation-based default (`Vector3(8, 2, 6)`). The foundation remains 4×3 for placement, but the visual placeholder box is slightly smaller.
+
+### FreeUnitComponent
+Reusable one-shot component that spawns a free unit when its parent enters the scene tree, then removes itself.
+```gdscript
+class_name FreeUnitComponent extends Node
+@export var free_unit_id: String = ""
+```
+- On `_ready()`: skip if `Engine.is_editor_hint()` or `get_parent().get_meta("_preview", false)` (ghost guard).
+- Calls `_spawn_free_unit()` via `call_deferred()`:
+  1. Find an adjacent free cell outside the entity's foundation (orthogonal first, then diagonal, search up to ~5 cells).
+  2. If no cell found after search radius, `queue_free()` silently (unit not spawned).
+  3. Create entity via `EntityFactory.create_entity(free_unit_id)`.
+  4. Position it at the adjacent cell's center (cell size 2×2).
+  5. Add it as a sibling in the scene tree.
+  6. If the spawned entity has a HarvestComponent, find the nearest Tiberium pod and call `set_target_node()` to auto-start harvesting.
+  7. `queue_free()` itself — gone after one frame.
+- BuildingManager ghost preview sets `entity.set_meta("_preview", true)` so FreeUnitComponent doesn't fire on the preview entity.
+
 ## TiberiumTree System
 
 The TiberiumTree is a persistent map object that spawns and manages a Tiberium patch. Map designers drop a `TiberiumTree` scene into the map and configure it in the inspector.
@@ -117,9 +153,63 @@ The TiberiumTree is a persistent map object that spawns and manages a Tiberium p
 - The tree is created via `EntityFactory` as a TERRAIN entity with `TiberiumTreeComponent` + `FoundationComponent(1x1)`
 - It has a true foundation (blocks everything) — occupies a cell like a building
 - No HealthComponent (indestructible), no SelectComponent (unselectable)
-- Crystal entities are also TERRAIN entities (full EntityFactory path) with 1x1 pseudo-foundation
+- Tiberium pods are also TERRAIN overlay entities (full EntityFactory path) with 1x1 pseudo-foundation
 - Pseudo-foundation blocks `BuildingManager.can_place()` but allows unit movement through the cell
 - `BuildingManager.can_place()` checks: for each footprint cell, if any entity has TiberiumComponent on that cell, the cell is blocked
+
+## Map Editor — Tiberium Tools & Entity Persistence
+
+The map editor provides tools to paint Tiberium pods, place Tiberium trees, and erase both. All painted/placed entities persist in the map JSON file and are recreated on load. Entities are placed at the center of 2×2 unit cells.
+
+### Editor UI Layout
+- Top toolbar row: tools arranged horizontally
+  `[Save] [Load] | [Paint Height] [Paint Tiberium] [Place Tree] [Erase] | [Strength: HSlider] [Radius: SpinBox]`
+- Minimap in top-right corner, above the toolbar
+- Toggle tools are radio-button exclusive (one active at a time)
+- **Strength** (HSlider): 0–100%, determines amount of Tiberium added/removed per paint pass
+- **Radius** (SpinBox): brush radius in cells for Paint Tiberium and Erase
+
+### Tool Behaviors
+- **Paint Height** — existing HeightPainter (click+drag raises/lowers terrain). No change.
+- **Paint Tiberium** — click+drag over cells: calls `EntityFactory.create_entity("TIB", {tiberium_amount, tiberium_max_amount, tiberium_type})` for each cell within brush radius. If a Tiberium pod already exists on the cell, adds to its amount (up to max_amount) instead of creating a duplicate. Entities placed at cell center.
+- **Place Tree** — single-click (no drag): places a TiberiumTree entity on the clicked cell. If the cell is occupied (by a pod or any entity), the existing entity is removed and replaced with the tree. Entities placed at cell center.
+- **Erase** — click+drag within brush radius: reduces Tiberium amount by `strength% * max_amount` per cell per pass. When amount ≤ 0, removes the entity and frees the cell.
+
+### Entity Tracking
+`MapEditor` holds `_painted_entities: Dictionary` (key = `"x,y"` string, value = `{ node: Node3D, data: Dictionary }`). Used for:
+- O(1) lookup when erasing or re-painting a cell
+- O(1) lookup when placing tree on occupied cell (replace)
+- Serialization on save
+This is editor-local — not using SpatialHash (runtime system).
+
+### Map Persistence (JSON v3)
+```
+{
+  "version": 3,
+  "grid_cells": 512,
+  "vertices": { "0,0": 1, ... },
+  "cells": { "0,0": { "height": 2 }, ... },
+  "entities": [
+    { "id": "TIB", "cell": "12,5", "tiberium_amount": 300, "tiberium_max_amount": 300, "tiberium_type": 0 },
+    { "id": "TIBTRE01", "cell": "8,3" }
+  ]
+}
+```
+
+### MapLoader.gd
+New script that reads the JSON and restores both terrain and entities:
+1. Pass `"vertices"`/`"cells"` to `TerrainSystem.import_from_json()`
+2. Iterate `"entities"` array, call `EntityFactory.create_entity(id, overrides)` for each entry
+3. Add entities to scene, register in editor's `_painted_entities` dict
+Called from MapEditor load flow and game map load.
+
+### ArtComponent.placeholder_size
+Add to ArtData:
+```
+@export var placeholder_size: Vector3 = Vector3.ZERO  # ZERO = auto from foundation
+```
+`_add_placeholder()` uses `placeholder_size` if non-zero, else existing foundation-based sizing.
+TiberiumTree ArtData sets `placeholder_size = Vector3(0.33, 2.0, 0.33)` for a thin pole.
 
 ## Game Data
 
@@ -140,7 +230,7 @@ The TiberiumTree is a persistent map object that spawns and manages a Tiberium p
 @export var amount_per_node: int = 0
 @export var max_amount_per_node: int = 0
 
-# For Tiberium crystals
+# For Tiberium pods
 @export var tiberium_resource: bool = false
 @export var tiberium_amount: int = 0
 @export var tiberium_max_amount: int = 0
@@ -151,31 +241,45 @@ The TiberiumTree is a persistent map object that spawns and manages a Tiberium p
 @export var bib_cells: PackedVector2i = []
 @export var dock_position: Vector3 = Vector3.ZERO
 @export var dock_rotation: float = 0.0
+
+# For factory buildings with free units
+@export var factory: String = ""
+@export var free_unit: String = ""
+
+# For hitbox sizing
+@export var hitbox_size: Vector3 = Vector3.ZERO  # ZERO = use default 2,2,2
 ```
 
 ## Integration Points
 - `BuildingManager.can_place()` → check footprint cells for TiberiumComponent entities (pseudo-foundation)
+- `BuildingManager._create_building_preview()` → set `_preview` meta on ghost entities
 - `BuildingManager.place_building()` → stub deduction (replaced by build queue later)
 - `FactoryComponent` / future production queue → deduct on queue
 - `SpatialHash` → handle bib cells as soft-blocked
-- `EntityFactory._add_components()` → add TiberiumTreeComponent, TiberiumComponent, HarvestComponent, DockComponent
+- `EntityFactory._add_components()` → add TiberiumTreeComponent, TiberiumComponent, HarvestComponent, DockComponent, FreeUnitComponent
 - `GlobalRules.tres` → add new fields
 - Map scenes → add TiberiumTree instances for Tiberium patches
+- `MapLoader.gd` → restore terrain + entities from JSON v3
+- `ArtData.gd` → add `placeholder_size`
+- `ArtComponent.gd` → honor `placeholder_size` in `_add_placeholder()`
 
 ## Credit Display UI
 
 A `Label` above the build menu grid showing the current credit balance, updated in real-time via `EconomyManager.credits_changed` signal.
 
-- Located directly above the building cameo grid in `BuildMenu.tscn`
-- Uses a large monospace font (white, ~18px) with a "$" prefix
+- Located in `Sidebar.tscn` (renamed from BuildMenu.tscn)
+- Uses white-to-green text (~18px) with a "$" prefix
 - Updates on every `credits_changed` emission — no polling in `_process()`
 - When balance is insufficient for the cheapest buildable item, the label turns red
 - Reads initial balance from `EconomyManager.get_balance(0)` in `_ready()`
 
-## Future (Not in scope of #45)
+## Future (Not in scope of #45 or #48)
 - ServiceDepotComponent for repair deduction
 - Build queue integration (separate issue)
 - Factory queue integration (separate issue)
-- Tiberium crystal growth/spread ticks (TiberiumTree regrowth)
+- Tiberium pod growth/spread/regrowth ticks (TiberiumTree regrowth)
+- Animated BIGBLUE/BIGBLUE3 tiberium variants
+- Real 3D models replacing placeholder cubes (20 variants × 3 stages per tiberium type)
+- Normal tree art (separate from Tiberium Tree Art)
 - Tiberium toxicity/veins
 - Multiplayer per-player treasury
