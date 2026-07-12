@@ -18,6 +18,7 @@ class_name ArtData extends Resource
 @export var flat: bool = false
 @export var extra_damage_stage: bool = false
 @export var terrain_palette: bool = false
+@export var placeholder_size: Vector3 = Vector3.ZERO
 @export var demand_load: bool = false
 
 

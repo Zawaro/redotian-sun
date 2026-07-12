@@ -1,7 +1,7 @@
 class_name EntityData extends Resource
 
 ## Entity type enum
-enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN }
+enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 
 ## Identity
 @export var id: String = ""
@@ -14,6 +14,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN }
 @export var cost: int = 0
 @export var tech_level: int = -1
 @export var sight: int = 1
+@export var is_drag_selectable: bool = true
 @export var owner: PackedStringArray = []
 @export var points: int = 0
 @export var explosion: PackedStringArray = []
@@ -38,10 +39,13 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN }
 @export var foundation: Vector2i = Vector2i(1, 1)
 @export var height: float = 1.0
 @export var bib_cells: Array[Vector2i] = []
+@export var hitbox_size: Vector3 = Vector3.ZERO
 
 ## Dock
 @export var dock_position: Vector3 = Vector3.ZERO
 @export var dock_rotation: float = 0.0
+@export var dock_unload: bool = false
+@export var refinery_storage: int = 0
 
 ## Power
 @export var power: int = 0
@@ -103,7 +107,7 @@ func validate() -> PackedStringArray:
     var errors: PackedStringArray = []
     if id.is_empty():
         errors.append("EntityData: id is empty")
-    if strength <= 0 and entity_type != EntityType.TERRAIN:
+    if strength <= 0 and entity_type != EntityType.TERRAIN and entity_type != EntityType.OVERLAY:
         errors.append("%s: strength must be > 0" % id)
     if cost < 0:
         errors.append("%s: cost must be >= 0" % id)

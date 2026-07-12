@@ -13,6 +13,7 @@ armor = "wood"
 cost = 0  # TODO: set actual cost — free infinite towers is only for testing
 tech_level = -1
 sight = 5
+is_drag_selectable = false
 foundation = Vector2i(1, 1)
 height = 3.0
 capturable = true

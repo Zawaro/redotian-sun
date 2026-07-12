@@ -13,7 +13,7 @@ func _ready() -> void:
         return
     if _configured:
         return
-    if art_data:
+    if art_data and not art_data.model_path.is_empty():
         _load_model()
         if not art_data.active_anims.is_empty():
             _setup_animation_player()
@@ -25,7 +25,7 @@ func configure(data: EntityData) -> void:
     art_data = data.art_data
     _foundation = data.foundation
     _configured = true
-    if art_data:
+    if art_data and not art_data.model_path.is_empty():
         _load_model()
         if not art_data.active_anims.is_empty():
             _setup_animation_player()
@@ -64,10 +64,14 @@ func _apply_material(node: Node, mat: StandardMaterial3D) -> void:
 func _add_placeholder() -> void:
     var cell_size := 2.0
     var mesh := BoxMesh.new()
-    mesh.size = Vector3(_foundation.x * cell_size, cell_size, _foundation.y * cell_size)
+    if art_data and art_data.placeholder_size != Vector3.ZERO:
+        mesh.size = art_data.placeholder_size
+    else:
+        mesh.size = Vector3(_foundation.x * cell_size, cell_size, _foundation.y * cell_size)
     var instance := MeshInstance3D.new()
     instance.mesh = mesh
-    instance.position = Vector3(0, cell_size * 0.5, 0)
+    var half_y: float = mesh.size.y * 0.5
+    instance.position = Vector3(0, half_y, 0)
     var mat := StandardMaterial3D.new()
     mat.albedo_color = Color(0.4, 0.4, 0.4)
     instance.material_override = mat
