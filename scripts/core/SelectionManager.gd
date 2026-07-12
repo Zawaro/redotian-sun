@@ -139,6 +139,44 @@ func request_move(target_position: Vector3) -> void:
         _pending_moves.append([ent, target])
 
 
+func request_harvest(target: Node3D) -> bool:
+    var issued := false
+    for ent in selected_entities:
+        var parent := ent.get_parent() as Node3D
+        if not is_instance_valid(parent):
+            continue
+        var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
+        if harvest:
+            harvest.set_target_node(target)
+            issued = true
+        elif parent.has_node("MovementController"):
+            var mc := parent.get_node("MovementController") as MovementController
+            mc.set_target_position(target.global_position)
+            issued = true
+    return issued
+
+
+func request_dock(target: Node3D) -> bool:
+    var dock_comp := target.get_node_or_null("DockComponent") as DockComponent
+    if not dock_comp:
+        return false
+    var target_id := dock_comp.get_entity_id()
+    var issued := false
+    for ent in selected_entities:
+        var parent := ent.get_parent() as Node3D
+        if not is_instance_valid(parent):
+            continue
+        var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
+        if not harvest:
+            continue
+        var transport := parent.get_node_or_null("TransportComponent") as TransportComponent
+        if transport and not transport.dock.is_empty() and transport.dock != target_id:
+            continue
+        harvest.set_target_refinery(target)
+        issued = true
+    return issued
+
+
 func _process(_delta: float) -> void:
     var batch: int = 8
     while _pending_index < _pending_moves.size() and batch > 0:
@@ -157,6 +195,9 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
     var mc := parent.get_node("MovementController") as MovementController
     if is_instance_valid(mc):
         mc.set_target_position(position)
+    var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
+    if harvest:
+        harvest.cancel_harvest()
 
 
 func _fallback_target(target: Vector3) -> Vector3:
