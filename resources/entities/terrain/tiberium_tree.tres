@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/terrain/tiberium_tree_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
@@ -16,3 +17,4 @@ radius_cells = 8
 node_count = 12
 amount_per_node = 300
 max_amount_per_node = 300
+art_data = ExtResource("2_art")

@@ -25,8 +25,11 @@ class_name GlobalRules extends Resource
 ## Income and production
 @export var build_speed: float = 0.8
 @export var buildup_time: float = 0.06
+## Minutes between crystal timer ticks (randomized ±60s).
 @export var growth_rate: float = 5.0
+## Whether tiberium crystals grow denser over time.
 @export var tiberium_grows: bool = true
+## Whether tiberium spreads into adjacent cells.
 @export var tiberium_spreads: bool = true
 @export var starting_credits: int = 0
 @export var tiberium_value: float = 1.0
@@ -36,6 +39,20 @@ class_name GlobalRules extends Resource
 @export var survivor_divisor: int = 100
 @export var placement_delay: float = 0.05
 @export var weed_capacity: int = 56
+
+## Tiberium growth
+## Minutes between tree timer ticks (randomized ±60s).
+@export var tree_growth_rate: float = 3.0
+## Radius (cells) around tree where new tiberium spawns (e.g. 3 = 7x7 area).
+@export var tree_spawn_radius: int = 3
+## Trees processed per tree timer tick.
+@export var growth_batch_trees: int = 10
+## Tiberium entities processed per tiberium timer tick.
+@export var growth_batch_crystals: int = 500
+## Tiberium amount for a newly spawned entity from spreading.
+@export var spread_amount: int = 50
+## Max times a single tiberium entity can spread before it only self-grows.
+@export var spread_max: int = 3
 
 ## Computer and movement controls
 @export var base_bias: int = 2

@@ -6,7 +6,7 @@
 script = ExtResource("1_script")
 id = "TIB"
 display_name = "Tiberium Crystal"
-entity_type = 4
+entity_type = 5
 foundation = Vector2i(1, 1)
 height = 0.5
 owner = PackedStringArray("Neutral")
