@@ -1,6 +1,7 @@
 class_name SpatialHash extends Node
 
 static var instance: SpatialHash
+const _KEY_OFFSET: int = 512
 
 var _grid: Dictionary = {}
 var _blocked_cells: Dictionary = {}
@@ -21,23 +22,25 @@ func rebuild() -> void:
     _grid.clear()
     _blocked_cells.clear()
     for entity in get_tree().get_nodes_in_group("entities"):
-        var parent := entity.get_parent() as Node3D
-        if not is_instance_valid(parent):
+        # ponytail: scene-placed units add SelectComponent (Node) to group,
+        # not the root Node3D. Resolve root for MC lookup + position.
+        var entity_root := entity as Node3D
+        if not entity_root:
+            entity_root = entity.get_parent() as Node3D
+        if not is_instance_valid(entity_root):
             continue
-        var mc := parent.get_node_or_null("MovementController") as MovementController
-        if not mc:
-            continue
-        var cell := Pathfinder.world_to_cell(parent.global_position)
-        var key := str(cell.x) + "," + str(cell.y)
+        var mc := entity_root.get_node_or_null("MovementController") as MovementController
+        var cell := Pathfinder.world_to_cell(entity_root.global_position)
+        var key := _cell_key(cell)
         if not _grid.has(key):
             _grid[key] = []
-        _grid[key].append({"node": parent, "mc": mc})
-        if mc._state == MovementController.State.IDLE:
+        _grid[key].append({"node": entity_root, "mc": mc})
+        if mc and mc._state == MovementController.State.IDLE:
             _blocked_cells[key] = true
 
 
 func get_entries(cell: Vector2i) -> Array:
-    return _grid.get(str(cell.x) + "," + str(cell.y), [])
+    return _grid.get(_cell_key(cell), [])
 
 
 func get_blocked_cells() -> Dictionary:
@@ -54,24 +57,24 @@ func all_entries() -> Array:
     return result
 
 
-func is_cell_idle(cell: Vector2i) -> bool:
-    return _blocked_cells.has(str(cell.x) + "," + str(cell.y))
+func is_cell_blocked(cell: Vector2i) -> bool:
+    return _blocked_cells.has(_cell_key(cell))
 
 
 func reserve_cell(cell: Vector2i) -> bool:
-    var key := str(cell.x) + "," + str(cell.y)
-    if _reserved.has(key) or _blocked_cells.has(key):
+    var key := _cell_key(cell)
+    if _reserved.has(key) or _blocked_cells.has(key) or _building_cells.has(key):
         return false
     _reserved[key] = true
     return true
 
 
 func release_cell(cell: Vector2i) -> void:
-    _reserved.erase(str(cell.x) + "," + str(cell.y))
+    _reserved.erase(_cell_key(cell))
 
 
 func force_reserve(cell: Vector2i) -> void:
-    _reserved[str(cell.x) + "," + str(cell.y)] = true
+    _reserved[_cell_key(cell)] = true
 
 
 func clear_reservations() -> void:
@@ -105,5 +108,5 @@ func get_building_cells() -> Dictionary:
     return _building_cells
 
 
-func _cell_key(cell: Vector2i) -> String:
-    return str(cell.x) + "," + str(cell.y)
+func _cell_key(cell: Vector2i) -> int:
+    return (cell.x + _KEY_OFFSET) << 16 | (cell.y + _KEY_OFFSET) & 0xFFFF
