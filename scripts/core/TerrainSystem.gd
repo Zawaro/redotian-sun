@@ -387,7 +387,7 @@ func _edge_to_dir(a: int, b: int) -> String:
 # ========================================
 
 
-func export_to_json(path: String) -> void:
+func export_to_json(path: String, extra_data: Dictionary = {}) -> void:
     var vertices: Dictionary = {}
     var v_count := grid_cells + 1
     for vx in v_count:
@@ -397,11 +397,13 @@ func export_to_json(path: String) -> void:
                 vertices[_cell_key(Vector2i(vx, vz))] = h
 
     var data: Dictionary = {
-        "version": 2,
+        "version": 3,
         "grid_cells": grid_cells,
         "vertices": vertices,
         "cells": _cells.duplicate(),
     }
+    for key in extra_data:
+        data[key] = extra_data[key]
     var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
     if file:
         file.store_string(JSON.stringify(data, "\t"))

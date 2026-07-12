@@ -11,11 +11,11 @@ script = ExtResource("2_script")
 [node name="GroundPlane" parent="." index="0"]
 visible = false
 
-[node name="BoundsSystem" parent="." index="7"]
-map_size = Vector2(32, 32)
-visible_bounds_size = Vector2(28, 28)
-
 [node name="TerrainRenderer" type="Node" parent="." index="8"]
 script = ExtResource("3_terrain")
 
 [node name="NodBuggy" parent="." index="9" instance=ExtResource("5_ugqyt")]
+
+[node name="BoundsSystem" parent="." index="10"]
+map_size = Vector2(32, 32)
+visible_bounds_size = Vector2(28, 28)

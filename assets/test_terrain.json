@@ -8097,8 +8097,357 @@
 			"variant": 1
 		}
 	},
+	"entities": [
+		{
+			"cell": "28,29",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "27,23",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "26,22",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "25,22",
+			"id": "TIB",
+			"tiberium_amount": 150,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "24,20",
+			"id": "TIB",
+			"tiberium_amount": 150,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "21,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "18,20",
+			"id": "TIB",
+			"tiberium_amount": 150,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "18,21",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "18,25",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "24,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "25,20",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "28,21",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "18,17",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "18,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "18,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "20,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "19,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "21,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "22,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "11,16",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "11,17",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "12,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "12,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "13,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "14,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "14,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "14,17",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "14,16",
+			"id": "TIB",
+			"tiberium_amount": 150,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "15,16",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "15,15",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "14,15",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "13,15",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "12,15",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "12,16",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "12,17",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "13,17",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "13,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "15,17",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "16,15",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "17,15",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "17,16",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "16,16",
+			"id": "TIB",
+			"tiberium_amount": 150,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "16,17",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "11,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "10,19",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "11,18",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "13,14",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "14,14",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "15,14",
+			"id": "TIB",
+			"tiberium_amount": 300,
+			"tiberium_max_amount": 300,
+			"tiberium_type": 0
+		},
+		{
+			"cell": "13,16",
+			"id": "TIBTREE"
+		}
+	],
 	"grid_cells": 46,
-	"version": 2,
+	"version": 3,
 	"vertices": {
 		"11,24": 1,
 		"11,25": 1,
