@@ -159,8 +159,7 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
 
 
 func _spawn_in_radius(
-    tree_comp: TiberiumTreeComponent,
-    center: Vector2i, radius: int, rules: GlobalRules
+    tree_comp: TiberiumTreeComponent, center: Vector2i, radius: int, rules: GlobalRules
 ) -> void:
     for dx in range(-radius, radius + 1):
         for dz in range(-radius, radius + 1):
@@ -192,9 +191,7 @@ func _process_tiberium(tib_node: Node3D, rules: GlobalRules) -> void:
         _try_spread_from(tib_node, tib_comp, rules)
 
 
-func _try_spread_from(
-    tib_node: Node3D, tib_comp: TiberiumComponent, rules: GlobalRules
-) -> void:
+func _try_spread_from(tib_node: Node3D, tib_comp: TiberiumComponent, rules: GlobalRules) -> void:
     var tib_cell := Pathfinder.world_to_cell(tib_node.global_position)
     var neighbor: Vector2i = SPREAD_NEIGHBORS[randi() % SPREAD_NEIGHBORS.size()]
     var target_cell := tib_cell + neighbor
@@ -232,14 +229,17 @@ func _find_nearest_tree_comp(world_pos: Vector3) -> TiberiumTreeComponent:
 
 
 func _spawn_at_cell(cell: Vector2i, tree_comp: TiberiumTreeComponent, amount: int) -> void:
-    var entity := EntityFactory.create_entity(
-        tree_comp.spawned_entity_id,
-        {
-            "tiberium_amount": amount,
-            "tiberium_max_amount": tree_comp.max_amount_per_node,
-            "tiberium_type": tree_comp.tiberium_type,
-            "tiberium_regrowth_rate": tree_comp.regrowth_rate,
-        }
+    var entity := (
+        EntityFactory
+        . create_entity(
+            tree_comp.spawned_entity_id,
+            {
+                "tiberium_amount": amount,
+                "tiberium_max_amount": tree_comp.max_amount_per_node,
+                "tiberium_type": tree_comp.tiberium_type,
+                "tiberium_regrowth_rate": tree_comp.regrowth_rate,
+            }
+        )
     )
     if not entity:
         return

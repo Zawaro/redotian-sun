@@ -8,8 +8,8 @@ var _test_passed := 0
 var _test_failed := 0
 var _slot_emitted_flag := false
 
-
 # --- helpers ---
+
 
 func _make_entity(dock_id: String = "PROC", storage: int = 700) -> Node3D:
     var entity := Node3D.new()
@@ -34,9 +34,7 @@ func _make_entity(dock_id: String = "PROC", storage: int = 700) -> Node3D:
 
 
 func _make_dock_entity(
-    dock_rotation: float = -90.0,
-    foundation: Vector2i = Vector2i(4, 3),
-    dock_id: String = "PROC"
+    dock_rotation: float = -90.0, foundation: Vector2i = Vector2i(4, 3), dock_id: String = "PROC"
 ) -> Node3D:
     var dock_entity := Node3D.new()
     dock_entity.name = "TestRefinery"
@@ -97,6 +95,7 @@ func _on_slot_signal() -> void:
 
 
 # --- tests ---
+
 
 func test_docking_rotates_toward_target():
     var entity := _make_entity()
@@ -159,13 +158,15 @@ func test_docking_completes_rotation_and_transitions_to_unloading():
     else:
         _test_failed += 1
         print(
-            "    FAIL: state=%d (want %d), rot=%.1f (want -90), unload_started=%s"
-            % [
-                harvest._state,
-                HarvestComponent.State.UNLOADING,
-                rad_to_deg(entity.rotation.y),
-                unload_started,
-            ]
+            (
+                "    FAIL: state=%d (want %d), rot=%.1f (want -90), unload_started=%s"
+                % [
+                    harvest._state,
+                    HarvestComponent.State.UNLOADING,
+                    rad_to_deg(entity.rotation.y),
+                    unload_started,
+                ]
+            )
         )
         if not was_processing_before:
             print("    (dock_unload was disabled before, now=%s)" % unload_started)
@@ -211,9 +212,7 @@ func test_on_dock_undocked_handles_docking_state():
         print("    PASS: on_dock_undocked transitions DOCKING → IDLE")
     else:
         _test_failed += 1
-        print(
-            "    FAIL: state=%d (want 0), dock=%s" % [harvest._state, harvest._current_dock]
-        )
+        print("    FAIL: state=%d (want 0), dock=%s" % [harvest._state, harvest._current_dock])
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -236,9 +235,7 @@ func test_on_dock_undocked_handles_unloading_state():
         print("    PASS: on_dock_undocked transitions UNLOADING → IDLE")
     else:
         _test_failed += 1
-        print(
-            "    FAIL: state=%d (want 0), dock=%s" % [harvest._state, harvest._current_dock]
-        )
+        print("    FAIL: state=%d (want 0), dock=%s" % [harvest._state, harvest._current_dock])
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -307,8 +304,10 @@ func test_cancel_harvest_clears_state():
     else:
         _test_failed += 1
         print(
-            "    FAIL: state=%d, crystal=%s, dock=%s"
-            % [harvest._state, harvest._current_tiberium, harvest._current_dock]
+            (
+                "    FAIL: state=%d, crystal=%s, dock=%s"
+                % [harvest._state, harvest._current_tiberium, harvest._current_dock]
+            )
         )
 
     entity.queue_free()
@@ -472,8 +471,10 @@ func test_leave_dock_releases_cell():
     else:
         _test_failed += 1
         print(
-            "    FAIL: still_reserved=%s, current_docker=%s"
-            % [still_reserved, dock_comp.current_docker]
+            (
+                "    FAIL: still_reserved=%s, current_docker=%s"
+                % [still_reserved, dock_comp.current_docker]
+            )
         )
 
     entity.queue_free()
@@ -510,8 +511,7 @@ func test_leave_dock_reserves_cell_for_next_docker():
     else:
         _test_failed += 1
         print(
-            "    FAIL: reserved=%s, current_docker=%s"
-            % [reserved_for_b, dock_comp.current_docker]
+            "    FAIL: reserved=%s, current_docker=%s" % [reserved_for_b, dock_comp.current_docker]
         )
 
     entity_a.queue_free()
@@ -615,8 +615,10 @@ func test_leave_dock_removes_from_queue():
     else:
         _test_failed += 1
         print(
-            "    FAIL: b_in_queue=%s, c_in_queue=%s"
-            % [dock_comp.queue.has(harvest_b), dock_comp.queue.has(harvest_c)]
+            (
+                "    FAIL: b_in_queue=%s, c_in_queue=%s"
+                % [dock_comp.queue.has(harvest_b), dock_comp.queue.has(harvest_c)]
+            )
         )
 
     entity_a.queue_free()
@@ -734,15 +736,12 @@ func test_full_dock_cycle_leave_transfers_to_next():
 
     if docked_a and queued_b and transferred and queue_empty and cell_reserved:
         _test_passed += 1
-        print(
-            "    PASS: full dock cycle: A docks → B queued → A leaves → B docked + cell reserved"
-        )
+        print("    PASS: full dock cycle: A docks → B queued → A leaves → B docked + cell reserved")
     else:
         _test_failed += 1
-        print(
-            "    FAIL: docked_a=%s, queued_b=%s, transferred=%s, queue_empty=%s, cell_reserved=%s"
-            % [docked_a, queued_b, transferred, queue_empty, cell_reserved]
-        )
+        var msg := "    FAIL: docked_a=%s queued_b=%s transferred=%s"
+        msg += " queue_empty=%s cell_reserved=%s"
+        print(msg % [docked_a, queued_b, transferred, queue_empty, cell_reserved])
 
     entity_a.queue_free()
     entity_b.queue_free()
@@ -871,14 +870,18 @@ func test_find_nearest_dock_uses_dock_cell_distance():
     if dist_a < dist_b:
         _test_passed += 1
         print(
-            "    PASS: dock_a dock cell is closer (dist_a=%.1f, dist_b=%.1f)"
-            % [sqrt(dist_a), sqrt(dist_b)]
+            (
+                "    PASS: dock_a dock cell is closer (dist_a=%.1f, dist_b=%.1f)"
+                % [sqrt(dist_a), sqrt(dist_b)]
+            )
         )
     else:
         _test_failed += 1
         print(
-            "    FAIL: dock_a should be closer (dist_a=%.1f, dist_b=%.1f)"
-            % [sqrt(dist_a), sqrt(dist_b)]
+            (
+                "    FAIL: dock_a should be closer (dist_a=%.1f, dist_b=%.1f)"
+                % [sqrt(dist_a), sqrt(dist_b)]
+            )
         )
 
     entity.queue_free()
