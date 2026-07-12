@@ -30,7 +30,8 @@ func test_configure_sets_fields():
     data.tiberium_type = 1
     data.tiberium_regrowth_rate = 2.5
     tib.configure(data)
-    if tib.amount == 150 and tib.max_amount == 500 and tib.tiberium_type == 1 and tib.regrowth_rate == 2.5:
+    if tib.amount == 150 and tib.max_amount == 500 \
+        and tib.tiberium_type == 1 and tib.regrowth_rate == 2.5:
         _test_passed += 1
         print("    PASS: configure sets all fields")
     else:

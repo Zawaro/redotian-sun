@@ -184,7 +184,7 @@ func _handle_moving_movement(delta: float) -> void:
                     continue
 
                 var mc := entry.mc as MovementController
-                if mc._state == State.IDLE:
+                if not mc or mc._state == State.IDLE:
                     continue
 
                 var neighbor_dist: float = parent_pos.distance_to(entity_parent.global_position)
@@ -295,14 +295,23 @@ func _get_spline_tangent(t: float) -> Vector3:
 func _build_blocked_cells() -> Dictionary:
     var result: Dictionary = SpatialHash.instance.get_blocked_cells().duplicate()
     var cell := Pathfinder.world_to_cell(_parent.global_position)
-    result.erase(str(cell.x) + "," + str(cell.y))
+    result.erase(Pathfinder._cell_key(cell))
+    var building_cells := SpatialHash.instance.get_building_cells()
     for key in SpatialHash.instance.get_reserved():
-        result.erase(key)
+        if not building_cells.has(key):
+            result.erase(key)
     return result
 
 
 func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
-    return SpatialHash.instance.is_cell_idle(cell)
+    if SpatialHash.instance.is_cell_blocked(cell):
+        return true
+    var key: int = Pathfinder._cell_key(cell)
+    if SpatialHash.instance._grid.has(key):
+        for entry in SpatialHash.instance._grid[key]:
+            if entry.node != _parent:
+                return true
+    return false
 
 
 func _find_nearest_free_cell(cell: Vector2i) -> Vector2i:
@@ -328,14 +337,14 @@ func _scatter_blockers() -> void:
                 if abs(dx) != radius and abs(dz) != radius:
                     continue
                 var ncell := cell + Vector2i(dx, dz)
-                var nkey := str(ncell.x) + "," + str(ncell.y)
+                var nkey := Pathfinder._cell_key(ncell)
                 if not blocked.has(nkey):
                     continue
                 if _scattered_this_frame.has(nkey):
                     continue
                 var push_dir := Vector2i(sign(dx), sign(dz))
                 var push_cell := ncell + push_dir
-                if SpatialHash.instance.is_cell_idle(push_cell):
+                if SpatialHash.instance.is_cell_blocked(push_cell):
                     continue
                 if not SpatialHash.instance.reserve_cell(push_cell):
                     continue

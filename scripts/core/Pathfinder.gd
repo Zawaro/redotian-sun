@@ -71,7 +71,7 @@ static func find_path(
     while not open_heap.is_empty():
         var current_entry: Dictionary = _heap_pop(open_heap)
         var current: Vector2i = current_entry["cell"]
-        var current_key: String = _cell_key(current)
+        var current_key: int = _cell_key(current)
         open_lookup.erase(current_key)
 
         if closed_set.has(current_key):
@@ -97,7 +97,7 @@ static func find_path(
 
         for i in 8:
             var neighbor: Vector2i = current + neighbor_dirs[i]
-            var nkey: String = _cell_key(neighbor)
+            var nkey: int = _cell_key(neighbor)
 
             if blocked_cells.has(nkey):
                 continue
@@ -118,8 +118,8 @@ static func find_path(
     return _path_or_fallback(came_from, start_cell, best_cell)
 
 
-static func _cell_key(cell: Vector2i) -> String:
-    return str(cell.x) + "," + str(cell.y)
+static func _cell_key(cell: Vector2i) -> int:
+    return (cell.x + 512) << 16 | (cell.y + 512) & 0xFFFF
 
 
 static func _heuristic(a: Vector2i, b: Vector2i) -> float:
@@ -132,7 +132,7 @@ static func _reconstruct_path(
     came_from: Dictionary, current: Vector2i, start: Vector2i
 ) -> PackedVector3Array:
     var path_cells: Array[Vector2i] = [current]
-    var key: String = _cell_key(current)
+    var key: int = _cell_key(current)
     while came_from.has(key):
         current = came_from[key]
         path_cells.push_front(current)
