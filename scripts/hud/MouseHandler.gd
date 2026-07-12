@@ -205,10 +205,13 @@ func _find_select_component(node: Node) -> SelectComponent:
 ## Walk up the node tree to find the entity root (first Node3D parent with components).
 func _find_entity_parent(node: Node) -> Node3D:
     while is_instance_valid(node):
-        if node is Node3D and (
-            node.get_node_or_null("TiberiumComponent")
-            or node.get_node_or_null("DockComponent")
-            or node.get_node_or_null("SelectComponent")
+        if (
+            node is Node3D
+            and (
+                node.get_node_or_null("TiberiumComponent")
+                or node.get_node_or_null("DockComponent")
+                or node.get_node_or_null("SelectComponent")
+            )
         ):
             return node as Node3D
         node = node.get_parent()

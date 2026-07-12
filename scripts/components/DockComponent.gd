@@ -41,9 +41,7 @@ func _compute_dock_cell() -> void:
         floori((entity.global_position.z - foundation.y * 0.5 * cs) / cs)
     )
     var top_left := Pathfinder.cell_to_world(origin_cell)
-    _dock_cell = Pathfinder.world_to_cell(
-        top_left + entity.global_transform.basis * dock_position
-    )
+    _dock_cell = Pathfinder.world_to_cell(top_left + entity.global_transform.basis * dock_position)
 
 
 func is_cell_available(cell: Vector2i) -> bool:
@@ -77,10 +75,7 @@ func _log_cells(data: EntityData) -> void:
     for offset in data.bib_cells:
         bib_cells_local.append(offset)
 
-    var dock_local := Vector2i(
-        int(dock_position.x / cs),
-        int(dock_position.z / cs)
-    )
+    var dock_local := Vector2i(int(dock_position.x / cs), int(dock_position.z / cs))
     var dock_global := Pathfinder.world_to_cell(
         top_left_world + entity.global_transform.basis * dock_position
     )

@@ -113,10 +113,14 @@ func test_batch_offset_empty_list():
 func test_spread_neighbors_count():
     # TiberiumGrowthSystem.SPREAD_NEIGHBORS has 8 entries
     var neighbors: Array[Vector2i] = [
-        Vector2i(1, 0), Vector2i(-1, 0),
-        Vector2i(0, 1), Vector2i(0, -1),
-        Vector2i(1, 1), Vector2i(1, -1),
-        Vector2i(-1, 1), Vector2i(-1, -1),
+        Vector2i(1, 0),
+        Vector2i(-1, 0),
+        Vector2i(0, 1),
+        Vector2i(0, -1),
+        Vector2i(1, 1),
+        Vector2i(1, -1),
+        Vector2i(-1, 1),
+        Vector2i(-1, -1),
     ]
     if neighbors.size() == 8:
         _test_passed += 1

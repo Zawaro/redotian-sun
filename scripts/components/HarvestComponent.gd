@@ -116,9 +116,9 @@ func _process(delta: float) -> void:
             var diff := angle_difference(entity_parent.rotation.y, target_yaw)
             if abs(diff) < 0.05:
                 entity_parent.rotation.y = target_yaw
-                var dock_unload := _current_dock.get_node_or_null(
-                    "DockUnloadComponent"
-                ) as DockUnloadComponent
+                var dock_unload := (
+                    _current_dock.get_node_or_null("DockUnloadComponent") as DockUnloadComponent
+                )
                 if dock_unload:
                     dock_unload.begin_unload()
                 _change_state(State.UNLOADING)
@@ -162,9 +162,7 @@ func on_arrived(_position: Vector3) -> void:
     match _state:
         State.SEEK_NODE:
             if is_instance_valid(_current_tiberium) and SpatialHash.instance:
-                var cell := Pathfinder.world_to_cell(
-                    _current_tiberium.global_position
-                )
+                var cell := Pathfinder.world_to_cell(_current_tiberium.global_position)
                 SpatialHash.instance.reserve_cell(cell)
             _change_state(State.HARVESTING)
         State.DOCKING:
@@ -251,9 +249,7 @@ func _change_state(new_state: int) -> void:
     match _state:
         State.SEEK_NODE:
             if is_instance_valid(_current_tiberium):
-                var tib_cell := Pathfinder.world_to_cell(
-                    _current_tiberium.global_position
-                )
+                var tib_cell := Pathfinder.world_to_cell(_current_tiberium.global_position)
                 var my_cell := Pathfinder.world_to_cell(entity_parent.global_position)
                 if tib_cell == my_cell:
                     if SpatialHash.instance:
@@ -311,9 +307,7 @@ func _find_nearest_dock(parent: Node3D, exclude: Node3D = null) -> Node3D:
             continue
         if not dock.can_dock(_dock_id):
             continue
-        var dock_cell := Pathfinder.world_to_cell(
-            Pathfinder.cell_to_world(dock._dock_cell)
-        )
+        var dock_cell := Pathfinder.world_to_cell(Pathfinder.cell_to_world(dock._dock_cell))
         var dist := Vector2(parent_cell - dock_cell).length_squared()
         if dist < nearest_dist:
             nearest_dist = dist
