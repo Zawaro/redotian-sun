@@ -10,7 +10,7 @@ func _ready() -> void:
 
 func _load_terrain() -> void:
     if FileAccess.file_exists(terrain_json_path):
-        TerrainSystem.import_from_json(terrain_json_path)
+        MapLoader.load_map_into(terrain_json_path, self)
         return
     _create_test_terrain()
 
