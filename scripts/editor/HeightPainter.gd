@@ -14,6 +14,11 @@ var _accumulated_delta: float = 0.0
 func _input(event: InputEvent) -> void:
     if Engine.is_editor_hint():
         return
+    if not editor or editor._active_tool != 1:
+        _is_painting = false
+        _last_cell = Vector2i(-999, -999)
+        _accumulated_delta = 0.0
+        return
     if event is InputEventMouseButton:
         if event.button_index == MOUSE_BUTTON_LEFT:
             if event.pressed:
