@@ -1,4 +1,3 @@
-# ponytail: thin data wrapper, grows when passenger boarding/harvesting logic is implemented
 class_name TransportComponent extends Node
 
 @export var passengers: int = 0
@@ -6,6 +5,8 @@ class_name TransportComponent extends Node
 @export var harvester: bool = false
 @export var storage: int = 0
 @export var pip_scale: String = ""
+
+var cargo: int = 0
 
 
 func configure(data: EntityData) -> void:
