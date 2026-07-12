@@ -31,6 +31,12 @@ const TIBERIUM_TREE_COMPONENT_SCRIPT: GDScript = preload(
 const TIBERIUM_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/TiberiumComponent.gd")
 const HARVEST_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/HarvestComponent.gd")
 const DOCK_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DockComponent.gd")
+const FREE_UNIT_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/FreeUnitComponent.gd"
+)
+const DOCK_UNLOAD_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/DockUnloadComponent.gd"
+)
 
 var _entity_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
@@ -89,12 +95,37 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     var entity := ENTITY_SCENE.instantiate() as Node3D
     _add_components(entity, data)
     _configure_components(entity, data)
+
+    # Cell occupancy — all except OVERLAY, and TERRAIN without foundation.
+    var etype := data.entity_type
+    if etype != EntityData.EntityType.OVERLAY:
+        if etype != EntityData.EntityType.TERRAIN or data.foundation != Vector2i(1, 1):
+            entity.add_to_group("entities")
+
+    # Selection — selectable (single-click) and drag_selectable (box-select).
+    var is_unit := (
+        etype == EntityData.EntityType.INFANTRY
+        or etype == EntityData.EntityType.VEHICLE
+        or etype == EntityData.EntityType.AIRCRAFT
+    )
+    if is_unit:
+        entity.add_to_group("selectable")
+        entity.add_to_group("drag_selectable")
+    elif etype == EntityData.EntityType.BUILDING:
+        entity.add_to_group("selectable")
+
+    # Tiberium groups.
+    if data.tiberium_resource:
+        entity.add_to_group("tiberium")
+        _add_interact_hitbox(entity)
+    if data.tiberium_tree:
+        entity.add_to_group("tiberium_trees")
     return entity
 
 
 func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_stats_component(entity, data)
-    if not data.tiberium_tree:
+    if not data.tiberium_tree and not data.tiberium_resource:
         _add_health_component(entity, data)
         _add_hitbox_component(entity, data)
     if not data.tiberium_tree and not data.tiberium_resource:
@@ -111,7 +142,10 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_tiberium_component(entity, data)
     _add_harvest_component(entity, data)
     _add_dock_component(entity, data)
-    _add_art_component(entity, data)
+    _add_dock_unload_component(entity, data)
+    _add_free_unit_component(entity, data)
+    if not data.tiberium_resource:
+        _add_art_component(entity, data)
 
 
 func _add_stats_component(entity: Node3D, _data: EntityData) -> void:
@@ -130,18 +164,21 @@ func _add_health_component(entity: Node3D, data: EntityData) -> void:
         component.owner = entity
 
 
-func _add_hitbox_component(entity: Node3D, _data: EntityData) -> void:
+func _add_hitbox_component(entity: Node3D, data: EntityData) -> void:
     var component := HITBOX_COMPONENT_SCENE.instantiate()
     component.name = "HitboxComponent"
     var health := entity.get_node_or_null("HealthComponent")
     if health:
         component.health_component = health
+    if data.hitbox_size != Vector3.ZERO:
+        component.size = data.hitbox_size
     entity.add_child(component)
     component.owner = entity
 
 
 func _add_select_component(entity: Node3D, data: EntityData) -> void:
-    if data.entity_type != EntityData.EntityType.TERRAIN:
+    var etype := data.entity_type
+    if etype != EntityData.EntityType.TERRAIN and etype != EntityData.EntityType.OVERLAY:
         var component := SELECT_COMPONENT_SCENE.instantiate()
         component.name = "SelectComponent"
         match data.entity_type:
@@ -156,6 +193,7 @@ func _add_select_component(entity: Node3D, data: EntityData) -> void:
                 var d := data.foundation.y * cell_size
                 component.selection_size = Vector3(w, 0.01, d)
                 component.outline_size = Vector3(w, data.height, d)
+        component.is_drag_selectable = data.is_drag_selectable
         var health := entity.get_node_or_null("HealthComponent")
         if health:
             component.health_component = health
@@ -309,3 +347,33 @@ func _add_dock_component(entity: Node3D, data: EntityData) -> void:
         component.set_script(DOCK_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
+
+
+func _add_dock_unload_component(entity: Node3D, data: EntityData) -> void:
+    if data.dock_unload:
+        var component := Node.new()
+        component.name = "DockUnloadComponent"
+        component.set_script(DOCK_UNLOAD_COMPONENT_SCRIPT)
+        component.refinery_storage = data.refinery_storage
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_free_unit_component(entity: Node3D, data: EntityData) -> void:
+    if not data.free_unit.is_empty():
+        var component := Node.new()
+        component.name = "FreeUnitComponent"
+        component.set_script(FREE_UNIT_COMPONENT_SCRIPT)
+        component.free_unit_id = data.free_unit
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_interact_hitbox(entity: Node3D) -> void:
+    var component := HITBOX_COMPONENT_SCENE.instantiate()
+    component.name = "HitboxComponent"
+    component.collision_layer = 1 << 16  # layer 17 — interaction (tiberium, dock)
+    component.collision_mask = 0
+    component.size = Vector3(1.5, 1.5, 1.5)
+    entity.add_child(component)
+    component.owner = entity
