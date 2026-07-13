@@ -210,7 +210,7 @@ func on_arrived(_position: Vector3) -> void:
 
 ## Called when the dock host releases this entity (cargo fully unloaded).
 ## Transitions back to IDLE so the harvester seeks new tiberium.
-func on_dock_undocked(_docker: Node) -> void:
+func on_dock_undocked(_docker: Node = null) -> void:
     print("[Harvest] on_dock_undocked (state=%d)" % _state)
     if _state == State.UNLOADING:
         _current_dock = null

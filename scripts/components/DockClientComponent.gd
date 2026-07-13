@@ -27,7 +27,7 @@ signal dock_slot_failed
 ## Emitted when docking is cancelled (timeout or pathfinding failure).
 signal dock_cancelled
 ## Emitted when the dock host undocks this client (cargo fully unloaded).
-signal dock_undocked
+signal dock_undocked(docker: Node)
 
 
 func _ready() -> void:
@@ -56,9 +56,10 @@ func _process(delta: float) -> void:
         if _refinery_timeout <= 0.0:
             _cancel_dock()
     if is_reserved():
-        _docking_timeout -= delta
-        if _docking_timeout <= 0.0:
-            _cancel_dock()
+        if _docking_timeout > 0.0:
+            _docking_timeout -= delta
+            if _docking_timeout <= 0.0:
+                _cancel_dock()
     if _queued_host and not is_reserved() and not _target_host:
         _queued_timeout -= delta
         if _queued_timeout <= 0.0:
@@ -70,14 +71,35 @@ func _process(delta: float) -> void:
 func seek_dock(parent: Node3D) -> void:
     if is_reserved() or _target_host:
         return
+    _disconnect_host_signal()
+
     var host := find_nearest_host(parent)
     if not host:
         dock_slot_failed.emit()
         return
-    print("[DockClient] seek_dock \u2192 %s" % host.name)
-    _target_host = host
-    _refinery_timeout = REFINERY_TIMEOUT
-    _move_to_dock(host)
+    var bound := _try_bind_host(host)
+    if bound:
+        print("[DockClient] seek_dock reserved %s, moving" % host.name)
+        _target_host = host
+        _refinery_timeout = REFINERY_TIMEOUT
+        _move_to_dock(host)
+        return
+
+    var next_host := find_nearest_host(parent, host)
+    if next_host:
+        bound = _try_bind_host(next_host)
+        if bound:
+            print("[DockClient] seek_dock reserved (2nd) %s, moving" % next_host.name)
+            _target_host = next_host
+            _refinery_timeout = REFINERY_TIMEOUT
+            _move_to_dock(next_host)
+            return
+
+    # Both nearest docks occupied — queue at the nearest
+    print("[DockClient] seek_dock: both docks busy, queuing at %s" % host.name)
+    _queued_host = host
+    _queued_timeout = QUEUED_TIMEOUT
+    dock_slot_failed.emit()
 
 
 func _move_to_dock(host: Node3D) -> void:
@@ -104,6 +126,9 @@ func _on_arrived(_position: Vector3) -> void:
     print("[DockClient] arrived at dock, reserving at %s" % _target_host.name)
     _refinery_timeout = 0.0
     if is_reserved():
+        print("[DockClient] already reserved, signaling arrival")
+        _docking_timeout = DOCKING_TIMEOUT
+        dock_slot_reserved.emit(_reserved_host)
         return
     reserve_at(_target_host)
 
@@ -140,6 +165,8 @@ func reserve_at(host: Node3D) -> bool:
     if bound:
         print("[DockClient] reserved at %s" % host.name)
         _queued_host = null
+        _docking_timeout = DOCKING_TIMEOUT
+        dock_slot_reserved.emit(host)
         return true
     print("[DockClient] reserve_at FAILED at %s (busy), queued" % host.name)
     _queued_host = host
@@ -175,23 +202,6 @@ func find_nearest_host(parent: Node3D, exclude: Node3D = null) -> Node3D:
     return nearest
 
 
-func try_reserve_dock(parent: Node3D) -> Node3D:
-    _disconnect_host_signal()
-
-    var host := find_nearest_host(parent)
-    var bound := _try_bind_host(host)
-    if bound:
-        return bound
-
-    var next_host := find_nearest_host(parent, host)
-    bound = _try_bind_host(next_host)
-    if bound:
-        return bound
-
-    dock_slot_failed.emit()
-    return null
-
-
 func _try_bind_host(host: Node3D) -> Node3D:
     if not host:
         return null
@@ -206,11 +216,9 @@ func _try_bind_host(host: Node3D) -> Node3D:
 
 func _bind_host(host: Node3D) -> void:
     _reserved_host = host
-    _docking_timeout = DOCKING_TIMEOUT
     var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
     if dock and not dock.docker_undocked.is_connected(on_dock_undocked):
         dock.docker_undocked.connect(on_dock_undocked)
-    dock_slot_reserved.emit(host)
 
 
 func release_reservation() -> void:
@@ -234,7 +242,7 @@ func on_slot_available() -> void:
     elif is_instance_valid(_queued_host):
         var host := _queued_host
         _queued_host = null
-        _target_host = null
+        _target_host = host
         _bind_host(host)
         _move_to_dock(host)
     else:
@@ -242,7 +250,7 @@ func on_slot_available() -> void:
         if parent:
             var host := find_nearest_host(parent)
             if host:
-                _target_host = null
+                _target_host = host
                 _move_to_dock(host)
             else:
                 dock_slot_failed.emit()
@@ -250,4 +258,4 @@ func on_slot_available() -> void:
 
 func on_dock_undocked(_docker: Node) -> void:
     print("[DockClient] on_dock_undocked")
-    dock_undocked.emit()
+    dock_undocked.emit(_docker)
