@@ -15,6 +15,7 @@ var _scan_cooldown: float = 0.0
 var _scan_interval: float = 1.0
 var _seek_timeout: float = 0.0
 var _seeking_dock: bool = false
+var _player_commanded: bool = false
 var dock_client: DockClientComponent = null
 var _path_cache: Dictionary = {}
 
@@ -77,6 +78,8 @@ func _process(delta: float) -> void:
 
     match _state:
         State.IDLE:
+            if _player_commanded:
+                return
             if get_cargo() >= _get_storage_capacity():
                 _seek_dock(entity_parent)
             elif _scan_cooldown <= 0.0:
@@ -174,16 +177,18 @@ func _seek_dock(entity_parent: Node3D) -> void:
 
 func set_target_node(node: Node3D) -> void:
     if node and node.get_node_or_null("TiberiumComponent"):
+        _player_commanded = false
         _current_tiberium = node
         _current_dock = null
         _change_state(State.SEEK_NODE)
 
 
-func cancel_harvest() -> void:
+func cancel_harvest(player_commanded: bool = false) -> void:
     _release_tiberium_cell()
     _current_tiberium = null
     _current_dock = null
     _seeking_dock = false
+    _player_commanded = player_commanded
     if dock_client:
         dock_client.release_reservation()
     _change_state(State.IDLE)
@@ -191,6 +196,7 @@ func cancel_harvest() -> void:
 
 func set_target_refinery(node: Node3D) -> void:
     if node and node.get_node_or_null("DockHostComponent"):
+        _player_commanded = false
         if dock_client:
             dock_client.seek_dock(get_parent() as Node3D)
 
