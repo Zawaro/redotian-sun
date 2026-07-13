@@ -25,10 +25,10 @@ const TRANSPORT_COMPONENT_SCRIPT: GDScript = preload(
 const SPECIAL_ABILITY_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/SpecialAbilityComponent.gd"
 )
-const TIBERIUM_TREE_COMPONENT_SCRIPT: GDScript = preload(
-    "res://scripts/components/TiberiumTreeComponent.gd"
+const RESOURCE_TREE_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/ResourceTreeComponent.gd"
 )
-const TIBERIUM_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/TiberiumComponent.gd")
+const RESOURCE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/ResourceComponent.gd")
 const HARVEST_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/HarvestComponent.gd")
 const DOCK_HOST_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/DockHostComponent.gd"
@@ -124,12 +124,12 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     elif etype == EntityData.EntityType.BUILDING:
         entity.add_to_group("selectable")
 
-    # Tiberium groups.
-    if data.tiberium_resource:
-        entity.add_to_group("tiberium")
+    # Resource groups.
+    if data.resource_category != "":
+        entity.add_to_group("resources")
         _add_interact_hitbox(entity)
-    if data.tiberium_tree:
-        entity.add_to_group("tiberium_trees")
+    if data.resource_category == "tiberium_tree":
+        entity.add_to_group("resource_trees")
     var t4 := Time.get_ticks_msec()
     var elapsed := t4 - t0
     print(
@@ -143,10 +143,10 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
 
 func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_stats_component(entity, data)
-    if not data.tiberium_tree and not data.tiberium_resource:
+    if data.resource_category == "":
         _add_health_component(entity, data)
         _add_hitbox_component(entity, data)
-    if not data.tiberium_tree and not data.tiberium_resource:
+    if data.resource_category == "":
         _add_select_component(entity, data)
     _add_combat_component(entity, data)
     _add_movement_controller(entity, data)
@@ -156,15 +156,15 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_factory_component(entity, data)
     _add_transport_component(entity, data)
     _add_special_ability_component(entity, data)
-    _add_tiberium_tree_component(entity, data)
-    _add_tiberium_component(entity, data)
+    _add_resource_tree_component(entity, data)
+    _add_resource_component(entity, data)
     _add_harvest_component(entity, data)
     _add_dock_host_component(entity, data)
     _add_dock_client_component(entity, data)
     _add_refinery_component(entity, data)
     _add_dock_unload_component(entity, data)
     _add_free_unit_component(entity, data)
-    if not data.tiberium_resource:
+    if data.resource_category != "tiberium":
         _add_art_component(entity, data)
 
 
@@ -333,20 +333,20 @@ func get_global_rules() -> GlobalRules:
     return _global_rules
 
 
-func _add_tiberium_tree_component(entity: Node3D, data: EntityData) -> void:
-    if data.tiberium_tree:
+func _add_resource_tree_component(entity: Node3D, data: EntityData) -> void:
+    if data.resource_category == "tiberium_tree":
         var component := Node.new()
-        component.name = "TiberiumTreeComponent"
-        component.set_script(TIBERIUM_TREE_COMPONENT_SCRIPT)
+        component.name = "ResourceTreeComponent"
+        component.set_script(RESOURCE_TREE_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 
 
-func _add_tiberium_component(entity: Node3D, data: EntityData) -> void:
-    if data.tiberium_resource:
+func _add_resource_component(entity: Node3D, data: EntityData) -> void:
+    if data.resource_category != "":
         var component := Node.new()
-        component.name = "TiberiumComponent"
-        component.set_script(TIBERIUM_COMPONENT_SCRIPT)
+        component.name = "ResourceComponent"
+        component.set_script(RESOURCE_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 
@@ -410,7 +410,7 @@ func _add_free_unit_component(entity: Node3D, data: EntityData) -> void:
 func _add_interact_hitbox(entity: Node3D) -> void:
     var component := HITBOX_COMPONENT_SCENE.instantiate()
     component.name = "HitboxComponent"
-    component.collision_layer = 1 << 16  # layer 17 — interaction (tiberium, dock)
+    component.collision_layer = 1 << 16  # layer 17 — interaction (resource, dock)
     component.collision_mask = 0
     component.size = Vector3(1.5, 1.5, 1.5)
     entity.add_child(component)

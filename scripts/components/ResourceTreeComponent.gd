@@ -1,4 +1,4 @@
-class_name TiberiumTreeComponent extends Node
+class_name ResourceTreeComponent extends Node
 
 @export var spawned_entity_id: String = ""
 @export var radius_cells: int = 8
@@ -11,8 +11,8 @@ class_name TiberiumTreeComponent extends Node
 
 func _ready() -> void:
     var root := get_parent() as Node3D
-    if root and not root.is_in_group("tiberium_trees"):
-        root.add_to_group("tiberium_trees")
+    if root and not root.is_in_group("resource_trees"):
+        root.add_to_group("resource_trees")
 
 
 func configure(data: EntityData) -> void:
@@ -22,7 +22,7 @@ func configure(data: EntityData) -> void:
     node_count = data.node_count
     amount_per_node = data.amount_per_node
     max_amount_per_node = data.max_amount_per_node
-    regrowth_rate = data.tiberium_regrowth_rate
+    regrowth_rate = data.resource_regrowth_rate
 
 
 func _random_cell_in_radius(center: Vector2i, radius: int) -> Vector2i:

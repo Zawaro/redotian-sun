@@ -1,13 +1,13 @@
 extends Node
 
-# TiberiumTreeComponent tests — configure, _random_cell_in_radius
+# ResourceTreeComponent tests — configure, _random_cell_in_radius
 
 var _test_passed := 0
 var _test_failed := 0
 
 
-func _make_tree_comp() -> TiberiumTreeComponent:
-    return TiberiumTreeComponent.new()
+func _make_tree_comp() -> ResourceTreeComponent:
+    return ResourceTreeComponent.new()
 
 
 func test_configure_sets_fields():
@@ -19,7 +19,7 @@ func test_configure_sets_fields():
     data.node_count = 8
     data.amount_per_node = 200
     data.max_amount_per_node = 400
-    data.tiberium_regrowth_rate = 1.5
+    data.resource_regrowth_rate = 1.5
     tree.configure(data)
     if (
         tree.spawned_entity_id == "TIB"

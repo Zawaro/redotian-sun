@@ -14,12 +14,12 @@ const SPREAD_NEIGHBORS: Array[Vector2i] = [
 const REBUILD_INTERVAL: float = 5.0
 
 var _tree_timer: float = 0.0
-var _tiberium_timer: float = 0.0
+var _resource_timer: float = 0.0
 var _tree_batch_offset: int = 0
-var _tiberium_batch_offset: int = 0
+var _resource_batch_offset: int = 0
 var _rebuild_timer: float = 0.0
 var _cached_trees: Array = []
-var _cached_tiberium: Array = []
+var _cached_resources: Array = []
 var _map_half_diag: int = 640
 var _play_area_half_diag: int = 256
 
@@ -27,7 +27,7 @@ var _play_area_half_diag: int = 256
 func _ready() -> void:
     _find_bounds_system()
     _reset_tree_timer()
-    _reset_tiberium_timer()
+    _reset_resource_timer()
     _rebuild_cache()
 
 
@@ -38,7 +38,7 @@ func _physics_process(delta: float) -> void:
     var rules := _get_rules()
     if not rules:
         return
-    if not rules.tiberium_grows and not rules.tiberium_spreads:
+    if not rules.resource_grows and not rules.resource_spreads:
         return
 
     _rebuild_timer -= delta
@@ -51,10 +51,10 @@ func _physics_process(delta: float) -> void:
         _reset_tree_timer()
         _tick_tree_batch(rules)
 
-    _tiberium_timer -= delta
-    if _tiberium_timer <= 0.0:
-        _reset_tiberium_timer()
-        _tick_tiberium_batch(rules)
+    _resource_timer -= delta
+    if _resource_timer <= 0.0:
+        _reset_resource_timer()
+        _tick_resource_batch(rules)
 
 
 func _get_rules() -> GlobalRules:
@@ -79,7 +79,7 @@ func _find_bounds_system() -> void:
 
 func _rebuild_cache() -> void:
     _cached_trees = _get_trees()
-    _cached_tiberium = _get_tiberium()
+    _cached_resources = _get_resources()
 
 
 func _reset_tree_timer() -> void:
@@ -90,12 +90,12 @@ func _reset_tree_timer() -> void:
     _tree_timer = base
 
 
-func _reset_tiberium_timer() -> void:
+func _reset_resource_timer() -> void:
     var rules := _get_rules()
     var base: float = 300.0
     if rules:
         base = rules.growth_rate * 60.0
-    _tiberium_timer = base
+    _resource_timer = base
 
 
 func _tick_tree_batch(rules: GlobalRules) -> void:
@@ -114,24 +114,24 @@ func _tick_tree_batch(rules: GlobalRules) -> void:
     _tree_batch_offset = end % maxi(_cached_trees.size(), 1)
 
 
-func _tick_tiberium_batch(rules: GlobalRules) -> void:
-    if _cached_tiberium.is_empty():
+func _tick_resource_batch(rules: GlobalRules) -> void:
+    if _cached_resources.is_empty():
         return
 
     var batch_size: int = rules.growth_batch_crystals
-    var start := _tiberium_batch_offset
-    var end := mini(start + batch_size, _cached_tiberium.size())
+    var start := _resource_batch_offset
+    var end := mini(start + batch_size, _cached_resources.size())
 
     for i in range(start, end):
-        var tib_node = _cached_tiberium[i]
+        var tib_node = _cached_resources[i]
         if is_instance_valid(tib_node):
-            _process_tiberium(tib_node as Node3D, rules)
+            _process_resource(tib_node as Node3D, rules)
 
-    _tiberium_batch_offset = end % maxi(_cached_tiberium.size(), 1)
+    _resource_batch_offset = end % maxi(_cached_resources.size(), 1)
 
 
 func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
-    var tree_comp := tree_node.get_node_or_null("TiberiumTreeComponent") as TiberiumTreeComponent
+    var tree_comp := tree_node.get_node_or_null("ResourceTreeComponent") as ResourceTreeComponent
     if not tree_comp:
         return
     if tree_comp.spawned_entity_id.is_empty() or tree_comp.node_count <= 0:
@@ -144,10 +144,10 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
     _spawn_in_radius(tree_comp, tree_cell, rules.tree_spawn_radius, rules)
 
     var radius_sq: float = float(tree_comp.radius_cells) * float(tree_comp.radius_cells)
-    for tib_node in _cached_tiberium:
+    for tib_node in _cached_resources:
         if not is_instance_valid(tib_node):
             continue
-        var tib_comp := tib_node.get_node_or_null("TiberiumComponent") as TiberiumComponent
+        var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
         if not tib_comp or tib_comp.amount >= tib_comp.max_amount:
             continue
         var tib_cell := Pathfinder.world_to_cell(tib_node.global_position)
@@ -161,7 +161,7 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
 
 
 func _spawn_in_radius(
-    tree_comp: TiberiumTreeComponent, center: Vector2i, radius: int, rules: GlobalRules
+    tree_comp: ResourceTreeComponent, center: Vector2i, radius: int, rules: GlobalRules
 ) -> void:
     var rt := rules.get_resource_type(tree_comp.resource_type_id) if rules else null
     var spawn_amount: int = rt.spread_amount if rt else rules.spread_amount
@@ -173,17 +173,17 @@ func _spawn_in_radius(
             var cell := center + Vector2i(dx, dz)
             if not _is_in_bounds(cell):
                 continue
-            if _is_cell_blocked_for_tiberium(cell):
+            if _is_cell_blocked_for_resource(cell):
                 continue
-            var existing := _find_tiberium_at_cell(cell)
+            var existing := _find_resource_at_cell(cell)
             if existing:
                 _grow_entry(existing)
             else:
                 _spawn_at_cell(cell, tree_comp, spawn_amount)
 
 
-func _process_tiberium(tib_node: Node3D, rules: GlobalRules) -> void:
-    var tib_comp := tib_node.get_node_or_null("TiberiumComponent") as TiberiumComponent
+func _process_resource(tib_node: Node3D, rules: GlobalRules) -> void:
+    var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
     if not tib_comp:
         return
 
@@ -200,7 +200,7 @@ func _process_tiberium(tib_node: Node3D, rules: GlobalRules) -> void:
         _try_spread_from(tib_node, tib_comp, rules)
 
 
-func _try_spread_from(tib_node: Node3D, tib_comp: TiberiumComponent, rules: GlobalRules) -> void:
+func _try_spread_from(tib_node: Node3D, tib_comp: ResourceComponent, rules: GlobalRules) -> void:
     var tib_cell := Pathfinder.world_to_cell(tib_node.global_position)
     var neighbor: Vector2i = SPREAD_NEIGHBORS[randi() % SPREAD_NEIGHBORS.size()]
     var target_cell := tib_cell + neighbor
@@ -208,10 +208,10 @@ func _try_spread_from(tib_node: Node3D, tib_comp: TiberiumComponent, rules: Glob
     if not _is_in_bounds(target_cell):
         return
 
-    if _is_cell_blocked_for_tiberium(target_cell):
+    if _is_cell_blocked_for_resource(target_cell):
         return
 
-    var existing := _find_tiberium_at_cell(target_cell)
+    var existing := _find_resource_at_cell(target_cell)
     if existing:
         _grow_entry(existing)
         return
@@ -227,8 +227,8 @@ func _try_spread_from(tib_node: Node3D, tib_comp: TiberiumComponent, rules: Glob
     tib_comp.spread_count += 1
 
 
-func _find_nearest_tree_comp(world_pos: Vector3) -> TiberiumTreeComponent:
-    var nearest: TiberiumTreeComponent = null
+func _find_nearest_tree_comp(world_pos: Vector3) -> ResourceTreeComponent:
+    var nearest: ResourceTreeComponent = null
     var best_dist_sq: float = INF
     for tree in _cached_trees:
         if not is_instance_valid(tree):
@@ -236,20 +236,20 @@ func _find_nearest_tree_comp(world_pos: Vector3) -> TiberiumTreeComponent:
         var d_sq: float = world_pos.distance_squared_to(tree.global_position)
         if d_sq < best_dist_sq:
             best_dist_sq = d_sq
-            nearest = tree.get_node_or_null("TiberiumTreeComponent") as TiberiumTreeComponent
+            nearest = tree.get_node_or_null("ResourceTreeComponent") as ResourceTreeComponent
     return nearest
 
 
-func _spawn_at_cell(cell: Vector2i, tree_comp: TiberiumTreeComponent, amount: int) -> void:
+func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, amount: int) -> void:
     var entity := (
         EntityFactory
         . create_entity(
             tree_comp.spawned_entity_id,
             {
-                "tiberium_amount": amount,
-                "tiberium_max_amount": tree_comp.max_amount_per_node,
+                "resource_amount": amount,
+                "resource_max_amount": tree_comp.max_amount_per_node,
                 "resource_type_id": tree_comp.resource_type_id,
-                "tiberium_regrowth_rate": tree_comp.regrowth_rate,
+                "resource_regrowth_rate": tree_comp.regrowth_rate,
             }
         )
     )
@@ -269,7 +269,7 @@ func _spawn_at_cell(cell: Vector2i, tree_comp: TiberiumTreeComponent, amount: in
 func _grow_entry(entry: Dictionary) -> void:
     var tib_node: Node3D = entry.get("node")
     if tib_node:
-        var tib_comp := tib_node.get_node_or_null("TiberiumComponent") as TiberiumComponent
+        var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
         if tib_comp and tib_comp.amount < tib_comp.max_amount:
             var rules := _get_rules()
             var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
@@ -279,16 +279,16 @@ func _grow_entry(entry: Dictionary) -> void:
             tib_comp._update_visual()
 
 
-func _find_tiberium_entry(entries: Array) -> Dictionary:
+func _find_resource_entry(entries: Array) -> Dictionary:
     for entry in entries:
         var node: Node3D = entry.get("node")
-        if is_instance_valid(node) and node.get_node_or_null("TiberiumComponent"):
+        if is_instance_valid(node) and node.get_node_or_null("ResourceComponent"):
             return entry
     return {}
 
 
-func _find_tiberium_at_cell(cell: Vector2i) -> Dictionary:
-    for entity in get_tree().get_nodes_in_group("tiberium"):
+func _find_resource_at_cell(cell: Vector2i) -> Dictionary:
+    for entity in get_tree().get_nodes_in_group("resources"):
         if not is_instance_valid(entity):
             continue
         var ecell := Pathfinder.world_to_cell(entity.global_position)
@@ -303,7 +303,7 @@ func _is_in_bounds(cell: Vector2i) -> bool:
     return cx + cz <= float(_play_area_half_diag)
 
 
-func _is_cell_blocked_for_tiberium(cell: Vector2i) -> bool:
+func _is_cell_blocked_for_resource(cell: Vector2i) -> bool:
     if not SpatialHash.instance:
         return false
     var key: int = SpatialHash.instance._cell_key(cell)
@@ -317,8 +317,8 @@ func _is_cell_blocked_for_tiberium(cell: Vector2i) -> bool:
 
 
 func _get_trees() -> Array:
-    return get_tree().get_nodes_in_group("tiberium_trees")
+    return get_tree().get_nodes_in_group("resource_trees")
 
 
-func _get_tiberium() -> Array:
-    return get_tree().get_nodes_in_group("tiberium")
+func _get_resources() -> Array:
+    return get_tree().get_nodes_in_group("resources")

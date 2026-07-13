@@ -1,6 +1,6 @@
 extends Node
 
-# TiberiumGrowthSystem tests — timer values, batch offset cycling
+# ResourceGrowthSystem tests — timer values, batch offset cycling
 # Tests logic that doesn't require full scene tree or autoloads.
 
 var _test_passed := 0

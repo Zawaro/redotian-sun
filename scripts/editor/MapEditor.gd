@@ -1,7 +1,7 @@
 @tool
 extends Node3D
 
-enum Tool { NONE, PAINT_HEIGHT, PAINT_TIBERIUM, PLACE_TREE, ERASE }
+enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE }
 
 @export var map_size: Vector2 = Vector2(64.0, 64.0)
 @export var visible_bounds_size: Vector2 = Vector2(54.0, 54.0)
@@ -27,10 +27,10 @@ var _painted_entities: Dictionary = {}
 const TIB_DEFAULT_AMOUNT: int = 300
 const TIB_DEFAULT_MAX: int = 300
 const OVERRIDE_KEYS: PackedStringArray = [
-    "tiberium_amount",
-    "tiberium_max_amount",
+    "resource_amount",
+    "resource_max_amount",
     "resource_type_id",
-    "tiberium_regrowth_rate",
+    "resource_regrowth_rate",
     "radius_cells",
     "node_count",
     "amount_per_node",
@@ -156,7 +156,7 @@ func _setup_ui() -> void:
 
     var tools := [
         {"name": "Paint Height", "tool": Tool.PAINT_HEIGHT},
-        {"name": "Paint Tiberium", "tool": Tool.PAINT_TIBERIUM},
+        {"name": "Paint Resource", "tool": Tool.PAINT_RESOURCE},
         {"name": "Place Tree", "tool": Tool.PLACE_TREE},
         {"name": "Erase", "tool": Tool.ERASE},
     ]
@@ -265,7 +265,7 @@ func _input(event: InputEvent) -> void:
             _place_tree_on_cell(_hovered_cell)
         return
 
-    if _active_tool in [Tool.PAINT_TIBERIUM, Tool.ERASE]:
+    if _active_tool in [Tool.PAINT_RESOURCE, Tool.ERASE]:
         if event is InputEventMouseButton:
             if event.button_index == MOUSE_BUTTON_LEFT:
                 _is_painting = event.pressed
@@ -281,29 +281,29 @@ func _apply_brush(center: Vector2i) -> void:
         for dz in range(-extent, extent + 1):
             var cell := center + Vector2i(dx, dz)
             var key := str(cell.x) + "," + str(cell.y)
-            if _active_tool == Tool.PAINT_TIBERIUM:
-                _paint_tiberium_cell(cell, key)
+            if _active_tool == Tool.PAINT_RESOURCE:
+                _paint_resource_cell(cell, key)
             elif _active_tool == Tool.ERASE:
-                _erase_tiberium_cell(cell, key)
+                _erase_resource_cell(cell, key)
 
 
-func _paint_tiberium_cell(cell: Vector2i, key: String) -> void:
+func _paint_resource_cell(cell: Vector2i, key: String) -> void:
     if _painted_entities.has(key):
         var entry: Dictionary = _painted_entities[key]
         var node := entry.get("node") as Node3D
         if is_instance_valid(node):
-            var tib := node.get_node_or_null("TiberiumComponent") as TiberiumComponent
+            var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
             if tib:
                 var add_amount := ceili(_paint_strength / 100.0 * float(tib.max_amount))
                 tib.amount = mini(tib.amount + add_amount, tib.max_amount)
                 tib._update_visual()
-                entry["data"]["tiberium_amount"] = tib.amount
+                entry["data"]["resource_amount"] = tib.amount
             return
 
     var amount_val := ceili(_paint_strength / 100.0 * float(TIB_DEFAULT_MAX))
     var overrides: Dictionary = {
-        "tiberium_amount": amount_val,
-        "tiberium_max_amount": TIB_DEFAULT_MAX,
+        "resource_amount": amount_val,
+        "resource_max_amount": TIB_DEFAULT_MAX,
         "resource_type_id": "tiberium_green",
     }
     var entity := EntityFactory.create_entity("TIB", overrides)
@@ -316,7 +316,7 @@ func _paint_tiberium_cell(cell: Vector2i, key: String) -> void:
     add_child(entity)
 
 
-func _erase_tiberium_cell(_cell: Vector2i, key: String) -> void:
+func _erase_resource_cell(_cell: Vector2i, key: String) -> void:
     if not _painted_entities.has(key):
         return
     var entry: Dictionary = _painted_entities[key]
@@ -324,13 +324,13 @@ func _erase_tiberium_cell(_cell: Vector2i, key: String) -> void:
     if not is_instance_valid(node):
         _painted_entities.erase(key)
         return
-    var tib := node.get_node_or_null("TiberiumComponent") as TiberiumComponent
+    var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
     if not tib:
         _painted_entities.erase(key)
         return
     var reduce_amount := ceili(_paint_strength / 100.0 * float(tib.max_amount))
     tib.amount = maxi(0, tib.amount - reduce_amount)
-    entry["data"]["tiberium_amount"] = tib.amount
+    entry["data"]["resource_amount"] = tib.amount
     tib._update_visual()
     if tib.amount <= 0:
         node.queue_free()
@@ -550,7 +550,7 @@ func _on_height_changed(cell: Vector2i, new_height: int) -> void:
     var node := entry.get("node") as Node3D
     if is_instance_valid(node):
         node.position.y = float(new_height) * TerrainSystem.HEIGHT_STEP
-        var tib := node.get_node_or_null("TiberiumComponent") as TiberiumComponent
+        var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
         if tib:
             tib.update_slope_positions()
 
@@ -562,6 +562,6 @@ func _on_terrain_cell_changed(key: String, data: Dictionary) -> void:
         return
     var h: int = data.get("max_height", data.get("height", 0))
     node.position.y = float(h) * TerrainSystem.HEIGHT_STEP
-    var tib := node.get_node_or_null("TiberiumComponent") as TiberiumComponent
+    var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
     if tib:
         tib.update_slope_positions()

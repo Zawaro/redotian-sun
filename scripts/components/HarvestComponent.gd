@@ -8,7 +8,7 @@ enum State { IDLE, SEEK_NODE, HARVESTING, FULL, DOCKING, UNLOADING, QUEUED }
 @export var search_radius_cells: int = 20
 
 var _state: int = State.IDLE
-var _current_tiberium: Node3D = null
+var _current_resource: Node3D = null
 var _current_dock: Node3D = null
 var _entity_factory: Node = null
 var _scan_cooldown: float = 0.0
@@ -18,6 +18,7 @@ var _seeking_dock: bool = false
 var _player_commanded: bool = false
 var dock_client: DockClientComponent = null
 var _path_cache: Dictionary = {}
+var _harvest_accumulator: float = 0.0
 
 const SEEK_TIMEOUT: float = 5.0
 
@@ -41,7 +42,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-    _release_tiberium_cell()
+    _release_resource_cell()
 
 
 func get_dock_id() -> String:
@@ -86,7 +87,7 @@ func _process(delta: float) -> void:
                 _scan_cooldown = _scan_interval
                 var resource := _find_nearest_resource(entity_parent)
                 if resource:
-                    _current_tiberium = resource
+                    _current_resource = resource
                     _change_state(State.SEEK_NODE)
                 elif get_cargo() > 0:
                     _seek_dock(entity_parent)
@@ -94,44 +95,48 @@ func _process(delta: float) -> void:
         State.SEEK_NODE:
             _seek_timeout -= delta
             if _seek_timeout <= 0.0:
-                _release_tiberium_cell()
-                _current_tiberium = null
+                _release_resource_cell()
+                _current_resource = null
                 _scan_cooldown = _scan_interval
                 _change_state(State.IDLE)
 
         State.HARVESTING:
-            if not is_instance_valid(_current_tiberium):
-                _release_tiberium_cell()
-                _current_tiberium = null
+            if not is_instance_valid(_current_resource):
+                _release_resource_cell()
+                _current_resource = null
                 _change_state(State.IDLE)
                 return
-            var tib := _current_tiberium.get_node_or_null("TiberiumComponent") as TiberiumComponent
+            var tib := _current_resource.get_node_or_null("ResourceComponent") as ResourceComponent
             if not tib:
-                _release_tiberium_cell()
-                _current_tiberium = null
+                _release_resource_cell()
+                _current_resource = null
                 _change_state(State.IDLE)
                 return
             var rules := _get_global_rules()
-            var fill_rate := rules.harvester_fill_rate if rules else 2.0
-            var collected := tib.collect(ceili(fill_rate * delta * 60.0))
-            if collected > 0:
-                var transport := (
-                    get_parent().get_node_or_null("TransportComponent") as TransportComponent
-                )
-                if transport:
-                    transport.add_cargo(tib.resource_type_id, collected)
-                    cargoing_changed.emit(transport.get_cargo_total(), _get_storage_capacity())
+            var fill_rate := rules.harvester_fill_rate if rules else 1.0
+            _harvest_accumulator += fill_rate * delta * 60.0
+            var bales_to_collect := int(_harvest_accumulator)
+            if bales_to_collect > 0:
+                _harvest_accumulator -= bales_to_collect
+                var collected := tib.collect(bales_to_collect)
+                if collected > 0:
+                    var transport := (
+                        get_parent().get_node_or_null("TransportComponent") as TransportComponent
+                    )
+                    if transport:
+                        transport.add_cargo(tib.resource_type_id, collected)
+                        cargoing_changed.emit(transport.get_cargo_total(), _get_storage_capacity())
             if get_cargo() >= _get_storage_capacity():
-                _release_tiberium_cell()
-                _current_tiberium = null
+                _release_resource_cell()
+                _current_resource = null
                 _change_state(State.FULL)
             elif tib.is_depleted():
-                _release_tiberium_cell()
-                _current_tiberium = null
+                _release_resource_cell()
+                _current_resource = null
                 _change_state(State.IDLE)
 
         State.FULL:
-            _current_tiberium = null
+            _current_resource = null
             if not _seeking_dock:
                 _seeking_dock = true
                 _seek_dock(entity_parent)
@@ -176,16 +181,16 @@ func _seek_dock(entity_parent: Node3D) -> void:
 
 
 func set_target_node(node: Node3D) -> void:
-    if node and node.get_node_or_null("TiberiumComponent"):
+    if node and node.get_node_or_null("ResourceComponent"):
         _player_commanded = false
-        _current_tiberium = node
+        _current_resource = node
         _current_dock = null
         _change_state(State.SEEK_NODE)
 
 
 func cancel_harvest(player_commanded: bool = false) -> void:
-    _release_tiberium_cell()
-    _current_tiberium = null
+    _release_resource_cell()
+    _current_resource = null
     _current_dock = null
     _seeking_dock = false
     _player_commanded = player_commanded
@@ -215,7 +220,7 @@ func on_arrived(_position: Vector3) -> void:
 
 
 ## Called when the dock host releases this entity (cargo fully unloaded).
-## Transitions back to IDLE so the harvester seeks new tiberium.
+## Transitions back to IDLE so the harvester seeks new resources.
 func on_dock_undocked(_docker: Node = null) -> void:
     print("[Harvest] on_dock_undocked (state=%d)" % _state)
     if _state == State.UNLOADING:
@@ -249,7 +254,9 @@ func _change_state(new_state: int) -> void:
     if _state == State.SEEK_NODE and new_state != State.SEEK_NODE:
         _clear_path_cache()
         if new_state != State.HARVESTING:
-            _release_tiberium_cell()
+            _release_resource_cell()
+    if _state == State.HARVESTING and new_state != State.HARVESTING:
+        _harvest_accumulator = 0.0
     _state = new_state
     state_changed.emit(_state)
 
@@ -260,13 +267,13 @@ func _change_state(new_state: int) -> void:
 
     match _state:
         State.SEEK_NODE:
-            if is_instance_valid(_current_tiberium):
-                var tib_cell := Pathfinder.world_to_cell(_current_tiberium.global_position)
+            if is_instance_valid(_current_resource):
+                var tib_cell := Pathfinder.world_to_cell(_current_resource.global_position)
                 var my_cell := Pathfinder.world_to_cell(entity_parent.global_position)
                 if tib_cell == my_cell:
                     if SpatialHash.instance:
                         if not SpatialHash.instance.reserve_cell(tib_cell):
-                            _current_tiberium = null
+                            _current_resource = null
                             _scan_cooldown = _scan_interval
                             _change_state(State.IDLE)
                             return
@@ -274,12 +281,12 @@ func _change_state(new_state: int) -> void:
                     return
                 if SpatialHash.instance:
                     if not SpatialHash.instance.reserve_cell(tib_cell):
-                        _current_tiberium = null
+                        _current_resource = null
                         _scan_cooldown = _scan_interval
                         _change_state(State.IDLE)
                         return
                 _seek_timeout = SEEK_TIMEOUT
-                mc.set_target_position(_current_tiberium.global_position)
+                mc.set_target_position(_current_resource.global_position)
         State.FULL:
             pass
         State.IDLE:
@@ -294,9 +301,9 @@ func _find_nearest_resource(parent: Node3D) -> Node3D:
     var _total := 0
     var _skipped := 0
 
-    for entity in get_tree().get_nodes_in_group("tiberium"):
+    for entity in get_tree().get_nodes_in_group("resources"):
         _total += 1
-        var tib := entity.get_node_or_null("TiberiumComponent") as TiberiumComponent
+        var tib := entity.get_node_or_null("ResourceComponent") as ResourceComponent
         if not tib or tib.is_depleted():
             _skipped += 1
             continue
@@ -356,12 +363,12 @@ func _clear_path_cache() -> void:
 
 func _get_storage_capacity() -> int:
     var transport := get_parent().get_node_or_null("TransportComponent") as TransportComponent
-    return transport.resource_capacity if transport else 0
+    return transport.storage if transport else 0
 
 
-func _release_tiberium_cell() -> void:
-    if is_instance_valid(_current_tiberium) and SpatialHash.instance:
-        var cell := Pathfinder.world_to_cell(_current_tiberium.global_position)
+func _release_resource_cell() -> void:
+    if is_instance_valid(_current_resource) and SpatialHash.instance:
+        var cell := Pathfinder.world_to_cell(_current_resource.global_position)
         SpatialHash.instance.release_cell(cell)
 
 
