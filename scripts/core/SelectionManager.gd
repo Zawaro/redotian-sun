@@ -197,7 +197,7 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
         mc.set_target_position(position)
     var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
     if harvest:
-        harvest.cancel_harvest()
+        harvest.cancel_harvest(true)
 
 
 func _fallback_target(target: Vector3) -> Vector3:
