@@ -25,6 +25,7 @@ EntityFactory="*res://scripts/entities/EntityFactory.gd"
 BuildingManager="*res://scripts/buildings/BuildingManager.gd"
 EconomyManager="*res://scripts/economy/EconomyManager.gd"
 TiberiumGrowthSystem="*res://scripts/core/TiberiumGrowthSystem.gd"
+SelectionOverlay="*res://scripts/ui/SelectionOverlay.gd"
 
 [display]
 

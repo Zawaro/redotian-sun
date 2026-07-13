@@ -2,7 +2,7 @@ class_name TiberiumComponent extends Node
 
 @export var amount: int = 0
 @export var max_amount: int = 0
-@export var tiberium_type: int = 0
+@export var resource_type_id: String = "tiberium_green"
 @export var regrowth_rate: float = -1.0
 ## How many times this crystal has spread to adjacent cells. Capped by GlobalRules.spread_max.
 @export var spread_count: int = 0
@@ -16,7 +16,7 @@ static var _green_mat: StandardMaterial3D = null
 func configure(data: EntityData) -> void:
     amount = data.tiberium_amount
     max_amount = data.tiberium_max_amount
-    tiberium_type = data.tiberium_type
+    resource_type_id = data.resource_type_id
     regrowth_rate = data.tiberium_regrowth_rate
 
 

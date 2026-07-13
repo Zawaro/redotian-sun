@@ -138,6 +138,8 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
         return
 
     var tree_cell := Pathfinder.world_to_cell(tree_node.global_position)
+    var rt := rules.get_resource_type(tree_comp.resource_type_id) if rules else null
+    var grow_rate: float = rt.grow_rate if rt else 0.1
 
     _spawn_in_radius(tree_comp, tree_cell, rules.tree_spawn_radius, rules)
 
@@ -153,7 +155,7 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
         var dz: float = float(tib_cell.y - tree_cell.y)
         if dx * dx + dz * dz > radius_sq:
             continue
-        var grow_amount: int = ceili(float(tib_comp.max_amount) * 0.1)
+        var grow_amount: int = ceili(float(tib_comp.max_amount) * grow_rate)
         tib_comp.amount = mini(tib_comp.amount + grow_amount, tib_comp.max_amount)
         tib_comp._update_visual()
 
@@ -161,6 +163,9 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
 func _spawn_in_radius(
     tree_comp: TiberiumTreeComponent, center: Vector2i, radius: int, rules: GlobalRules
 ) -> void:
+    var rt := rules.get_resource_type(tree_comp.resource_type_id) if rules else null
+    var spawn_amount: int = rt.spread_amount if rt else rules.spread_amount
+
     for dx in range(-radius, radius + 1):
         for dz in range(-radius, radius + 1):
             if dx * dx + dz * dz > radius * radius:
@@ -174,7 +179,7 @@ func _spawn_in_radius(
             if existing:
                 _grow_entry(existing)
             else:
-                _spawn_at_cell(cell, tree_comp, rules.spread_amount)
+                _spawn_at_cell(cell, tree_comp, spawn_amount)
 
 
 func _process_tiberium(tib_node: Node3D, rules: GlobalRules) -> void:
@@ -182,12 +187,16 @@ func _process_tiberium(tib_node: Node3D, rules: GlobalRules) -> void:
     if not tib_comp:
         return
 
+    var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
+    var grow_rate: float = rt.grow_rate if rt else 0.05
+    var spread_max: int = rt.spread_max if rt else rules.spread_max
+
     if tib_comp.amount < tib_comp.max_amount:
-        var grow_amount: int = ceili(float(tib_comp.max_amount) * 0.05)
+        var grow_amount: int = ceili(float(tib_comp.max_amount) * grow_rate)
         tib_comp.amount = mini(tib_comp.amount + grow_amount, tib_comp.max_amount)
         tib_comp._update_visual()
 
-    if tib_comp.spread_count < rules.spread_max:
+    if tib_comp.spread_count < spread_max:
         _try_spread_from(tib_node, tib_comp, rules)
 
 
@@ -211,7 +220,10 @@ func _try_spread_from(tib_node: Node3D, tib_comp: TiberiumComponent, rules: Glob
     if not tree_comp:
         return
 
-    _spawn_at_cell(target_cell, tree_comp, rules.spread_amount)
+    var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
+    var spread_amount: int = rt.spread_amount if rt else rules.spread_amount
+
+    _spawn_at_cell(target_cell, tree_comp, spread_amount)
     tib_comp.spread_count += 1
 
 
@@ -236,7 +248,7 @@ func _spawn_at_cell(cell: Vector2i, tree_comp: TiberiumTreeComponent, amount: in
             {
                 "tiberium_amount": amount,
                 "tiberium_max_amount": tree_comp.max_amount_per_node,
-                "tiberium_type": tree_comp.tiberium_type,
+                "resource_type_id": tree_comp.resource_type_id,
                 "tiberium_regrowth_rate": tree_comp.regrowth_rate,
             }
         )
@@ -259,7 +271,10 @@ func _grow_entry(entry: Dictionary) -> void:
     if tib_node:
         var tib_comp := tib_node.get_node_or_null("TiberiumComponent") as TiberiumComponent
         if tib_comp and tib_comp.amount < tib_comp.max_amount:
-            var grow_amount: int = ceili(float(tib_comp.max_amount) * 0.1)
+            var rules := _get_rules()
+            var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
+            var grow_rate: float = rt.grow_rate if rt else 0.1
+            var grow_amount: int = ceili(float(tib_comp.max_amount) * grow_rate)
             tib_comp.amount = mini(tib_comp.amount + grow_amount, tib_comp.max_amount)
             tib_comp._update_visual()
 

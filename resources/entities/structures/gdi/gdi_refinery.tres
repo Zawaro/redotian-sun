@@ -25,6 +25,7 @@ dock_position = Vector3(6, 0, 2)
 dock_rotation = -90.0
 dock_unload = true
 refinery_storage = 80
+accepted_resource_categories = PackedStringArray("tiberium")
 factory = "HarvesterType"
 free_unit = "HARV"
 art_data = ExtResource("2_art")

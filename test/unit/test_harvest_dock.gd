@@ -11,15 +11,15 @@ var _slot_emitted_flag := false
 # --- helpers ---
 
 
-func _make_entity(dock_id: String = "PROC", storage: int = 700) -> Node3D:
+func _make_entity(dock_id: String = "PROC", resource_capacity: int = 700) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestHarvester"
 
     var transport := TransportComponent.new()
     transport.name = "TransportComponent"
     transport.dock = dock_id
-    transport.storage = storage
-    transport.cargo = storage
+    transport.resource_capacity = resource_capacity
+    transport.cargo = {"tiberium_green": resource_capacity}
     entity.add_child(transport)
 
     var mc := MovementController.new()
@@ -34,16 +34,15 @@ func _make_entity(dock_id: String = "PROC", storage: int = 700) -> Node3D:
 
 
 func _make_dock_entity(
-    dock_rotation: float = -90.0, foundation: Vector2i = Vector2i(4, 3), dock_id: String = "PROC"
+    dock_rotation: float = -90.0, _foundation: Vector2i = Vector2i(4, 3), _dock_id: String = "PROC"
 ) -> Node3D:
     var dock_entity := Node3D.new()
     dock_entity.name = "TestRefinery"
 
-    var dock_comp := DockComponent.new()
-    dock_comp.name = "DockComponent"
+    var dock_comp := DockHostComponent.new()
+    dock_comp.name = "DockHostComponent"
     dock_comp.dock_rotation = dock_rotation
-    dock_comp.foundation = foundation
-    dock_comp.allowed_entities = [dock_id]
+    dock_comp.dock_types = ["harvest"]
     dock_entity.add_child(dock_comp)
 
     var dock_unload := DockUnloadComponent.new()
@@ -62,8 +61,8 @@ func _get_transport(entity: Node3D) -> TransportComponent:
     return entity.get_node("TransportComponent") as TransportComponent
 
 
-func _get_dock_comp(dock_entity: Node3D) -> DockComponent:
-    return dock_entity.get_node("DockComponent") as DockComponent
+func _get_dock_comp(dock_entity: Node3D) -> DockHostComponent:
+    return dock_entity.get_node("DockHostComponent") as DockHostComponent
 
 
 func _get_dock_unload(dock_entity: Node3D) -> DockUnloadComponent:
@@ -74,15 +73,16 @@ func _get_dock_unload(dock_entity: Node3D) -> DockUnloadComponent:
 # These helpers manually set what _ready() would compute.
 
 
-func _init_harvest(harvest: HarvestComponent, dock_id: String = "PROC") -> void:
-    harvest._dock_id = dock_id
+func _init_harvest(_harvest: HarvestComponent, _dock_id: String = "PROC") -> void:
+    pass  # ponytail: _dock_id was on old HarvestComponent, removed in dock-host-client-refactor
 
 
-func _init_dock(dock_comp: DockComponent, dock_entity: Node3D) -> void:
+func _init_dock(dock_comp: DockHostComponent, dock_entity: Node3D) -> void:
     var cs := Pathfinder.CELL_SIZE
+    var found := dock_comp._get_foundation()
     var origin_cell := Vector2i(
-        floori((dock_entity.position.x - dock_comp.foundation.x * 0.5 * cs) / cs),
-        floori((dock_entity.position.z - dock_comp.foundation.y * 0.5 * cs) / cs)
+        floori((dock_entity.position.x - found.x * 0.5 * cs) / cs),
+        floori((dock_entity.position.z - found.y * 0.5 * cs) / cs)
     )
     var top_left := Pathfinder.cell_to_world(origin_cell)
     dock_comp._dock_cell = Pathfinder.world_to_cell(
@@ -109,6 +109,7 @@ func test_docking_rotates_toward_target():
     # Set up state: entity at dock cell, state DOCKING, rotation off target
     entity.rotation.y = deg_to_rad(0.0)
     harvest._current_dock = dock_entity
+    harvest._docking_timeout = 5.0
     harvest._state = HarvestComponent.State.DOCKING
 
     # Simulate one _process frame with delta=0.016
@@ -140,6 +141,7 @@ func test_docking_completes_rotation_and_transitions_to_unloading():
     # Set up: almost at target rotation (within 0.05 rad ≈ 2.86°)
     entity.rotation.y = deg_to_rad(-88.0)
     harvest._current_dock = dock_entity
+    harvest._docking_timeout = 5.0
     harvest._state = HarvestComponent.State.DOCKING
 
     # DockUnloadComponent starts disabled
@@ -195,7 +197,7 @@ func test_docking_returns_to_idle_when_dock_invalid():
     entity.queue_free()
 
 
-func test_on_dock_undocked_handles_docking_state():
+func test_on_dock_undocked_ignores_docking_state():
     var entity := _make_entity()
     add_child(entity)
     var dock_entity := _make_dock_entity()
@@ -207,12 +209,17 @@ func test_on_dock_undocked_handles_docking_state():
 
     harvest.on_dock_undocked(dock_entity)
 
-    if harvest._state == HarvestComponent.State.IDLE and harvest._current_dock == null:
+    if harvest._state == HarvestComponent.State.DOCKING:
         _test_passed += 1
-        print("    PASS: on_dock_undocked transitions DOCKING → IDLE")
+        print("    PASS: on_dock_undocked ignores DOCKING state (only handles UNLOADING)")
     else:
         _test_failed += 1
-        print("    FAIL: state=%d (want 0), dock=%s" % [harvest._state, harvest._current_dock])
+        print(
+            (
+                "    FAIL: state=%d (want DOCKING=%d)"
+                % [harvest._state, HarvestComponent.State.DOCKING]
+            )
+        )
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -334,7 +341,7 @@ func test_change_state_noop_on_same_state():
     entity.queue_free()
 
 
-# --- DockComponent: request_dock / leave_dock / reservation ---
+# --- DockHostComponent: request_dock / leave_dock / reservation ---
 
 
 func test_request_dock_succeeds_when_empty():
@@ -675,7 +682,7 @@ func test_on_slot_available_ignores_non_queued():
     dock_entity.queue_free()
 
 
-# --- DockComponent: _compute_dock_cell ---
+# --- DockHostComponent: _compute_dock_cell ---
 
 
 func test_dock_cell_computed_by_helper():

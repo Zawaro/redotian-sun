@@ -1,17 +1,28 @@
-class_name DockComponent extends Node
+class_name DockHostComponent extends Node
 
+## Local offset from the building's top-left cell to the dock cell.
 @export var dock_position: Vector3 = Vector3.ZERO
+## Rotation in degrees the docker entity snaps to when docking (e.g. -90 for west-facing).
 @export var dock_rotation: float = 0.0
-@export var foundation: Vector2i = Vector2i(1, 1)
-@export var allowed_entities: PackedStringArray = []
+## Accepted dock type IDs (e.g. ["harvest"]). Empty = accepts all types.
+@export var dock_types: PackedStringArray = []
+## Max number of entities that can wait in the dock queue.
+@export var max_queue_length: int = 3
+## Frames to wait before promoting the next queued docker after a slot opens.
+@export var dock_wait_ticks: int = 10
 
 var queue: Array[Node] = []
 var current_docker: Node = null
 var _entity_data: EntityData = null
 var _dock_cell: Vector2i = Vector2i.ZERO
+var _wait_counter: int = 0
+var _pending_dockers: Array[Node] = []
 
+## Emitted when a docker is accepted and begins docking.
 signal docker_docked(docker: Node)
+## Emitted when a docker leaves the dock (finished unloading or cancelled).
 signal docker_undocked(docker: Node)
+## Emitted when a queue slot becomes available for the next waiting docker.
 signal slot_available
 
 
@@ -27,8 +38,11 @@ func configure(data: EntityData) -> void:
     _entity_data = data
     dock_position = data.dock_position
     dock_rotation = data.dock_rotation
-    foundation = data.foundation
-    allowed_entities = [data.dock] if not data.dock.is_empty() else []
+
+
+func _get_foundation() -> Vector2i:
+    var fc := get_parent().get_node_or_null("FoundationComponent") as FoundationComponent
+    return fc.foundation if fc else Vector2i(1, 1)
 
 
 func _compute_dock_cell() -> void:
@@ -36,9 +50,10 @@ func _compute_dock_cell() -> void:
     if not entity:
         return
     var cs := Pathfinder.CELL_SIZE
+    var found := _get_foundation()
     var origin_cell := Vector2i(
-        floori((entity.global_position.x - foundation.x * 0.5 * cs) / cs),
-        floori((entity.global_position.z - foundation.y * 0.5 * cs) / cs)
+        floori((entity.global_position.x - found.x * 0.5 * cs) / cs),
+        floori((entity.global_position.z - found.y * 0.5 * cs) / cs)
     )
     var top_left := Pathfinder.cell_to_world(origin_cell)
     _dock_cell = Pathfinder.world_to_cell(top_left + entity.global_transform.basis * dock_position)
@@ -60,15 +75,16 @@ func _log_cells(data: EntityData) -> void:
     if not entity:
         return
     var cs := Pathfinder.CELL_SIZE
+    var found := _get_foundation()
     var origin_cell := Vector2i(
-        floori((entity.global_position.x - data.foundation.x * 0.5 * cs) / cs),
-        floori((entity.global_position.z - data.foundation.y * 0.5 * cs) / cs)
+        floori((entity.global_position.x - found.x * 0.5 * cs) / cs),
+        floori((entity.global_position.z - found.y * 0.5 * cs) / cs)
     )
     var top_left_world := Pathfinder.cell_to_world(origin_cell)
 
     var foundation_cells_local: Array[Vector2i] = []
-    for dx in data.foundation.x:
-        for dz in data.foundation.y:
+    for dx in found.x:
+        for dz in found.y:
             foundation_cells_local.append(Vector2i(dx, dz))
 
     var bib_cells_local: Array[Vector2i] = []
@@ -85,26 +101,28 @@ func _log_cells(data: EntityData) -> void:
     print("  building world: %s" % entity.global_position)
     print("  foundation local (%d cells):" % foundation_cells_local.size())
     for c in foundation_cells_local:
-        print("    %s → %s" % [c, Pathfinder.cell_to_world(origin_cell + c)])
+        print("    %s -> %s" % [c, Pathfinder.cell_to_world(origin_cell + c)])
     print("  bib local (%d cells):" % bib_cells_local.size())
     for c in bib_cells_local:
-        print("    %s → %s" % [c, Pathfinder.cell_to_world(origin_cell + c)])
+        print("    %s -> %s" % [c, Pathfinder.cell_to_world(origin_cell + c)])
     print("  dock local: %s  world: %s" % [dock_local, dock_global])
     print("  dock_position: %s (relative to top-left)" % dock_position)
 
 
-func can_dock(entity_id: String) -> bool:
-    return allowed_entities.is_empty() or entity_id in allowed_entities
+func has_dock_type(type: String) -> bool:
+    return dock_types.is_empty() or type in dock_types
 
 
 func get_entity_id() -> String:
     return _entity_data.id if _entity_data else ""
 
 
+func get_queue_size() -> int:
+    return queue.size()
+
+
+## Accept a docker into the dock. Returns true if docked immediately, false if queued or rejected.
 func request_dock(docker: Node) -> bool:
-    var docker_id: String = docker.get_dock_id() if docker.has_method("get_dock_id") else ""
-    if not can_dock(docker_id):
-        return false
     if current_docker == docker:
         return true
     if current_docker == null:
@@ -113,20 +131,46 @@ func request_dock(docker: Node) -> bool:
         if SpatialHash.instance:
             SpatialHash.instance.force_reserve(_dock_cell)
         return true
+    if queue.size() >= max_queue_length:
+        return false
     if docker in queue:
         return false
     queue.append(docker)
+    _pending_dockers.append(docker)
     return false
 
 
+func _process(_delta: float) -> void:
+    if _pending_dockers.is_empty():
+        return
+    _wait_counter += 1
+    if _wait_counter >= dock_wait_ticks:
+        _wait_counter = 0
+        var docker := _pending_dockers.pop_front() as Node
+        if is_instance_valid(docker) and docker in queue:
+            queue.erase(docker)
+            if current_docker == null:
+                current_docker = docker
+                if SpatialHash.instance:
+                    SpatialHash.instance.force_reserve(_dock_cell)
+                docker_docked.emit(docker)
+                slot_available.emit()
+                if docker.has_method("on_slot_available"):
+                    docker.on_slot_available()
+
+
+## Remove a docker from the dock. If queued, removes from queue. If current, frees the slot.
 func leave_dock(docker: Node) -> void:
     if current_docker == docker:
         if SpatialHash.instance:
             SpatialHash.instance.release_cell(_dock_cell)
         current_docker = null
         docker_undocked.emit(docker)
+        if docker.has_method("on_dock_undocked"):
+            docker.on_dock_undocked(docker)
         if not queue.is_empty():
-            var next_docker = queue.pop_front()
+            var next_docker := queue.pop_front() as Node
+            _pending_dockers.erase(next_docker)
             current_docker = next_docker
             if SpatialHash.instance:
                 SpatialHash.instance.force_reserve(_dock_cell)
@@ -138,3 +182,4 @@ func leave_dock(docker: Node) -> void:
         var idx := queue.find(docker)
         if idx >= 0:
             queue.remove_at(idx)
+            _pending_dockers.erase(docker)

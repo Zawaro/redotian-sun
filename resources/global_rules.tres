@@ -1,6 +1,11 @@
-[gd_resource type="Resource" script_class="GlobalRules" load_steps=2 format=3 uid="uid://b7ai3dvldeg34"]
+[gd_resource type="Resource" script_class="GlobalRules" load_steps=7 format=3 uid="uid://b7ai3dvldeg34"]
 
 [ext_resource type="Script" uid="uid://b46r2xj1die61" path="res://scripts/data/GlobalRules.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/resource_types/tiberium.tres" id="2_tib"]
+[ext_resource type="Resource" path="res://resources/resource_types/tiberium_green.tres" id="3_tibgreen"]
+[ext_resource type="Resource" path="res://resources/resource_types/tiberium_blue.tres" id="4_tibblue"]
+[ext_resource type="Resource" path="res://resources/resource_types/tiberium_red.tres" id="5_tibred"]
+[ext_resource type="Resource" path="res://resources/resource_types/vein.tres" id="6_vein"]
 
 [resource]
 script = ExtResource("1_script")
@@ -23,7 +28,6 @@ growth_rate = 5.0
 tiberium_grows = true
 tiberium_spreads = true
 starting_credits = 10000
-tiberium_value = 1.0
 harvester_fill_rate = 2.0
 separate_aircraft = true
 survivor_rate = 0.4
@@ -61,6 +65,13 @@ armor_types = {
 "light": {"modifier": 0.6},
 "heavy": {"modifier": 0.4},
 "concrete": {"modifier": 0.3}
+}
+resource_types = {
+"tiberium": ExtResource("2_tib"),
+"tiberium_green": ExtResource("3_tibgreen"),
+"tiberium_blue": ExtResource("4_tibblue"),
+"tiberium_red": ExtResource("5_tibred"),
+"vein": ExtResource("6_vein")
 }
 fog_of_war = false
 visceroids = false

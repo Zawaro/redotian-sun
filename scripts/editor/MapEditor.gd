@@ -29,7 +29,7 @@ const TIB_DEFAULT_MAX: int = 300
 const OVERRIDE_KEYS: PackedStringArray = [
     "tiberium_amount",
     "tiberium_max_amount",
-    "tiberium_type",
+    "resource_type_id",
     "tiberium_regrowth_rate",
     "radius_cells",
     "node_count",
@@ -304,7 +304,7 @@ func _paint_tiberium_cell(cell: Vector2i, key: String) -> void:
     var overrides: Dictionary = {
         "tiberium_amount": amount_val,
         "tiberium_max_amount": TIB_DEFAULT_MAX,
-        "tiberium_type": 0,
+        "resource_type_id": "tiberium_green",
     }
     var entity := EntityFactory.create_entity("TIB", overrides)
     if not entity:

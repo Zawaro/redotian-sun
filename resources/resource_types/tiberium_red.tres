@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ResourceType" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ResourceType.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "tiberium_red"
+display_name = "Red Tiberium"
+category = "tiberium"
+parent_type = "tiberium"
+value_per_unit = 3.0
+color = Color(1.0, 0.2, 0.2, 1)
+grow_rate = 0.02
+spread_amount = 30
+spread_max = 2

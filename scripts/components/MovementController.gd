@@ -1,6 +1,7 @@
 class_name MovementController extends Node3D
 
 signal arrived(position: Vector3)
+signal pathfinding_failed
 
 enum State { IDLE, ROTATING, MOVING, WAIT }
 
@@ -63,6 +64,7 @@ func set_target_position(target: Vector3) -> void:
 
     if path.is_empty():
         _scatter_blockers()
+        pathfinding_failed.emit()
         return
 
     var full_path: PackedVector3Array = [_parent.global_position]

@@ -157,7 +157,7 @@ func request_harvest(target: Node3D) -> bool:
 
 
 func request_dock(target: Node3D) -> bool:
-    var dock_comp := target.get_node_or_null("DockComponent") as DockComponent
+    var dock_comp := target.get_node_or_null("DockHostComponent") as DockHostComponent
     if not dock_comp:
         return false
     var target_id := dock_comp.get_entity_id()
