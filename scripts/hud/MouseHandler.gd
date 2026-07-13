@@ -173,7 +173,7 @@ func _try_interact(collider: Node) -> bool:
     var entity := _find_entity_parent(collider)
     if not entity or not selection_manager or selection_manager.selected_entities.is_empty():
         return false
-    if entity.get_node_or_null("TiberiumComponent"):
+    if entity.get_node_or_null("ResourceComponent"):
         return selection_manager.request_harvest(entity)
     if entity.get_node_or_null("DockHostComponent"):
         return selection_manager.request_dock(entity)
@@ -208,7 +208,7 @@ func _find_entity_parent(node: Node) -> Node3D:
         if (
             node is Node3D
             and (
-                node.get_node_or_null("TiberiumComponent")
+                node.get_node_or_null("ResourceComponent")
                 or node.get_node_or_null("DockHostComponent")
                 or node.get_node_or_null("SelectComponent")
             )

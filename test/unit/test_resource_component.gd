@@ -1,13 +1,13 @@
 extends Node
 
-# TiberiumComponent tests — configure, collect, visual stages, spread_count
+# ResourceComponent tests — configure, collect, visual stages, spread_count
 
 var _test_passed := 0
 var _test_failed := 0
 
 
-func _make_tib_comp(amount: int = 300, max_amount: int = 300) -> TiberiumComponent:
-    var tib := TiberiumComponent.new()
+func _make_tib_comp(amount: int = 300, max_amount: int = 300) -> ResourceComponent:
+    var tib := ResourceComponent.new()
     tib.amount = amount
     tib.max_amount = max_amount
     return tib
@@ -17,7 +17,7 @@ func _make_entity_with_tib(amount: int = 300, max_amount: int = 300) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestTiberium"
     var tib := _make_tib_comp(amount, max_amount)
-    tib.name = "TiberiumComponent"
+    tib.name = "ResourceComponent"
     entity.add_child(tib)
     return entity
 
@@ -25,10 +25,10 @@ func _make_entity_with_tib(amount: int = 300, max_amount: int = 300) -> Node3D:
 func test_configure_sets_fields():
     var tib := _make_tib_comp()
     var data := EntityData.new()
-    data.tiberium_amount = 150
-    data.tiberium_max_amount = 500
+    data.resource_amount = 150
+    data.resource_max_amount = 500
     data.resource_type_id = "tiberium_blue"
-    data.tiberium_regrowth_rate = 2.5
+    data.resource_regrowth_rate = 2.5
     tib.configure(data)
     if (
         tib.amount == 150
@@ -45,7 +45,7 @@ func test_configure_sets_fields():
 
 func test_collect_reduces_amount():
     var entity := _make_entity_with_tib(300, 300)
-    var tib := entity.get_node("TiberiumComponent") as TiberiumComponent
+    var tib := entity.get_node("ResourceComponent") as ResourceComponent
     var collected := tib.collect(50)
     if collected == 50 and tib.amount == 250:
         _test_passed += 1
@@ -58,7 +58,7 @@ func test_collect_reduces_amount():
 
 func test_collect_clamps_to_available():
     var entity := _make_entity_with_tib(30, 300)
-    var tib := entity.get_node("TiberiumComponent") as TiberiumComponent
+    var tib := entity.get_node("ResourceComponent") as ResourceComponent
     var collected := tib.collect(100)
     if collected == 30 and tib.amount == 0:
         _test_passed += 1
@@ -71,7 +71,7 @@ func test_collect_clamps_to_available():
 
 func test_collect_returns_zero_when_depleted():
     var entity := _make_entity_with_tib(0, 300)
-    var tib := entity.get_node("TiberiumComponent") as TiberiumComponent
+    var tib := entity.get_node("ResourceComponent") as ResourceComponent
     var collected := tib.collect(50)
     if collected == 0:
         _test_passed += 1

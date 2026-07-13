@@ -1,4 +1,4 @@
-class_name TiberiumComponent extends Node
+class_name ResourceComponent extends Node
 
 @export var amount: int = 0
 @export var max_amount: int = 0
@@ -14,16 +14,16 @@ static var _green_mat: StandardMaterial3D = null
 
 
 func configure(data: EntityData) -> void:
-    amount = data.tiberium_amount
-    max_amount = data.tiberium_max_amount
+    amount = data.resource_amount
+    max_amount = data.resource_max_amount
     resource_type_id = data.resource_type_id
-    regrowth_rate = data.tiberium_regrowth_rate
+    regrowth_rate = data.resource_regrowth_rate
 
 
 func _ready() -> void:
     var root := get_parent() as Node3D
-    if root and not root.is_in_group("tiberium"):
-        root.add_to_group("tiberium")
+    if root and not root.is_in_group("resources"):
+        root.add_to_group("resources")
     _ensure_visual_nodes.call_deferred()
     _update_visual.call_deferred()
 

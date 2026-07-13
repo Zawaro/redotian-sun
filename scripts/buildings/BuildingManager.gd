@@ -95,7 +95,7 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
                 result = false
                 break
 
-            if _has_tiberium_on_cell(cell):
+            if _has_resource_on_cell(cell):
                 result = false
                 break
 
@@ -207,7 +207,7 @@ func _is_cell_free(cell: Vector2i) -> bool:
         return false
     if SpatialHash.instance.is_bib_cell(cell):
         return false
-    if _has_tiberium_on_cell(cell):
+    if _has_resource_on_cell(cell):
         return false
     var cell_type := TerrainSystem.get_cell_type(cell)
     if cell_type != "" and cell_type != "clear":
@@ -215,8 +215,8 @@ func _is_cell_free(cell: Vector2i) -> bool:
     return true
 
 
-func _has_tiberium_on_cell(cell: Vector2i) -> bool:
-    for entity in get_tree().get_nodes_in_group("tiberium"):
+func _has_resource_on_cell(cell: Vector2i) -> bool:
+    for entity in get_tree().get_nodes_in_group("resources"):
         if not is_instance_valid(entity):
             continue
         if not entity is Node3D:

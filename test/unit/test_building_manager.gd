@@ -85,9 +85,9 @@ func test_can_place_rejects_tiberium_cell():
     var tib_node := Node3D.new()
     tib_node.global_position = Vector3(tib_cell.x * 2 + 1, 0.0, tib_cell.y * 2 + 1)
     var tib_comp := Node.new()
-    tib_comp.name = "TiberiumComponent"
+    tib_comp.name = "ResourceComponent"
     tib_node.add_child(tib_comp)
-    tib_node.add_to_group("tiberium")
+    tib_node.add_to_group("resources")
     _bm.add_child(tib_node)
     var result: bool = _bm.can_place(building_type, origin)
     _bm.remove_child(tib_node)

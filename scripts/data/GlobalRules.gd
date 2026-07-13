@@ -27,10 +27,10 @@ class_name GlobalRules extends Resource
 @export var buildup_time: float = 0.06
 ## Minutes between crystal timer ticks (randomized ±60s).
 @export var growth_rate: float = 5.0
-## Whether tiberium crystals grow denser over time.
-@export var tiberium_grows: bool = true
-## Whether tiberium spreads into adjacent cells.
-@export var tiberium_spreads: bool = true
+## Whether resource crystals grow denser over time.
+@export var resource_grows: bool = true
+## Whether resources spread into adjacent cells.
+@export var resource_spreads: bool = true
 @export var starting_credits: int = 0
 @export var harvester_fill_rate: float = 2.0
 @export var separate_aircraft: bool = true
@@ -42,15 +42,15 @@ class_name GlobalRules extends Resource
 ## Tiberium growth
 ## Minutes between tree timer ticks (randomized ±60s).
 @export var tree_growth_rate: float = 3.0
-## Radius (cells) around tree where new tiberium spawns (e.g. 3 = 7x7 area).
+## Radius (cells) around tree where new resource crystals spawn (e.g. 3 = 7x7 area).
 @export var tree_spawn_radius: int = 3
 ## Trees processed per tree timer tick.
 @export var growth_batch_trees: int = 10
-## Tiberium entities processed per tiberium timer tick.
+## Resource entities processed per resource timer tick.
 @export var growth_batch_crystals: int = 500
-## Tiberium amount for a newly spawned entity from spreading.
+## Resource amount for a newly spawned entity from spreading.
 @export var spread_amount: int = 50
-## Max times a single tiberium entity can spread before it only self-grows.
+## Max times a single resource entity can spread before it only self-grows.
 @export var spread_max: int = 3
 
 ## Computer and movement controls

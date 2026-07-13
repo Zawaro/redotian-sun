@@ -48,7 +48,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var dock_rotation: float = 0.0
 ## Whether this building has a dock for unloading cargo.
 @export var dock_unload: bool = false
-## Refinery storage capacity (legacy — use TransportComponent.resource_capacity on the unit).
+## Refinery storage capacity in bales (legacy — use DockUnloadComponent on the building).
 @export var refinery_storage: int = 0
 ## Resource categories this dock accepts (e.g. ["tiberium"]). Empty = accepts all.
 @export var accepted_resource_categories: PackedStringArray = []
@@ -69,32 +69,31 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var passengers: int = 0
 ## Dock type ID this unit docks with (e.g. "PROC" for refinery).
 @export var dock: String = ""
-## Whether this unit is a harvester (auto-seeks tiberium and docks when full).
+## Whether this unit is a harvester (auto-seeks resources and docks when full).
 @export var harvester: bool = false
-## Maximum resource units this unit can carry across all cargo types.
-@export var resource_capacity: int = 0
+## Maximum resource bales this unit can carry (raw units, not credit value).
+@export var storage: int = 0
 ## Animation scale key for pip overlays on the sidebar.
 @export var pip_scale: String = ""
 
-## Tiberium tree spawner
-@export var tiberium_tree: bool = false
+## Resource entity — configuration for harvestable resource entities.
+## Category string (e.g. "tiberium", "spice"). Empty = not a resource entity.
+@export var resource_category: String = ""
+## ResourceType ID for this crystal (e.g. "tiberium_green", "tiberium_blue").
+@export var resource_type_id: String = ""
+## Starting amount of resource units in this crystal.
+@export var resource_amount: int = 0
+## Maximum resource units this crystal can hold before it stops growing.
+@export var resource_max_amount: int = 0
+## Regrowth rate override — negative means use the ResourceType's grow_rate.
+@export var resource_regrowth_rate: float = -1.0
+
+## Resource tree spawner — configuration for entities that spawn resource crystals.
 @export var spawned_entity_id: String = ""
 @export var radius_cells: int = 0
 @export var node_count: int = 0
 @export var amount_per_node: int = 0
 @export var max_amount_per_node: int = 0
-
-## Tiberium crystal resource — configuration for harvestable tiberium entities.
-## Whether this entity is a tiberium crystal (adds to "tiberium" group, gets TiberiumComponent).
-@export var tiberium_resource: bool = false
-## Starting amount of resource units in this crystal.
-@export var tiberium_amount: int = 0
-## Maximum resource units this crystal can hold before it stops growing.
-@export var tiberium_max_amount: int = 0
-## ResourceType ID for this crystal (e.g. "tiberium_green", "tiberium_blue", "tiberium_red").
-@export var resource_type_id: String = ""
-## Regrowth rate override — negative means use the ResourceType's grow_rate.
-@export var tiberium_regrowth_rate: float = -1.0
 
 ## Special abilities
 @export var cloakable: bool = false
@@ -104,7 +103,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var disguise: bool = false
 @export var agent: bool = false
 @export var thief: bool = false
-@export var tiberium_proof: bool = false
+@export var resource_proof: bool = false
 @export var immune_to_veins: bool = false
 @export var capturable: bool = false
 
@@ -146,7 +145,7 @@ func has_special_abilities() -> bool:
         or disguise
         or agent
         or thief
-        or tiberium_proof
+        or resource_proof
         or immune_to_veins
         or capturable
     )

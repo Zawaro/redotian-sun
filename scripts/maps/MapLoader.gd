@@ -2,10 +2,10 @@ extends Node
 class_name MapLoader
 
 const OVERRIDE_KEYS: PackedStringArray = [
-    "tiberium_amount",
-    "tiberium_max_amount",
+    "resource_amount",
+    "resource_max_amount",
     "resource_type_id",
-    "tiberium_regrowth_rate",
+    "resource_regrowth_rate",
     "radius_cells",
     "node_count",
     "amount_per_node",
