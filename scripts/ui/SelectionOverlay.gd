@@ -2,12 +2,8 @@ extends CanvasLayer
 
 const POOL_SIZE := 30
 const LINE_WIDTH := 1.0
-const HEALTH_BAR_HEIGHT_WORLD := 0.1
 const MAX_CARGO_SLOTS := 5
 const MAX_PASSENGER_SLOTS := 5
-const PIP_SLOT_W := 10.0
-const PIP_SLOT_H := 8.0
-const PIP_GAP := 1.0
 
 var _pool: Array[Control] = []
 var _used: int = 0
@@ -51,39 +47,27 @@ func _create_group() -> Control:
     health_fill.name = "HealthFill"
     root.add_child(health_fill)
 
-    var pip_grid := ColorRect.new()
-    pip_grid.name = "PipGrid"
-    pip_grid.color = Color(0, 0, 0, 0.6)
-    pip_grid.visible = false
-    root.add_child(pip_grid)
-
     for i in MAX_CARGO_SLOTS:
-        var slot := ColorRect.new()
-        slot.name = "CargoPip_" + str(i)
-        slot.color = Color(0.2, 0.2, 0.2)
-        slot.visible = false
-        root.add_child(slot)
-
-    for i in range(1, MAX_CARGO_SLOTS):
-        var div := ColorRect.new()
-        div.name = "CargoDivider_" + str(i)
-        div.color = Color(0, 0, 0, 0.8)
-        div.visible = false
-        root.add_child(div)
+        var panel := Panel.new()
+        panel.name = "CargoPip_" + str(i)
+        var style := StyleBoxFlat.new()
+        style.bg_color = Color(0, 0, 0, 0)
+        style.set_border_width_all(1)
+        style.border_color = Color.BLACK
+        panel.add_theme_stylebox_override("panel", style)
+        panel.visible = false
+        root.add_child(panel)
 
     for i in MAX_PASSENGER_SLOTS:
-        var slot := ColorRect.new()
-        slot.name = "PassPip_" + str(i)
-        slot.color = Color(0.2, 0.2, 0.2)
-        slot.visible = false
-        root.add_child(slot)
-
-    for i in range(1, MAX_PASSENGER_SLOTS):
-        var div := ColorRect.new()
-        div.name = "PassDivider_" + str(i)
-        div.color = Color(0, 0, 0, 0.8)
-        div.visible = false
-        root.add_child(div)
+        var panel := Panel.new()
+        panel.name = "PassPip_" + str(i)
+        var style := StyleBoxFlat.new()
+        style.bg_color = Color(0, 0, 0, 0)
+        style.set_border_width_all(1)
+        style.border_color = Color.BLACK
+        panel.add_theme_stylebox_override("panel", style)
+        panel.visible = false
+        root.add_child(panel)
 
     return root
 
@@ -105,6 +89,8 @@ func _process(_delta):
         var ent := node.get_node_or_null("SelectComponent") as SelectComponent
         if not ent or not (ent.is_selected or ent.is_hovering):
             continue
+        if ent.select_box_type == 2:
+            continue
         if _layout_entity(ent, camera):
             _used += 1
 
@@ -121,11 +107,16 @@ func _get_group() -> Control:
     return group
 
 
-func _get_selection_size(ent: SelectComponent, parent: Node3D) -> Vector3:
-    var art := parent.get_node_or_null("ArtComponent") as ArtComponent
-    if art and art.art_data and art.art_data.placeholder_size != Vector3.ZERO:
-        return art.art_data.placeholder_size
-    return ent.outline_size
+func _get_selection_size(ent: SelectComponent, parent: Node3D = null) -> float:
+    if ent.outline_2d_size != Vector2.ZERO:
+        return ent.outline_2d_size.x
+
+    if parent:
+        var art := parent.get_node_or_null("ArtComponent") as ArtComponent
+        if art and art.art_data and art.art_data.outline_2d_size != Vector2.ZERO:
+            return art.art_data.outline_2d_size.x
+
+    return 2.0
 
 
 func _layout_entity(ent: SelectComponent, camera: Camera3D) -> bool:
@@ -133,25 +124,33 @@ func _layout_entity(ent: SelectComponent, camera: Camera3D) -> bool:
     if not parent:
         return false
 
-    var is_structure := ent.select_box_type == 2
-    if is_structure and not ent.is_selected:
-        return false
-
     var size := _get_selection_size(ent, parent)
-    var half_w := size.x / 2.0
-    var half_h := size.y * 0.55
-
-    var corners := PackedVector3Array(
-        [
-            parent.global_position + Vector3(-half_w, -half_h, 0),
-            parent.global_position + Vector3(half_w, -half_h, 0),
-            parent.global_position + Vector3(half_w, half_h, 0),
-            parent.global_position + Vector3(-half_w, half_h, 0),
-        ]
-    )
 
     if camera.is_position_behind(parent.global_position):
         return false
+
+    var center_screen := camera.unproject_position(parent.global_position)
+    var ref_screen := camera.unproject_position(parent.global_position + Vector3(size, 0, 0))
+    var screen_half: float = center_screen.distance_to(ref_screen) / 2.0
+
+    var corners_screen := PackedVector2Array(
+        [
+            center_screen + Vector2(-screen_half, -screen_half),
+            center_screen + Vector2(screen_half, -screen_half),
+            center_screen + Vector2(screen_half, screen_half),
+            center_screen + Vector2(-screen_half, screen_half),
+        ]
+    )
+
+    var corners := PackedVector3Array()
+    for cs in corners_screen:
+        var ray_origin := camera.project_ray_origin(cs)
+        var ray_dir := camera.project_ray_normal(cs)
+        if absf(ray_dir.y) < 0.001:
+            corners.append(parent.global_position)
+            continue
+        var t: float = -ray_origin.y / ray_dir.y
+        corners.append(ray_origin + ray_dir * t)
 
     var screen_corners: Array[Vector2] = []
     for c in corners:
@@ -164,27 +163,26 @@ func _layout_entity(ent: SelectComponent, camera: Camera3D) -> bool:
         max_s = max_s.max(p)
 
     var rect_size := max_s - min_s
-    rect_size.x = max(rect_size.x, 24.0)
-    rect_size.y = max(rect_size.y, 12.0)
+    print(" rect_size: ", rect_size, " screen_half: ", screen_half)
+    var min_size := 12.0
+    rect_size.x = max(rect_size.x, min_size)
+    rect_size.y = max(rect_size.y, min_size)
 
     var rect := Rect2(min_s, rect_size)
-    var is_hover := ent.is_hovering
 
     var group := _get_group()
     group.visible = true
 
-    if is_structure:
-        _layout_bracket(group, rect, false)
-        return true
-
-    _layout_bracket(group, rect, is_hover)
+    var bracket_rect := rect
+    bracket_rect.position.y -= rect.size.y * 0.1
+    _layout_bracket(group, bracket_rect, ent.is_selected)
     _layout_health_bar(group, ent, rect, camera, parent, size)
     _layout_pips(group, parent, rect)
     return true
 
 
-func _layout_bracket(group: Control, rect: Rect2, is_hover: bool):
-    var show_bracket := not is_hover
+func _layout_bracket(group: Control, rect: Rect2, is_selected: bool):
+    var show_bracket := is_selected
     var corner_inset: float = min(rect.size.x, rect.size.y) * 0.35
     var lw := LINE_WIDTH
 
@@ -241,32 +239,16 @@ func _layout_health_bar(
     group: Control,
     ent: SelectComponent,
     rect: Rect2,
-    camera: Camera3D,
-    parent: Node3D,
-    size: Vector3
+    _camera: Camera3D,
+    _parent: Node3D,
+    _size: float,
 ):
     var health_outline := group.get_node("HealthOutline") as ColorRect
     var health_fill := group.get_node("HealthFill") as ColorRect
 
-    var half_w := size.x / 2.0
-    var half_h := size.y * 0.55
-    var corner_inset: float = min(half_w, half_h) * 0.35
-
-    var bar_pos := (
-        parent.global_position
-        + Vector3(0, half_w + corner_inset + HEALTH_BAR_HEIGHT_WORLD + 0.12, 0)
-    )
-
-    if camera.is_position_behind(bar_pos):
-        health_outline.visible = false
-        health_fill.visible = false
-        return
-
-    var screen_pos := camera.unproject_position(bar_pos)
-    var bar_height_world := HEALTH_BAR_HEIGHT_WORLD * 2.0
-    var bottom_world := bar_pos + Vector3(0, -bar_height_world, 0)
-    var bottom_screen := camera.unproject_position(bottom_world)
-    var bar_height: float = max(screen_pos.y - bottom_screen.y, 4.0)
+    var bar_height: float = rect.size.y * 0.08
+    var bar_width := rect.size.x
+    var bar_y: float = rect.position.y - bar_height - 10.0
 
     var health_ratio := 1.0
     if is_instance_valid(ent.health_component):
@@ -274,14 +256,12 @@ func _layout_health_bar(
             float(ent.health_component.current_health) / float(ent.health_component.max_health)
         )
 
-    var bar_width := rect.size.x
-
     health_outline.visible = true
-    health_outline.position = Vector2(rect.position.x - 1, screen_pos.y - bar_height - 1)
+    health_outline.position = Vector2(rect.position.x - 1, bar_y - 1)
     health_outline.size = Vector2(bar_width + 2, bar_height + 2)
 
     health_fill.visible = true
-    health_fill.position = Vector2(rect.position.x, screen_pos.y - bar_height)
+    health_fill.position = Vector2(rect.position.x, bar_y)
     health_fill.size = Vector2(bar_width * health_ratio, bar_height)
     health_fill.color = ent.get_health_color(health_ratio)
 
@@ -291,46 +271,35 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
     var has_cargo := transport and transport.resource_capacity > 0
     var has_passengers := transport and transport.passengers > 0
 
-    var pip_grid := group.get_node("PipGrid") as ColorRect
-    var cargo_pips: Array[ColorRect] = []
+    var cargo_pips: Array[Panel] = []
     for i in MAX_CARGO_SLOTS:
-        cargo_pips.append(group.get_node("CargoPip_" + str(i)) as ColorRect)
-    var cargo_dividers: Array[ColorRect] = []
-    for i in range(1, MAX_CARGO_SLOTS):
-        cargo_dividers.append(group.get_node("CargoDivider_" + str(i)) as ColorRect)
-    var pass_pips: Array[ColorRect] = []
+        cargo_pips.append(group.get_node("CargoPip_" + str(i)) as Panel)
+    var pass_pips: Array[Panel] = []
     for i in MAX_PASSENGER_SLOTS:
-        pass_pips.append(group.get_node("PassPip_" + str(i)) as ColorRect)
-    var pass_dividers: Array[ColorRect] = []
-    for i in range(1, MAX_PASSENGER_SLOTS):
-        pass_dividers.append(group.get_node("PassDivider_" + str(i)) as ColorRect)
+        pass_pips.append(group.get_node("PassPip_" + str(i)) as Panel)
 
     if not has_cargo and not has_passengers:
-        pip_grid.visible = false
         for p in cargo_pips:
-            p.visible = false
-        for p in cargo_dividers:
             p.visible = false
         for p in pass_pips:
             p.visible = false
-        for p in pass_dividers:
-            p.visible = false
         return
+
+    var pip_w := rect.size.x / ((MAX_CARGO_SLOTS + 1) * 2)
+    var pip_h := pip_w * 0.8
+    var pip_gap: float = 0.0
 
     var num_rows := 1
     if has_cargo and has_passengers:
         num_rows = 2
 
-    var grid_w := float(MAX_CARGO_SLOTS) * (PIP_SLOT_W + PIP_GAP) - PIP_GAP + 4.0
-    var grid_h := float(num_rows) * (PIP_SLOT_H + PIP_GAP) - PIP_GAP + 4.0
-    var grid_left := rect.position.x + 4.0
-    var grid_top := rect.end.y - grid_h + 2.0
+    var grid_w := float(MAX_CARGO_SLOTS) * (pip_w + pip_gap) - pip_gap + pip_w * 0.4
+    var grid_h := float(num_rows) * (pip_h + pip_gap) - pip_gap + pip_w * 0.4
+    var grid_left := rect.position.x + pip_w * 0.2
+    var pip_offset: float = pip_h * 0.5
+    var bracket_end_y := rect.end.y - rect.size.y * 0.07
+    var grid_top := bracket_end_y - grid_h - pip_w * 0.1
 
-    pip_grid.visible = true
-    pip_grid.position = Vector2(rect.position.x + 2.0, rect.end.y - grid_h - 2.0)
-    pip_grid.size = Vector2(grid_w, grid_h)
-
-    # Determine cargo color from first resource type
     var cargo_color := Color.WHITE
     if has_cargo and transport.cargo.size() > 0:
         var rules := EntityFactory.get_global_rules()
@@ -341,39 +310,41 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
                 cargo_color = rt.color
 
     var cargo_filled := transport.get_cargo_total() if has_cargo else 0
+    var filled_pips := 0
+    if has_cargo and transport.resource_capacity > 0:
+        var ratio := float(cargo_filled) / float(transport.resource_capacity)
+        filled_pips = int(ceil(ratio * float(MAX_CARGO_SLOTS)))
 
     for i in MAX_CARGO_SLOTS:
         var pip := cargo_pips[i]
-        pip.visible = true
-        pip.position = Vector2(grid_left + float(i) * (PIP_SLOT_W + PIP_GAP), grid_top)
-        pip.size = Vector2(PIP_SLOT_W, PIP_SLOT_H)
-        if i < cargo_filled:
-            pip.color = cargo_color
-        else:
-            pip.color = Color(0.2, 0.2, 0.2)
+        var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
+        var filled := i < filled_pips
 
-    for i in range(1, MAX_CARGO_SLOTS):
-        var div := cargo_dividers[i - 1]
-        div.visible = true
-        div.position = Vector2(grid_left + float(i) * (PIP_SLOT_W + PIP_GAP) - PIP_GAP, grid_top)
-        div.size = Vector2(1, PIP_SLOT_H)
+        var style: StyleBoxFlat = pip.get_theme_stylebox("panel") as StyleBoxFlat
+        if filled:
+            style.bg_color = cargo_color
+        else:
+            style.bg_color = Color(0, 0, 0, 0)
+
+        pip.visible = true
+        pip.position = Vector2(pip_x, grid_top)
+        pip.size = Vector2(pip_w, pip_h)
 
     var pass_row_y := grid_top
     if num_rows > 1:
-        pass_row_y += PIP_SLOT_H + PIP_GAP
+        pass_row_y += pip_h + pip_gap
 
     for i in MAX_PASSENGER_SLOTS:
         var pip := pass_pips[i]
-        pip.visible = has_passengers and i < transport.passengers
-        pip.position = Vector2(grid_left + float(i) * (PIP_SLOT_W + PIP_GAP), pass_row_y)
-        pip.size = Vector2(PIP_SLOT_W, PIP_SLOT_H)
-        if has_passengers and i < transport.current_passengers:
-            pip.color = Color.WHITE
-        else:
-            pip.color = Color(0.2, 0.2, 0.2)
+        var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
+        var filled := has_passengers and i < transport.current_passengers
 
-    for i in range(1, MAX_PASSENGER_SLOTS):
-        var div := pass_dividers[i - 1]
-        div.visible = has_passengers
-        div.position = Vector2(grid_left + float(i) * (PIP_SLOT_W + PIP_GAP) - PIP_GAP, pass_row_y)
-        div.size = Vector2(1, PIP_SLOT_H)
+        var style: StyleBoxFlat = pip.get_theme_stylebox("panel") as StyleBoxFlat
+        if filled:
+            style.bg_color = Color.WHITE
+        else:
+            style.bg_color = Color(0, 0, 0, 0)
+
+        pip.visible = has_passengers and i < transport.passengers
+        pip.position = Vector2(pip_x, pass_row_y)
+        pip.size = Vector2(pip_w, pip_h)
