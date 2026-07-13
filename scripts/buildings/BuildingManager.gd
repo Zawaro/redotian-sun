@@ -216,13 +216,13 @@ func _is_cell_free(cell: Vector2i) -> bool:
 
 
 func _has_tiberium_on_cell(cell: Vector2i) -> bool:
-    var sh := SpatialHash.instance
-    if not sh:
-        return false
-    var entries := sh.get_entries(cell)
-    for entry in entries:
-        var entity := entry.get("node") as Node3D
-        if entity and entity.get_node_or_null("TiberiumComponent"):
+    for entity in get_tree().get_nodes_in_group("tiberium"):
+        if not is_instance_valid(entity):
+            continue
+        if not entity is Node3D:
+            continue
+        var ecell := Pathfinder.world_to_cell((entity as Node3D).global_position)
+        if ecell == cell:
             return true
     return false
 
@@ -387,14 +387,33 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
 
 
 func _create_building_preview() -> void:
+    var t0 := Time.get_ticks_msec()
     if _building_preview:
         _building_preview.queue_free()
         _building_preview = null
+    var t1 := Time.get_ticks_msec()
     _building_preview = EntityFactory.create_entity(current_building_type.id)
+    var t2 := Time.get_ticks_msec()
     if _building_preview:
         _building_preview.set_meta("_preview", true)
         _set_node_transparency(_building_preview, 0.33)
+        var t3 := Time.get_ticks_msec()
         _preview.add_child(_building_preview)
+        var t4 := Time.get_ticks_msec()
+        var elapsed := t4 - t0
+        print(
+            (
+                "[bench preview] free=%d create=%d trans=%d child=%d total=%d %s"
+                % [
+                    t1 - t0,
+                    t2 - t1,
+                    t3 - t2,
+                    t4 - t3,
+                    elapsed,
+                    current_building_type.id,
+                ]
+            )
+        )
 
 
 func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:
@@ -520,35 +539,18 @@ func _quad(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector3) 
 
 
 func _set_node_transparency(node: Node, alpha: float) -> void:
+    var mat := StandardMaterial3D.new()
+    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    mat.albedo_color = Color(0.5, 0.5, 0.5, alpha)
+    _apply_transparency(node, mat)
+
+
+func _apply_transparency(node: Node, mat: StandardMaterial3D) -> void:
     if node is MeshInstance3D:
-        var mesh_inst := node as MeshInstance3D
-        var existing_mat := mesh_inst.get_surface_override_material(0)
-        if not existing_mat:
-            existing_mat = mesh_inst.material_override
-        if not existing_mat and mesh_inst.mesh:
-            existing_mat = mesh_inst.mesh.surface_get_material(0)
-        if existing_mat:
-            var mat := existing_mat.duplicate()
-            if mat is BaseMaterial3D:
-                mat.albedo_color.a = alpha
-                mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-                mesh_inst.set_surface_override_material(0, mat)
-            else:
-                var fallback := StandardMaterial3D.new()
-                fallback.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-                fallback.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-                fallback.albedo_color = Color(1, 1, 1, alpha)
-                if existing_mat.get("albedo_texture"):
-                    fallback.albedo_texture = existing_mat.albedo_texture
-                mesh_inst.set_surface_override_material(0, fallback)
-        else:
-            var mat := StandardMaterial3D.new()
-            mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-            mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-            mat.albedo_color = Color(1, 1, 1, alpha)
-            mesh_inst.material_override = mat
+        (node as MeshInstance3D).material_override = mat
     for child in node.get_children():
-        _set_node_transparency(child, alpha)
+        _apply_transparency(child, mat)
 
 
 func _try_place_building() -> void:

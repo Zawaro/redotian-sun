@@ -98,9 +98,13 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
         data = data.duplicate() as EntityData
         for key in overrides:
             data.set(key, overrides[key])
+    var t0 := Time.get_ticks_msec()
     var entity := ENTITY_SCENE.instantiate() as Node3D
+    var t1 := Time.get_ticks_msec()
     _add_components(entity, data)
+    var t2 := Time.get_ticks_msec()
     _configure_components(entity, data)
+    var t3 := Time.get_ticks_msec()
 
     # Cell occupancy — all except OVERLAY, and TERRAIN without foundation.
     var etype := data.entity_type
@@ -126,6 +130,14 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
         _add_interact_hitbox(entity)
     if data.tiberium_tree:
         entity.add_to_group("tiberium_trees")
+    var t4 := Time.get_ticks_msec()
+    var elapsed := t4 - t0
+    print(
+        (
+            "[bench entity] inst=%d comp=%d cfg=%d grp=%d total=%d %s"
+            % [t1 - t0, t2 - t1, t3 - t2, t4 - t3, elapsed, entity_id]
+        )
+    )
     return entity
 
 
