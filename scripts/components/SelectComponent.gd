@@ -9,11 +9,14 @@ class_name SelectComponent extends Area3D
 @export_enum("Infantry", "Vehicle", "Structure") var select_box_type: int = 0
 @export var selection_size := Vector3(2.0, 0.01, 2.0)
 @export var outline_size := Vector3(2.0, 2.0, 2.0)
+@export var outline_2d_size := Vector2.ZERO
 
 enum SelectBoxType { Infantry, Vehicle, Structure }
 
 const HEALTH_BAR_CUBE_SIZE = 0.33333333
 var health_bar: MeshInstance3D
+var _building_select_box: MeshInstance3D
+var _health_bar_grid: MeshInstance3D
 
 
 func _update_selection_shape():
@@ -120,6 +123,7 @@ func _ready():
                 immediate_mesh.surface_end()
 
             add_child(building_select_box)
+            _building_select_box = building_select_box
 
             if health_component:
                 # draw health bar
@@ -237,6 +241,7 @@ func _ready():
                     health_bar_grid_mesh.surface_end()
 
                 add_child(health_bar_grid)
+                _health_bar_grid = health_bar_grid
 
     _update_visibility()
 
@@ -289,7 +294,13 @@ func set_is_selected(value: bool):
 
 
 func _update_visibility():
-    var visible_state := is_selected or is_hovering
-
+    var show := is_selected or is_hovering
+    if _building_select_box:
+        _building_select_box.visible = is_selected
+    if health_bar:
+        health_bar.visible = show
+    if _health_bar_grid:
+        _health_bar_grid.visible = show
     for child in get_children():
-        child.visible = visible_state
+        if child != _building_select_box and child != health_bar and child != _health_bar_grid:
+            child.visible = show
