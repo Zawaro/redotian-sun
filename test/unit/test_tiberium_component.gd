@@ -27,13 +27,13 @@ func test_configure_sets_fields():
     var data := EntityData.new()
     data.tiberium_amount = 150
     data.tiberium_max_amount = 500
-    data.tiberium_type = 1
+    data.resource_type_id = "tiberium_blue"
     data.tiberium_regrowth_rate = 2.5
     tib.configure(data)
     if (
         tib.amount == 150
         and tib.max_amount == 500
-        and tib.tiberium_type == 1
+        and tib.resource_type_id == "tiberium_blue"
         and tib.regrowth_rate == 2.5
     ):
         _test_passed += 1

@@ -17,4 +17,5 @@ radius_cells = 8
 node_count = 12
 amount_per_node = 300
 max_amount_per_node = 300
+resource_type_id = "tiberium_green"
 art_data = ExtResource("2_art")

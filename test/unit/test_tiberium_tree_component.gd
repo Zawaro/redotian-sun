@@ -15,7 +15,7 @@ func test_configure_sets_fields():
     var data := EntityData.new()
     data.spawned_entity_id = "TIB"
     data.radius_cells = 10
-    data.tiberium_type = 1
+    data.resource_type_id = "tiberium_blue"
     data.node_count = 8
     data.amount_per_node = 200
     data.max_amount_per_node = 400
@@ -24,7 +24,7 @@ func test_configure_sets_fields():
     if (
         tree.spawned_entity_id == "TIB"
         and tree.radius_cells == 10
-        and tree.tiberium_type == 1
+        and tree.resource_type_id == "tiberium_blue"
         and tree.node_count == 8
         and tree.amount_per_node == 200
         and tree.max_amount_per_node == 400

@@ -41,11 +41,17 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var bib_cells: Array[Vector2i] = []
 @export var hitbox_size: Vector3 = Vector3.ZERO
 
-## Dock
+## Dock — building-side configuration for the dock system.
+## Local offset from the building's top-left cell to the dock cell.
 @export var dock_position: Vector3 = Vector3.ZERO
+## Rotation in degrees the docker entity snaps to when docking (e.g. -90 for west-facing).
 @export var dock_rotation: float = 0.0
+## Whether this building has a dock for unloading cargo.
 @export var dock_unload: bool = false
+## Refinery storage capacity (legacy — use TransportComponent.resource_capacity on the unit).
 @export var refinery_storage: int = 0
+## Resource categories this dock accepts (e.g. ["tiberium"]). Empty = accepts all.
+@export var accepted_resource_categories: PackedStringArray = []
 
 ## Power
 @export var power: int = 0
@@ -58,11 +64,16 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var factory: String = ""
 @export var free_unit: String = ""
 
-## Transport
+## Transport — unit-side cargo and docking configuration.
+## Number of infantry passengers this unit can carry.
 @export var passengers: int = 0
+## Dock type ID this unit docks with (e.g. "PROC" for refinery).
 @export var dock: String = ""
+## Whether this unit is a harvester (auto-seeks tiberium and docks when full).
 @export var harvester: bool = false
-@export var storage: int = 0
+## Maximum resource units this unit can carry across all cargo types.
+@export var resource_capacity: int = 0
+## Animation scale key for pip overlays on the sidebar.
 @export var pip_scale: String = ""
 
 ## Tiberium tree spawner
@@ -73,11 +84,16 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var amount_per_node: int = 0
 @export var max_amount_per_node: int = 0
 
-## Tiberium crystal resource
+## Tiberium crystal resource — configuration for harvestable tiberium entities.
+## Whether this entity is a tiberium crystal (adds to "tiberium" group, gets TiberiumComponent).
 @export var tiberium_resource: bool = false
+## Starting amount of resource units in this crystal.
 @export var tiberium_amount: int = 0
+## Maximum resource units this crystal can hold before it stops growing.
 @export var tiberium_max_amount: int = 0
-@export var tiberium_type: int = 0
+## ResourceType ID for this crystal (e.g. "tiberium_green", "tiberium_blue", "tiberium_red").
+@export var resource_type_id: String = ""
+## Regrowth rate override — negative means use the ResourceType's grow_rate.
 @export var tiberium_regrowth_rate: float = -1.0
 
 ## Special abilities

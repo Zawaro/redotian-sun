@@ -2,7 +2,7 @@ class_name TiberiumTreeComponent extends Node
 
 @export var spawned_entity_id: String = ""
 @export var radius_cells: int = 8
-@export var tiberium_type: int = 0
+@export var resource_type_id: String = "tiberium_green"
 @export var node_count: int = 12
 @export var amount_per_node: int = 300
 @export var max_amount_per_node: int = 300
@@ -18,7 +18,7 @@ func _ready() -> void:
 func configure(data: EntityData) -> void:
     spawned_entity_id = data.spawned_entity_id
     radius_cells = data.radius_cells
-    tiberium_type = data.tiberium_type
+    resource_type_id = data.resource_type_id
     node_count = data.node_count
     amount_per_node = data.amount_per_node
     max_amount_per_node = data.max_amount_per_node

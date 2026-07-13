@@ -52,9 +52,9 @@ func _spawn_free_unit() -> void:
 
     var harvest := free_entity.get_node_or_null("HarvestComponent") as HarvestComponent
     if harvest:
-        var tiberium := harvest._find_nearest_tiberium(free_entity)
-        if tiberium:
-            harvest.set_target_node(tiberium)
+        var resource := harvest._find_nearest_resource(free_entity)
+        if resource:
+            harvest.set_target_node(resource)
 
     queue_free()
 

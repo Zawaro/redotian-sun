@@ -4,7 +4,7 @@ class_name MapLoader
 const OVERRIDE_KEYS: PackedStringArray = [
     "tiberium_amount",
     "tiberium_max_amount",
-    "tiberium_type",
+    "resource_type_id",
     "tiberium_regrowth_rate",
     "radius_cells",
     "node_count",

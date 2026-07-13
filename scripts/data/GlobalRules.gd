@@ -32,7 +32,6 @@ class_name GlobalRules extends Resource
 ## Whether tiberium spreads into adjacent cells.
 @export var tiberium_spreads: bool = true
 @export var starting_credits: int = 0
-@export var tiberium_value: float = 1.0
 @export var harvester_fill_rate: float = 2.0
 @export var separate_aircraft: bool = true
 @export var survivor_rate: float = 0.4
@@ -90,6 +89,10 @@ class_name GlobalRules extends Resource
     "concrete": {"modifier": 0.3},
 }
 
+## Resource type definitions — maps resource ID to ResourceType.
+## Each holds value_per_unit, grow_rate, spread_amount, spread_max, color.
+@export var resource_types: Dictionary = {}
+
 ## Misc
 @export var fog_of_war: bool = false
 @export var visceroids: bool = false
@@ -103,3 +106,23 @@ func get_armor_modifier(armor_type: String) -> float:
     if armor_types.has(armor_type):
         return armor_types[armor_type].get("modifier", 1.0)
     return 1.0
+
+
+func get_resource_type(id: String) -> ResourceType:
+    return resource_types.get(id) as ResourceType
+
+
+func get_resource_category(resource_id: String) -> String:
+    var rt := get_resource_type(resource_id)
+    if rt and not rt.category.is_empty():
+        return rt.category
+    return resource_id
+
+
+func get_subtypes(category_id: String) -> Array[String]:
+    var result: Array[String] = []
+    for id in resource_types:
+        var rt: ResourceType = resource_types[id]
+        if rt.category == category_id or rt.parent_type == category_id:
+            result.append(id)
+    return result

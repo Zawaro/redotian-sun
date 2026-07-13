@@ -30,7 +30,13 @@ const TIBERIUM_TREE_COMPONENT_SCRIPT: GDScript = preload(
 )
 const TIBERIUM_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/TiberiumComponent.gd")
 const HARVEST_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/HarvestComponent.gd")
-const DOCK_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DockComponent.gd")
+const DOCK_HOST_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/DockHostComponent.gd"
+)
+const DOCK_CLIENT_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/DockClientComponent.gd"
+)
+const REFINERY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/RefineryComponent.gd")
 const FREE_UNIT_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/FreeUnitComponent.gd"
 )
@@ -141,7 +147,9 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_tiberium_tree_component(entity, data)
     _add_tiberium_component(entity, data)
     _add_harvest_component(entity, data)
-    _add_dock_component(entity, data)
+    _add_dock_host_component(entity, data)
+    _add_dock_client_component(entity, data)
+    _add_refinery_component(entity, data)
     _add_dock_unload_component(entity, data)
     _add_free_unit_component(entity, data)
     if not data.tiberium_resource:
@@ -340,11 +348,29 @@ func _add_harvest_component(entity: Node3D, data: EntityData) -> void:
         component.owner = entity
 
 
-func _add_dock_component(entity: Node3D, data: EntityData) -> void:
+func _add_dock_host_component(entity: Node3D, data: EntityData) -> void:
     if data.dock_position != Vector3.ZERO:
         var component := Node.new()
-        component.name = "DockComponent"
-        component.set_script(DOCK_COMPONENT_SCRIPT)
+        component.name = "DockHostComponent"
+        component.set_script(DOCK_HOST_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_dock_client_component(entity: Node3D, data: EntityData) -> void:
+    if not data.dock.is_empty():
+        var component := Node.new()
+        component.name = "DockClientComponent"
+        component.set_script(DOCK_CLIENT_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_refinery_component(entity: Node3D, data: EntityData) -> void:
+    if data.accepted_resource_categories.size() > 0:
+        var component := Node.new()
+        component.name = "RefineryComponent"
+        component.set_script(REFINERY_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 

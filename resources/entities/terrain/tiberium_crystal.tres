@@ -13,4 +13,4 @@ owner = PackedStringArray("Neutral")
 tiberium_resource = true
 tiberium_amount = 300
 tiberium_max_amount = 300
-tiberium_type = 0
+resource_type_id = "tiberium_green"
