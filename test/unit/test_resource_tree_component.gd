@@ -17,8 +17,8 @@ func test_configure_sets_fields():
     data.radius_cells = 10
     data.resource_type_id = "tiberium_blue"
     data.node_count = 8
-    data.amount_per_node = 200
-    data.max_amount_per_node = 400
+    data.spawn_strength = 0.7
+    data.max_spawn_strength = 1.0
     data.resource_regrowth_rate = 1.5
     tree.configure(data)
     if (
@@ -26,8 +26,8 @@ func test_configure_sets_fields():
         and tree.radius_cells == 10
         and tree.resource_type_id == "tiberium_blue"
         and tree.node_count == 8
-        and tree.amount_per_node == 200
-        and tree.max_amount_per_node == 400
+        and tree.spawn_strength == 0.7
+        and tree.max_spawn_strength == 1.0
         and tree.regrowth_rate == 1.5
     ):
         _test_passed += 1
@@ -43,8 +43,8 @@ func test_configure_default_values():
         tree.spawned_entity_id == ""
         and tree.radius_cells == 8
         and tree.node_count == 12
-        and tree.amount_per_node == 300
-        and tree.max_amount_per_node == 300
+        and tree.spawn_strength == 0.5
+        and tree.max_spawn_strength == 1.0
     ):
         _test_passed += 1
         print("    PASS: default values correct")

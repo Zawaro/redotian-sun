@@ -148,15 +148,18 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
         if not is_instance_valid(tib_node):
             continue
         var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
-        if not tib_comp or tib_comp.amount >= tib_comp.max_amount:
+        if not tib_comp:
+            continue
+        var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
+        if not hp or hp.current_health >= hp.max_health:
             continue
         var tib_cell := Pathfinder.world_to_cell(tib_node.global_position)
         var dx: float = float(tib_cell.x - tree_cell.x)
         var dz: float = float(tib_cell.y - tree_cell.y)
         if dx * dx + dz * dz > radius_sq:
             continue
-        var grow_amount: int = ceili(float(tib_comp.max_amount) * grow_rate)
-        tib_comp.amount = mini(tib_comp.amount + grow_amount, tib_comp.max_amount)
+        var grow_amount: int = ceili(float(hp.max_health) * grow_rate)
+        hp.heal(grow_amount)
         tib_comp._update_visual()
 
 
@@ -164,7 +167,7 @@ func _spawn_in_radius(
     tree_comp: ResourceTreeComponent, center: Vector2i, radius: int, rules: GlobalRules
 ) -> void:
     var rt := rules.get_resource_type(tree_comp.resource_type_id) if rules else null
-    var spawn_amount: int = rt.spread_amount if rt else rules.spread_amount
+    var spawn_bales: float = rt.spread_amount if rt else rules.spread_amount
 
     for dx in range(-radius, radius + 1):
         for dz in range(-radius, radius + 1):
@@ -179,7 +182,7 @@ func _spawn_in_radius(
             if existing:
                 _grow_entry(existing)
             else:
-                _spawn_at_cell(cell, tree_comp, spawn_amount)
+                _spawn_at_cell(cell, tree_comp, spawn_bales)
 
 
 func _process_resource(tib_node: Node3D, rules: GlobalRules) -> void:
@@ -191,9 +194,10 @@ func _process_resource(tib_node: Node3D, rules: GlobalRules) -> void:
     var grow_rate: float = rt.grow_rate if rt else 0.05
     var spread_max: int = rt.spread_max if rt else rules.spread_max
 
-    if tib_comp.amount < tib_comp.max_amount:
-        var grow_amount: int = ceili(float(tib_comp.max_amount) * grow_rate)
-        tib_comp.amount = mini(tib_comp.amount + grow_amount, tib_comp.max_amount)
+    var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
+    if hp and hp.current_health < hp.max_health:
+        var grow_amount: int = ceili(float(hp.max_health) * grow_rate)
+        hp.heal(grow_amount)
         tib_comp._update_visual()
 
     if tib_comp.spread_count < spread_max:
@@ -221,9 +225,9 @@ func _try_spread_from(tib_node: Node3D, tib_comp: ResourceComponent, rules: Glob
         return
 
     var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
-    var spread_amount: int = rt.spread_amount if rt else rules.spread_amount
+    var spread_bales: float = rt.spread_amount if rt else rules.spread_amount
 
-    _spawn_at_cell(target_cell, tree_comp, spread_amount)
+    _spawn_at_cell(target_cell, tree_comp, spread_bales)
     tib_comp.spread_count += 1
 
 
@@ -240,14 +244,15 @@ func _find_nearest_tree_comp(world_pos: Vector3) -> ResourceTreeComponent:
     return nearest
 
 
-func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, amount: int) -> void:
+func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, bales: float) -> void:
+    var max_health := tree_comp.max_spawn_strength
+    var health := int(bales * float(max_health))
     var entity := (
         EntityFactory
         . create_entity(
             tree_comp.spawned_entity_id,
             {
-                "resource_amount": amount,
-                "resource_max_amount": tree_comp.max_amount_per_node,
+                "strength": health,
                 "resource_type_id": tree_comp.resource_type_id,
                 "resource_regrowth_rate": tree_comp.regrowth_rate,
             }
@@ -270,12 +275,13 @@ func _grow_entry(entry: Dictionary) -> void:
     var tib_node: Node3D = entry.get("node")
     if tib_node:
         var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
-        if tib_comp and tib_comp.amount < tib_comp.max_amount:
+        var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
+        if tib_comp and hp and hp.current_health < hp.max_health:
             var rules := _get_rules()
             var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
             var grow_rate: float = rt.grow_rate if rt else 0.1
-            var grow_amount: int = ceili(float(tib_comp.max_amount) * grow_rate)
-            tib_comp.amount = mini(tib_comp.amount + grow_amount, tib_comp.max_amount)
+            var grow_amount: int = ceili(float(hp.max_health) * grow_rate)
+            hp.heal(grow_amount)
             tib_comp._update_visual()
 
 

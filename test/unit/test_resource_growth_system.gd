@@ -14,7 +14,7 @@ func test_global_rules_growth_fields():
         and rules.tree_spawn_radius == 3
         and rules.growth_batch_trees == 10
         and rules.growth_batch_crystals == 500
-        and rules.spread_amount == 50
+        and rules.spread_amount == 0.5
         and rules.spread_max == 3
     ):
         _test_passed += 1

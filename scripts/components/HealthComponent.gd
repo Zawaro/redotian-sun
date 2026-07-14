@@ -14,6 +14,12 @@ signal health_zero
             health_changed.emit(current_health, old_health)
 
 
+func configure(data: EntityData) -> void:
+    if data.strength > 0:
+        max_health = data.strength
+        current_health = data.strength
+
+
 func take_damage(damage: int) -> void:
     if damage <= 0:
         return
@@ -34,6 +40,10 @@ func heal(amount: int) -> void:
 
 func is_full_health() -> bool:
     return current_health >= max_health
+
+
+func get_health_ratio() -> float:
+    return float(current_health) / float(max_health) if max_health > 0 else 0.0
 
 
 func reset_health() -> void:

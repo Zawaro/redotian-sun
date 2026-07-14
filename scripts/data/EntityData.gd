@@ -81,10 +81,6 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var resource_category: String = ""
 ## ResourceType ID for this crystal (e.g. "tiberium_green", "tiberium_blue").
 @export var resource_type_id: String = ""
-## Starting amount of resource units in this crystal.
-@export var resource_amount: int = 0
-## Maximum resource units this crystal can hold before it stops growing.
-@export var resource_max_amount: int = 0
 ## Regrowth rate override — negative means use the ResourceType's grow_rate.
 @export var resource_regrowth_rate: float = -1.0
 
@@ -92,8 +88,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var spawned_entity_id: String = ""
 @export var radius_cells: int = 0
 @export var node_count: int = 0
-@export var amount_per_node: int = 0
-@export var max_amount_per_node: int = 0
+@export var spawn_strength: float = 0.5
+@export var max_spawn_strength: float = 1.0
 
 ## Special abilities
 @export var cloakable: bool = false

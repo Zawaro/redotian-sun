@@ -6,3 +6,4 @@
 script = ExtResource("1_script")
 id = "HARV"
 placeholder_size = Vector3(1.2, 1.0, 2.5)
+pip_count = 10

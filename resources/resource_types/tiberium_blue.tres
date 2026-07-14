@@ -5,11 +5,11 @@
 [resource]
 script = ExtResource("1_script")
 id = "tiberium_blue"
-display_name = "Blue Tiberium"
+display_name = "Tiberium Vinifera"
 category = "tiberium"
 parent_type = "tiberium"
-value_per_unit = 2.0
+value = 40
 color = Color(0.2, 0.4, 1.0, 1)
 grow_rate = 0.03
-spread_amount = 40
+spread_amount = 0.4
 spread_max = 5

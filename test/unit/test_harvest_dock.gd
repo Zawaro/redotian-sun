@@ -11,15 +11,15 @@ var _slot_emitted_flag := false
 # --- helpers ---
 
 
-func _make_entity(dock_id: String = "PROC", resource_capacity: int = 700) -> Node3D:
+func _make_entity(dock_id: String = "PROC", storage: int = 700) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestHarvester"
 
     var transport := TransportComponent.new()
     transport.name = "TransportComponent"
     transport.dock = dock_id
-    transport.resource_capacity = resource_capacity
-    transport.cargo = {"tiberium_green": resource_capacity}
+    transport.storage = storage
+    transport.cargo = {"tiberium_green": storage}
     entity.add_child(transport)
 
     var mc := MovementController.new()

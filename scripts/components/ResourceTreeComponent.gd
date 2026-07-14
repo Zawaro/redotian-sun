@@ -4,8 +4,8 @@ class_name ResourceTreeComponent extends Node
 @export var radius_cells: int = 8
 @export var resource_type_id: String = "tiberium_green"
 @export var node_count: int = 12
-@export var amount_per_node: int = 300
-@export var max_amount_per_node: int = 300
+@export var spawn_strength: float = 0.5
+@export var max_spawn_strength: float = 1.0
 @export var regrowth_rate: float = -1.0
 
 
@@ -20,8 +20,8 @@ func configure(data: EntityData) -> void:
     radius_cells = data.radius_cells
     resource_type_id = data.resource_type_id
     node_count = data.node_count
-    amount_per_node = data.amount_per_node
-    max_amount_per_node = data.max_amount_per_node
+    spawn_strength = data.spawn_strength
+    max_spawn_strength = data.max_spawn_strength
     regrowth_rate = data.resource_regrowth_rate
 
 

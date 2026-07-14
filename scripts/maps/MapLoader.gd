@@ -2,14 +2,13 @@ extends Node
 class_name MapLoader
 
 const OVERRIDE_KEYS: PackedStringArray = [
-    "resource_amount",
-    "resource_max_amount",
+    "strength",
     "resource_type_id",
     "resource_regrowth_rate",
     "radius_cells",
     "node_count",
-    "amount_per_node",
-    "max_amount_per_node",
+    "spawn_strength",
+    "max_spawn_strength",
 ]
 
 

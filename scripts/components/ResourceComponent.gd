@@ -1,7 +1,5 @@
 class_name ResourceComponent extends Node
 
-@export var amount: int = 0
-@export var max_amount: int = 0
 @export var resource_type_id: String = "tiberium_green"
 @export var regrowth_rate: float = -1.0
 ## How many times this crystal has spread to adjacent cells. Capped by GlobalRules.spread_max.
@@ -14,8 +12,6 @@ static var _green_mat: StandardMaterial3D = null
 
 
 func configure(data: EntityData) -> void:
-    amount = data.resource_amount
-    max_amount = data.resource_max_amount
     resource_type_id = data.resource_type_id
     regrowth_rate = data.resource_regrowth_rate
 
@@ -77,25 +73,39 @@ func _ensure_visual_nodes() -> void:
             _cube_nodes.append(node)
 
 
-func collect(amount_to_collect: int) -> int:
-    if not is_instance_valid(get_parent()):
-        return 0
-    var collected := mini(amount_to_collect, amount)
-    amount -= collected
+func get_amount() -> float:
+    var hp := _get_health()
+    return hp.get_health_ratio() if hp else 0.0
+
+
+func get_max_amount() -> float:
+    return 1.0
+
+
+func collect(bales: float) -> float:
+    var hp := _get_health()
+    if not hp or hp.max_health <= 0:
+        return 0.0
+    var health_to_take := bales * float(hp.max_health)
+    var actual_health := mini(int(ceilf(health_to_take)), hp.current_health)
+    hp.take_damage(actual_health)
     _update_visual()
-    if amount <= 0:
+    var collected_bales := float(actual_health) / float(hp.max_health)
+    if hp.current_health <= 0:
         get_parent().queue_free()
-    return collected
+    return collected_bales
 
 
 func is_depleted() -> bool:
-    return amount <= 0
+    var hp := _get_health()
+    return hp.current_health <= 0 if hp else true
 
 
 func get_visual_stage() -> int:
-    if max_amount <= 0:
+    var hp := _get_health()
+    if not hp or hp.max_health <= 0:
         return 0
-    var ratio := float(amount) / float(max_amount)
+    var ratio := hp.get_health_ratio()
     if ratio <= 0.33:
         return 0
     elif ratio <= 0.66:
@@ -140,3 +150,7 @@ func update_slope_positions() -> void:
             var terrain_h := TerrainSystem.get_height_at_world_smooth(Vector3(world_x, 0, world_z))
             var y_offset := terrain_h - parent.global_position.y
             mi.position.y = y_offset + box.size.y * 0.5
+
+
+func _get_health() -> HealthComponent:
+    return get_parent().get_node_or_null("HealthComponent") as HealthComponent

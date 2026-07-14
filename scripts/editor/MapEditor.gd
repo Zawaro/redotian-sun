@@ -24,17 +24,15 @@ var _highlight_line_mat: ORMMaterial3D
 var _height_label: Label
 var _painted_entities: Dictionary = {}
 
-const TIB_DEFAULT_AMOUNT: int = 300
-const TIB_DEFAULT_MAX: int = 300
+const TIB_DEFAULT_STRENGTH: int = 300
 const OVERRIDE_KEYS: PackedStringArray = [
-    "resource_amount",
-    "resource_max_amount",
+    "strength",
     "resource_type_id",
     "resource_regrowth_rate",
     "radius_cells",
     "node_count",
-    "amount_per_node",
-    "max_amount_per_node",
+    "spawn_strength",
+    "max_spawn_strength",
 ]
 
 
@@ -293,17 +291,18 @@ func _paint_resource_cell(cell: Vector2i, key: String) -> void:
         var node := entry.get("node") as Node3D
         if is_instance_valid(node):
             var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
-            if tib:
-                var add_amount := ceili(_paint_strength / 100.0 * float(tib.max_amount))
-                tib.amount = mini(tib.amount + add_amount, tib.max_amount)
+            var hp := node.get_node_or_null("HealthComponent") as HealthComponent
+            if tib and hp:
+                var bales_to_add := _paint_strength / 100.0
+                var health_to_add := int(bales_to_add * float(hp.max_health))
+                hp.heal(health_to_add)
                 tib._update_visual()
-                entry["data"]["resource_amount"] = tib.amount
+                entry["data"]["strength"] = hp.current_health
             return
 
-    var amount_val := ceili(_paint_strength / 100.0 * float(TIB_DEFAULT_MAX))
+    var health_val := int(_paint_strength / 100.0 * float(TIB_DEFAULT_STRENGTH))
     var overrides: Dictionary = {
-        "resource_amount": amount_val,
-        "resource_max_amount": TIB_DEFAULT_MAX,
+        "strength": health_val,
         "resource_type_id": "tiberium_green",
     }
     var entity := EntityFactory.create_entity("TIB", overrides)
@@ -325,14 +324,16 @@ func _erase_resource_cell(_cell: Vector2i, key: String) -> void:
         _painted_entities.erase(key)
         return
     var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
-    if not tib:
+    var hp := node.get_node_or_null("HealthComponent") as HealthComponent
+    if not tib or not hp:
         _painted_entities.erase(key)
         return
-    var reduce_amount := ceili(_paint_strength / 100.0 * float(tib.max_amount))
-    tib.amount = maxi(0, tib.amount - reduce_amount)
-    entry["data"]["resource_amount"] = tib.amount
+    var bales_to_remove := _paint_strength / 100.0
+    var health_to_remove := int(bales_to_remove * float(hp.max_health))
+    hp.take_damage(health_to_remove)
+    entry["data"]["strength"] = hp.current_health
     tib._update_visual()
-    if tib.amount <= 0:
+    if hp.current_health <= 0:
         node.queue_free()
         _painted_entities.erase(key)
 
