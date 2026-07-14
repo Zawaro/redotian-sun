@@ -36,7 +36,7 @@ const DOCK_HOST_COMPONENT_SCRIPT: GDScript = preload(
 const DOCK_CLIENT_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/DockClientComponent.gd"
 )
-const REFINERY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/RefineryComponent.gd")
+
 const FREE_UNIT_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/FreeUnitComponent.gd"
 )
@@ -148,7 +148,6 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_harvest_component(entity, data)
     _add_dock_host_component(entity, data)
     _add_dock_client_component(entity, data)
-    _add_refinery_component(entity, data)
     _add_dock_unload_component(entity, data)
     _add_free_unit_component(entity, data)
     if data.resource_category != "tiberium":
@@ -361,15 +360,6 @@ func _add_dock_client_component(entity: Node3D, data: EntityData) -> void:
         var component := Node.new()
         component.name = "DockClientComponent"
         component.set_script(DOCK_CLIENT_COMPONENT_SCRIPT)
-        entity.add_child(component)
-        component.owner = entity
-
-
-func _add_refinery_component(entity: Node3D, data: EntityData) -> void:
-    if data.accepted_resource_categories.size() > 0:
-        var component := Node.new()
-        component.name = "RefineryComponent"
-        component.set_script(REFINERY_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 

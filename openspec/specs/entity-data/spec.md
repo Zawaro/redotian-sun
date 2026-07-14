@@ -100,15 +100,7 @@ EntityData SHALL include `dock_position: Vector3` and `dock_rotation: float` for
 - **THEN** `dock_position` is `Vector3.ZERO` and no DockHostComponent is attached
 
 ### Requirement: EntityData accepted resource categories
-EntityData SHALL include `accepted_resource_categories: PackedStringArray` for buildings that accept resource cargo (refineries).
-
-#### Scenario: Refinery with accepted categories
-- **WHEN** an EntityData has `accepted_resource_categories = ["tiberium"]`
-- **THEN** EntityFactory attaches a RefineryComponent with those categories
-
-#### Scenario: Empty accepted categories
-- **WHEN** an EntityData has `accepted_resource_categories = []`
-- **THEN** no RefineryComponent is attached
+EntityData SHALL include `accepted_resource_categories: PackedStringArray` for buildings that accept resource cargo (refineries). This field is reserved for future use when cargo validation is needed.
 
 ### Requirement: EntityData transport fields
 EntityData SHALL include `storage: int = 0` for resource cargo capacity, `dock: String = ""` for target dock entity ID, `harvester: bool = false` for auto-harvest behavior, and `pip_scale: String = ""` for pip overlay display.
