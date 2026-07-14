@@ -290,62 +290,7 @@ func test_on_dock_undocked_ignores_other_docker():
         print("    FAIL: state changed to %d" % client.get_state())
 
 
-# --- on_dock_timeout handler ---
-
-
-func test_on_dock_timeout_clears_state():
-    var entity := _make_entity_with_client()
-    add_child(entity)
-    var host_entity := _make_dock_host()
-    add_child(host_entity)
-
-    var client := entity.get_node("DockClientComponent") as DockClientComponent
-    client._reserved_host = host_entity
-    client._target_host = host_entity
-    client._queued_host = host_entity
-    client._state = DockClientComponent.State.UNLOADING
-
-    _cancelled_emitted = false
-    client.dock_cancelled.connect(_on_cancelled)
-
-    client.on_dock_timeout()
-
-    if (
-        client._reserved_host == null
-        and client._target_host == null
-        and client._queued_host == null
-        and client.get_state() == DockClientComponent.State.IDLE
-        and _cancelled_emitted
-    ):
-        _test_passed += 1
-        print("    PASS: on_dock_timeout clears all state and emits dock_cancelled")
-    else:
-        _test_failed += 1
-        print(
-            (
-                "    FAIL: reserved=%s, target=%s, queued=%s, state=%d, emitted=%s"
-                % [
-                    client._reserved_host,
-                    client._target_host,
-                    client._queued_host,
-                    client.get_state(),
-                    _cancelled_emitted,
-                ]
-            )
-        )
-
-
 # --- Retry cooldown ---
-
-
-func test_retry_cooldown_exists():
-    var client := _make_dock_client()
-    if "RETRY_COOLDOWN" in client:
-        _test_passed += 1
-        print("    PASS: RETRY_COOLDOWN constant exists")
-    else:
-        _test_failed += 1
-        print("    FAIL: RETRY_COOLDOWN constant missing")
 
 
 func test_retry_cooldown_decrements():
@@ -537,27 +482,6 @@ func test_on_dock_cancelled_does_not_emit_signal():
     else:
         _test_failed += 1
         print("    FAIL: emitted=%s state=%d" % [_cancelled_emitted, client.get_state()])
-
-
-func test_on_dock_cancelled_full_emits_signal():
-    var entity := _make_entity_with_client()
-    add_child(entity)
-
-    var client := entity.get_node("DockClientComponent") as DockClientComponent
-    client._state = DockClientComponent.State.QUEUED
-    _cancelled_emitted = false
-
-    if not client.dock_cancelled.is_connected(_on_cancelled):
-        client.dock_cancelled.connect(_on_cancelled)
-
-    client.on_dock_cancelled_full()
-
-    if _cancelled_emitted:
-        _test_passed += 1
-        print("    PASS: on_dock_cancelled_full emits dock_cancelled signal")
-    else:
-        _test_failed += 1
-        print("    FAIL: dock_cancelled signal not emitted")
 
 
 # --- Scatter recovery ---

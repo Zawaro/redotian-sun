@@ -1,6 +1,8 @@
 class_name HarvestComponent extends Node
 
-enum State { IDLE, SEEK_NODE, HARVESTING, DELIVERING }
+# IDLE = fully idle, waiting for player orders (no auto-search).
+# HIBERNATE = field exhausted, empty: periodically re-search for nearby resources.
+enum State { IDLE, SEEK_NODE, HARVESTING, DELIVERING, HIBERNATE }
 
 ## Resource categories this harvester collects (e.g. ["tiberium"] for all tiberium types).
 @export var harvestable_types: PackedStringArray = ["tiberium"]
@@ -14,9 +16,14 @@ var _seek_timeout: float = 0.0
 var dock_client: DockClientComponent = null
 
 var _harvest_accumulator: float = 0.0
-var _last_dock_position: Vector3 = Vector3.ZERO
+var _last_field_position: Vector3 = Vector3.ZERO
+var _deliver_retry: float = 0.0
+var _hibernate_timer: float = 0.0
 
 const SEEK_TIMEOUT: float = 5.0
+const DELIVER_RETRY: float = 2.0
+## Seconds between re-searches while hibernating. Damps idle pathfind spam.
+const HIBERNATE_INTERVAL: float = 3.0
 
 ## Emitted when cargo amount or capacity changes (for UI updates).
 signal cargoing_changed(cargo: float, capacity: int)
@@ -110,10 +117,26 @@ func _process(delta: float) -> void:
                 _assess_next_action()
 
         State.DELIVERING:
-            pass
+            # No dock reachable — retry on a cooldown instead of re-seeking
+            # synchronously (which recurses via dock_slot_failed). Retries
+            # indefinitely; self-heals when a refinery becomes reachable.
+            # ponytail: no "stuck" signal — add one if the AI/UI needs to react.
+            if _deliver_retry > 0.0:
+                _deliver_retry -= delta
+                if _deliver_retry <= 0.0 and dock_client:
+                    dock_client.seek_dock(entity_parent)
+
+        State.HIBERNATE:
+            # Field exhausted — wait, then re-scan for nearby resources.
+            # ponytail: searches in place; add drift-toward-refinery if needed.
+            _hibernate_timer -= delta
+            if _hibernate_timer <= 0.0:
+                _hibernate_timer = HIBERNATE_INTERVAL
+                _assess_next_action()
 
 
 func _deliver_cargo(entity_parent: Node3D) -> void:
+    _deliver_retry = 0.0
     _change_state(State.DELIVERING)
     if dock_client:
         dock_client.seek_dock(entity_parent)
@@ -128,15 +151,21 @@ func set_target_node(node: Node3D) -> void:
 func cancel_harvest(_player_commanded: bool = false) -> void:
     _release_resource_cell()
     _current_resource = null
+    _deliver_retry = 0.0
     if dock_client:
-        dock_client.release_reservation()
+        dock_client.cancel()
     _change_state(State.IDLE)
 
 
 func set_target_refinery(node: Node3D) -> void:
-    if node and node.get_node_or_null("DockHostComponent"):
-        if dock_client:
-            dock_client.seek_dock(get_parent() as Node3D, node)
+    if node and node.get_node_or_null("DockHostComponent") and dock_client:
+        # Enter DELIVERING so the undock/failed/cancelled handlers resume the
+        # loop afterwards — without this a player-ordered dock leaves the
+        # harvester stuck idle after unloading.
+        _release_resource_cell()
+        _current_resource = null
+        _change_state(State.DELIVERING)
+        dock_client.seek_dock(get_parent() as Node3D, node)
 
 
 func on_arrived(_position: Vector3) -> void:
@@ -153,7 +182,7 @@ func on_dock_undocked(_docker: Node = null) -> void:
 
 func _on_dock_slot_failed() -> void:
     if _state == State.DELIVERING:
-        _assess_next_action()
+        _deliver_retry = DELIVER_RETRY
 
 
 func _on_dock_cancelled() -> void:
@@ -161,7 +190,8 @@ func _on_dock_cancelled() -> void:
         _assess_next_action()
 
 
-## Immediately scan for resources or go idle. Skips IDLE entirely.
+## Scan for resources; deliver if loaded, else hibernate (auto-retry).
+## IDLE is reserved for explicit player stop (cancel_harvest).
 func _assess_next_action() -> void:
     var entity_parent := get_parent() as Node3D
     if not entity_parent:
@@ -171,15 +201,15 @@ func _assess_next_action() -> void:
         _deliver_cargo(entity_parent)
         return
     var resource := _find_nearest_resource(entity_parent.global_position)
-    if not resource and _last_dock_position != Vector3.ZERO:
-        resource = _find_nearest_resource(_last_dock_position)
+    if not resource and _last_field_position != Vector3.ZERO:
+        resource = _find_nearest_resource(_last_field_position)
     if resource:
         _current_resource = resource
         _change_state(State.SEEK_NODE)
     elif get_cargo() > 0.0:
         _deliver_cargo(entity_parent)
     else:
-        _change_state(State.IDLE)
+        _change_state(State.HIBERNATE)
 
 
 func _change_state(new_state: int) -> void:
@@ -219,7 +249,34 @@ func _change_state(new_state: int) -> void:
                 _seek_timeout = SEEK_TIMEOUT
                 mc.set_target_position(_current_resource.global_position)
         State.DELIVERING:
-            _last_dock_position = entity_parent.global_position
+            _last_field_position = entity_parent.global_position
+        State.HIBERNATE:
+            # Wait one interval before the first re-scan (damps pathfind spam).
+            _hibernate_timer = HIBERNATE_INTERVAL
+            _unblock_dock_if_needed(entity_parent)
+
+
+## If we're hibernating on a refinery's dock cell (just finished unloading and
+## found nothing to harvest), step off to a free wait cell so we don't block the
+## entrance for other harvesters.
+func _unblock_dock_if_needed(entity_parent: Node3D) -> void:
+    if not dock_client:
+        return
+    var mc := entity_parent.get_node_or_null("MovementController") as MovementController
+    if not mc:
+        return
+    var host := dock_client.find_nearest_host(entity_parent)
+    if not host:
+        return
+    var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
+    if not dock:
+        return
+    var my_cell := Pathfinder.world_to_cell(entity_parent.global_position)
+    if dock._dock_cell != my_cell:
+        return
+    var free_cell := dock.find_wait_cell()
+    if free_cell != my_cell:
+        mc.set_target_position(Pathfinder.cell_to_world(free_cell))
 
 
 func _find_nearest_resource(search_from: Vector3) -> Node3D:

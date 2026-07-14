@@ -165,38 +165,37 @@ func test_harvest_dock_undocked_goes_to_seek_node():
     add_child(entity)
     var harvest := _get_harvest(entity)
     harvest._state = HarvestComponent.State.DELIVERING
-    # Clear cargo so _assess_next_action goes to IDLE
+    # Clear cargo so _assess_next_action hibernates (empty, no resources reachable)
     var transport := _get_transport(entity)
     transport.cargo = {}
 
     harvest.on_dock_undocked(entity)
 
-    if harvest._state == HarvestComponent.State.IDLE:
+    if harvest._state == HarvestComponent.State.HIBERNATE:
         _test_passed += 1
         print("    PASS: dock_undocked from DELIVERING → assesses next action")
     else:
         _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % harvest._state)
+        print("    FAIL: state = %d (expected HIBERNATE)" % harvest._state)
     entity.queue_free()
 
 
-func test_harvest_dock_slot_failed_goes_to_seek_node():
+func test_harvest_dock_slot_failed_schedules_retry():
     var entity := _make_entity()
     add_child(entity)
     var harvest := _get_harvest(entity)
     harvest._state = HarvestComponent.State.DELIVERING
-    # Clear cargo so _assess_next_action goes to IDLE
-    var transport := _get_transport(entity)
-    transport.cargo = {}
 
+    # No reachable dock: must schedule a retry and stay DELIVERING, NOT re-seek
+    # synchronously (which recurses via dock_slot_failed → stack overflow).
     harvest._on_dock_slot_failed()
 
-    if harvest._state == HarvestComponent.State.IDLE:
+    if harvest._state == HarvestComponent.State.DELIVERING and harvest._deliver_retry > 0.0:
         _test_passed += 1
-        print("    PASS: dock_slot_failed from DELIVERING → assesses next action")
+        print("    PASS: dock_slot_failed schedules retry, no synchronous re-seek")
     else:
         _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % harvest._state)
+        print("    FAIL: state=%d retry=%f" % [harvest._state, harvest._deliver_retry])
     entity.queue_free()
 
 
@@ -205,18 +204,59 @@ func test_harvest_dock_cancelled_goes_to_seek_node():
     add_child(entity)
     var harvest := _get_harvest(entity)
     harvest._state = HarvestComponent.State.DELIVERING
-    # Clear cargo so _assess_next_action goes to IDLE
+    # Clear cargo so _assess_next_action hibernates (empty, no resources reachable)
     var transport := _get_transport(entity)
     transport.cargo = {}
 
     harvest._on_dock_cancelled()
 
-    if harvest._state == HarvestComponent.State.IDLE:
+    if harvest._state == HarvestComponent.State.HIBERNATE:
         _test_passed += 1
         print("    PASS: dock_cancelled from DELIVERING → assesses next action")
     else:
         _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % harvest._state)
+        print("    FAIL: state = %d (expected HIBERNATE)" % harvest._state)
+    entity.queue_free()
+
+
+func test_harvest_empty_no_resource_enters_hibernate():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+    var transport := _get_transport(entity)
+    transport.cargo = {}  # empty, and no resources exist in the group
+    harvest._state = HarvestComponent.State.DELIVERING
+
+    harvest._assess_next_action()
+
+    # Empty + nothing to harvest → HIBERNATE (auto-retry), NOT IDLE (player-only).
+    if harvest._state == HarvestComponent.State.HIBERNATE:
+        _test_passed += 1
+        print("    PASS: empty + no resource → HIBERNATE, not IDLE")
+    else:
+        _test_failed += 1
+        print("    FAIL: state=%d (expected HIBERNATE)" % harvest._state)
+    entity.queue_free()
+
+
+func test_harvest_hibernate_ticks_research_timer():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+    harvest._state = HarvestComponent.State.HIBERNATE
+    harvest._hibernate_timer = 2.0
+
+    harvest._process(0.5)
+
+    if (
+        harvest._state == HarvestComponent.State.HIBERNATE
+        and is_equal_approx(harvest._hibernate_timer, 1.5)
+    ):
+        _test_passed += 1
+        print("    PASS: HIBERNATE ticks the re-search timer down")
+    else:
+        _test_failed += 1
+        print("    FAIL: state=%d timer=%f" % [harvest._state, harvest._hibernate_timer])
     entity.queue_free()
 
 
@@ -264,6 +304,32 @@ func test_harvest_set_target_node_transitions_to_seek_node():
         _test_failed += 1
         print("    FAIL: _current_resource=%s (expected resource)" % harvest._current_resource)
     resource.queue_free()
+    entity.queue_free()
+
+
+func test_harvest_set_target_refinery_enters_delivering():
+    var entity := _make_entity()
+    var dc := DockClientComponent.new()
+    dc.name = "DockClientComponent"
+    entity.add_child(dc)
+    add_child(entity)
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    var harvest := _get_harvest(entity)
+    harvest.dock_client = dc  # _ready doesn't run (suite isn't in tree), wire manually
+    harvest._state = HarvestComponent.State.IDLE
+
+    # Player-ordered dock must enter DELIVERING, else the undock handler
+    # (gated on DELIVERING) never resumes the harvest loop afterwards.
+    harvest.set_target_refinery(dock_entity)
+
+    if harvest._state == HarvestComponent.State.DELIVERING:
+        _test_passed += 1
+        print("    PASS: set_target_refinery enters DELIVERING")
+    else:
+        _test_failed += 1
+        print("    FAIL: state=%d (expected DELIVERING)" % harvest._state)
+    dock_entity.queue_free()
     entity.queue_free()
 
 

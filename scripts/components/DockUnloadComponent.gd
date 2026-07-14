@@ -1,7 +1,6 @@
 class_name DockUnloadComponent extends Node
 
 @export var unload_rate: float = 0.5
-@export var refinery_storage: int = 0
 ## Resource categories this dock accepts (e.g. ["tiberium"]). Empty = accepts all.
 @export var accepted_resource_categories: PackedStringArray = []
 
@@ -49,11 +48,11 @@ func _process(delta: float) -> void:
         set_process(false)
         return
 
-    var transport := docker_node.get_node_or_null("TransportComponent") as TransportComponent
-    if not transport:
-        var entity := docker_node.get_parent() as Node3D
-        if entity:
-            transport = entity.get_node_or_null("TransportComponent") as TransportComponent
+    # current_docker is the DockClientComponent; cargo lives on its parent entity.
+    var entity := docker_node.get_parent() as Node3D
+    var transport: TransportComponent = null
+    if entity:
+        transport = entity.get_node_or_null("TransportComponent") as TransportComponent
     if not transport or transport.get_cargo_total() <= 0.0:
         dock.leave_dock(docker_node)
         return
