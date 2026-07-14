@@ -167,3 +167,10 @@ func update_slope_positions() -> void:
 
 func _get_health() -> HealthComponent:
     return get_parent().get_node_or_null("HealthComponent") as HealthComponent
+
+
+func _get_global_rules() -> GlobalRules:
+    var ef := get_node_or_null("/root/EntityFactory")
+    if ef and ef.has_method("get_global_rules"):
+        return ef.get_global_rules() as GlobalRules
+    return null
