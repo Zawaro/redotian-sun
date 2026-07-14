@@ -286,7 +286,7 @@ func _update_visibility():
     if health_bar:
         health_bar.visible = vis
     if _health_bar_grid:
-        _health_bar_grid.visible = show
+        _health_bar_grid.visible = vis
     for child in get_children():
         if child != _building_select_box and child != health_bar and child != _health_bar_grid:
-            child.visible = show
+            child.visible = vis
