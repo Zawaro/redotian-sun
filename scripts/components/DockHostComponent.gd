@@ -30,8 +30,6 @@ func _ready() -> void:
     if Engine.is_editor_hint():
         return
     _compute_dock_cell()
-    if _entity_data:
-        call_deferred("_log_cells", _entity_data)
 
 
 func configure(data: EntityData) -> void:
@@ -80,45 +78,6 @@ func find_wait_cell(max_radius: int = 3) -> Vector2i:
                 if is_cell_available(cell):
                     return cell
     return _dock_cell
-
-
-func _log_cells(data: EntityData) -> void:
-    var entity := get_parent() as Node3D
-    if not entity:
-        return
-    var cs := Pathfinder.CELL_SIZE
-    var found := _get_foundation()
-    var origin_cell := Vector2i(
-        floori((entity.global_position.x - found.x * 0.5 * cs) / cs),
-        floori((entity.global_position.z - found.y * 0.5 * cs) / cs)
-    )
-    var top_left_world := Pathfinder.cell_to_world(origin_cell)
-
-    var foundation_cells_local: Array[Vector2i] = []
-    for dx in found.x:
-        for dz in found.y:
-            foundation_cells_local.append(Vector2i(dx, dz))
-
-    var bib_cells_local: Array[Vector2i] = []
-    for offset in data.bib_cells:
-        bib_cells_local.append(offset)
-
-    var dock_local := Vector2i(int(dock_position.x / cs), int(dock_position.z / cs))
-    var dock_global := Pathfinder.world_to_cell(
-        top_left_world + entity.global_transform.basis * dock_position
-    )
-
-    print("=== %s ===" % data.id)
-    print("  origin_cell: %s  top-left world: %s" % [origin_cell, top_left_world])
-    print("  building world: %s" % entity.global_position)
-    print("  foundation local (%d cells):" % foundation_cells_local.size())
-    for c in foundation_cells_local:
-        print("    %s -> %s" % [c, Pathfinder.cell_to_world(origin_cell + c)])
-    print("  bib local (%d cells):" % bib_cells_local.size())
-    for c in bib_cells_local:
-        print("    %s -> %s" % [c, Pathfinder.cell_to_world(origin_cell + c)])
-    print("  dock local: %s  world: %s" % [dock_local, dock_global])
-    print("  dock_position: %s (relative to top-left)" % dock_position)
 
 
 func has_dock_type(type: String) -> bool:

@@ -39,31 +39,19 @@ func _load_model() -> void:
     if not ResourceLoader.exists(art_data.model_path):
         push_warning("ArtComponent: model not found: %s" % art_data.model_path)
         return
-    var t0 := Time.get_ticks_msec()
     var scene := load(art_data.model_path) as PackedScene
-    var t1 := Time.get_ticks_msec()
     if scene == null:
         push_warning("ArtComponent: failed to load model: %s" % art_data.model_path)
         return
     var instance := scene.instantiate()
-    var t2 := Time.get_ticks_msec()
     add_child(instance)
     instance.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else owner
-    var t3 := Time.get_ticks_msec()
     if not art_data.texture_path.is_empty() and ResourceLoader.exists(art_data.texture_path):
         var tex := load(art_data.texture_path) as Texture2D
         if tex:
             var mat := StandardMaterial3D.new()
             mat.albedo_texture = tex
             _apply_material(instance, mat)
-    var t4 := Time.get_ticks_msec()
-    var elapsed := t4 - t0
-    print(
-        (
-            "[bench art] load=%d inst=%d child=%d tex=%d total=%d %s"
-            % [t1 - t0, t2 - t1, t3 - t2, t4 - t3, elapsed, art_data.model_path]
-        )
-    )
 
 
 func _apply_material(node: Node, mat: StandardMaterial3D) -> void:

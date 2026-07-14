@@ -18,9 +18,7 @@ var _queued_timeout: float = 0.0
 var _retry_cooldown: float = 0.0
 var _recheck_timer: float = 0.0
 
-const REFINERY_TIMEOUT: float = 5.0
-const DOCKING_TIMEOUT: float = 5.0
-const QUEUED_TIMEOUT: float = 5.0
+const DOCK_TIMEOUT: float = 5.0
 const RETRY_COOLDOWN: float = 2.0
 const RECHECK_INTERVAL: float = 2.0
 
@@ -93,11 +91,11 @@ func _process(delta: float) -> void:
                             var bound := _try_bind_host(better)
                             if bound:
                                 _target_host = better
-                                _refinery_timeout = REFINERY_TIMEOUT
+                                _refinery_timeout = DOCK_TIMEOUT
                                 _move_to_dock(better)
                             else:
                                 _queued_host = better
-                                _queued_timeout = QUEUED_TIMEOUT
+                                _queued_timeout = DOCK_TIMEOUT
                                 _recheck_timer = RECHECK_INTERVAL
                                 var bdock := (
                                     better.get_node_or_null("DockHostComponent")
@@ -119,11 +117,11 @@ func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
         var bound := _try_bind_host(specific_host)
         if bound:
             _target_host = specific_host
-            _refinery_timeout = REFINERY_TIMEOUT
+            _refinery_timeout = DOCK_TIMEOUT
             _move_to_dock(specific_host)
             return
         _queued_host = specific_host
-        _queued_timeout = QUEUED_TIMEOUT
+        _queued_timeout = DOCK_TIMEOUT
         _recheck_timer = RECHECK_INTERVAL
         var dock := specific_host.get_node_or_null("DockHostComponent") as DockHostComponent
         if dock:
@@ -141,9 +139,8 @@ func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
         return
     var bound := _try_bind_host(host)
     if bound:
-        print("[DockClient] seek_dock reserved %s, moving" % host.name)
         _target_host = host
-        _refinery_timeout = REFINERY_TIMEOUT
+        _refinery_timeout = DOCK_TIMEOUT
         _move_to_dock(host)
         return
 
@@ -151,15 +148,14 @@ func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
     if next_host:
         bound = _try_bind_host(next_host)
         if bound:
-            print("[DockClient] seek_dock reserved (2nd) %s, moving" % next_host.name)
             _target_host = next_host
-            _refinery_timeout = REFINERY_TIMEOUT
+            _refinery_timeout = DOCK_TIMEOUT
             _move_to_dock(next_host)
             return
 
     # Both nearest docks occupied — queue at the nearest
     _queued_host = host
-    _queued_timeout = QUEUED_TIMEOUT
+    _queued_timeout = DOCK_TIMEOUT
     _recheck_timer = RECHECK_INTERVAL
     var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
     if dock:
@@ -220,10 +216,8 @@ func _cancel_dock() -> void:
     release_reservation()
     _target_host = null
     if was_reserved:
-        print("[DockClient] dock cancelled (was reserved)")
         dock_cancelled.emit()
     else:
-        print("[DockClient] dock failed (no reservation)")
         dock_slot_failed.emit()
 
 
@@ -239,14 +233,12 @@ func reserve_at(host: Node3D) -> bool:
     _disconnect_host_signal()
     var bound := _try_bind_host(host)
     if bound:
-        print("[DockClient] reserved at %s" % host.name)
         _queued_host = null
         _docking_timeout = -1.0
         dock_slot_reserved.emit(host)
         return true
-    print("[DockClient] reserve_at FAILED at %s (busy), queued" % host.name)
     _queued_host = host
-    _queued_timeout = QUEUED_TIMEOUT
+    _queued_timeout = DOCK_TIMEOUT
     dock_slot_failed.emit()
     return false
 

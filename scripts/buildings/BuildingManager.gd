@@ -216,15 +216,7 @@ func _is_cell_free(cell: Vector2i) -> bool:
 
 
 func _has_resource_on_cell(cell: Vector2i) -> bool:
-    for entity in get_tree().get_nodes_in_group("resources"):
-        if not is_instance_valid(entity):
-            continue
-        if not entity is Node3D:
-            continue
-        var ecell := Pathfinder.world_to_cell((entity as Node3D).global_position)
-        if ecell == cell:
-            return true
-    return false
+    return SpatialHash.instance.has_resource_cell(cell) if SpatialHash.instance else false
 
 
 func _find_buildings_parent() -> void:
@@ -387,33 +379,14 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
 
 
 func _create_building_preview() -> void:
-    var t0 := Time.get_ticks_msec()
     if _building_preview:
         _building_preview.queue_free()
         _building_preview = null
-    var t1 := Time.get_ticks_msec()
     _building_preview = EntityFactory.create_entity(current_building_type.id)
-    var t2 := Time.get_ticks_msec()
     if _building_preview:
         _building_preview.set_meta("_preview", true)
         _set_node_transparency(_building_preview, 0.33)
-        var t3 := Time.get_ticks_msec()
         _preview.add_child(_building_preview)
-        var t4 := Time.get_ticks_msec()
-        var elapsed := t4 - t0
-        print(
-            (
-                "[bench preview] free=%d create=%d trans=%d child=%d total=%d %s"
-                % [
-                    t1 - t0,
-                    t2 - t1,
-                    t3 - t2,
-                    t4 - t3,
-                    elapsed,
-                    current_building_type.id,
-                ]
-            )
-        )
 
 
 func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:

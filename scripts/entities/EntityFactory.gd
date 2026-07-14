@@ -134,7 +134,6 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_health_component(entity, data)
     if data.resource_category == "":
         _add_hitbox_component(entity, data)
-    if data.resource_category == "":
         _add_select_component(entity, data)
     _add_combat_component(entity, data)
     _add_movement_controller(entity, data)
