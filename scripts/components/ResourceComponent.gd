@@ -8,7 +8,7 @@ class_name ResourceComponent extends Node
 var _cube_nodes: Array[Node3D] = []
 var _current_visual_stage: int = -1
 
-static var _green_mat: StandardMaterial3D = null
+static var _mat_cache: Dictionary = {}
 
 
 func configure(data: EntityData) -> void:
@@ -22,6 +22,16 @@ func _ready() -> void:
         root.add_to_group("resources")
     _ensure_visual_nodes.call_deferred()
     _update_visual.call_deferred()
+    if SpatialHash.instance:
+        var cell := Pathfinder.world_to_cell(root.global_position)
+        SpatialHash.instance.register_resource_cell(cell)
+
+
+func _exit_tree() -> void:
+    var root := get_parent() as Node3D
+    if root and SpatialHash.instance:
+        var cell := Pathfinder.world_to_cell(root.global_position)
+        SpatialHash.instance.unregister_resource_cell(cell)
 
 
 func _ensure_visual_nodes() -> void:
@@ -61,10 +71,13 @@ func _ensure_visual_nodes() -> void:
             var terrain_h := TerrainSystem.get_height_at_world_smooth(Vector3(world_x, 0, world_z))
             var y_offset := terrain_h - parent.global_position.y
             mi.position = Vector3(pos_x, y_offset + box.size.y * 0.5, pos_z)
-            if _green_mat == null:
-                _green_mat = StandardMaterial3D.new()
-                _green_mat.albedo_color = Color(0.2, 0.8, 0.2)
-            mi.material_override = _green_mat
+            if not _mat_cache.has(resource_type_id):
+                var mat := StandardMaterial3D.new()
+                var rules := _get_global_rules()
+                var rt: ResourceType = rules.get_resource_type(resource_type_id) if rules else null
+                mat.albedo_color = rt.color if rt else Color(0.2, 0.8, 0.2)
+                _mat_cache[resource_type_id] = mat
+            mi.material_override = _mat_cache[resource_type_id]
             container.add_child(mi)
 
     for i in 3:

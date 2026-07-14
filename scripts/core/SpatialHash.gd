@@ -8,6 +8,7 @@ var _blocked_cells: Dictionary = {}
 var _building_cells: Dictionary = {}
 var _bib_cells: Dictionary = {}
 var _reserved: Dictionary = {}
+var _resource_cells: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -97,6 +98,18 @@ func register_bib_cells(cells: Array[Vector2i]) -> void:
 
 func is_bib_cell(cell: Vector2i) -> bool:
     return _bib_cells.has(_cell_key(cell))
+
+
+func register_resource_cell(cell: Vector2i) -> void:
+    _resource_cells[_cell_key(cell)] = true
+
+
+func unregister_resource_cell(cell: Vector2i) -> void:
+    _resource_cells.erase(_cell_key(cell))
+
+
+func has_resource_cell(cell: Vector2i) -> bool:
+    return _resource_cells.has(_cell_key(cell))
 
 
 func unregister_building_cells(cells: Array[Vector2i]) -> void:

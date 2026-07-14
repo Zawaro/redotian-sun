@@ -15,7 +15,7 @@ var _seek_timeout: float = 0.0
 var _seeking_dock: bool = false
 var _player_commanded: bool = false
 var dock_client: DockClientComponent = null
-var _path_cache: Dictionary = {}
+
 var _harvest_accumulator: float = 0.0
 var _last_dock_position: Vector3 = Vector3.ZERO
 
@@ -63,7 +63,6 @@ func set_cargo(type_id: String, bales: float) -> void:
 
 
 func on_slot_available() -> void:
-    print("[Harvest] on_slot_available (state=%d)" % _state)
     if _state != State.QUEUED:
         return
     _change_state(State.DOCKING)
@@ -251,10 +250,7 @@ func _assess_next_action() -> void:
 func _change_state(new_state: int) -> void:
     if _state == new_state:
         return
-    var state_names := ["IDLE", "SEEK_NODE", "HARVESTING", "FULL", "DOCKING", "UNLOADING", "QUEUED"]
-    print("[Harvest] %s → %s" % [state_names[_state], state_names[new_state]])
     if _state == State.SEEK_NODE and new_state != State.SEEK_NODE:
-        _clear_path_cache()
         if new_state != State.HARVESTING:
             _release_resource_cell()
     if _state == State.HARVESTING and new_state != State.HARVESTING:
@@ -297,66 +293,28 @@ func _find_nearest_resource(search_from: Vector3) -> Node3D:
     var nearest: Node3D = null
     var nearest_dist := INF
     var rules := _get_global_rules()
-    var _total := 0
-    var _skipped := 0
 
     for entity in get_tree().get_nodes_in_group("resources"):
-        _total += 1
         var tib := entity.get_node_or_null("ResourceComponent") as ResourceComponent
         if not tib or tib.is_depleted():
-            _skipped += 1
             continue
         if rules:
             var category := rules.get_resource_category(tib.resource_type_id)
             if not harvestable_types.is_empty() and category not in harvestable_types:
-                _skipped += 1
                 continue
         if SpatialHash.instance:
             var ecell := Pathfinder.world_to_cell(entity.global_position)
             if SpatialHash.instance.is_cell_blocked(ecell):
-                _skipped += 1
                 continue
             var key: int = SpatialHash.instance._cell_key(ecell)
             if SpatialHash.instance._reserved.has(key):
-                _skipped += 1
                 continue
-        var dist := _get_path_distance(search_from, entity.global_position)
+        var dist := search_from.distance_squared_to(entity.global_position)
         if dist < nearest_dist:
             nearest_dist = dist
             nearest = entity
 
     return nearest
-
-
-func _get_path_distance(from: Vector3, to: Vector3) -> float:
-    var from_cell := Pathfinder.world_to_cell(from)
-    var to_cell := Pathfinder.world_to_cell(to)
-    if from_cell == to_cell:
-        return 0.0
-
-    var cache_key := (from_cell.x + 512) << 16 | (from_cell.y + 512) & 0xFFFF
-    cache_key = cache_key << 32 | ((to_cell.x + 512) << 16 | (to_cell.y + 512) & 0xFFFF)
-    if _path_cache.has(cache_key):
-        return _path_cache[cache_key]
-
-    var path := Pathfinder.find_path(from, to)
-    var dist := INF
-    if path.size() > 0:
-        dist = 0.0
-        var prev := from
-        for point in path:
-            dist += prev.distance_to(point)
-            prev = point
-    else:
-        var diff := Vector2(from_cell - to_cell)
-        dist = diff.length()
-
-    _path_cache[cache_key] = dist
-    return dist
-
-
-func _clear_path_cache() -> void:
-    _path_cache.clear()
 
 
 func _get_storage_capacity() -> int:
