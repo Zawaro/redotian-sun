@@ -1,6 +1,6 @@
 class_name HarvestComponent extends Node
 
-enum State { IDLE, SEEK_NODE, HARVESTING, FULL, DOCKING, UNLOADING, QUEUED }
+enum State { IDLE, SEEK_NODE, HARVESTING, DELIVERING }
 
 ## Resource categories this harvester collects (e.g. ["tiberium"] for all tiberium types).
 @export var harvestable_types: PackedStringArray = ["tiberium"]
@@ -9,11 +9,8 @@ enum State { IDLE, SEEK_NODE, HARVESTING, FULL, DOCKING, UNLOADING, QUEUED }
 
 var _state: int = State.IDLE
 var _current_resource: Node3D = null
-var _current_dock: Node3D = null
 var _entity_factory: Node = null
 var _seek_timeout: float = 0.0
-var _seeking_dock: bool = false
-var _player_commanded: bool = false
 var dock_client: DockClientComponent = null
 
 var _harvest_accumulator: float = 0.0
@@ -34,7 +31,6 @@ func _ready() -> void:
     _entity_factory = get_node("/root/EntityFactory")
     dock_client = get_parent().get_node_or_null("DockClientComponent") as DockClientComponent
     if dock_client:
-        dock_client.dock_slot_reserved.connect(_on_dock_slot_reserved)
         dock_client.dock_slot_failed.connect(_on_dock_slot_failed)
         dock_client.dock_cancelled.connect(_on_dock_cancelled)
         dock_client.dock_undocked.connect(on_dock_undocked)
@@ -60,12 +56,6 @@ func set_cargo(type_id: String, bales: float) -> void:
     if transport:
         transport.cargo[type_id] = maxf(0.0, bales)
         cargoing_changed.emit(transport.get_cargo_total(), _get_storage_capacity())
-
-
-func on_slot_available() -> void:
-    if _state != State.QUEUED:
-        return
-    _change_state(State.DOCKING)
 
 
 func _process(delta: float) -> void:
@@ -113,68 +103,31 @@ func _process(delta: float) -> void:
             if get_cargo() >= float(_get_storage_capacity()):
                 _release_resource_cell()
                 _current_resource = null
-                _change_state(State.FULL)
+                _deliver_cargo(entity_parent)
             elif tib.is_depleted():
                 _release_resource_cell()
                 _current_resource = null
                 _assess_next_action()
 
-        State.FULL:
-            _current_resource = null
-            if not _seeking_dock:
-                _seeking_dock = true
-                _seek_dock(entity_parent)
-
-        State.UNLOADING:
-            pass
-
-        State.DOCKING:
-            if not is_instance_valid(_current_dock):
-                _assess_next_action()
-                return
-            var dock := _current_dock.get_node_or_null("DockHostComponent") as DockHostComponent
-            if not dock:
-                _assess_next_action()
-                return
-            var target_yaw := deg_to_rad(dock.dock_rotation)
-            var diff := angle_difference(entity_parent.rotation.y, target_yaw)
-            if abs(diff) < 0.05:
-                entity_parent.rotation.y = target_yaw
-                var dock_unload := (
-                    _current_dock.get_node_or_null("DockUnloadComponent") as DockUnloadComponent
-                )
-                if dock_unload:
-                    dock_unload.begin_unload()
-                _change_state(State.UNLOADING)
-            else:
-                var step := deg_to_rad(180.0) * delta
-                entity_parent.rotation.y += sign(diff) * minf(step, abs(diff))
-
-        State.QUEUED:
+        State.DELIVERING:
             pass
 
 
-func _seek_dock(entity_parent: Node3D) -> void:
-    if not dock_client:
-        _change_state(State.IDLE)
-        return
-    dock_client.seek_dock(entity_parent)
+func _deliver_cargo(entity_parent: Node3D) -> void:
+    _change_state(State.DELIVERING)
+    if dock_client:
+        dock_client.seek_dock(entity_parent)
 
 
 func set_target_node(node: Node3D) -> void:
     if node and node.get_node_or_null("ResourceComponent"):
-        _player_commanded = false
         _current_resource = node
-        _current_dock = null
         _change_state(State.SEEK_NODE)
 
 
-func cancel_harvest(player_commanded: bool = false) -> void:
+func cancel_harvest(_player_commanded: bool = false) -> void:
     _release_resource_cell()
     _current_resource = null
-    _current_dock = null
-    _seeking_dock = false
-    _player_commanded = player_commanded
     if dock_client:
         dock_client.release_reservation()
     _change_state(State.IDLE)
@@ -182,58 +135,40 @@ func cancel_harvest(player_commanded: bool = false) -> void:
 
 func set_target_refinery(node: Node3D) -> void:
     if node and node.get_node_or_null("DockHostComponent"):
-        _player_commanded = false
         if dock_client:
             dock_client.seek_dock(get_parent() as Node3D, node)
 
 
 func on_arrived(_position: Vector3) -> void:
-    var entity_parent := get_parent() as Node3D
-    if not entity_parent:
-        return
-
-    match _state:
-        State.SEEK_NODE:
-            _seek_timeout = 0.0
-            _change_state(State.HARVESTING)
-        State.DOCKING:
-            pass
+    if _state == State.SEEK_NODE:
+        _seek_timeout = 0.0
+        _change_state(State.HARVESTING)
 
 
 ## Called when the dock host releases this entity (cargo fully unloaded).
-## Immediately seeks next action — does not idle.
 func on_dock_undocked(_docker: Node = null) -> void:
-    if _state == State.UNLOADING:
-        _current_dock = null
+    if _state == State.DELIVERING:
         _assess_next_action()
 
 
-func _on_dock_slot_reserved(host: Node3D) -> void:
-    _seeking_dock = false
-    _current_dock = host
-    _last_dock_position = host.global_position
-    _change_state(State.DOCKING)
-
-
 func _on_dock_slot_failed() -> void:
-    _seeking_dock = false
-    _change_state(State.QUEUED)
+    if _state == State.DELIVERING:
+        _assess_next_action()
 
 
 func _on_dock_cancelled() -> void:
-    _seeking_dock = false
-    _current_dock = null
-    _assess_next_action()
+    if _state == State.DELIVERING:
+        _assess_next_action()
 
 
-## Immediately scan for resources or seek dock. Skips IDLE entirely.
+## Immediately scan for resources or go idle. Skips IDLE entirely.
 func _assess_next_action() -> void:
     var entity_parent := get_parent() as Node3D
     if not entity_parent:
         _change_state(State.IDLE)
         return
     if get_cargo() >= float(_get_storage_capacity()):
-        _seek_dock(entity_parent)
+        _deliver_cargo(entity_parent)
         return
     var resource := _find_nearest_resource(entity_parent.global_position)
     if not resource and _last_dock_position != Vector3.ZERO:
@@ -242,7 +177,7 @@ func _assess_next_action() -> void:
         _current_resource = resource
         _change_state(State.SEEK_NODE)
     elif get_cargo() > 0.0:
-        _seek_dock(entity_parent)
+        _deliver_cargo(entity_parent)
     else:
         _change_state(State.IDLE)
 
@@ -283,10 +218,8 @@ func _change_state(new_state: int) -> void:
                         return
                 _seek_timeout = SEEK_TIMEOUT
                 mc.set_target_position(_current_resource.global_position)
-        State.FULL:
-            pass
-        State.IDLE:
-            pass
+        State.DELIVERING:
+            _last_dock_position = entity_parent.global_position
 
 
 func _find_nearest_resource(search_from: Vector3) -> Node3D:

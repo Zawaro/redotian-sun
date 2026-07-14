@@ -48,6 +48,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var dock_rotation: float = 0.0
 ## Whether this building has a dock for unloading cargo.
 @export var dock_unload: bool = false
+## Classification flag for AI targeting — marks this building as a refinery.
+@export var refinery: bool = false
 ## Refinery storage capacity in bales (legacy — use DockUnloadComponent on the building).
 @export var refinery_storage: int = 0
 ## Resource categories this dock accepts (e.g. ["tiberium"]). Empty = accepts all.

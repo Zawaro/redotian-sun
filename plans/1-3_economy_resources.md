@@ -128,15 +128,37 @@ signal dock_undocked(docker: Node)
 - Client decides compatibility via `can_dock_with`, not host's `allowed_entities`.
 - On failure at nearest host, tries next nearest via `_find_shorter_queue()`.
 
-### RefineryComponent (on refinery buildings)
-Declares what resource categories the building accepts. Separate from DockUnloadComponent (data vs logic).
+### Refinery Classification (`refinery: bool` on EntityData)
+
+**Source**: [ModEnc — Refinery](https://modenc.renegadeprojects.com/Refinery)
+
+`Refinery=yes` is a **classification flag** in Tiberian Sun's `rules.ini` (applies to TS, Firestorm, RA2, YR). It answers one question: "is this building a refinery?"
+
+**What it does:**
+1. **AI targeting** — AI identifies buildings with `Refinery=yes` to prioritize economy disruption
+2. **AI build ratio** — AI maintains N refineries per M harvesters (via `BuildRefinery=PROC,GAPROC` in `[AIControls]`)
+3. **Dock registration** — engine recognizes this as a valid unload target (but `Dock=` already handles this)
+
+**What it does NOT do:**
+- Validate cargo types (that's `accepted_resource_categories` on `DockUnloadComponent`)
+- Handle unload logic (that's `DockUnloadComponent`)
+
+**Mapping to Redotian Sun:**
 ```gdscript
-class_name RefineryComponent extends Node
-@export var accepted_resource_categories: PackedStringArray = []  # e.g. ["tiberium"]
-@export var unload_rate: float = 2.33
+# EntityData.gd
+@export var refinery: bool = false  # classification flag for AI
+
+# AI queries this to count refineries:
+func _count_refineries() -> int:
+    var count := 0
+    for entity in get_tree().get_nodes_in_group("buildings"):
+        var data: EntityData = entity.get("entity_data")
+        if data and data.refinery:
+            count += 1
+    return count
 ```
-- DockUnloadComponent reads this to validate cargo before unloading.
-- Future ServiceDepotComponent can reuse DockClientComponent without inheriting refinery logic.
+
+**Decision for #55**: Delete `RefineryComponent`. Add `refinery: bool` to `EntityData`. Move `accepted_resource_categories` to `DockUnloadComponent`.
 
 ### DockUnloadComponent (on refinery buildings)
 Handles the actual unload tick — drains cargo from docked entity, converts to credits via ResourceType.value.
@@ -252,6 +274,42 @@ Add to ArtData:
 `_add_placeholder()` uses `placeholder_size` if non-zero, else existing foundation-based sizing.
 ResourceTree ArtData sets `placeholder_size = Vector3(0.33, 2.0, 0.33)` for a thin pole.
 
+## AI Build Ratio (Future)
+
+The original Tiberian Sun uses `[AIControls]` in `rules.ini` to configure AI refinery building:
+
+```ini
+[AIControls]
+BuildRefinery=PROC,GAPROC  ; comma-separated refinery building type IDs
+```
+
+**AI logic** (simplified):
+```
+if harvesters_count / refineries_count > RATIO_THRESHOLD:
+    build refinery
+```
+
+**Mapping to Redotian Sun** (future GameAI system):
+```gdscript
+# In some AI build controller
+@export var refinery_ratio: float = 2.0  # harvesters per refinery
+
+func _should_build_refinery() -> bool:
+    var harvesters := _count_harvesters()
+    var refineries := _count_refineries()
+    return harvesters / maxf(refineries, 1.0) > refinery_ratio
+
+func _count_refineries() -> int:
+    var count := 0
+    for entity in get_tree().get_nodes_in_group("buildings"):
+        var data: EntityData = entity.get("entity_data")
+        if data and data.refinery:
+            count += 1
+    return count
+```
+
+**Key insight**: `refinery: bool` is purely a classification flag. The AI queries it for build decisions; the dock system handles actual mechanics. No duplication.
+
 ## Resource Type System
 
 ### ResourceType Resource Class
@@ -333,7 +391,7 @@ func get_subtypes(category_id: String) -> Array[String]
 @export var dock_position: Vector3 = Vector3.ZERO
 @export var dock_rotation: float = 0.0
 @export var dock_unload: bool = false
-@export var accepted_resource_categories: PackedStringArray = []
+@export var refinery: bool = false  # classification flag — "is this a refinery?" (for AI targeting/build ratios)
 
 # For units that dock
 @export var dock: String = ""  # target entity ID (e.g. "PROC")
@@ -355,7 +413,9 @@ func get_subtypes(category_id: String) -> Array[String]
 - `BuildingManager.place_building()` → stub deduction (replaced by build queue later)
 - `FactoryComponent` / future production queue → deduct on queue
 - `SpatialHash` → handle bib cells as soft-blocked
-- `EntityFactory._add_components()` → add ResourceTreeComponent, ResourceComponent, HarvestComponent, DockHostComponent, DockClientComponent, DockUnloadComponent, RefineryComponent, FreeUnitComponent
+- `EntityFactory._add_components()` → add ResourceTreeComponent, ResourceComponent, HarvestComponent, DockHostComponent, DockClientComponent, DockUnloadComponent, FreeUnitComponent
+- `EntityData.refinery` → set `refinery: bool` on refinery buildings (GDI PROC, Nod REF, etc.)
+- AI system (future) → queries `refinery` flag for build ratio decisions
 - `GlobalRules.tres` → resource_types dictionary with ResourceType entries
 - Map scenes → add ResourceTree instances for resource patches
 - `MapLoader.gd` → restore terrain + entities from JSON v3 (uses `resource_type_id`)
@@ -413,6 +473,7 @@ SelectionOverlay → updates pip fill colors
 - ServiceDepotComponent for repair deduction (DockClientComponent is generic enough to support it)
 - Build queue integration (separate issue)
 - Factory queue integration (separate issue)
+- **GameAI build ratio system** — queries `EntityData.refinery` to maintain harvester-to-refinery ratio
 - Animated BIGBLUE/BIGBLUE3 resource variants
 - Real 3D models replacing placeholder cubes (20 variants × 3 stages per resource type)
 - Normal tree art (separate from Resource Tree Art)

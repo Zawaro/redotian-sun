@@ -1,5 +1,7 @@
 class_name DockClientComponent extends Node
 
+enum State { IDLE, SEEKING, MOVING, ROTATING, UNLOADING, QUEUED }
+
 ## Entity IDs this unit is allowed to dock with (e.g. ["PROC"] for refinery). Empty = any.
 @export var can_dock_with: PackedStringArray = []
 ## Extra distance penalty squared added per queued docker when ranking dock hosts.
@@ -7,26 +9,20 @@ class_name DockClientComponent extends Node
 ## Search radius in cells when finding the nearest compatible dock host.
 @export var search_radius_cells: int = 20
 
+var _state: int = State.IDLE
 var _reserved_host: Node3D = null
 var _queued_host: Node3D = null
 var _target_host: Node3D = null
 var _dock_id: String = ""
 var _mc: MovementController = null
-var _refinery_timeout: float = 0.0
-var _docking_timeout: float = 0.0
-var _queued_timeout: float = 0.0
 var _retry_cooldown: float = 0.0
-var _recheck_timer: float = 0.0
 
-const DOCK_TIMEOUT: float = 5.0
 const RETRY_COOLDOWN: float = 2.0
-const RECHECK_INTERVAL: float = 2.0
+const DOCK_CELL_RETRY_COOLDOWN: float = 1.0
 
-## Emitted when a dock host accepts this client's reservation request.
-signal dock_slot_reserved(host: Node3D)
 ## Emitted when no compatible dock host is reachable or all are full.
 signal dock_slot_failed
-## Emitted when docking is cancelled (timeout or pathfinding failure).
+## Emitted when docking is cancelled (timeout, pathfinding failure, or player cancel).
 signal dock_cancelled
 ## Emitted when the dock host undocks this client (cargo fully unloaded).
 signal dock_undocked(docker: Node)
@@ -37,6 +33,12 @@ func _ready() -> void:
     if _mc:
         _mc.arrived.connect(_on_arrived)
         _mc.pathfinding_failed.connect(_on_pathfinding_failed)
+
+
+func _exit_tree() -> void:
+    if _state != State.IDLE:
+        release_reservation()
+        _state = State.IDLE
 
 
 func configure(data: EntityData) -> void:
@@ -52,119 +54,114 @@ func is_reserved() -> bool:
     return is_instance_valid(_reserved_host)
 
 
+func get_state() -> int:
+    return _state
+
+
 func _process(delta: float) -> void:
     if _retry_cooldown > 0.0:
         _retry_cooldown -= delta
-    if _target_host and not is_reserved():
-        _refinery_timeout -= delta
-        if _refinery_timeout <= 0.0:
-            _cancel_dock()
-    if is_reserved():
-        if _docking_timeout > 0.0:
-            _docking_timeout -= delta
-            if _docking_timeout <= 0.0:
-                _cancel_dock()
-    if _queued_host and not is_reserved() and not _target_host:
-        _queued_timeout -= delta
-        if _queued_timeout <= 0.0:
-            var host_node := _queued_host
-            _queued_host = null
-            var dock := host_node.get_node_or_null("DockHostComponent") as DockHostComponent
-            if dock:
-                dock.leave_dock(self)
-            dock_cancelled.emit()
-        else:
-            _recheck_timer -= delta
-            if _recheck_timer <= 0.0:
-                _recheck_timer = RECHECK_INTERVAL
-                var parent := get_parent() as Node3D
-                if parent:
-                    var current_dock := (
-                        _queued_host.get_node_or_null("DockHostComponent") as DockHostComponent
-                    )
-                    if current_dock:
-                        var current_size := current_dock.get_effective_queue_size()
-                        var better := _find_shorter_queue(parent, _queued_host, current_size)
-                        if better:
-                            _queued_host = null
-                            current_dock.leave_dock(self)
-                            var bound := _try_bind_host(better)
-                            if bound:
-                                _target_host = better
-                                _refinery_timeout = DOCK_TIMEOUT
-                                _move_to_dock(better)
-                            else:
-                                _queued_host = better
-                                _queued_timeout = DOCK_TIMEOUT
-                                _recheck_timer = RECHECK_INTERVAL
-                                var bdock := (
-                                    better.get_node_or_null("DockHostComponent")
-                                    as DockHostComponent
-                                )
-                                if bdock:
-                                    _move_to_cell(bdock.find_wait_cell())
-                                dock_slot_failed.emit()
+        if _retry_cooldown <= 0.0:
+            if _state == State.MOVING and _target_host:
+                _move_to_dock(_target_host)
+            elif _state == State.QUEUED and is_instance_valid(_queued_host):
+                if _try_bind_host(_queued_host):
+                    _queued_host = null
+                    _target_host = _reserved_host
+                    _state = State.MOVING
+                    _move_to_dock(_target_host)
+
+    match _state:
+        State.ROTATING:
+            _process_rotation(delta)
+        State.UNLOADING:
+            pass
+
+
+func _process_rotation(delta: float) -> void:
+    if not is_instance_valid(_target_host):
+        _cancel_dock()
+        return
+    var dock := _target_host.get_node_or_null("DockHostComponent") as DockHostComponent
+    if not dock:
+        _cancel_dock()
+        return
+    var entity := get_parent() as Node3D
+    if not entity:
+        return
+    var target_yaw := deg_to_rad(dock.dock_rotation)
+    var step := deg_to_rad(_mc.rotation_speed) * delta if _mc else deg_to_rad(180.0) * delta
+    var diff := angle_difference(entity.rotation.y, target_yaw)
+    if abs(diff) < 0.05:
+        entity.rotation.y = target_yaw
+        _begin_unload()
+    else:
+        entity.rotation.y += sign(diff) * minf(step, abs(diff))
+
+
+func _begin_unload() -> void:
+    var parent_name: String = get_parent().name if get_parent() else "?"
+    _state = State.UNLOADING
+    if not is_instance_valid(_target_host):
+        print("[DockClient] %s: begin_unload ABORT — target_host freed" % parent_name)
+        return
+    var dock_unload := _target_host.get_node_or_null("DockUnloadComponent") as DockUnloadComponent
+    if dock_unload:
+        print("[DockClient] %s: begin_unload OK — calling DockUnloadComponent" % parent_name)
+        dock_unload.begin_unload()
+    else:
+        print(
+            (
+                "[DockClient] %s: begin_unload ABORT — no DockUnloadComponent on %s"
+                % [parent_name, _target_host.name]
+            )
+        )
 
 
 func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
-    # Player dock command overrides any current target.
+    if _state != State.IDLE:
+        return
+    if _retry_cooldown > 0.0:
+        return
+
+    _disconnect_host_signal()
+
     if specific_host:
-        if is_reserved():
-            release_reservation()
-        _target_host = null
-        _retry_cooldown = 0.0
-        _disconnect_host_signal()
         if _try_bind_host(specific_host):
             _target_host = specific_host
-            _refinery_timeout = DOCK_TIMEOUT
+            _state = State.MOVING
             _move_to_dock(specific_host)
             return
         _queued_host = specific_host
-        _queued_timeout = DOCK_TIMEOUT
-        _recheck_timer = RECHECK_INTERVAL
+        _state = State.QUEUED
         var host_dock := specific_host.get_node_or_null("DockHostComponent") as DockHostComponent
         if host_dock:
             _move_to_cell(host_dock.find_wait_cell())
-        dock_slot_failed.emit()
         return
-
-    if is_reserved() or _target_host or _retry_cooldown > 0.0:
-        return
-    _disconnect_host_signal()
 
     var host := find_nearest_host(parent)
     if not host:
         dock_slot_failed.emit()
         return
-    var bound := _try_bind_host(host)
-    if bound:
+    if _try_bind_host(host):
         _target_host = host
-        _refinery_timeout = DOCK_TIMEOUT
+        _state = State.MOVING
         _move_to_dock(host)
         return
 
-    var next_host := find_nearest_host(parent, host)
-    if next_host:
-        bound = _try_bind_host(next_host)
-        if bound:
-            _target_host = next_host
-            _refinery_timeout = DOCK_TIMEOUT
-            _move_to_dock(next_host)
-            return
-
-    # Both nearest docks occupied — queue at the nearest
+    # Host occupied — queue at the nearest.
     _queued_host = host
-    _queued_timeout = DOCK_TIMEOUT
-    _recheck_timer = RECHECK_INTERVAL
+    _state = State.QUEUED
     var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
     if dock:
         _move_to_cell(dock.find_wait_cell())
-    dock_slot_failed.emit()
 
 
 func _move_to_dock(host: Node3D) -> void:
+    var parent_name: String = get_parent().name if get_parent() else "?"
     var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
     if not dock or not _mc:
+        print("[DockClient] %s: _move_to_dock ABORT — dock=%s mc=%s" % [parent_name, dock, _mc])
         dock_slot_failed.emit()
         return
     var cs := Pathfinder.CELL_SIZE
@@ -177,6 +174,13 @@ func _move_to_dock(host: Node3D) -> void:
     var dock_offset := dock.dock_position
     var basis := host.global_transform.basis
     var target_pos := top_left_world + basis * dock_offset
+    var target_cell := Pathfinder.world_to_cell(target_pos)
+    print(
+        (
+            "[DockClient] %s: _move_to_dock → %s dock_cell=%s target_pos=%s target_cell=%s"
+            % [parent_name, host.name, dock._dock_cell, target_pos, target_cell]
+        )
+    )
     _mc.set_target_position(target_pos)
 
 
@@ -187,37 +191,65 @@ func _move_to_cell(cell: Vector2i) -> void:
 
 
 func _on_arrived(_position: Vector3) -> void:
-    if not _target_host:
-        return
-    _refinery_timeout = 0.0
-    # Verify we're at the correct dock cell — pathfinder may route to a nearby cell.
-    var dock := _target_host.get_node_or_null("DockHostComponent") as DockHostComponent
-    if dock and _mc:
-        var my_cell := Pathfinder.world_to_cell(get_parent().global_position)
-        if my_cell != dock._dock_cell:
-            _mc.set_target_position(Pathfinder.cell_to_world(dock._dock_cell))
-            return
-    if is_reserved():
-        _docking_timeout = -1.0
-        dock_slot_reserved.emit(_reserved_host)
-        return
-    reserve_at(_target_host)
+    match _state:
+        State.MOVING:
+            if not _target_host:
+                return
+            # Verify we're at the correct dock cell.
+            var dock := _target_host.get_node_or_null("DockHostComponent") as DockHostComponent
+            if dock and _mc:
+                var my_cell := Pathfinder.world_to_cell(get_parent().global_position)
+                if my_cell != dock._dock_cell:
+                    print(
+                        (
+                            "[DockClient] %s: arrived but wrong cell my=%s expected=%s → re-route"
+                            % [get_parent().name, my_cell, dock._dock_cell]
+                        )
+                    )
+                    _mc.set_target_position(Pathfinder.cell_to_world(dock._dock_cell))
+                    return
+            print(
+                "[DockClient] %s: arrived at %s → ROTATING" % [get_parent().name, _target_host.name]
+            )
+            _state = State.ROTATING
+        State.QUEUED:
+            # Scattered — navigate back to wait cell.
+            if is_instance_valid(_queued_host):
+                var dock := _queued_host.get_node_or_null("DockHostComponent") as DockHostComponent
+                if dock:
+                    var wait_cell := dock.find_wait_cell()
+                    var my_cell := Pathfinder.world_to_cell(get_parent().global_position)
+                    if my_cell != wait_cell:
+                        _mc.set_target_position(Pathfinder.cell_to_world(wait_cell))
 
 
 func _on_pathfinding_failed() -> void:
-    if _target_host or is_reserved():
-        _retry_cooldown = RETRY_COOLDOWN
-        _cancel_dock()
+    if _state == State.MOVING:
+        # Dock cell temporarily occupied — retry after cooldown.
+        _retry_cooldown = DOCK_CELL_RETRY_COOLDOWN
+    elif _state == State.QUEUED:
+        # Stay queued — wait cell is just a convenience. Host will promote us.
+        pass
 
 
 func _cancel_dock() -> void:
     var was_reserved := is_reserved()
+    print(
+        (
+            "[DockClient] %s: _cancel_dock from state=%s reserved=%s queued=%s"
+            % [
+                get_parent().name if get_parent() else "?",
+                State.keys()[_state],
+                _reserved_host.name if is_instance_valid(_reserved_host) else "null",
+                _queued_host.name if is_instance_valid(_queued_host) else "null",
+            ]
+        )
+    )
     release_reservation()
     _target_host = null
+    _state = State.IDLE
     if was_reserved:
         dock_cancelled.emit()
-    else:
-        dock_slot_failed.emit()
 
 
 func _disconnect_host_signal() -> void:
@@ -228,87 +260,16 @@ func _disconnect_host_signal() -> void:
         dock.docker_undocked.disconnect(on_dock_undocked)
 
 
-func reserve_at(host: Node3D) -> bool:
-    _disconnect_host_signal()
-    var bound := _try_bind_host(host)
-    if bound:
-        _queued_host = null
-        _docking_timeout = -1.0
-        dock_slot_reserved.emit(host)
-        return true
-    _queued_host = host
-    _queued_timeout = DOCK_TIMEOUT
-    dock_slot_failed.emit()
-    return false
-
-
-func find_nearest_host(parent: Node3D, exclude: Node3D = null) -> Node3D:
-    var parent_cell := Pathfinder.world_to_cell(parent.global_position)
-    var nearest: Node3D = null
-    var nearest_dist := float(search_radius_cells * search_radius_cells)
-    var buildings_parent := get_tree().current_scene.get_node_or_null("Buildings")
-    if not buildings_parent:
-        return null
-
-    for child in buildings_parent.get_children():
-        if child == exclude:
-            continue
-        var dock := child.get_node_or_null("DockHostComponent") as DockHostComponent
-        if not dock:
-            continue
-        var entity_id := dock.get_entity_id()
-        if not can_dock_with.is_empty() and entity_id not in can_dock_with:
-            continue
-        var dock_cell := Pathfinder.world_to_cell(Pathfinder.cell_to_world(dock._dock_cell))
-        var dist := Vector2(parent_cell - dock_cell).length_squared()
-        dist += dock.get_queue_size() * occupancy_penalty * occupancy_penalty
-        if dist < nearest_dist:
-            nearest_dist = dist
-            nearest = child
-
-    return nearest
-
-
-func _try_bind_host(host: Node3D) -> Node3D:
+func _try_bind_host(host: Node3D) -> bool:
     if not host:
-        return null
+        return false
     var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
     if not dock:
-        return null
+        return false
     if dock.request_dock(self):
         _bind_host(host)
-        return host
-    return null
-
-
-## Find a host with a shorter effective queue than max_size.
-func _find_shorter_queue(parent: Node3D, exclude: Node3D, max_size: int) -> Node3D:
-    var best: Node3D = null
-    var best_size := max_size
-    var best_dist := INF
-    var parent_cell := Pathfinder.world_to_cell(parent.global_position)
-    var buildings_parent := get_tree().current_scene.get_node_or_null("Buildings")
-    if not buildings_parent:
-        return null
-    for child in buildings_parent.get_children():
-        if child == exclude:
-            continue
-        var dock := child.get_node_or_null("DockHostComponent") as DockHostComponent
-        if not dock:
-            continue
-        var entity_id := dock.get_entity_id()
-        if not can_dock_with.is_empty() and entity_id not in can_dock_with:
-            continue
-        var size := dock.get_effective_queue_size()
-        if size > best_size:
-            continue
-        var dock_cell := Pathfinder.world_to_cell(Pathfinder.cell_to_world(dock._dock_cell))
-        var dist := Vector2(parent_cell - dock_cell).length_squared()
-        if size < best_size or dist < best_dist:
-            best_size = size
-            best_dist = dist
-            best = child
-    return best
+        return true
+    return false
 
 
 func _bind_host(host: Node3D) -> void:
@@ -330,15 +291,88 @@ func release_reservation() -> void:
     _queued_host = null
 
 
+func find_nearest_host(parent: Node3D, exclude: Node3D = null) -> Node3D:
+    var parent_cell := Pathfinder.world_to_cell(parent.global_position)
+    var nearest: Node3D = null
+    var nearest_dist := float(search_radius_cells * search_radius_cells)
+    var buildings_parent := get_tree().current_scene.get_node_or_null("Buildings")
+    if not buildings_parent:
+        return null
+
+    for child in buildings_parent.get_children():
+        if child == exclude:
+            continue
+        var dock := child.get_node_or_null("DockHostComponent") as DockHostComponent
+        if not dock:
+            continue
+        var entity_id := dock.get_entity_id()
+        if not can_dock_with.is_empty() and entity_id not in can_dock_with:
+            continue
+        var dock_cell := Pathfinder.world_to_cell(Pathfinder.cell_to_world(dock._dock_cell))
+        var raw_dist := Vector2(parent_cell - dock_cell).length_squared()
+        var queue_size: int = dock.get_effective_queue_size()
+        var penalty := queue_size * occupancy_penalty * occupancy_penalty
+        var dist := raw_dist + penalty
+        var parent_name: String = parent.name if parent else "?"
+        print(
+            (
+                "[DockClient] %s → %s: raw=%.1f queue=%d penalty=%.1f final=%.1f"
+                % [parent_name, child.name, raw_dist, queue_size, penalty, dist]
+            )
+        )
+        if dist < nearest_dist:
+            nearest_dist = dist
+            nearest = child
+
+    if nearest:
+        print(
+            "[DockClient] %s → selected %s (score=%.1f)" % [parent.name, nearest.name, nearest_dist]
+        )
+    else:
+        print(
+            "[DockClient] %s → no host found within %d cells" % [parent.name, search_radius_cells]
+        )
+    return nearest
+
+
 func on_slot_available() -> void:
+    var parent_name: String = get_parent().name if get_parent() else "?"
+    if _state != State.QUEUED:
+        return
     if is_instance_valid(_reserved_host):
-        dock_slot_reserved.emit(_reserved_host)
-    elif is_instance_valid(_queued_host):
+        # Already reserved — move to dock.
+        print(
+            (
+                "[DockClient] %s: on_slot_available → promoting to %s (reserved)"
+                % [parent_name, _reserved_host.name]
+            )
+        )
+        _target_host = _reserved_host
+        _state = State.MOVING
+        _move_to_dock(_reserved_host)
+        return
+    if is_instance_valid(_queued_host):
         var host := _queued_host
-        _queued_host = null
-        _target_host = host
-        _bind_host(host)
-        _move_to_dock(host)
+        if _try_bind_host(host):
+            _queued_host = null
+            print(
+                (
+                    "[DockClient] %s: on_slot_available → promoting to %s (queued, bind OK)"
+                    % [parent_name, host.name]
+                )
+            )
+            _target_host = host
+            _state = State.MOVING
+            _move_to_dock(host)
+        else:
+            _retry_cooldown = 0.5
+            print(
+                (
+                    "[DockClient] %s: on_slot_available → bind FAILED for %s, retrying in 0.5s"
+                    % [parent_name, host.name]
+                )
+            )
+        return
 
 
 func on_dock_undocked(docker: Node) -> void:
@@ -346,4 +380,35 @@ func on_dock_undocked(docker: Node) -> void:
         return
     _target_host = null
     _reserved_host = null
+    _retry_cooldown = 0.0
+    _state = State.IDLE
     dock_undocked.emit(docker)
+
+
+## Called by host when queue is purged (e.g. host building destroyed).
+## Does NOT emit signals — safe to call during teardown.
+func on_dock_cancelled() -> void:
+    _target_host = null
+    _reserved_host = null
+    _queued_host = null
+    _retry_cooldown = 0.0
+    _state = State.IDLE
+
+
+## Full cancel with signal emission — use for gameplay cancellations.
+func on_dock_cancelled_full() -> void:
+    on_dock_cancelled()
+    dock_cancelled.emit()
+
+
+func on_dock_timeout() -> void:
+    if is_instance_valid(_target_host):
+        var dock := _target_host.get_node_or_null("DockHostComponent") as DockHostComponent
+        if dock:
+            dock.leave_dock(self)
+    _target_host = null
+    _reserved_host = null
+    _queued_host = null
+    _retry_cooldown = 0.0
+    _state = State.IDLE
+    dock_cancelled.emit()
