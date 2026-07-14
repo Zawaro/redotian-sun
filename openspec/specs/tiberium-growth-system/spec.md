@@ -14,7 +14,7 @@ The system SHALL provide a `TiberiumGrowthSystem.gd` autoload that manages tiber
 #### Scenario: Tree timer — spawn zone
 - **WHEN** the tree timer fires and a tree has `node_count > 0`
 - **THEN** the system iterates all cells within `tree_spawn_radius` of the tree (circular area, e.g. 3 = 7x7)
-- **AND** for each cell: if tiberium exists → grow it; if empty → spawn new tiberium with `amount_per_node`
+- **AND** for each cell: if tiberium exists → grow it; if empty → spawn new tiberium with `spawn_strength` health
 
 #### Scenario: Tree timer — growth zone (contiguous spread)
 - **WHEN** the tree timer fires
@@ -65,7 +65,7 @@ TiberiumComponent SHALL include a `spread_count: int = 0` field tracking how man
 TiberiumTreeComponent SHALL implement a `configure(data: EntityData)` method that copies tree-spawner fields from EntityData into the component's exports.
 
 #### Scenario: Configure from EntityData
-- **WHEN** EntityFactory calls `configure(data)` on a TiberiumTreeComponent with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `amount_per_node = 300`
+- **WHEN** EntityFactory calls `configure(data)` on a TiberiumTreeComponent with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`
 - **THEN** the component stores these values for use by TiberiumGrowthSystem
 
 #### Scenario: No upfront spawn

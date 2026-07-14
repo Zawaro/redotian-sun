@@ -4,7 +4,7 @@
 The system SHALL provide a `TiberiumTreeComponent.gd` (script-attached Node) for persistent tiberium spawners on the map. The tree SHALL be a TERRAIN-type EntityFactory entity with 1x1 true foundation, indestructible, and unselectable. TiberiumTreeComponent SHALL use `resource_type_id: String` to identify the resource sub-type it spawns.
 
 #### Scenario: Tree is configured from EntityData
-- **WHEN** a TiberiumTreeComponent receives `configure(data)` with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `amount_per_node = 300`, `resource_type_id = "tiberium_green"`
+- **WHEN** a TiberiumTreeComponent receives `configure(data)` with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`, `resource_type_id = "tiberium_green"`
 - **THEN** the component stores these values for use by TiberiumGrowthSystem
 
 #### Scenario: Tree persists after depletion
@@ -27,7 +27,7 @@ The system SHALL provide a `TiberiumTreeComponent.gd` (script-attached Node) for
 EntityData SHALL include fields for TiberiumTree configuration.
 
 #### Scenario: Tree configuration
-- **WHEN** an EntityData is created with `tiberium_tree = true`, `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `amount_per_node = 300`, `max_amount_per_node = 300`, `resource_type_id = "tiberium_green"`
+- **WHEN** an EntityData is created with `tiberium_tree = true`, `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`, `max_spawn_strength = 300`, `resource_type_id = "tiberium_green"`
 - **THEN** the tree has full spawner configuration
 
 #### Scenario: Tree is indestructible and unselectable
