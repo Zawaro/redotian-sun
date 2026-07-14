@@ -163,17 +163,6 @@ The system SHALL provide a `DockUnloadComponent.gd` (script-attached Node) for b
 - **WHEN** cargo reaches 0.0 after unloading
 - **THEN** DockUnloadComponent calls `dock.leave_dock(docker_node)`
 
-### Requirement: RefineryComponent
-The system SHALL provide a `RefineryComponent.gd` (script-attached Node) for buildings that accept resource cargo from dock clients. It SHALL declare which resource categories the building accepts.
-
-#### Scenario: Configure refinery
-- **WHEN** a RefineryComponent is configured with `accepted_resource_categories = ["tiberium"]`, `unload_rate = 2.33`
-- **THEN** the building accepts tiberium category resources
-
-#### Scenario: Accept matching resource
-- **WHEN** a dock client has cargo with resource_type_id "tiberium_green" and the refinery has `accepted_resource_categories = ["tiberium"]`
-- **THEN** the resource is accepted (its category "tiberium" matches)
-
 ### Requirement: FoundationComponent bib cells
 The system SHALL extend `FoundationComponent` with `bib_cells: PackedVector2i` defining cells within the foundation footprint that are traversable for dock interaction.
 
@@ -186,7 +175,7 @@ The system SHALL extend `FoundationComponent` with `bib_cells: PackedVector2i` d
 - **THEN** the cell is silently ignored during registration
 
 ### Requirement: EntityFactory wires economy components
-The system SHALL extend `EntityFactory._add_components()` to attach ResourceTreeComponent (if `data.spawned_entity_id != ""`), ResourceComponent (if `data.resource_category != ""`), HarvestComponent (if `data.harvester`), DockHostComponent (if `data.dock_position != Vector3.ZERO`), DockClientComponent (if `data.dock != ""`), DockUnloadComponent (if `data.dock_unload`), RefineryComponent (if `data.accepted_resource_categories.size() > 0`), and FreeUnitComponent (if `data.free_unit != ""`).
+The system SHALL extend `EntityFactory._add_components()` to attach ResourceTreeComponent (if `data.spawned_entity_id != ""`), ResourceComponent (if `data.resource_category != ""`), HarvestComponent (if `data.harvester`), DockHostComponent (if `data.dock_position != Vector3.ZERO`), DockClientComponent (if `data.dock != ""`), DockUnloadComponent (if `data.dock_unload`), and FreeUnitComponent (if `data.free_unit != ""`).
 
 #### Scenario: Resource tree gets ResourceTreeComponent
 - **WHEN** an entity is created with `spawned_entity_id = "TIB"`
@@ -200,9 +189,9 @@ The system SHALL extend `EntityFactory._add_components()` to attach ResourceTree
 - **WHEN** an entity is created with `harvester = true` and `dock = "PROC"`
 - **THEN** the entity has a HarvestComponent child and a DockClientComponent child with `can_dock_with = ["PROC"]`
 
-#### Scenario: Refinery gets DockHostComponent, DockUnloadComponent, and RefineryComponent
-- **WHEN** an entity is created with `dock_position != Vector3.ZERO`, `dock_unload = true`, and `accepted_resource_categories = ["tiberium"]`
-- **THEN** the entity has DockHostComponent, DockUnloadComponent, and RefineryComponent children
+#### Scenario: Refinery gets DockHostComponent and DockUnloadComponent
+- **WHEN** an entity is created with `dock_position != Vector3.ZERO` and `dock_unload = true`
+- **THEN** the entity has DockHostComponent and DockUnloadComponent children
 
 ### Requirement: BuildingManager pseudo-foundation check
 The system SHALL check for ResourceComponent entities in `BuildingManager.can_place()` footprint cells (pseudo-foundation).

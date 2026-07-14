@@ -36,7 +36,6 @@ The factory SHALL add components based on these rules:
 - DockHostComponent: if `dock_position != Vector3.ZERO`
 - DockClientComponent: if `dock != ""`
 - DockUnloadComponent: if `dock_unload == true`
-- RefineryComponent: if `accepted_resource_categories.size() > 0`
 - FreeUnitComponent: if `free_unit != ""`
 
 #### Scenario: Minimal entity (terrain rock)
@@ -53,7 +52,7 @@ The factory SHALL add components based on these rules:
 
 #### Scenario: Refinery entity
 - **WHEN** EntityData has `dock_position = Vector3(6, 0, 2)`, `dock_unload = true`, `accepted_resource_categories = ["tiberium"]`, `free_unit = "HARV"`
-- **THEN** entity gets StatsComponent, HealthComponent, HitboxComponent, SelectComponent, FoundationComponent, DockHostComponent, DockUnloadComponent, RefineryComponent, FreeUnitComponent, ArtComponent
+- **THEN** entity gets StatsComponent, HealthComponent, HitboxComponent, SelectComponent, FoundationComponent, DockHostComponent, DockUnloadComponent, FreeUnitComponent, ArtComponent
 
 #### Scenario: Resource crystal entity
 - **WHEN** EntityData has `resource_category = "tiberium"`, `resource_type_id = "tiberium_green"`, `strength = 300`

@@ -8,15 +8,15 @@ class_name DockHostComponent extends Node
 @export var dock_types: PackedStringArray = []
 ## Max number of entities that can wait in the dock queue.
 @export var max_queue_length: int = 3
-## Frames to wait before promoting the next queued docker after a slot opens.
+## Frames to wait before promoting the next queued docker after the first.
 @export var dock_wait_ticks: int = 10
 
 var queue: Array[Node] = []
 var current_docker: Node = null
 var _entity_data: EntityData = null
 var _dock_cell: Vector2i = Vector2i.ZERO
+## Ticks until next promotion. 0 = promote on next _process tick.
 var _wait_counter: int = 0
-var _pending_dockers: Array[Node] = []
 
 ## Emitted when a docker is accepted and begins docking.
 signal docker_docked(docker: Node)
@@ -114,27 +114,25 @@ func request_dock(docker: Node) -> bool:
     if docker in queue:
         return false
     queue.append(docker)
-    _pending_dockers.append(docker)
+    _wait_counter = 0
     return false
 
 
 func _process(_delta: float) -> void:
-    if _pending_dockers.is_empty():
+    if queue.is_empty():
         return
     _wait_counter += 1
     if _wait_counter >= dock_wait_ticks:
         _wait_counter = 0
-        var docker := _pending_dockers.pop_front() as Node
-        if is_instance_valid(docker) and docker in queue:
-            queue.erase(docker)
-            if current_docker == null:
-                current_docker = docker
-                if SpatialHash.instance:
-                    SpatialHash.instance.force_reserve(_dock_cell)
-                docker_docked.emit(docker)
-                slot_available.emit()
-                if docker.has_method("on_slot_available"):
-                    docker.on_slot_available()
+        var docker := queue.pop_front() as Node
+        if is_instance_valid(docker) and current_docker == null:
+            current_docker = docker
+            if SpatialHash.instance:
+                SpatialHash.instance.force_reserve(_dock_cell)
+            docker_docked.emit(docker)
+            slot_available.emit()
+            if docker.has_method("on_slot_available"):
+                docker.on_slot_available()
 
 
 ## Remove a docker from the dock. If queued, removes from queue. If current, frees the slot.
@@ -143,12 +141,8 @@ func leave_dock(docker: Node) -> void:
         if SpatialHash.instance:
             SpatialHash.instance.release_cell(_dock_cell)
         current_docker = null
-        # Promote next queued docker BEFORE emitting undocked signal.
-        # This prevents the undocking harvester from re-reserving the slot
-        # before the queue is processed.
         if not queue.is_empty():
             var next_docker := queue.pop_front() as Node
-            _pending_dockers.erase(next_docker)
             current_docker = next_docker
             if SpatialHash.instance:
                 SpatialHash.instance.force_reserve(_dock_cell)
@@ -164,4 +158,3 @@ func leave_dock(docker: Node) -> void:
         var idx := queue.find(docker)
         if idx >= 0:
             queue.remove_at(idx)
-            _pending_dockers.erase(docker)

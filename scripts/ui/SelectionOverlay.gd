@@ -3,6 +3,7 @@ extends CanvasLayer
 const POOL_SIZE := 30
 const LINE_WIDTH := 1.0
 const MAX_CARGO_SLOTS := 10
+const MAX_POOL_SIZE := 60
 const MAX_PASSENGER_SLOTS := 5
 
 var _pool: Array[Control] = []
@@ -84,7 +85,7 @@ func _process(_delta):
         return
 
     for node in tree.get_nodes_in_group("selectable"):
-        if _used >= POOL_SIZE:
+        if _used >= MAX_POOL_SIZE:
             break
         var ent := node.get_node_or_null("SelectComponent") as SelectComponent
         if not ent or not (ent.is_selected or ent.is_hovering):
@@ -101,6 +102,8 @@ func _process(_delta):
 func _get_group() -> Control:
     if _used < _pool.size():
         return _pool[_used]
+    if _pool.size() >= MAX_POOL_SIZE:
+        return null
     var group := _create_group()
     _pool.append(group)
     add_child(group)
@@ -170,6 +173,8 @@ func _layout_entity(ent: SelectComponent, camera: Camera3D) -> bool:
     var rect := Rect2(min_s, rect_size)
 
     var group := _get_group()
+    if not group:
+        return false
     group.visible = true
 
     var bracket_rect := rect

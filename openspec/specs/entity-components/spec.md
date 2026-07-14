@@ -155,13 +155,6 @@ The system SHALL provide a `DockUnloadComponent.gd` (.gd only) for buildings tha
 - **WHEN** a harvester is docked at a refinery with DockUnloadComponent
 - **THEN** cargo is drained at `unload_rate` per second and credits are added via EconomyManager
 
-### Requirement: RefineryComponent
-The system SHALL provide a `RefineryComponent.gd` (.gd only) for buildings that accept resource cargo. See `resource-harvesting` spec for full requirements.
-
-#### Scenario: Refinery accepts tiberium
-- **WHEN** a RefineryComponent has `accepted_resource_categories = ["tiberium"]`
-- **THEN** it accepts cargo with resource types in the tiberium category
-
 ### Requirement: FreeUnitComponent
 The system SHALL provide a `FreeUnitComponent.gd` (.gd only) that spawns a free unit when its parent enters the scene tree. See `free-unit` spec for full requirements.
 
