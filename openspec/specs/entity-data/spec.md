@@ -60,15 +60,15 @@ Each EntityData resource SHALL have a unique `id: String` that matches the rules
 EntityData SHALL include fields for TiberiumTree configuration.
 
 #### Scenario: Create TiberiumTree data
-- **WHEN** an EntityData is created with `tiberium_tree = true`, `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `amount_per_node = 300`, `max_amount_per_node = 300`
-- **THEN** the entity is a tiberium tree spawner with radius 8, 12 nodes of 300 tiberium each
+- **WHEN** an EntityData is created with `tiberium_tree = true`, `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`, `max_spawn_strength = 300`
+- **THEN** the entity is a tiberium tree spawner with radius 8, 12 nodes of 300 health each
 
 ### Requirement: EntityData Tiberium crystal fields
 EntityData SHALL include fields for tiberium crystal entities (depletable resource per cell).
 
 #### Scenario: Create tiberium crystal data
-- **WHEN** an EntityData is created with `tiberium_resource = true`, `tiberium_amount = 300`, `tiberium_max_amount = 300`, `tiberium_type = 0`, `tiberium_regrowth_rate = -1.0`
-- **THEN** the entity is a green tiberium crystal with 300 tiberium, using GlobalRules default regrowth
+- **WHEN** an EntityData is created with `resource_category = "tiberium"`, `resource_type_id = "tiberium_green"`, `strength = 300`
+- **THEN** the entity is a green tiberium crystal with 300 health (bales), using GlobalRules default regrowth
 
 ### Requirement: EntityData bib cells
 EntityData SHALL include `bib_cells: PackedVector2i` for defining harvester-accessible cells within a building's foundation.

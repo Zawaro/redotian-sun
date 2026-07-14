@@ -52,7 +52,7 @@ TiberiumComponent SHALL include a `spread_count: int = 0` field tracking how man
 TiberiumTreeComponent SHALL implement a `configure(data: EntityData)` method that copies tree-spawner fields from EntityData into the component's exports, including `resource_type_id`.
 
 #### Scenario: Configure from EntityData
-- **WHEN** EntityFactory calls `configure(data)` on a TiberiumTreeComponent with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `amount_per_node = 300`, `resource_type_id = "tiberium_green"`
+- **WHEN** EntityFactory calls `configure(data)` on a TiberiumTreeComponent with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`, `resource_type_id = "tiberium_green"`
 - **THEN** the component stores these values for use by TiberiumGrowthSystem
 
 #### Scenario: No upfront spawn

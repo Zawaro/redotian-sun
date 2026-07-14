@@ -4,7 +4,7 @@
 The system SHALL provide a `TiberiumTreeComponent.gd` (script-attached Node) for persistent tiberium spawners on the map. The tree SHALL be a TERRAIN-type EntityFactory entity with 1x1 true foundation, indestructible, and unselectable.
 
 #### Scenario: Tree is configured from EntityData
-- **WHEN** a TiberiumTreeComponent receives `configure(data)` with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `amount_per_node = 300`
+- **WHEN** a TiberiumTreeComponent receives `configure(data)` with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`
 - **THEN** the component stores these values for use by TiberiumGrowthSystem
 
 #### Scenario: Tree persists after depletion
@@ -27,7 +27,7 @@ The system SHALL provide a `TiberiumTreeComponent.gd` (script-attached Node) for
 EntityData SHALL include fields for TiberiumTree configuration.
 
 #### Scenario: Tree configuration
-- **WHEN** an EntityData is created with `tiberium_tree = true`, `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `amount_per_node = 300`, `max_amount_per_node = 300`, `regrowth_rate = -1.0`
+- **WHEN** an EntityData is created with `tiberium_tree = true`, `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`, `max_spawn_strength = 300`, `regrowth_rate = -1.0`
 - **THEN** the tree has full spawner configuration with default GlobalRules regrowth
 
 #### Scenario: Tree is indestructible and unselectable
@@ -43,7 +43,7 @@ The system SHALL provide a `TiberiumGrowthSystem.gd` autoload that manages tiber
 
 #### Scenario: Tree timer spawns crystals
 - **WHEN** the tree timer fires and a TiberiumTree has `node_count > 0`
-- **THEN** the system picks a random cell within `radius_cells` and either grows existing tiberium or spawns a new crystal with `amount_per_node` tiberium
+- **THEN** the system picks a random cell within `radius_cells` and either grows existing tiberium or spawns a new crystal with `spawn_strength` health
 
 #### Scenario: Tree timer batched processing
 - **WHEN** the tree timer fires with 30 trees on the map and `growth_batch_trees = 10`
