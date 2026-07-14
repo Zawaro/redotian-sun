@@ -52,7 +52,7 @@ func _spawn_free_unit() -> void:
 
     var harvest := free_entity.get_node_or_null("HarvestComponent") as HarvestComponent
     if harvest:
-        var resource := harvest._find_nearest_resource(free_entity)
+        var resource := harvest._find_nearest_resource(free_entity.global_position)
         if resource:
             harvest.set_target_node(resource)
 

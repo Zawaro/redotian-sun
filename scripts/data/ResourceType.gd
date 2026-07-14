@@ -8,13 +8,13 @@ class_name ResourceType extends Resource
 @export var category: String = ""
 ## Legacy parent type identifier — use category for new resources.
 @export var parent_type: String = ""
-## Credit value per unit when processed at a refinery.
-@export var value_per_unit: float = 1.0
+## Credit value per bale when processed at a refinery.
+@export var value: float = 1.0
 ## Display color for UI elements (pip scale, minimap dots, selection highlights).
 @export var color: Color = Color.WHITE
-## Fraction of max_amount added per growth tick (0.05 = 5% per tick).
+## Fraction of max health added per growth tick (0.05 = 5% per tick).
 @export var grow_rate: float = 0.05
-## Units of resource created when this type spreads to an adjacent cell.
-@export var spread_amount: int = 50
+## Bales of resource created when this type spreads to a new cell (0.01-0.5).
+@export var spread_amount: float = 0.5
 ## Max times a single crystal can spread before it stops spreading.
 @export var spread_max: int = 3

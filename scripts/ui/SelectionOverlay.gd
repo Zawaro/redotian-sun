@@ -163,7 +163,6 @@ func _layout_entity(ent: SelectComponent, camera: Camera3D) -> bool:
         max_s = max_s.max(p)
 
     var rect_size := max_s - min_s
-    print(" rect_size: ", rect_size, " screen_half: ", screen_half)
     var min_size := 12.0
     rect_size.x = max(rect_size.x, min_size)
     rect_size.y = max(rect_size.y, min_size)
@@ -268,7 +267,7 @@ func _layout_health_bar(
 
 func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
     var transport := parent.get_node_or_null("TransportComponent") as TransportComponent
-    var has_cargo := transport and transport.resource_capacity > 0
+    var has_cargo := transport and transport.storage > 0
     var has_passengers := transport and transport.passengers > 0
 
     var cargo_pips: Array[Panel] = []
@@ -285,7 +284,12 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
             p.visible = false
         return
 
-    var pip_w := rect.size.x / ((MAX_CARGO_SLOTS + 1) * 2)
+    var num_cargo_pips := MAX_CARGO_SLOTS
+    var art := parent.get_node_or_null("ArtComponent") as ArtComponent
+    if art and art.art_data and art.art_data.pip_count > 0:
+        num_cargo_pips = mini(art.art_data.pip_count, MAX_CARGO_SLOTS)
+
+    var pip_w := rect.size.x / ((num_cargo_pips + 1) * 2)
     var pip_h := pip_w * 0.8
     var pip_gap: float = 0.0
 
@@ -293,7 +297,7 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
     if has_cargo and has_passengers:
         num_rows = 2
 
-    var grid_w := float(MAX_CARGO_SLOTS) * (pip_w + pip_gap) - pip_gap + pip_w * 0.4
+    var grid_w := float(num_cargo_pips) * (pip_w + pip_gap) - pip_gap + pip_w * 0.4
     var grid_h := float(num_rows) * (pip_h + pip_gap) - pip_gap + pip_w * 0.4
     var grid_left := rect.position.x + pip_w * 0.2
     var pip_offset: float = pip_h * 0.5
@@ -309,13 +313,13 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
             if rt:
                 cargo_color = rt.color
 
-    var cargo_filled := transport.get_cargo_total() if has_cargo else 0
+    var cargo_filled: float = transport.get_cargo_total() if has_cargo else 0.0
     var filled_pips := 0
-    if has_cargo and transport.resource_capacity > 0:
-        var ratio := float(cargo_filled) / float(transport.resource_capacity)
-        filled_pips = int(ceil(ratio * float(MAX_CARGO_SLOTS)))
+    if has_cargo and transport.storage > 0:
+        var ratio := float(cargo_filled) / float(transport.storage)
+        filled_pips = int(ceil(ratio * float(num_cargo_pips)))
 
-    for i in MAX_CARGO_SLOTS:
+    for i in num_cargo_pips:
         var pip := cargo_pips[i]
         var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
         var filled := i < filled_pips
@@ -329,6 +333,9 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
         pip.visible = true
         pip.position = Vector2(pip_x, grid_top)
         pip.size = Vector2(pip_w, pip_h)
+
+    for i in range(num_cargo_pips, MAX_CARGO_SLOTS):
+        cargo_pips[i].visible = false
 
     var pass_row_y := grid_top
     if num_rows > 1:

@@ -48,8 +48,8 @@ class_name GlobalRules extends Resource
 @export var growth_batch_trees: int = 10
 ## Resource entities processed per resource timer tick.
 @export var growth_batch_crystals: int = 500
-## Resource amount for a newly spawned entity from spreading.
-@export var spread_amount: int = 50
+## Bales of resource created when spreading to a new cell (0.01-0.5).
+@export var spread_amount: float = 0.5
 ## Max times a single resource entity can spread before it only self-grows.
 @export var spread_max: int = 3
 
@@ -90,7 +90,7 @@ class_name GlobalRules extends Resource
 }
 
 ## Resource type definitions — maps resource ID to ResourceType.
-## Each holds value_per_unit, grow_rate, spread_amount, spread_max, color.
+## Each holds value, grow_rate, spread_amount, spread_max, color.
 @export var resource_types: Dictionary = {}
 
 ## Misc
