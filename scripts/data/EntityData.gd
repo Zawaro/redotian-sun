@@ -10,6 +10,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 
 ## Core stats
 @export var strength: int = 0
+@export var spawn_health: int = 0
 @export var armor: String = "none"
 @export var cost: int = 0
 @export var tech_level: int = -1

@@ -1,15 +1,10 @@
-[gd_resource type="Resource" script_class="ResourceType" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ResourceType" load_steps=2 format=3 uid="uid://dqabewo4e4375"]
 
-[ext_resource type="Script" path="res://scripts/data/ResourceType.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://twdgybkj123u" path="res://scripts/data/ResourceType.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
 id = "tiberium"
 display_name = "Tiberium"
-category = ""
-parent_type = ""
 value = 25
 color = Color(0.2, 0.8, 0.2, 1)
-grow_rate = 0.05
-spread_amount = 0.5
-spread_max = 3

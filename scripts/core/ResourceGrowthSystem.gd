@@ -20,6 +20,7 @@ var _resource_batch_offset: int = 0
 var _rebuild_timer: float = 0.0
 var _cached_trees: Array = []
 var _cached_resources: Array = []
+var _resource_parent: Node = null
 var _map_half_diag: int = 640
 var _play_area_half_diag: int = 256
 
@@ -80,6 +81,10 @@ func _find_bounds_system() -> void:
 func _rebuild_cache() -> void:
     _cached_trees = _get_trees()
     _cached_resources = _get_resources()
+    if not _resource_parent and not _cached_trees.is_empty():
+        var first_tree = _cached_trees[0]
+        if is_instance_valid(first_tree):
+            _resource_parent = (first_tree as Node3D).get_parent()
 
 
 func _reset_tree_timer() -> void:
@@ -141,8 +146,6 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
     var rt := rules.get_resource_type(tree_comp.resource_type_id) if rules else null
     var grow_rate: float = rt.grow_rate if rt else 0.1
 
-    _spawn_in_radius(tree_comp, tree_cell, rules.tree_spawn_radius, rules)
-
     var radius_sq: float = float(tree_comp.radius_cells) * float(tree_comp.radius_cells)
     for tib_node in _cached_resources:
         if not is_instance_valid(tib_node):
@@ -162,6 +165,8 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
         hp.heal(grow_amount)
         tib_comp._update_visual()
 
+    _spawn_in_radius(tree_comp, tree_cell, rules.tree_spawn_radius, rules)
+
 
 func _spawn_in_radius(
     tree_comp: ResourceTreeComponent, center: Vector2i, radius: int, rules: GlobalRules
@@ -179,9 +184,7 @@ func _spawn_in_radius(
             if _is_cell_blocked_for_resource(cell):
                 continue
             var existing := _find_resource_at_cell(cell)
-            if existing:
-                _grow_entry(existing)
-            else:
+            if not existing:
                 _spawn_at_cell(cell, tree_comp, spawn_bales)
 
 
@@ -245,14 +248,17 @@ func _find_nearest_tree_comp(world_pos: Vector3) -> ResourceTreeComponent:
 
 
 func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, bales: float) -> void:
-    var max_health := tree_comp.max_spawn_strength
-    var health := int(bales * float(max_health))
+    var ef := get_node_or_null("/root/EntityFactory") as EntityFactory
+    var base_data: EntityData = ef.get_entity_data(tree_comp.spawned_entity_id) if ef else null
+    var max_health: int = base_data.strength if base_data else 1
+    var health := maxi(1, int(randf_range(0.01, bales) * float(max_health)))
     var entity := (
         EntityFactory
         . create_entity(
             tree_comp.spawned_entity_id,
             {
-                "strength": health,
+                "strength": max_health,
+                "spawn_health": health,
                 "resource_type_id": tree_comp.resource_type_id,
                 "resource_regrowth_rate": tree_comp.regrowth_rate,
             }
@@ -262,13 +268,13 @@ func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, bales: flo
         return
 
     var world_pos := Pathfinder.cell_to_world(cell)
+    # Set position before add_child so ResourceComponent._ready() sees the
+    # correct global_position when it registers the cell in SpatialHash.
     entity.position = world_pos
-    if not _cached_trees.is_empty():
-        var first_tree = _cached_trees[0]
-        if is_instance_valid(first_tree):
-            var parent: Node = (first_tree as Node3D).get_parent() as Node
-            if parent:
-                parent.add_child(entity)
+    if _resource_parent and is_instance_valid(_resource_parent):
+        _resource_parent.add_child(entity)
+    else:
+        push_warning("ResourceGrowthSystem: no resource parent for %s" % cell)
 
 
 func _grow_entry(entry: Dictionary) -> void:

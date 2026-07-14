@@ -17,7 +17,7 @@ signal health_zero
 func configure(data: EntityData) -> void:
     if data.strength > 0:
         max_health = data.strength
-        current_health = data.strength
+        current_health = data.spawn_health if data.spawn_health > 0 else data.strength
 
 
 func take_damage(damage: int) -> void:
