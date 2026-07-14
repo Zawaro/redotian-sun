@@ -73,4 +73,15 @@ The branch `refactor/53-55-dock-cleanup` targets issues #53 (closed — already 
 
 - **[Trade-off] Host complexity increases** → DockHostComponent grows from 160 to ~200 lines. Acceptable — host is the natural owner of dock state.
 
-- **[Trade-off] `dock_unload` field stays on EntityData** → Could be derived from `refinery: bool`, but keeping it preserves backward compatibility with existing .tres resources. Remove in a future cleanup.
+- **[Trade-off] `dock_unload` field stays on EntityData** → Kept for backward compatibility with existing .tres resources. Remove in a future cleanup.
+
+## Post-Review Revisions
+
+A review after the initial implementation reversed two decisions and refined the HarvestComponent state machine (previously a Non-Goal):
+
+- **Decision 1 reversed — `refinery: bool` removed.** The flag had zero runtime readers (no AI system yet). Deleted from `EntityData`, `EntityFactory`, and `gdi_refinery.tres` as YAGNI. Re-add when the GameAI build-ratio system actually queries it (see plan `1-3_economy_resources.md`). `accepted_resource_categories` stays on EntityData and is applied via `DockUnloadComponent.configure(data)`.
+- **Decision 2 refined — client `on_dock_timeout()` removed.** The host still emits `dock_timeout` on eviction (real, tested event), but the client handler and the `dock_slot_reserved` signal were redundant: stale eviction already drives client cleanup through `leave_dock() → docker_undocked → on_dock_undocked()`.
+- **Cancellation unified.** `DockClientComponent.cancel()` aborts docking from any sub-state (leave slot/queue, then `_reset()`), mirroring OpenRA's `MoveToDock.Cancel → UnreserveHost`. `HarvestComponent.cancel_harvest` calls it so a player move order mid-dock cannot leave dangling state.
+- **HarvestComponent state machine extended.** Added `DELIVERING` (replacing the old FULL/DOCKING/QUEUED trio) and `HIBERNATE`. `IDLE` now means only "waiting for player orders"; an exhausted, empty harvester enters `HIBERNATE` and auto-resumes, matching OpenRA's `FindAndDeliverResources` search-with-backoff (with dock-unblock, echoing OpenRA's `UnblockCell`).
+- **Stale timeout scoped to phases.** The client resets the host stale timer on arrival and at unload start, so a long approach across the map isn't mistaken for a stuck docker.
+- **`max_queue_length` removed.** The queue is unbounded; the client-side occupancy penalty provides soft load-balancing. A hard cap would require restoring the "rejected → try next-nearest host" fallback that was deleted.

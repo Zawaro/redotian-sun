@@ -94,17 +94,19 @@ class_name DockHostComponent extends Node
 @export var dock_position: Vector3     # local offset where unit stops
 @export var dock_rotation: float       # Y rotation the unit faces when docked
 @export var dock_types: PackedStringArray = []  # what this host offers (e.g. ["harvest"])
-@export var max_queue_length: int = 3  # max queued clients
-@export var dock_wait_ticks: int = 10  # ticks before queued client docks
+@export var dock_wait_ticks: int = 10  # ticks before queued client is promoted
+@export var stale_timeout: float = 5.0 # evict a docker that doesn't finish in time
 
-var queue: Array[Node] = []
+var queue: Array[Node] = []            # unbounded FIFO queue
 var current_docker: Node = null
 signal docker_docked(docker: Node)
 signal docker_undocked(docker: Node)
 signal slot_available
+signal dock_timeout(docker: Node)      # current docker evicted for taking too long
 ```
-- One client at a time. Others queue up to `max_queue_length`.
-- Queued clients wait `dock_wait_ticks` before docking (visual polish).
+- One client at a time. Others queue (unbounded — client-side occupancy penalty spreads load across refineries).
+- Queued clients wait `dock_wait_ticks` before promotion. On undock with a queue, the host awaits vacate — polls until the dock cell physically clears (up to `VACATE_TIMEOUT`) before promoting the next valid client.
+- Auto-evicts a `current_docker` that doesn't complete within `stale_timeout` (emits `dock_timeout`, then `leave_dock`). The client resets the timer on arrival and at unload start, so a long approach isn't mistaken for a stuck docker.
 - Reads foundation from FoundationComponent sibling (no duplicate `foundation` export).
 - Reserve/release dock cell in SpatialHash on dock/undock.
 
@@ -116,8 +118,8 @@ class_name DockClientComponent extends Node
 @export var occupancy_penalty: float = 10.0        # added to distance per queued client
 @export var search_radius_cells: int = 20
 
+# State machine: IDLE, MOVING, ROTATING, UNLOADING, QUEUED
 var _reserved_host: Node3D = null
-signal dock_slot_reserved(host: Node3D)
 signal dock_slot_failed
 signal dock_cancelled
 signal dock_undocked(docker: Node)
@@ -126,9 +128,12 @@ signal dock_undocked(docker: Node)
 - Applies occupancy penalty to distance — distributes harvesters across refineries.
 - Reserves slot before movement — prevents wasted pathfinding.
 - Client decides compatibility via `can_dock_with`, not host's `allowed_entities`.
-- On failure at nearest host, tries next nearest via `_find_shorter_queue()`.
+- Thin/reactive: driven by host signals (`slot_available`, `docker_undocked`); no per-state timeouts or queue rechecking.
+- `cancel()` aborts docking from any sub-state (leaves slot/queue, resets to IDLE) — used by player move commands.
 
 ### Refinery Classification (`refinery: bool` on EntityData)
+
+> **Status (DEFERRED):** `refinery: bool` was implemented then removed — it had zero runtime readers. Re-add it to `EntityData` when the GameAI build-ratio system below is built and actually queries it. The rationale here is the spec for that point.
 
 **Source**: [ModEnc — Refinery](https://modenc.renegadeprojects.com/Refinery)
 
@@ -158,31 +163,34 @@ func _count_refineries() -> int:
     return count
 ```
 
-**Decision for #55**: Delete `RefineryComponent`. Add `refinery: bool` to `EntityData`. Move `accepted_resource_categories` to `DockUnloadComponent`.
+**Decision for #55**: Delete `RefineryComponent`. Move `accepted_resource_categories` to `DockUnloadComponent`. (`refinery: bool` deferred — see Status note above.)
 
 ### DockUnloadComponent (on refinery buildings)
 Handles the actual unload tick — drains cargo from docked entity, converts to credits via ResourceType.value.
 ```gdscript
 class_name DockUnloadComponent extends Node
 @export var unload_rate: float = 0.5       # bales per second
-@export var refinery_storage: int = 0      # legacy, unused
+@export var accepted_resource_categories: PackedStringArray = []  # empty = accept all
 ```
+- Reads the docked entity's TransportComponent from `current_docker`'s parent entity
+- Validates cargo against `accepted_resource_categories` (empty = accept all); rejects and leaves the dock if any cargo type is unaccepted
 - Iterates `transport.cargo` dictionary, looks up `GlobalRules.get_resource_type(type_id).value` for each type
 - Adds credits to EconomyManager when integer threshold reached
 - Calls `dock.leave_dock()` when cargo empty
 
 ### HarvestComponent
-Harvester behavior logic. References TransportComponent for cargo capacity and DockClientComponent for dock operations.
-- States: IDLE → SEEK_NODE → HARVESTING → FULL → DOCKING → UNLOADING → QUEUED → IDLE
+Harvester behavior logic. References TransportComponent for cargo capacity and DockClientComponent for dock operations. HarvestComponent decides *what* to do; DockClientComponent owns *how to dock* (queue, move, rotate, unload).
+- States: `IDLE`, `SEEK_NODE`, `HARVESTING`, `DELIVERING`, `HIBERNATE`
 - SEEK_NODE: search scene tree for nearest entity with ResourceComponent matching `harvestable_types` category (e.g. `["tiberium"]` umbrella matches green/blue/red)
-- HARVESTING: tick fill rate at `GlobalRules.harvester_fill_rate`, deplete pod health via `ResourceComponent.collect()`. When full (cargo total == TransportComponent.storage) or pod depleted → FULL
+- HARVESTING: tick fill rate at `GlobalRules.harvester_fill_rate`, deplete pod health via `ResourceComponent.collect()`. When full → DELIVERING; when the pod depletes → `_assess_next_action()`
 - **Cell occupation**: SpatialHash reserves the resource cell during harvest to prevent duplicate targeting
-- FULL: delegates to DockClientComponent.seek_dock(). On success → DOCKING. On failure → QUEUED.
-- DOCKING: navigate to dock position, orient to dock rotation
-- UNLOADING: passive — DockUnloadComponent on the building handles the tick. When empty → IDLE.
-- Auto-targets nearest matching resource node when idle with no cargo
-- Can be manually ordered to a specific pod via left-click (context-sensitive: click resource → harvest, click refinery → dock)
-- Player move command calls `cancel_harvest(true)` — sets `_player_commanded = true` to prevent auto-seek
+- DELIVERING: delegates to `DockClientComponent.seek_dock()`. If no refinery is reachable, schedules a `DELIVER_RETRY` cooldown and retries from `_process` — never re-seeks synchronously (that recurses via `dock_slot_failed`)
+- `_assess_next_action()` (after unload / depletion): deliver if loaded → else seek nearest resource (current pos, fallback near `_last_field_position`) → else HIBERNATE
+- HIBERNATE: field exhausted and empty. Waits `HIBERNATE_INTERVAL`, re-scans, auto-resumes to SEEK_NODE when a field reappears. On entry, if parked on a dock cell, steps off to a free wait cell (dock-unblock). Distinct from IDLE.
+- IDLE: reserved for an explicit player stop — no auto-search
+- Auto-targets nearest matching resource node when hibernating with no cargo
+- Manually orderable via left-click (context-sensitive: click resource → `set_target_node`; click refinery → `set_target_refinery`, which enters DELIVERING so the loop resumes after unload)
+- Left-click move on empty ground calls `cancel_harvest()` → `DockClientComponent.cancel()` → `IDLE`
 
 ### FoundationComponent.bib_cells
 ```gdscript
@@ -340,7 +348,7 @@ GlobalRules.resource_types: Dictionary = {
 
 - HarvestComponent uses `harvestable_types = ["tiberium"]` which umbrellas all sub-types via `GlobalRules.get_resource_category()`
 - ResourceComponent stores `resource_type_id: String` (e.g. `"tiberium_green"`)
-- RefineryComponent declares `accepted_resource_categories` (e.g. `["tiberium"]`)
+- DockUnloadComponent declares `accepted_resource_categories` (e.g. `["tiberium"]`), sourced from EntityData via `configure()`
 - Resource types stored as `.tres` files under `resources/resource_types/`
 
 ### TransportComponent
@@ -391,7 +399,7 @@ func get_subtypes(category_id: String) -> Array[String]
 @export var dock_position: Vector3 = Vector3.ZERO
 @export var dock_rotation: float = 0.0
 @export var dock_unload: bool = false
-@export var refinery: bool = false  # classification flag — "is this a refinery?" (for AI targeting/build ratios)
+# @export var refinery: bool  # DEFERRED classification flag — add when GameAI build-ratio queries it
 
 # For units that dock
 @export var dock: String = ""  # target entity ID (e.g. "PROC")
@@ -414,7 +422,7 @@ func get_subtypes(category_id: String) -> Array[String]
 - `FactoryComponent` / future production queue → deduct on queue
 - `SpatialHash` → handle bib cells as soft-blocked
 - `EntityFactory._add_components()` → add ResourceTreeComponent, ResourceComponent, HarvestComponent, DockHostComponent, DockClientComponent, DockUnloadComponent, FreeUnitComponent
-- `EntityData.refinery` → set `refinery: bool` on refinery buildings (GDI PROC, Nod REF, etc.)
+- `EntityData.refinery` → DEFERRED classification flag for AI (not implemented; see Refinery Classification)
 - AI system (future) → queries `refinery` flag for build ratio decisions
 - `GlobalRules.tres` → resource_types dictionary with ResourceType entries
 - Map scenes → add ResourceTree instances for resource patches
