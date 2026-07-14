@@ -89,7 +89,11 @@ func test_can_place_rejects_tiberium_cell():
     tib_node.add_child(tib_comp)
     tib_node.add_to_group("resources")
     _bm.add_child(tib_node)
+    # Register resource cell in SpatialHash so BuildingManager detects it
+    var world_cell := Pathfinder.world_to_cell(tib_node.global_position)
+    SpatialHash.instance.register_resource_cell(world_cell)
     var result: bool = _bm.can_place(building_type, origin)
+    SpatialHash.instance.unregister_resource_cell(world_cell)
     _bm.remove_child(tib_node)
     tib_node.queue_free()
     if result == false:

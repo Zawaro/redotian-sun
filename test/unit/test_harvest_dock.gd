@@ -109,7 +109,6 @@ func test_docking_rotates_toward_target():
     # Set up state: entity at dock cell, state DOCKING, rotation off target
     entity.rotation.y = deg_to_rad(0.0)
     harvest._current_dock = dock_entity
-    harvest._docking_timeout = 5.0
     harvest._state = HarvestComponent.State.DOCKING
 
     # Simulate one _process frame with delta=0.016
@@ -141,7 +140,6 @@ func test_docking_completes_rotation_and_transitions_to_unloading():
     # Set up: almost at target rotation (within 0.05 rad ≈ 2.86°)
     entity.rotation.y = deg_to_rad(-88.0)
     harvest._current_dock = dock_entity
-    harvest._docking_timeout = 5.0
     harvest._state = HarvestComponent.State.DOCKING
 
     # DockUnloadComponent starts disabled
@@ -295,7 +293,7 @@ func test_cancel_harvest_clears_state():
     add_child(entity)
 
     var harvest := _get_harvest(entity)
-    harvest._current_tiberium = Node3D.new()
+    harvest._current_resource = Node3D.new()
     harvest._current_dock = Node3D.new()
     harvest._state = HarvestComponent.State.HARVESTING
 
@@ -303,7 +301,7 @@ func test_cancel_harvest_clears_state():
 
     if (
         harvest._state == HarvestComponent.State.IDLE
-        and harvest._current_tiberium == null
+        and harvest._current_resource == null
         and harvest._current_dock == null
     ):
         _test_passed += 1
@@ -313,7 +311,7 @@ func test_cancel_harvest_clears_state():
         print(
             (
                 "    FAIL: state=%d, crystal=%s, dock=%s"
-                % [harvest._state, harvest._current_tiberium, harvest._current_dock]
+                % [harvest._state, harvest._current_resource, harvest._current_dock]
             )
         )
 
@@ -800,11 +798,12 @@ func test_is_cell_available_rejects_building_cell():
     _init_dock(dock_comp, dock_entity)
 
     var building_cell := Vector2i(5, 5)
-    SpatialHash.instance.register_building_cells([building_cell])
+    var building_cells: Array[Vector2i] = [building_cell]
+    SpatialHash.instance.register_building_cells(building_cells)
 
     var available: bool = dock_comp.is_cell_available(building_cell)
 
-    SpatialHash.instance.unregister_building_cells([building_cell])
+    SpatialHash.instance.unregister_building_cells(building_cells)
 
     if not available:
         _test_passed += 1
@@ -828,7 +827,8 @@ func test_is_cell_available_allows_bib_cell():
     _init_dock(dock_comp, dock_entity)
 
     var bib_cell := Vector2i(6, 5)
-    SpatialHash.instance.register_bib_cells([bib_cell])
+    var bib_cells: Array[Vector2i] = [bib_cell]
+    SpatialHash.instance.register_bib_cells(bib_cells)
 
     var available: bool = dock_comp.is_cell_available(bib_cell)
 
