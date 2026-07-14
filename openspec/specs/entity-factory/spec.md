@@ -1,19 +1,19 @@
 ## ADDED Requirements
 
 ### Requirement: EntityFactory creates entities from data
-The system SHALL provide an `EntityFactory.gd` autoload singleton that creates entities from EntityData resources. The factory SHALL instantiate a base `Entity.tscn` scene and add components dynamically based on data properties.
+The system SHALL provide an `EntityFactory.gd` autoload singleton that creates entities from EntityData resources. The factory SHALL instantiate a base scene and add components dynamically based on data properties.
 
 #### Scenario: Create infantry entity
 - **WHEN** `EntityFactory.create_entity("E1")` is called
-- **THEN** the factory looks up EntityData with id "E1", instantiates Entity.tscn, adds StatsComponent, HealthComponent, HitboxComponent, SelectComponent, MovementController, CombatComponent, ArtComponent, and returns the configured entity
+- **THEN** the factory looks up EntityData with id "E1", instantiates a base scene, adds StatsComponent, HealthComponent, HitboxComponent, SelectComponent, MovementController, CombatComponent, ArtComponent, and returns the configured entity
 
 #### Scenario: Create terrain entity
 - **WHEN** `EntityFactory.create_entity("TREE01")` is called
-- **THEN** the factory instantiates Entity.tscn, adds StatsComponent, HealthComponent (if strength > 0), HitboxComponent, FoundationComponent, ArtComponent — but NOT SelectComponent (entity_type = TERRAIN)
+- **THEN** the factory instantiates a base scene, adds StatsComponent, HealthComponent (if strength > 0), HitboxComponent, FoundationComponent, ArtComponent — but NOT SelectComponent (entity_type = TERRAIN)
 
 #### Scenario: Create building entity
 - **WHEN** `EntityFactory.create_entity("GAPOWR")` is called
-- **THEN** the factory instantiates Entity.tscn, adds StatsComponent, HealthComponent, HitboxComponent, SelectComponent, FoundationComponent, PowerComponent, ArtComponent, and returns the configured entity
+- **THEN** the factory instantiates a base scene, adds StatsComponent, HealthComponent, HitboxComponent, SelectComponent, FoundationComponent, PowerComponent, ArtComponent, and returns the configured entity
 
 ### Requirement: Component addition rules
 The factory SHALL add components based on these rules:
@@ -30,6 +30,14 @@ The factory SHALL add components based on these rules:
 - TransportComponent: if `passengers > 0` or `harvester == true`
 - SpecialAbilityComponent: if any ability flag is true
 - ArtComponent: ALWAYS
+- ResourceTreeComponent: if `spawned_entity_id != ""`
+- ResourceComponent: if `resource_category != ""`
+- HarvestComponent: if `harvester == true`
+- DockHostComponent: if `dock_position != Vector3.ZERO`
+- DockClientComponent: if `dock != ""`
+- DockUnloadComponent: if `dock_unload == true`
+- RefineryComponent: if `accepted_resource_categories.size() > 0`
+- FreeUnitComponent: if `free_unit != ""`
 
 #### Scenario: Minimal entity (terrain rock)
 - **WHEN** EntityData has `entity_type = TERRAIN`, `strength = 0`, `foundation = Vector2i(1,1)`, `speed = 0`, `weapons = []`
@@ -39,8 +47,24 @@ The factory SHALL add components based on these rules:
 - **WHEN** EntityData has `entity_type = VEHICLE`, `strength = 220`, `speed = 10`, `weapons = [raider_cannon]`, `foundation = Vector2i(1,1)`
 - **THEN** entity gets StatsComponent, HealthComponent, HitboxComponent, SelectComponent, CombatComponent, MovementController, ArtComponent
 
+#### Scenario: Harvester entity
+- **WHEN** EntityData has `harvester = true`, `dock = "PROC"`, `storage = 1`, `speed = 5.0`
+- **THEN** entity gets StatsComponent, HealthComponent, HitboxComponent, SelectComponent, MovementController, TransportComponent, HarvestComponent, DockClientComponent, ArtComponent
+
+#### Scenario: Refinery entity
+- **WHEN** EntityData has `dock_position = Vector3(6, 0, 2)`, `dock_unload = true`, `accepted_resource_categories = ["tiberium"]`, `free_unit = "HARV"`
+- **THEN** entity gets StatsComponent, HealthComponent, HitboxComponent, SelectComponent, FoundationComponent, DockHostComponent, DockUnloadComponent, RefineryComponent, FreeUnitComponent, ArtComponent
+
+#### Scenario: Resource crystal entity
+- **WHEN** EntityData has `resource_category = "tiberium"`, `resource_type_id = "tiberium_green"`, `strength = 300`
+- **THEN** entity gets StatsComponent, HealthComponent, ResourceComponent, ArtComponent (no SelectComponent — entity_type = TERRAIN)
+
+#### Scenario: Resource tree entity
+- **WHEN** EntityData has `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`
+- **THEN** entity gets StatsComponent, FoundationComponent, ResourceTreeComponent, ArtComponent (no HealthComponent if strength = 0, no SelectComponent)
+
 ### Requirement: Component wiring
-The factory SHALL wire component references programmatically after instantiation. HitboxComponent and SelectComponent SHALL receive a NodePath reference to HealthComponent.
+The factory SHALL wire component references programmatically after instantiation. HitboxComponent and SelectComponent SHALL receive a reference to HealthComponent.
 
 #### Scenario: Health component reference wiring
 - **WHEN** an entity has both HealthComponent and HitboxComponent

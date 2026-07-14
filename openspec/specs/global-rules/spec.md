@@ -49,7 +49,6 @@ GlobalRules SHALL contain production constants (multiple factory bonus, min prod
 #### Scenario: Multiple factory bonus
 - **WHEN** a player has 2 war factories
 - **THEN** production speed is multiplied by `multiple_factory` coefficient (default 0.5 per extra factory)
-## ADDED Requirements
 
 ### Requirement: Starting credits constant
 GlobalRules SHALL contain `starting_credits: int` for the default credit balance at game start.
@@ -62,43 +61,51 @@ GlobalRules SHALL contain `starting_credits: int` for the default credit balance
 - **WHEN** a mission overrides `starting_credits = 2000`
 - **THEN** the player starts that mission with 2000 credits
 
-### Requirement: Tiberium value constant
-GlobalRules SHALL contain `tiberium_value: float` defining credits earned per unit of tiberium refined.
+### Requirement: Resource type registry
+GlobalRules SHALL contain `resource_types: Dictionary` mapping resource type IDs to ResourceType resources. This replaces the legacy `tiberium_value` field.
 
-#### Scenario: Default tiberium value
-- **WHEN** GlobalRules is loaded with `tiberium_value = 1.0`
-- **THEN** each tiberium unit refined into credits adds 1 credit
+#### Scenario: Default resource types
+- **WHEN** GlobalRules is loaded
+- **THEN** `resource_types` contains entries for "tiberium", "tiberium_green", "tiberium_blue", "tiberium_red", and "vein"
 
-#### Scenario: Modified tiberium value
-- **WHEN** a mod sets `tiberium_value = 1.5`
-- **THEN** each tiberium unit refined adds 1.5 credits
+#### Scenario: Get resource type by ID
+- **WHEN** `GlobalRules.get_resource_type("tiberium_green")` is called
+- **THEN** it returns the ResourceType for tiberium_green
+
+#### Scenario: Get resource category
+- **WHEN** `GlobalRules.get_resource_category("tiberium_green")` is called
+- **THEN** it returns "tiberium" (the parent category)
+
+#### Scenario: Get sub-types
+- **WHEN** `GlobalRules.get_subtypes("tiberium")` is called
+- **THEN** it returns an array of IDs for all resource types where `category == "tiberium"` or `parent_type == "tiberium"`
 
 ### Requirement: Harvester fill rate constant
-GlobalRules SHALL contain `harvester_fill_rate: float` defining tiberium units collected per second from a node.
+GlobalRules SHALL contain `harvester_fill_rate: float` defining resource units collected per second from a node.
 
 #### Scenario: Default fill rate
 - **WHEN** GlobalRules is loaded with `harvester_fill_rate = 2.0`
-- **THEN** a harvester collects 2 tiberium units per second from a node
+- **THEN** a harvester collects 2 resource units per second from a node
 
-### Requirement: Tiberium growth constants
-GlobalRules SHALL contain tiberium growth configuration fields for the TiberiumGrowthSystem autoload.
+### Requirement: Resource growth constants
+GlobalRules SHALL contain resource growth configuration fields for the ResourceGrowthSystem autoload.
 
 #### Scenario: Tree growth rate
 - **WHEN** GlobalRules is loaded with `tree_growth_rate = 3.0`
-- **THEN** the tree timer fires every 3 minutes to spawn/grow tiberium around trees
+- **THEN** the tree timer fires every 3 minutes to spawn/grow resources around trees
 
 #### Scenario: Tree spawn radius
 - **WHEN** GlobalRules is loaded with `tree_spawn_radius = 3`
-- **THEN** trees spawn new tiberium in a circular area of radius 3 cells (7x7) around themselves
+- **THEN** trees spawn new resources in a circular area of radius 3 cells (7x7) around themselves
 
-#### Scenario: Tiberium growth rate
+#### Scenario: Resource growth rate
 - **WHEN** GlobalRules is loaded with `growth_rate = 5.0`
-- **THEN** the tiberium timer fires every 5 minutes for tiberium self-growth
+- **THEN** the resource timer fires every 5 minutes for resource self-growth
 
 #### Scenario: Growth batch sizes
 - **WHEN** GlobalRules is loaded with `growth_batch_trees = 10` and `growth_batch_crystals = 500`
-- **THEN** only 10 trees and 500 tiberium entities are processed per timer tick, preventing frame spikes
+- **THEN** only 10 trees and 500 resource entities are processed per timer tick, preventing frame spikes
 
 #### Scenario: Spread configuration
-- **WHEN** GlobalRules is loaded with `spread_amount = 50`, `spread_max = 3`
-- **THEN** tiberium spreads with 50 amount, max 3 spreads per entity
+- **WHEN** GlobalRules is loaded with `spread_amount = 0.5`, `spread_max = 3`
+- **THEN** resources spread with 0.5 bales, max 3 spreads per entity
