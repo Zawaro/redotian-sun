@@ -32,21 +32,6 @@ EntityData SHALL include `dock_position: Vector3` and `dock_rotation: float` for
 
 ## ADDED Requirements
 
-### Requirement: EntityData refinery flag
-EntityData SHALL include `refinery: bool = false` for buildings that are classified as refineries. This flag SHALL be used for AI targeting (which buildings to attack for economy disruption) and to identify valid unload targets.
-
-#### Scenario: Refinery building
-- **WHEN** an EntityData is created with `refinery = true`
-- **THEN** the building is classified as a refinery for AI targeting
-
-#### Scenario: Non-refinery building
-- **WHEN** an EntityData is created without setting `refinery`
-- **THEN** `refinery` is `false` and the building is not classified as a refinery
-
-#### Scenario: Refinery with dock
-- **WHEN** an EntityData has `refinery = true` and `dock_position = Vector3(6, 0, 2)`
-- **THEN** the building has both refinery classification and dock capability
-
 ### Requirement: EntityData accepted resource categories
 EntityData SHALL include `accepted_resource_categories: PackedStringArray` for buildings that accept resource cargo (refineries). This field SHALL be passed to DockUnloadComponent at creation time. Empty array = accept all cargo types, non-empty array = exclusive whitelist of accepted resource categories.
 

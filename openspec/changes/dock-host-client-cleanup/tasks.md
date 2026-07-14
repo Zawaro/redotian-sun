@@ -49,3 +49,18 @@
 - [x] 6.7 Add test_harvest_dock.gd: test cargo validation rejects unaccepted categories
 - [x] 6.8 Add test_harvest_dock.gd: test full dock cycle with stale eviction
 - [x] 6.9 Run full test suite and fix any failures
+
+## 7. Follow-up Hardening (review-driven)
+
+- [x] 7.1 Fix synchronous recursion in HarvestComponent delivery (schedule `DELIVER_RETRY`, don't re-seek in callstack)
+- [x] 7.2 `set_target_refinery` enters `DELIVERING` so player-ordered docks resume the loop
+- [x] 7.3 Add `DockClientComponent.cancel()`; route `cancel_harvest` through it (full reset from any sub-state)
+- [x] 7.4 `_begin_unload` validates host before `UNLOADING`; `on_dock_undocked` clears `_queued_host`; MOVING retry uses `is_instance_valid`
+- [x] 7.5 Reset stale timer on arrival (`reset_stale_timer` from client) so long approaches aren't evicted
+- [x] 7.6 Add `HIBERNATE` state — exhausted+empty harvester re-scans on `HIBERNATE_INTERVAL`; `IDLE` reserved for player stop
+- [x] 7.7 Add dock-unblock — hibernating harvester steps off the dock cell to a free wait cell
+- [x] 7.8 Remove dead code: `refinery` flag, `refinery_storage`, `on_dock_timeout` + `dock_slot_reserved`, `State.SEEKING`, `RETRY_COOLDOWN`, debug prints, always-null transport lookup
+- [x] 7.9 Remove `max_queue_length` cap (unbounded queue; occupancy penalty handles load-balancing)
+- [x] 7.10 Add tests: cancel from queued/reserved, hibernate entry + timer, player-ordered DELIVERING, recursion-safe retry; run full suite (180 passing)
+
+> Note: tasks 1.1/1.2 (add `refinery` flag) and 3.11 (`on_dock_timeout` handler) were completed then reverted in section 7 as dead code.
