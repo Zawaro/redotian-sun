@@ -114,8 +114,7 @@ func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
         _target_host = null
         _retry_cooldown = 0.0
         _disconnect_host_signal()
-        var bound := _try_bind_host(specific_host)
-        if bound:
+        if _try_bind_host(specific_host):
             _target_host = specific_host
             _refinery_timeout = DOCK_TIMEOUT
             _move_to_dock(specific_host)
@@ -123,9 +122,9 @@ func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
         _queued_host = specific_host
         _queued_timeout = DOCK_TIMEOUT
         _recheck_timer = RECHECK_INTERVAL
-        var dock := specific_host.get_node_or_null("DockHostComponent") as DockHostComponent
-        if dock:
-            _move_to_cell(dock.find_wait_cell())
+        var host_dock := specific_host.get_node_or_null("DockHostComponent") as DockHostComponent
+        if host_dock:
+            _move_to_cell(host_dock.find_wait_cell())
         dock_slot_failed.emit()
         return
 
