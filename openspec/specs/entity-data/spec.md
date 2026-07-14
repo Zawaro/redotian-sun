@@ -54,36 +54,69 @@ Each EntityData resource SHALL have a unique `id: String` that matches the rules
 #### Scenario: Duplicate id detection
 - **WHEN** two EntityData resources have the same `id`
 - **THEN** EntityFactory logs a warning and the later-loaded resource overrides the earlier one
-## ADDED Requirements
 
-### Requirement: EntityData TiberiumTree fields
-EntityData SHALL include fields for TiberiumTree configuration.
+### Requirement: EntityData resource tree fields
+EntityData SHALL include fields for ResourceTree configuration. A ResourceTree is identified by having `spawned_entity_id` set (non-empty).
 
-#### Scenario: Create TiberiumTree data
-- **WHEN** an EntityData is created with `tiberium_tree = true`, `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 300`, `max_spawn_strength = 300`
-- **THEN** the entity is a tiberium tree spawner with radius 8, 12 nodes of 300 health each
+#### Scenario: Create resource tree data
+- **WHEN** an EntityData is created with `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`, `spawn_strength = 0.5`, `max_spawn_strength = 1.0`
+- **THEN** the entity is a resource tree spawner with radius 8, 12 nodes of 0.5 health each
 
-### Requirement: EntityData Tiberium crystal fields
-EntityData SHALL include fields for tiberium crystal entities (depletable resource per cell).
+#### Scenario: Tree identified by spawned_entity_id
+- **WHEN** an EntityData has `spawned_entity_id = "TIB"`
+- **THEN** EntityFactory attaches a ResourceTreeComponent
 
-#### Scenario: Create tiberium crystal data
+### Requirement: EntityData resource crystal fields
+EntityData SHALL include fields for resource crystal entities (depletable resource per cell). A crystal is identified by having `resource_category` set (non-empty).
+
+#### Scenario: Create resource crystal data
 - **WHEN** an EntityData is created with `resource_category = "tiberium"`, `resource_type_id = "tiberium_green"`, `strength = 300`
 - **THEN** the entity is a green tiberium crystal with 300 health (bales), using GlobalRules default regrowth
+
+#### Scenario: Crystal identified by resource_category
+- **WHEN** an EntityData has `resource_category = "tiberium"`
+- **THEN** EntityFactory attaches a ResourceComponent
 
 ### Requirement: EntityData bib cells
 EntityData SHALL include `bib_cells: PackedVector2i` for defining harvester-accessible cells within a building's foundation.
 
 #### Scenario: Refinery with bib cells
-- **WHEN** an EntityData is created with `foundation = Vector2i(4,3)`, `bib_cells = [Vector2i(0, -1), Vector2i(1, -1), Vector2i(2, -1), Vector2i(3, -1)]`
-- **THEN** the bottom row of cells are bib for harvester docking access
+- **WHEN** an EntityData is created with `foundation = Vector2i(4,3)`, `bib_cells = [Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2)]`
+- **THEN** the specified cells are bib for harvester docking access
 
 #### Scenario: Building without bib cells
 - **WHEN** an EntityData is created without setting `bib_cells`
 - **THEN** `bib_cells` is an empty PackedVector2i
 
 ### Requirement: EntityData dock configuration
-EntityData SHALL include `dock_position: Vector3` and `dock_rotation: float` for buildings with docking capability.
+EntityData SHALL include `dock_position: Vector3` and `dock_rotation: float` for buildings with docking capability. EntityData SHALL include `dock_unload: bool` to indicate whether the building has a DockUnloadComponent.
 
 #### Scenario: Refinery with dock
-- **WHEN** an EntityData is created with `dock_position = Vector3(0, 0, -2)`, `dock_rotation = 180.0`
-- **THEN** the building has a dock 2 units behind the building center, facing south
+- **WHEN** an EntityData is created with `dock_position = Vector3(6, 0, 2)`, `dock_rotation = -90.0`, `dock_unload = true`
+- **THEN** the building has a dock 6 units right and 2 units forward, facing west, with unload capability
+
+#### Scenario: Building without dock
+- **WHEN** an EntityData is created without setting `dock_position`
+- **THEN** `dock_position` is `Vector3.ZERO` and no DockHostComponent is attached
+
+### Requirement: EntityData accepted resource categories
+EntityData SHALL include `accepted_resource_categories: PackedStringArray` for buildings that accept resource cargo (refineries).
+
+#### Scenario: Refinery with accepted categories
+- **WHEN** an EntityData has `accepted_resource_categories = ["tiberium"]`
+- **THEN** EntityFactory attaches a RefineryComponent with those categories
+
+#### Scenario: Empty accepted categories
+- **WHEN** an EntityData has `accepted_resource_categories = []`
+- **THEN** no RefineryComponent is attached
+
+### Requirement: EntityData transport fields
+EntityData SHALL include `storage: int = 0` for resource cargo capacity, `dock: String = ""` for target dock entity ID, `harvester: bool = false` for auto-harvest behavior, and `pip_scale: String = ""` for pip overlay display.
+
+#### Scenario: Harvester transport config
+- **WHEN** an EntityData has `harvester = true`, `dock = "PROC"`, `storage = 1`
+- **THEN** the entity harvests tiberium, docks with PROC refinery, stores up to 1 bale
+
+#### Scenario: APC transport config
+- **WHEN** an EntityData has `passengers = 5`, `dock = ""`
+- **THEN** the entity can carry 5 infantry, does not dock

@@ -32,3 +32,14 @@ The map JSON SHALL use format version 3.
 #### Scenario: Version field
 - **WHEN** MapLoader reads a JSON file
 - **THEN** it checks the `"version"` field for format compatibility
+
+### Requirement: Entity override keys
+MapLoader SHALL pass entity overrides using the current field names from EntityData. The override key for resource type SHALL be `resource_type_id` (not the legacy `tiberium_type`).
+
+#### Scenario: Resource entity overrides
+- **WHEN** a JSON entity entry has `"resource_type_id": "tiberium_green"`
+- **THEN** MapLoader passes `{"resource_type_id": "tiberium_green"}` as overrides to EntityFactory
+
+#### Scenario: Resource amount overrides
+- **WHEN** a JSON entity entry has `"resource_amount": 300` and `"resource_max_amount": 300`
+- **THEN** MapLoader passes these as overrides to configure the ResourceComponent's HealthComponent

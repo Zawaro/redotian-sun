@@ -18,17 +18,17 @@ FreeUnitComponent SHALL spawn a free unit entity adjacent to its parent when the
 ### Requirement: Adjacent free cell search
 FreeUnitComponent SHALL find an unoccupied cell adjacent to the parent's foundation.
 
-#### Scenario: Orthogonal first
+#### Scenario: Spiral search
 - **WHEN** searching for an adjacent cell
-- **THEN** orthogonal cells (N, S, E, W) outside the foundation are checked first
+- **THEN** cells are checked in expanding radius (1–5 cells) from the building origin, skipping building cells, blocked cells, and reserved cells
 
-#### Scenario: Diagonal fallback
-- **WHEN** no orthogonal cell is free
-- **THEN** diagonal cells outside the foundation are checked
+#### Scenario: Terrain type filter
+- **WHEN** checking a candidate cell
+- **THEN** only cells with terrain type "" or "clear" are considered (not water, cliffs, etc.)
 
 #### Scenario: Search radius
 - **WHEN** no cell is free within the search radius (~5 cells)
-- **THEN** the component silently gives up and removes itself (no entity spawned)
+- **THEN** the component retries every 2 seconds until a cell becomes available
 
 ### Requirement: Refinery spawns harvester
 The gdi_refinery EntityData SHALL have `factory = "HarvesterType"` and `free_unit = "HARV"`.
@@ -39,4 +39,4 @@ The gdi_refinery EntityData SHALL have `factory = "HarvesterType"` and `free_uni
 
 #### Scenario: Spawned harvester auto-harvests
 - **WHEN** a free harvester is spawned by FreeUnitComponent
-- **THEN** it automatically finds the nearest Tiberium pod and begins harvesting
+- **THEN** it automatically finds the nearest resource node via `HarvestComponent._find_nearest_resource()` and calls `set_target_node()` to begin harvesting
