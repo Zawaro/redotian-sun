@@ -280,11 +280,11 @@ func set_is_selected(value: bool):
 
 
 func _update_visibility():
-    var show := is_selected or is_hovering
+    var vis := is_selected or is_hovering
     if _building_select_box:
         _building_select_box.visible = is_selected
     if health_bar:
-        health_bar.visible = show
+        health_bar.visible = vis
     if _health_bar_grid:
         _health_bar_grid.visible = show
     for child in get_children():

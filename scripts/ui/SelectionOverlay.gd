@@ -2,7 +2,7 @@ extends CanvasLayer
 
 const POOL_SIZE := 30
 const LINE_WIDTH := 1.0
-const MAX_CARGO_SLOTS := 5
+const MAX_CARGO_SLOTS := 10
 const MAX_PASSENGER_SLOTS := 5
 
 var _pool: Array[Control] = []
@@ -287,7 +287,7 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
     var num_cargo_pips := MAX_CARGO_SLOTS
     var art := parent.get_node_or_null("ArtComponent") as ArtComponent
     if art and art.art_data and art.art_data.pip_count > 0:
-        num_cargo_pips = mini(art.art_data.pip_count, MAX_CARGO_SLOTS)
+        num_cargo_pips = clampi(art.art_data.pip_count, 1, MAX_CARGO_SLOTS)
 
     var pip_w := rect.size.x / ((num_cargo_pips + 1) * 2)
     var pip_h := pip_w * 0.8
@@ -297,10 +297,8 @@ func _layout_pips(group: Control, parent: Node3D, rect: Rect2):
     if has_cargo and has_passengers:
         num_rows = 2
 
-    var grid_w := float(num_cargo_pips) * (pip_w + pip_gap) - pip_gap + pip_w * 0.4
     var grid_h := float(num_rows) * (pip_h + pip_gap) - pip_gap + pip_w * 0.4
     var grid_left := rect.position.x + pip_w * 0.2
-    var pip_offset: float = pip_h * 0.5
     var bracket_end_y := rect.end.y - rect.size.y * 0.07
     var grid_top := bracket_end_y - grid_h - pip_w * 0.1
 
