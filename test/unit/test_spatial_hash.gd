@@ -157,7 +157,8 @@ func test_reserve_cell_fails_on_building_cell():
     _sh.clear_reservations()
     _sh._building_cells.clear()
     var cell := Vector2i(50, 50)
-    _sh.register_building_cells([cell])
+    var cells: Array[Vector2i] = [cell]
+    _sh.register_building_cells(cells)
     var result: bool = _sh.reserve_cell(cell)
     _sh.clear_reservations()
     _sh._building_cells.clear()
