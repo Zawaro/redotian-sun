@@ -70,6 +70,18 @@ func is_cell_available(cell: Vector2i) -> bool:
     return not blocked and not reserved
 
 
+func find_wait_cell(max_radius: int = 3) -> Vector2i:
+    for r in range(0, max_radius + 1):
+        for dx in range(-r, r + 1):
+            for dz in range(-r, r + 1):
+                if r > 0 and abs(dx) != r and abs(dz) != r:
+                    continue
+                var cell := _dock_cell + Vector2i(dx, dz)
+                if is_cell_available(cell):
+                    return cell
+    return _dock_cell
+
+
 func _log_cells(data: EntityData) -> void:
     var entity := get_parent() as Node3D
     if not entity:
@@ -121,6 +133,13 @@ func get_queue_size() -> int:
     return queue.size()
 
 
+## Effective wait: 0 if slot is free, queue.size() if occupied.
+func get_effective_queue_size() -> int:
+    if current_docker == null:
+        return 0
+    return queue.size()
+
+
 ## Accept a docker into the dock. Returns true if docked immediately, false if queued or rejected.
 func request_dock(docker: Node) -> bool:
     if current_docker == docker:
@@ -165,19 +184,23 @@ func leave_dock(docker: Node) -> void:
         if SpatialHash.instance:
             SpatialHash.instance.release_cell(_dock_cell)
         current_docker = null
-        docker_undocked.emit(docker)
-        if docker.has_method("on_dock_undocked"):
-            docker.on_dock_undocked(docker)
+        # Promote next queued docker BEFORE emitting undocked signal.
+        # This prevents the undocking harvester from re-reserving the slot
+        # before the queue is processed.
         if not queue.is_empty():
             var next_docker := queue.pop_front() as Node
             _pending_dockers.erase(next_docker)
             current_docker = next_docker
             if SpatialHash.instance:
                 SpatialHash.instance.force_reserve(_dock_cell)
-            docker_docked.emit(next_docker)
+        docker_undocked.emit(docker)
+        if docker.has_method("on_dock_undocked"):
+            docker.on_dock_undocked(docker)
+        if current_docker and current_docker != docker:
+            docker_docked.emit(current_docker)
             slot_available.emit()
-            if next_docker.has_method("on_slot_available"):
-                next_docker.on_slot_available()
+            if current_docker.has_method("on_slot_available"):
+                current_docker.on_slot_available()
     else:
         var idx := queue.find(docker)
         if idx >= 0:
