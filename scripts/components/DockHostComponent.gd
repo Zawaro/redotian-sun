@@ -7,8 +7,12 @@ class_name DockHostComponent extends Node
 ## Accepted dock type IDs (e.g. ["harvest"]). Empty = accepts all types.
 @export var dock_types: PackedStringArray = []
 ## Frames to wait before promoting the next queued docker after the first.
+## ponytail: frame-based, so the delay scales with FPS. Convert _wait_counter
+## to seconds (delta accumulator) if frame-rate independence matters.
 @export var dock_wait_ticks: int = 10
-## Seconds before a docked client is evicted for not completing the dock sequence.
+## Seconds a docked client has to finish the dock sequence before eviction.
+## The client resets this on arrival and again when unloading begins, so this
+## mainly bounds the approach — raise it above the worst-case travel time.
 @export var stale_timeout: float = 5.0
 
 var queue: Array[Node] = []
@@ -119,12 +123,9 @@ func get_effective_queue_size() -> int:
 
 ## Accept a docker into the dock. Returns true if docked immediately, false if queued.
 func request_dock(docker: Node) -> bool:
-    var docker_name: String = _entity_name(docker)
-    var host_name: String = get_parent().name if get_parent() else "?"
     if docker == _vacating_docker:
         return false
     if current_docker == docker:
-        print("[DockHost] %s: re-dock accepted for %s" % [host_name, docker_name])
         return true
     if current_docker == null:
         current_docker = docker
@@ -132,20 +133,11 @@ func request_dock(docker: Node) -> bool:
         docker_docked.emit(docker)
         if SpatialHash.instance:
             SpatialHash.instance.force_reserve(_dock_cell)
-        print("[DockHost] %s: docked %s immediately (queue empty)" % [host_name, docker_name])
         return true
     if docker in queue:
-        print("[DockHost] %s: rejected %s — already in queue" % [host_name, docker_name])
         return false
     queue.append(docker)
     _wait_counter = 0
-    var current_name: String = _entity_name(current_docker)
-    print(
-        (
-            "[DockHost] %s: queued %s (position %d, current=%s)"
-            % [host_name, docker_name, queue.size(), current_name]
-        )
-    )
     return false
 
 
@@ -193,9 +185,6 @@ func _process(delta: float) -> void:
 
 ## Remove a docker from the dock. If queued, removes from queue. If current, frees the slot.
 func leave_dock(docker: Node) -> void:
-    var docker_name: String = _entity_name(docker)
-    var host_name: String = get_parent().name if get_parent() else "?"
-    var q_before: int = queue.size()
     if current_docker == docker:
         current_docker = null
         _stale_timer = 0.0
@@ -204,43 +193,22 @@ func leave_dock(docker: Node) -> void:
             _vacating_docker = docker
             _vacate_timer = 0.0
         docker_undocked.emit(docker)
-        if _awaiting_vacate:
-            print(
-                (
-                    "[DockHost] %s: undocked %s — awaiting vacate (q_before=%d, q_after=%d)"
-                    % [host_name, docker_name, q_before, queue.size()]
-                )
-            )
-        else:
-            if SpatialHash.instance:
-                SpatialHash.instance.release_cell(_dock_cell)
-            print("[DockHost] %s: undocked %s (no queue, cell released)" % [host_name, docker_name])
+        if not _awaiting_vacate and SpatialHash.instance:
+            SpatialHash.instance.release_cell(_dock_cell)
     else:
         var idx := queue.find(docker)
         if idx >= 0:
             queue.remove_at(idx)
-            print("[DockHost] %s: removed %s from queue (pos %d)" % [host_name, docker_name, idx])
 
 
-## Purge the queue and notify each client. Reason is for logging only.
-func _clear_queue(reason: String) -> void:
-    var host_name: String = get_parent().name if get_parent() else "?"
+## Purge the queue and notify each client.
+func _clear_queue(_reason: String = "") -> void:
     while not queue.is_empty():
         var docker := queue.pop_front() as Node
         # on_dock_cancelled() cleans state without emitting signals — safe during teardown.
         if is_instance_valid(docker) and docker.has_method("on_dock_cancelled"):
             docker.on_dock_cancelled()
-        print(
-            "[DockHost] %s: purged %s from queue (%s)" % [host_name, _entity_name(docker), reason]
-        )
     _wait_counter = 0
-
-
-func _entity_name(node: Node) -> String:
-    if not node:
-        return "none"
-    var parent := node.get_parent()
-    return parent.name if parent else node.name
 
 
 ## Reset the stale timer — called when unloading begins so the timeout
@@ -261,7 +229,6 @@ func _is_dock_cell_clear() -> bool:
 ## Skips dead clients in queue. Caller (_process) already verified the
 ## dock cell is clear or vacate timeout has elapsed.
 func _finish_vacate() -> void:
-    var host_name: String = get_parent().name if get_parent() else "?"
     _awaiting_vacate = false
     _vacating_docker = null
     _vacate_timer = 0.0
@@ -275,7 +242,6 @@ func _finish_vacate() -> void:
         if is_instance_valid(candidate):
             next_docker = candidate
             break
-        print("[DockHost] %s: skipped dead client in queue" % host_name)
 
     if next_docker:
         current_docker = next_docker
@@ -285,10 +251,4 @@ func _finish_vacate() -> void:
         docker_docked.emit(current_docker)
         slot_available.emit()
         if current_docker.has_method("on_slot_available"):
-            print(
-                (
-                    "[DockHost] %s: promoting %s after vacate"
-                    % [host_name, _entity_name(current_docker)]
-                )
-            )
             current_docker.on_slot_available()

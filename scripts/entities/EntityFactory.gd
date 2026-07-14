@@ -369,8 +369,6 @@ func _add_dock_unload_component(entity: Node3D, data: EntityData) -> void:
         var component := Node.new()
         component.name = "DockUnloadComponent"
         component.set_script(DOCK_UNLOAD_COMPONENT_SCRIPT)
-        component.refinery_storage = data.refinery_storage
-        component.accepted_resource_categories = data.accepted_resource_categories
         entity.add_child(component)
         component.owner = entity
 

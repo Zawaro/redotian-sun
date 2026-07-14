@@ -517,31 +517,6 @@ func test_queued_client_dock_cancelled_clears_state():
     host.queue_free()
 
 
-func test_queued_client_dock_cancelled_full_emits():
-    var h := _make_harvester()
-    add_child(h)
-    var host := _make_host()
-    add_child(host)
-
-    var c := _get_client(h)
-    c._queued_host = host
-    c._state = DockClientComponent.State.QUEUED
-    _cancelled_emitted = false
-    c.dock_cancelled.connect(_on_cancelled)
-
-    c.on_dock_cancelled_full()
-
-    if _cancelled_emitted and c.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: on_dock_cancelled_full emits signal")
-    else:
-        _test_failed += 1
-        print("    FAIL: emitted=%s state=%d" % [_cancelled_emitted, c.get_state()])
-
-    h.queue_free()
-    host.queue_free()
-
-
 func test_queued_client_dock_undocked_wrong_ignored():
     var h := _make_harvester()
     add_child(h)
@@ -916,4 +891,78 @@ func test_rapid_queue_promote_cycle():
 
     h1.queue_free()
     h2.queue_free()
+    host.queue_free()
+
+
+# --- Category: cancel() aborts docking from any sub-state ---
+
+
+func test_cancel_from_queued_leaves_queue_and_idles():
+    var host := _make_host()
+    add_child(host)
+    var h1 := _make_harvester()
+    add_child(h1)
+    var h2 := _make_harvester()
+    add_child(h2)
+    var host_comp := host.get_node("DockHostComponent") as DockHostComponent
+
+    _get_client(h1).seek_dock(h1, host)  # docks
+    var c2 := _get_client(h2)
+    c2.seek_dock(h2, host)  # queues
+
+    c2.cancel()
+
+    var out_of_queue := c2 not in host_comp.queue
+    if (
+        c2.get_state() == DockClientComponent.State.IDLE
+        and c2._queued_host == null
+        and c2._reserved_host == null
+        and out_of_queue
+    ):
+        _test_passed += 1
+        print("    PASS: cancel() from QUEUED leaves queue and idles")
+    else:
+        _test_failed += 1
+        print(
+            (
+                "    FAIL: state=%d queued=%s reserved=%s in_queue=%s"
+                % [c2.get_state(), c2._queued_host, c2._reserved_host, not out_of_queue]
+            )
+        )
+
+    h1.queue_free()
+    h2.queue_free()
+    host.queue_free()
+
+
+func test_cancel_from_reserved_frees_slot_and_idles():
+    var host := _make_host()
+    add_child(host)
+    var h1 := _make_harvester()
+    add_child(h1)
+    var host_comp := host.get_node("DockHostComponent") as DockHostComponent
+
+    var c1 := _get_client(h1)
+    c1.seek_dock(h1, host)  # reserves + MOVING
+
+    c1.cancel()
+
+    if (
+        c1.get_state() == DockClientComponent.State.IDLE
+        and c1._target_host == null
+        and c1._reserved_host == null
+        and host_comp.current_docker == null
+    ):
+        _test_passed += 1
+        print("    PASS: cancel() from reserved frees slot and idles")
+    else:
+        _test_failed += 1
+        print(
+            (
+                "    FAIL: state=%d target=%s reserved=%s current_docker=%s"
+                % [c1.get_state(), c1._target_host, c1._reserved_host, host_comp.current_docker]
+            )
+        )
+
+    h1.queue_free()
     host.queue_free()
