@@ -160,6 +160,24 @@ This repo is indexed in `codebase-memory-mcp`. Use its graph tools **before** gr
 
 Fall back to grep/glob only for string literals, config values, or non-code files.
 
+#### Indexing mode — MUST use `full`
+
+This project's source code lives in `scripts/` (Redot/Godot convention). The indexer's `moderate` and `fast` modes skip `scripts/` (it's in `FAST_SKIP_DIRS`). Always use `mode: "full"` when indexing or re-indexing this repo, or GDScript files won't be in the graph.
+
+#### Project path convention
+
+The `project` argument uses the repo's **absolute path** with all `/` replaced by `-`. Short names like `redotian-sun` don't resolve correctly. To find the correct project identifier:
+
+1. Run `codebase-memory-mcp index_status` with the full path: `project: "mnt/work2/Redot/redotian-sun"` → the response includes a `root_path` field confirming the canonical path
+2. Or run `codebase-memory-mcp list_projects` to see all indexed project IDs — the one starting with the repo's absolute path is this project
+
+Example: repo at `/mnt/work2/Redot/redotian-sun` → project ID is `mnt-work2-Redot-redotian-sun`.
+
+To re-index this repo (e.g. after adding new scripts):
+```
+codebase-memory-mcp index_repository repo_path="/mnt/work2/Redot/redotian-sun" mode="full"
+```
+
 ### Redot Engine Docs (Context7 MCP)
 
 Use `resolve-library-id` + `query-docs` for Redot docs (library ID: `/redot-engine/redot-docs`). Prefer Redot docs over upstream Godot docs.
