@@ -81,14 +81,12 @@ func _process(delta: float) -> void:
                 _recheck_timer = RECHECK_INTERVAL
                 var parent := get_parent() as Node3D
                 if parent:
-                    var current_dock := _queued_host.get_node_or_null(
-                        "DockHostComponent"
-                    ) as DockHostComponent
+                    var current_dock := (
+                        _queued_host.get_node_or_null("DockHostComponent") as DockHostComponent
+                    )
                     if current_dock:
                         var current_size := current_dock.get_effective_queue_size()
-                        var better := _find_shorter_queue(
-                            parent, _queued_host, current_size
-                        )
+                        var better := _find_shorter_queue(parent, _queued_host, current_size)
                         if better:
                             _queued_host = null
                             current_dock.leave_dock(self)
@@ -101,9 +99,10 @@ func _process(delta: float) -> void:
                                 _queued_host = better
                                 _queued_timeout = QUEUED_TIMEOUT
                                 _recheck_timer = RECHECK_INTERVAL
-                                var bdock := better.get_node_or_null(
-                                    "DockHostComponent"
-                                ) as DockHostComponent
+                                var bdock := (
+                                    better.get_node_or_null("DockHostComponent")
+                                    as DockHostComponent
+                                )
                                 if bdock:
                                     _move_to_cell(bdock.find_wait_cell())
                                 dock_slot_failed.emit()
@@ -292,9 +291,7 @@ func _try_bind_host(host: Node3D) -> Node3D:
 
 
 ## Find a host with a shorter effective queue than max_size.
-func _find_shorter_queue(
-    parent: Node3D, exclude: Node3D, max_size: int
-) -> Node3D:
+func _find_shorter_queue(parent: Node3D, exclude: Node3D, max_size: int) -> Node3D:
     var best: Node3D = null
     var best_size := max_size
     var best_dist := INF
@@ -314,9 +311,7 @@ func _find_shorter_queue(
         var size := dock.get_effective_queue_size()
         if size > best_size:
             continue
-        var dock_cell := Pathfinder.world_to_cell(
-            Pathfinder.cell_to_world(dock._dock_cell)
-        )
+        var dock_cell := Pathfinder.world_to_cell(Pathfinder.cell_to_world(dock._dock_cell))
         var dist := Vector2(parent_cell - dock_cell).length_squared()
         if size < best_size or dist < best_dist:
             best_size = size
