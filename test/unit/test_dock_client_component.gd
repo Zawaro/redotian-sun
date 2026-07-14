@@ -17,7 +17,7 @@ func _make_dock_client(dock_id: String = "PROC") -> DockClientComponent:
     return client
 
 
-func _make_dock_host(dock_id: String = "PROC", queue_size: int = 0) -> Node3D:
+func _make_dock_host(_dock_id: String = "PROC", queue_size: int = 0) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestRefinery"
 
