@@ -205,6 +205,10 @@ func _assess_next_action() -> void:
         resource = _find_nearest_resource(_last_field_position)
     if resource:
         _current_resource = resource
+        # Reset to IDLE so _change_state(SEEK_NODE) re-runs entry logic
+        # (movement setup). Without this, a SEEK_NODE→SEEK_NODE transition
+        # is a no-op and the harvester sits idle with a valid target.
+        _state = State.IDLE
         _change_state(State.SEEK_NODE)
     elif get_cargo() > 0.0:
         _deliver_cargo(entity_parent)
@@ -313,7 +317,11 @@ func _get_storage_capacity() -> int:
 
 
 func _release_resource_cell() -> void:
-    if is_instance_valid(_current_resource) and SpatialHash.instance:
+    if (
+        is_instance_valid(_current_resource)
+        and _current_resource.is_inside_tree()
+        and SpatialHash.instance
+    ):
         var cell := Pathfinder.world_to_cell(_current_resource.global_position)
         SpatialHash.instance.release_cell(cell)
 

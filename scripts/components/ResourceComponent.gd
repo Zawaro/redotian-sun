@@ -22,9 +22,9 @@ func _ready() -> void:
         root.add_to_group("resources")
     _ensure_visual_nodes.call_deferred()
     _update_visual.call_deferred()
-    if SpatialHash.instance:
-        var cell := Pathfinder.world_to_cell(root.global_position)
-        SpatialHash.instance.register_resource_cell(cell)
+    # Defer cell registration so the entity's global_position is settled
+    # (important for spawned resources where position is set after add_child).
+    _register_cell.call_deferred()
 
 
 func _exit_tree() -> void:
@@ -32,6 +32,13 @@ func _exit_tree() -> void:
     if root and SpatialHash.instance:
         var cell := Pathfinder.world_to_cell(root.global_position)
         SpatialHash.instance.unregister_resource_cell(cell)
+
+
+func _register_cell() -> void:
+    var root := get_parent() as Node3D
+    if root and SpatialHash.instance:
+        var cell := Pathfinder.world_to_cell(root.global_position)
+        SpatialHash.instance.register_resource_cell(cell)
 
 
 func _ensure_visual_nodes() -> void:
