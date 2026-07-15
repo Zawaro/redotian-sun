@@ -62,6 +62,14 @@ func is_cell_blocked(cell: Vector2i) -> bool:
     return _blocked_cells.has(_cell_key(cell))
 
 
+func is_any_entity_on_cell(cell: Vector2i) -> bool:
+    var entries: Array = _grid.get(_cell_key(cell), [])
+    for entry in entries:
+        if entry["mc"] != null:
+            return true
+    return false
+
+
 func reserve_cell(cell: Vector2i) -> bool:
     var key := _cell_key(cell)
     if _reserved.has(key) or _blocked_cells.has(key) or _building_cells.has(key):

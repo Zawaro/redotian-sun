@@ -168,3 +168,54 @@ func test_reserve_cell_fails_on_building_cell():
     else:
         _test_failed += 1
         print("    FAIL: expected false for building cell, got true")
+
+
+func _test_entity_on_cell(
+    cell: Vector2i, mc: MovementController, expected: bool, label: String
+) -> void:
+    _sh._grid.clear()
+    var key: int = _sh._cell_key(cell)
+    if mc != null:
+        _sh._grid[key] = [{"node": Node3D.new(), "mc": mc}]
+    var result: bool = _sh.is_any_entity_on_cell(cell)
+    _sh._grid.erase(key)
+    if mc != null:
+        mc.queue_free()
+    if result == expected:
+        _test_passed += 1
+        print("    PASS: is_any_entity_on_cell %s" % label)
+    else:
+        _test_failed += 1
+        var msg := "is_any_entity_on_cell %s — expected %s, got %s"
+        print("    FAIL: %s" % msg % [label, expected, result])
+
+
+func test_is_any_entity_on_cell_empty():
+    _test_entity_on_cell(Vector2i(99, 99), null, false, "returns false for empty cell")
+
+
+func test_is_any_entity_on_cell_with_idle_unit():
+    var mc := MovementController.new()
+    mc._state = MovementController.State.IDLE
+    _test_entity_on_cell(Vector2i(10, 10), mc, true, "returns true for idle unit")
+
+
+func test_is_any_entity_on_cell_with_moving_unit():
+    var mc := MovementController.new()
+    mc._state = MovementController.State.MOVING
+    _test_entity_on_cell(Vector2i(10, 10), mc, true, "returns true for moving unit")
+
+
+func test_is_any_entity_on_cell_resource_only():
+    _sh._grid.clear()
+    var cell := Vector2i(10, 10)
+    var key: int = _sh._cell_key(cell)
+    _sh._grid[key] = [{"node": Node3D.new(), "mc": null}]
+    var result: bool = _sh.is_any_entity_on_cell(cell)
+    _sh._grid.erase(key)
+    if result == false:
+        _test_passed += 1
+        print("    PASS: is_any_entity_on_cell returns false for resource-only cell")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected false for resource-only cell, got true")
