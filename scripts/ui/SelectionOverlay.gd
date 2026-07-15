@@ -14,14 +14,18 @@ class DrawNode:
     extends Node2D
 
     func _draw():
-        (get_parent() as SelectionOverlay)._do_draw(self)
+        var overlay := get_parent() as SelectionOverlay
+        if overlay:
+            overlay._do_draw(self)
 
 
 class HealthBarNode:
     extends Node2D
 
     func _draw():
-        (get_parent() as SelectionOverlay)._do_draw_health_bars(self)
+        var overlay := get_parent() as SelectionOverlay
+        if overlay:
+            overlay._do_draw_health_bars(self)
 
 
 var _draw_node: Node2D
@@ -54,7 +58,7 @@ func _do_draw(node: Node2D):
     for e in _entities:
         _draw_health_bar_outline(node, e.bracket_rect)
         _draw_brackets(node, e.bracket_rect, e.is_selected)
-        _draw_pips(node, e.rect, e.cargo_pips, e.cargo_color, e.pass_pips)
+        _draw_pips(node, e.cargo_pips, e.cargo_color, e.pass_pips)
 
 
 func _do_draw_health_bars(node: Node2D):
@@ -205,78 +209,17 @@ func _draw_brackets(node: Node2D, rect: Rect2, is_selected: bool):
     var corner_inset: float = min(rect.size.x, rect.size.y) * 0.35
     var col := Color.WHITE
 
-    (
-        node
-        . draw_line(
-            rect.position,
-            rect.position + Vector2(corner_inset, 0),
-            col,
-            LINE_WIDTH,
-        )
-    )
-    (
-        node
-        . draw_line(
-            rect.position,
-            rect.position + Vector2(0, corner_inset),
-            col,
-            LINE_WIDTH,
-        )
-    )
-    (
-        node
-        . draw_line(
-            Vector2(rect.end.x, rect.position.y),
-            Vector2(rect.end.x - corner_inset, rect.position.y),
-            col,
-            LINE_WIDTH,
-        )
-    )
-    (
-        node
-        . draw_line(
-            Vector2(rect.end.x, rect.position.y),
-            Vector2(rect.end.x, rect.position.y + corner_inset),
-            col,
-            LINE_WIDTH,
-        )
-    )
-    (
-        node
-        . draw_line(
-            Vector2(rect.position.x, rect.end.y),
-            Vector2(rect.position.x + corner_inset, rect.end.y),
-            col,
-            LINE_WIDTH,
-        )
-    )
-    (
-        node
-        . draw_line(
-            Vector2(rect.position.x, rect.end.y),
-            Vector2(rect.position.x, rect.end.y - corner_inset),
-            col,
-            LINE_WIDTH,
-        )
-    )
-    (
-        node
-        . draw_line(
-            rect.end,
-            rect.end - Vector2(corner_inset, 0),
-            col,
-            LINE_WIDTH,
-        )
-    )
-    (
-        node
-        . draw_line(
-            rect.end,
-            rect.end - Vector2(0, corner_inset),
-            col,
-            LINE_WIDTH,
-        )
-    )
+    var corners := [
+        rect.position,
+        Vector2(rect.end.x, rect.position.y),
+        Vector2(rect.position.x, rect.end.y),
+        rect.end,
+    ]
+    for c: Vector2 in corners:
+        var sign_x := 1.0 if c.x == rect.position.x else -1.0
+        var sign_y := 1.0 if c.y == rect.position.y else -1.0
+        node.draw_line(c, c + Vector2(corner_inset * sign_x, 0), col, LINE_WIDTH)
+        node.draw_line(c, c + Vector2(0, corner_inset * sign_y), col, LINE_WIDTH)
 
 
 func _draw_health_bar_outline(node: Node2D, rect: Rect2):
@@ -333,16 +276,7 @@ func _gather_pips(
 
     for i in num_cargo_pips:
         var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
-        var filled := i < filled_pips
-        (
-            cargo_pips
-            . append(
-                {
-                    "rect": Rect2(pip_x, grid_top, pip_w, pip_h),
-                    "filled": filled,
-                }
-            )
-        )
+        cargo_pips.append(_make_pip(pip_x, grid_top, pip_w, pip_h, i < filled_pips))
 
     var pass_row_y := grid_top
     if num_rows > 1:
@@ -351,22 +285,17 @@ func _gather_pips(
     for i in MAX_PASSENGER_SLOTS:
         var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
         var visible_pip := has_passengers and i < transport.passengers
-        var filled := visible_pip and i < transport.current_passengers
         if visible_pip:
-            (
-                pass_pips
-                . append(
-                    {
-                        "rect": Rect2(pip_x, pass_row_y, pip_w, pip_h),
-                        "filled": filled,
-                    }
-                )
-            )
+            var filled := i < transport.current_passengers
+            pass_pips.append(_make_pip(pip_x, pass_row_y, pip_w, pip_h, filled))
+
+
+func _make_pip(x: float, y: float, w: float, h: float, filled: bool) -> Dictionary:
+    return {"rect": Rect2(x, y, w, h), "filled": filled}
 
 
 func _draw_pips(
     node: Node2D,
-    _rect: Rect2,
     cargo_pips: Array[Dictionary],
     cargo_color: Color,
     pass_pips: Array[Dictionary],
