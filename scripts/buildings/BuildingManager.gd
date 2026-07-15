@@ -86,25 +86,7 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
                 result = false
                 break
 
-            var key := SpatialHash.instance._cell_key(cell)
-            if SpatialHash.instance.get_building_cells().has(key):
-                result = false
-                break
-
-            if SpatialHash.instance.is_cell_blocked(cell):
-                result = false
-                break
-
-            if _has_resource_on_cell(cell):
-                result = false
-                break
-
-            if SpatialHash.instance.is_bib_cell(cell):
-                result = false
-                break
-
-            var cell_type := TerrainSystem.get_cell_type(cell)
-            if cell_type != "" and cell_type != "clear":
+            if not _is_cell_free(cell):
                 result = false
                 break
 
@@ -205,14 +187,14 @@ func _is_cell_free(cell: Vector2i) -> bool:
         return false
     if SpatialHash.instance.is_cell_blocked(cell):
         return false
+    if SpatialHash.instance.is_any_entity_on_cell(cell):
+        return false
     if SpatialHash.instance.is_bib_cell(cell):
         return false
     if _has_resource_on_cell(cell):
         return false
     var cell_type := TerrainSystem.get_cell_type(cell)
-    if cell_type != "" and cell_type != "clear":
-        return false
-    return true
+    return cell_type == "" or cell_type == "clear"
 
 
 func _has_resource_on_cell(cell: Vector2i) -> bool:
