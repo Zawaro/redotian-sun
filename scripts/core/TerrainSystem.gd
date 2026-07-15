@@ -268,10 +268,18 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
                 _add_cells_for_vertex(nbr.x, nbr.y, affected_cells)
                 queue.append(nbr)
 
+    var existed_before: Dictionary = {}
     for key in affected_cells:
+        existed_before[key] = _cells.has(key)
+
+    for key in affected_cells:
+        if not existed_before[key]:
+            continue
         _recompute_cell(key)
 
     for key in affected_cells:
+        if not existed_before[key]:
+            continue
         var data: Dictionary = _cells.get(key, {}) as Dictionary
         if not data.is_empty():
             cell_changed.emit(key, data)
