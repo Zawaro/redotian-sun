@@ -183,9 +183,9 @@ func _spawn_in_radius(
                 continue
             if _is_cell_blocked_for_resource(cell):
                 continue
-            var existing := _find_resource_at_cell(cell)
-            if not existing:
-                _spawn_at_cell(cell, tree_comp, spawn_bales)
+            if SpatialHash.instance and SpatialHash.instance.has_resource_cell(cell):
+                continue
+            _spawn_at_cell(cell, tree_comp, spawn_bales)
 
 
 func _process_resource(tib_node: Node3D, rules: GlobalRules) -> void:
