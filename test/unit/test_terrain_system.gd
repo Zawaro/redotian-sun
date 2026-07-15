@@ -48,6 +48,7 @@ func test_set_cell_stores_data():
         return
     _ts.init_grid(32)
     var cell := Vector2i(2, 3)
+    _ts.compute_and_emit_cell(cell)
     _ts.raise_cell(cell)
     var data: Dictionary = _ts.get_cell(cell)
     _ts.clear()
@@ -74,6 +75,34 @@ func test_get_cell_empty_for_unset():
         print("    FAIL: expected empty, got %s" % data)
 
 
+func test_raise_edge_does_not_create_phantom_cells():
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem not injected")
+        return
+    _ts.init_grid(8)
+    _ts.clear()
+    var corner := Vector2i(7, 7)
+    _ts.compute_and_emit_cell(corner)
+    var before_dict: Dictionary = _ts.get_all_cells()
+    var emitted_keys: Array[String] = []
+    var on_cell_changed := func(key: String, _data: Dictionary) -> void: emitted_keys.append(key)
+    _ts.cell_changed.connect(on_cell_changed)
+    _ts.raise_cell(corner)
+    _ts.cell_changed.disconnect(on_cell_changed)
+    var new_emits := 0
+    for k in emitted_keys:
+        if not before_dict.has(k):
+            new_emits += 1
+    _ts.clear()
+    if new_emits == 0:
+        _test_passed += 1
+        print("    PASS: raise at edge does not emit phantom cells")
+    else:
+        _test_failed += 1
+        print("    FAIL: %d phantom cells emitted at edge" % new_emits)
+
+
 func test_clear_empties_cells():
     if _ts == null:
         _test_failed += 1
@@ -81,6 +110,7 @@ func test_clear_empties_cells():
         return
     _ts.init_grid(32)
     var cell := Vector2i(5, 5)
+    _ts.compute_and_emit_cell(cell)
     _ts.raise_cell(cell)
     var before: Dictionary = _ts.get_cell(cell)
     _ts.clear()
