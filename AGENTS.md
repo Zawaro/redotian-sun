@@ -143,6 +143,10 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 
 ## Key Conventions
 
+- **Commits**: Conventional Commits format — `type(scope): description (#issue)`. Types: `feat`, `fix`, `bug`, `perf`, `refactor`, `chore`, `build`, `test`, `docs`, `ci`. Always suffix with the GH issue number in parentheses. Examples: `fix(TerrainSystem): prevent phantom cells from edge cascade (#17)`, `feat(FactoryComponent): implement production queue (#31)`. Scope is optional but preferred (the file or system affected).
+- **Branch names**: `type/issue-number-kebab-description`. Examples: `fix/59-building-placement-blocking`, `feat/31-production-queue`, `perf/57-resource-growth-radius`. Always include the issue number after the slash.
+- **GH issue titles**: Same conventional prefix as commits — `fix: building ignores moving entities`, `feat: async model loading`, `perf: SelectionOverlay O(n)`.
+- **PR titles**: Conventional prefix + issue number in parentheses — `fix: building ignores moving entities (#59)`, `feat: async model loading (#60)`. The branch already has the number, but PR title must include it too.
 - **Naming**: PascalCase for classes/scenes, snake_case for vars/funcs. Scene files mirror script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
 - **Autoloads**: 8 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
