@@ -19,4 +19,6 @@ power = 100
 powered = false
 capturable = true
 buildable = true
+buildable_queue = "BuildingType"
+build_time = 14.4
 owner = PackedStringArray("GDI")

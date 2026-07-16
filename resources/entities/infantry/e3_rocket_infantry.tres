@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/infantry/e3_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+id = "E3"
+display_name = "Rocket Infantry"
+entity_type = 0
+strength = 100
+armor = "none"
+cost = 250
+tech_level = 2
+sight = 7
+speed = 4.0
+movement_zone = "InfantryDestroyer"
+locomotor = "Foot"
+owner = PackedStringArray("Nod")
+threat_posed = 20
+buildable = true
+buildable_queue = "InfantryType"
+build_time = 12.0
+prerequisite = PackedStringArray("NOD_BARRACKS")
+art_data = ExtResource("2_art")

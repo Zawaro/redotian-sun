@@ -19,5 +19,7 @@ height = 1.5
 factory = "BuildingType"
 capturable = true
 buildable = true
+buildable_queue = "BuildingType"
+build_time = 120.0
 art_data = ExtResource("2_art")
 owner = PackedStringArray("GDI", "Nod")

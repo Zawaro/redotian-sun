@@ -1,26 +1,25 @@
 [gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
-[ext_resource type="Resource" path="res://resources/art/vehicles/bggy_attack_buggy_art.tres" id="2_art"]
+[ext_resource type="Resource" path="res://resources/art/vehicles/bike_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
-id = "BGGY"
-display_name = "Attack Buggy"
+id = "BIKE"
+display_name = "Attack Cycle"
 entity_type = 1
-strength = 220
-armor = "light"
-cost = 500
-tech_level = 2
-sight = 6
-speed = 10.0
-movement_zone = "Normal"
+strength = 150
+armor = "wood"
+cost = 600
+tech_level = 5
+sight = 5
+speed = 12.0
+movement_zone = "Destroyer"
 locomotor = "Wheel"
-rotation_speed = 180.0
 owner = PackedStringArray("Nod")
-threat_posed = 10
+threat_posed = 20
 buildable = true
 buildable_queue = "VehicleType"
-build_time = 24.0
+build_time = 28.8
 prerequisite = PackedStringArray("NOD_WAR_FACTORY")
 art_data = ExtResource("2_art")
