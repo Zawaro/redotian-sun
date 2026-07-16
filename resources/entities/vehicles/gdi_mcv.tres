@@ -19,3 +19,7 @@ rotation_speed = 180.0
 foundation = Vector2i(2, 2)
 height = 2.0
 owner = PackedStringArray("GDI", "Nod")
+buildable = true
+buildable_queue = "VehicleType"
+build_time = 144.0
+prerequisite = PackedStringArray("GACNST")

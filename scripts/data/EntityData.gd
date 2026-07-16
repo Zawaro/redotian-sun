@@ -59,7 +59,11 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 ## Radar
 @export var radar: bool = false
 
-## Factory
+## Factory — which production queue this entity belongs to (used for queue routing).
+## Set on entities that ARE produced (e.g. buildings → "BuildingType").
+@export var buildable_queue: String = ""
+## Production type — what this building produces (used to find the producing building).
+## Set on production buildings only (e.g. Construction Yard → "BuildingType").
 @export var factory: String = ""
 @export var free_unit: String = ""
 
@@ -104,6 +108,11 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 
 ## Build menu
 @export var buildable: bool = false
+## Production time in game seconds (scales with Engine.time_scale).
+## If 0, calculated from cost: cost * 0.048 (TS BuildSpeed=0.8 formula).
+@export var build_time: float = 0.0
+## Max count per player (0 = unlimited).
+@export var build_limit: int = 0
 
 ## Prerequisites
 @export var prerequisite: PackedStringArray = []
@@ -111,6 +120,18 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 
 ## Art reference
 @export var art_data: ArtData = null
+
+## TS BuildSpeed factor — must match GlobalRules.build_speed.
+const BUILD_SPEED: float = 0.8
+
+
+## Returns effective build time in seconds. Uses explicit build_time if set,
+## otherwise calculates from cost using TS formula.
+func get_build_time() -> float:
+    if build_time > 0.0:
+        return build_time
+    # TS formula: (cost / 1000) * BuildSpeed * 60
+    return cost * BUILD_SPEED * 60.0 / 1000.0
 
 
 func validate() -> PackedStringArray:

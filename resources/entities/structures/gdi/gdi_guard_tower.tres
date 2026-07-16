@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GDI Guard Tower"
+id = "GDI_GUARD_TOWER"
 display_name = "Guard Tower"
 entity_type = 2
 strength = 500
@@ -20,5 +20,7 @@ power = 0
 powered = false
 capturable = true
 buildable = true
+buildable_queue = "BuildingType"
+build_time = 28.8
 art_data = ExtResource("2_art")
 owner = PackedStringArray("GDI")

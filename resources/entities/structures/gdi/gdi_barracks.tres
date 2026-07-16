@@ -18,3 +18,6 @@ foundation = Vector2i(2, 2)
 height = 2.0
 capturable = true
 buildable = true
+buildable_queue = "BuildingType"
+build_time = 24.0
+factory = "InfantryType"

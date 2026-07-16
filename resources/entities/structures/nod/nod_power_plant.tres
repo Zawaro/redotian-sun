@@ -19,3 +19,5 @@ height = 2.0
 power = 100
 capturable = true
 buildable = true
+buildable_queue = "BuildingType"
+build_time = 14.4

@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GDI_WAR_FACTORY"
+id = "NOD_WAR_FACTORY"
 display_name = "War Factory"
 entity_type = 2
 strength = 1000
@@ -22,4 +22,4 @@ buildable = true
 buildable_queue = "BuildingType"
 build_time = 96.0
 factory = "VehicleType"
-owner = PackedStringArray("GDI")
+owner = PackedStringArray("Nod")

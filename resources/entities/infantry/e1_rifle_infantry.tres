@@ -16,3 +16,7 @@ speed = 5.0
 movement_zone = "Infantry"
 locomotor = "Foot"
 owner = PackedStringArray("GDI", "Nod")
+buildable = true
+buildable_queue = "InfantryType"
+build_time = 5.76
+prerequisite = PackedStringArray("GDI_BARRACKS", "NOD_BARRACKS")

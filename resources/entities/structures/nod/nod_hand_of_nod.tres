@@ -4,22 +4,20 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GDI_WAR_FACTORY"
-display_name = "War Factory"
+id = "NOD_BARRACKS"
+display_name = "Hand of Nod"
 entity_type = 2
-strength = 1000
-armor = "heavy"
-cost = 2000
+strength = 500
+armor = "wood"
+cost = 300
 tech_level = 1
 sight = 4
 is_drag_selectable = false
-foundation = Vector2i(4, 3)
+foundation = Vector2i(3, 3)
 height = 2.5
-power = 0
-powered = false
 capturable = true
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 96.0
-factory = "VehicleType"
-owner = PackedStringArray("GDI")
+build_time = 14.4
+factory = "InfantryType"
+owner = PackedStringArray("Nod")
