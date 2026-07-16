@@ -2,11 +2,15 @@ extends Node
 
 signal build_mode_changed(is_active: bool)
 signal building_placed(building: Node3D, entity_data: EntityData)
+signal building_sold(building: Node3D, entity_data: EntityData)
+signal building_repaired(building: Node3D, entity_data: EntityData)
 
 var is_build_mode: bool = false
 var current_building_type: EntityData = null
 var _buildings: Array[Dictionary] = []
 var exiting_build_mode: bool = false
+var _skip_next_deduction: bool = false
+var _skip_input_frames: int = 0
 
 var building_types: Array[EntityData] = []
 
@@ -22,6 +26,17 @@ func _ready() -> void:
     _find_buildings_parent()
     _find_bounds_system()
     _create_preview()
+    building_placed.connect(_on_building_placed)
+
+
+func _on_building_placed(_building: Node3D, entity_data: EntityData) -> void:
+    var ps := get_node_or_null("/root/PrerequisiteSystem")
+    if ps:
+        ps.register_building(0, entity_data)
+
+
+func set_skip_next_deduction() -> void:
+    _skip_next_deduction = true
 
 
 func _load_building_types() -> void:
@@ -36,6 +51,13 @@ func _process(_delta: float) -> void:
         return
 
     if not is_build_mode:
+        return
+
+    # Skip input for one frame after entering build mode to prevent
+    # the click that triggered it from also placing the building
+    if _skip_input_frames > 0:
+        _skip_input_frames -= 1
+        _update_preview_position()
         return
 
     _update_preview_position()
@@ -55,6 +77,7 @@ func enter_build_mode(building_type: EntityData) -> void:
 
     current_building_type = building_type
     is_build_mode = true
+    _skip_input_frames = 1
     _create_building_preview()
     _show_preview(true)
     build_mode_changed.emit(true)
@@ -63,6 +86,7 @@ func enter_build_mode(building_type: EntityData) -> void:
 func exit_build_mode() -> void:
     is_build_mode = false
     current_building_type = null
+    _skip_next_deduction = false
     _show_preview(false)
     # Free preview building so its collision shapes leave the physics space
     for child in _preview.get_children():
@@ -110,13 +134,19 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
 
 
 func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
+    # Consume skip-deduction flag early so it never leaks on early returns
+    var skip := _skip_next_deduction
+    _skip_next_deduction = false
+
     if not can_place(building_type, origin_cell):
         return false
 
-    var em := get_node("/root/EconomyManager") as EconomyManager
-    if em and not em.deduct(0, building_type.cost, "build:%s" % building_type.id):
-        push_warning("[BuildingManager] Insufficient funds for %s" % building_type.id)
-        return false
+    # Deduct cost unless already paid via production queue
+    if not skip:
+        var em := get_node("/root/EconomyManager") as EconomyManager
+        if em and not em.deduct(0, building_type.cost, "build:%s" % building_type.id):
+            push_warning("[BuildingManager] Insufficient funds for %s" % building_type.id)
+            return false
 
     var building: Node3D = EntityFactory.create_entity(building_type.id)
     if not building:
@@ -158,6 +188,12 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     )
 
     building_placed.emit(building, building_type)
+
+    # Resume production queue for this player
+    var pm := get_node_or_null("/root/ProductionManager")
+    if pm:
+        pm.clear_waiting_for_placement(0)
+
     return true
 
 
@@ -558,3 +594,69 @@ func _get_camera_3d() -> Camera3D:
     if not camera_controller:
         return null
     return camera_controller.get_node_or_null("Camera3D") as Camera3D
+
+
+func sell_building(building_node: Node3D) -> bool:
+    var idx := _find_building_index(building_node)
+    if idx < 0:
+        return false
+    var entry: Dictionary = _buildings[idx]
+    var entity_data: EntityData = entry.get("type") as EntityData
+    if not entity_data:
+        return false
+    # Refund half the cost
+    var em := get_node("/root/EconomyManager") as EconomyManager
+    if em:
+        var refund: int = int(entity_data.cost * 0.5)
+        em.add(0, refund, "sell:%s" % entity_data.id)
+    # Unregister from prerequisite system
+    var ps := get_node_or_null("/root/PrerequisiteSystem")
+    if ps:
+        ps.unregister_building(0, entity_data)
+    # Unregister cells
+    var cells: Array = entry.get("cells", []) as Array
+    if not cells.is_empty():
+        SpatialHash.instance.unregister_building_cells(cells)
+    # Remove from list
+    _buildings.remove_at(idx)
+    # Emit signal before freeing
+    building_sold.emit(building_node, entity_data)
+    # Free the node
+    building_node.queue_free()
+    return true
+
+
+func repair_building(building_node: Node3D) -> bool:
+    var idx := _find_building_index(building_node)
+    if idx < 0:
+        return false
+    var entry: Dictionary = _buildings[idx]
+    var entity_data: EntityData = entry.get("type") as EntityData
+    if not entity_data:
+        return false
+    # Check if already at full health
+    var health := building_node.get_node_or_null("HealthComponent")
+    if health and health is HealthComponent:
+        if health.current_health >= entity_data.strength:
+            return false
+        # Heal by repair_step
+        var heal_amount: int = mini(8, entity_data.strength - health.current_health)
+        health.heal(heal_amount)
+    building_repaired.emit(building_node, entity_data)
+    return true
+
+
+func _find_building_index(building_node: Node3D) -> int:
+    for i in range(_buildings.size()):
+        var entry: Dictionary = _buildings[i]
+        if entry.get("node") == building_node:
+            return i
+    return -1
+
+
+func get_building_at_cell(cell: Vector2i) -> Node3D:
+    for entry in _buildings:
+        var cells: Array = entry.get("cells", []) as Array
+        if cell in cells:
+            return entry.get("node") as Node3D
+    return null
