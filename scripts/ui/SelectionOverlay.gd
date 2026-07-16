@@ -7,7 +7,7 @@ const LINE_WIDTH := 1.0
 const MAX_CARGO_SLOTS := 10
 const MAX_PASSENGER_SLOTS := 5
 const PIP_GAP_RATIO := 0.002
-const SEGMENT_WIDTH_RATIO := 0.05
+const SEGMENT_WIDTH_RATIO := 20.0
 
 
 class DrawNode:
@@ -37,10 +37,6 @@ func _ready():
     layer = 128
     _health_bar_node = HealthBarNode.new()
     _health_bar_node.name = "HealthBarNode"
-    var shader := load("res://shaders/ui/health_bar_segment.gdshader")
-    var mat := ShaderMaterial.new()
-    mat.shader = shader
-    _health_bar_node.material = mat
     add_child(_health_bar_node)
 
     _draw_node = DrawNode.new()
@@ -62,21 +58,33 @@ func _do_draw(node: Node2D):
 
 
 func _do_draw_health_bars(node: Node2D):
-    var mat := node.material as ShaderMaterial
     for e in _entities:
         var bar_height: float = e.rect.size.y * 0.053
         var bar_y: float = e.bracket_rect.position.y - bar_height - e.rect.size.y * 0.02
-        var num_segs: float = 1.0 / SEGMENT_WIDTH_RATIO
+        var bar_width: float = e.rect.size.x
+        var num_segs: int = int(max(e.world_size.x * SEGMENT_WIDTH_RATIO, 1.0))
+        var seg_width: float = bar_width / num_segs
+        var health_width: float = bar_width * e.health_ratio
+        var base_color: Color = e.health_color
+        var half_h: float = bar_height / 2.0
 
-        mat.set_shader_parameter("num_segments", num_segs)
-        var c: Color = e.health_color
-        (
-            node
-            . draw_rect(
-                Rect2(e.rect.position.x, bar_y, e.rect.size.x, bar_height),
-                Color(c.r, c.g, c.b, e.health_ratio),
+        for i in num_segs:
+            var seg_x: float = e.rect.position.x + i * seg_width
+            if seg_x >= e.rect.position.x + health_width:
+                break
+            var is_even: bool = i % 2 == 0
+            var top_col := Color(
+                base_color.r * (1.0 if is_even else 0.8),
+                base_color.g * (1.0 if is_even else 0.8),
+                base_color.b * (1.0 if is_even else 0.8),
             )
-        )
+            var bot_col := Color(
+                base_color.r * (0.8 if is_even else 0.6),
+                base_color.g * (0.8 if is_even else 0.6),
+                base_color.b * (0.8 if is_even else 0.6),
+            )
+            node.draw_rect(Rect2(seg_x, bar_y, seg_width, half_h), top_col)
+            node.draw_rect(Rect2(seg_x, bar_y + half_h, seg_width, half_h), bot_col)
 
 
 func _collect_entities():
@@ -144,33 +152,36 @@ func _collect_entities():
                     "cargo_pips": cargo_pips,
                     "cargo_color": cargo_color,
                     "pass_pips": pass_pips,
+                    "world_size": size,
                 }
             )
         )
 
 
-func _get_selection_size(ent: SelectComponent, parent: Node3D) -> float:
+func _get_selection_size(ent: SelectComponent, parent: Node3D) -> Vector2:
     if ent.outline_2d_size != Vector2.ZERO:
-        return ent.outline_2d_size.x
+        return ent.outline_2d_size
 
     var art := parent.get_node_or_null("ArtComponent") as ArtComponent
     if art and art.art_data and art.art_data.outline_2d_size != Vector2.ZERO:
-        return art.art_data.outline_2d_size.x
+        return art.art_data.outline_2d_size
 
-    return 2.0
+    return Vector2(2.0, 2.0)
 
 
-func _project_entity(parent: Node3D, camera: Camera3D, size: float) -> Variant:
+func _project_entity(parent: Node3D, camera: Camera3D, size: Vector2) -> Variant:
     var center_screen := camera.unproject_position(parent.global_position)
-    var ref_screen := camera.unproject_position(parent.global_position + Vector3(size, 0, 0))
-    var screen_half: float = center_screen.distance_to(ref_screen) / 2.0
+    var ref_x_screen := camera.unproject_position(parent.global_position + Vector3(size.x, 0, 0))
+    var ref_z_screen := camera.unproject_position(parent.global_position + Vector3(0, 0, size.y))
+    var screen_half_x: float = center_screen.distance_to(ref_x_screen) / 2.0
+    var screen_half_y: float = center_screen.distance_to(ref_z_screen) / 2.0
 
     var corners_screen := PackedVector2Array(
         [
-            center_screen + Vector2(-screen_half, -screen_half),
-            center_screen + Vector2(screen_half, -screen_half),
-            center_screen + Vector2(screen_half, screen_half),
-            center_screen + Vector2(-screen_half, screen_half),
+            center_screen + Vector2(-screen_half_x, -screen_half_y),
+            center_screen + Vector2(screen_half_x, -screen_half_y),
+            center_screen + Vector2(screen_half_x, screen_half_y),
+            center_screen + Vector2(-screen_half_x, screen_half_y),
         ]
     )
 
