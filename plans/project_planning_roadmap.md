@@ -62,10 +62,12 @@ The composition-based entity system is a prerequisite for most game systems. All
 - [ ] Add income/expense cycle tracking
 
 ### 1.4 Unit Production Pipeline
-- [ ] Create factory/barracks structure types (FactoryComponent)
-- [ ] Implement unit training queues
-- [ ] Build tech tree and prerequisite system
-- [ ] Add spawn logic for new units via EntityFactory
+- [x] Create factory/barracks structure types (FactoryComponent)
+- [x] Implement entity data population (populate-entity-data change)
+- [x] Implement tabbed build menu sidebar (GitHub Issue #66)
+- [x] Implement production queue system (ProductionManager)
+- [x] Build prerequisite system (PrerequisiteSystem)
+- [x] Add spawn logic for new units via EntityFactory
 - [ ] Test with various faction units
 - **Note**: Units defined as EntityData .tres files
 
@@ -128,11 +130,11 @@ The composition-based entity system is a prerequisite for most game systems. All
 ## Phase 5: UI/UX & Interface (Priority: Medium)
 
 ### 5.1 RTS Interface Elements
-- [ ] Create selection panel for selected units
-- [ ] Build production queue display
+- [x] Build tabbed sidebar with 4 categories (GitHub Issue #66)
+- [x] Implement production queue display with angular progress
 - [ ] Implement resource HUD (credits, Tiberium)
 - [ ] Add minimap with unit markers
-- [ ] Create build menu interface
+- [ ] Create selection panel for selected units
 
 ### 5.2 Game Management
 - [ ] Implement pause/resume functionality

@@ -13,12 +13,33 @@ The unit production pipeline manages the creation of new units through factories
 | Shipyard | Naval units | Must be near water tiles |
 | Defense Platform | Turrets/Walls | Fixed position, no movement |
 
-### 2. Training Queue System
-- Multiple slots for queued units (typically 3-5)
-- Priority ordering: first in = first out
-- Cancel option returns partial refund
-- Visual progress bar showing construction time
-- Unit preview icon during production
+### 2. Production Queue System
+
+#### Queue Architecture
+- Per-player, per-factory-type queue (e.g., "0:INFANTRY", "0:VEHICLE")
+- Unlimited queue size, but individual entity max 25 count in stack
+- FIFO ordering within each queue
+- Primary building determines spawn location; production speed scales with multiple factories
+
+#### Queue Operations
+| Action | Effect |
+|--------|--------|
+| Left-click idle entity | Add to queue, deduct cost immediately |
+| Right-click active item | Pause production |
+| Right-click paused item | Cancel (full refund) or decrement stack |
+| Left-click paused item | Resume production |
+
+#### Production Timing
+- `build_time` on EntityData in game seconds
+- Uses `_process(delta)` directly — scales automatically with `Engine.time_scale`
+- Production speed bonus from multiple factories: `1.0 + (factory_count - 1) * 0.25`
+- Example: 2 barracks → 1.25x speed, 3 barracks → 1.5x speed
+
+#### Visual Progress
+- Angular progress shader on cameo: hard-edge radial wipe
+- Starts at 12 o'clock, rotates clockwise
+- Black semi-transparent overlay (alpha=0.5) → transparent
+- Progress updates each frame from ProductionManager
 
 ### 3. Tech Tree Integration
 - Prerequisite buildings must exist before unlocking
@@ -27,61 +48,78 @@ The unit production pipeline manages the creation of new units through factories
 - Level requirements for advanced units
 
 ### 4. Spawn Logic
-- Units spawn at designated production locations
-- Pathfinding to nearest valid area
-- Immediate availability for player commands
-- Reinforcement waves for AI opponents
+- Units spawn at primary factory's exit point
+- EntityData has `spawn_point` (local offset) and `exit_direction` (Vector3)
+- If no rally point set: find first free cell outside building foundation
+- Reuses `_find_adjacent_free_cell()` pattern from FreeUnitComponent
+- If all adjacent cells blocked: `MovementController._scatter_blockers()` pushes idle units
+- Buildings complete → enter build mode (placement)
+- Units complete → spawn at factory and auto-select
 
 ## Technical Implementation
 
-### Scene Structure
-```
-ProductionManager.tscn (Node)
-├── ProductionQueue.tscn (UI component)
-├── Factory.gd (base script for production buildings)
-└── UnitSpawner.gd (handles instantiation logic)
+### Data Model Additions
+
+#### EntityData.gd — new fields
+```gdscript
+@export var build_time: float = 1.0        # game seconds (scales with Engine.time_scale)
+@export var build_limit: int = 0           # 0 = unlimited per player
+@export var buildable_queue: String = ""   # which production queue this entity belongs to
 ```
 
-### Key Scripts
+### New Autoloads
+
+#### PrerequisiteSystem.gd
+- Tracks player-owned buildings: `Dict[int, Dict[String, int]]` (player_id → {entity_id → count})
+- `can_build(player_id, entity_data)` → checks prerequisite (OR) + prerequisite_necessary (AND) + build_limit
+- `register_building()` / `unregister_building()` — integrates with BuildingManager signals
+- Emits `prerequisites_changed(player_id)` when buildings change
 
 #### ProductionManager.gd
-- Global queue management across all production structures
-- Handle unit creation requests and validate prerequisites
-- Manage queue state: empty, producing, full
-- Event emission when queue status changes
+- Queue key: `"%d:%s" % [player_id, queue_type]` (e.g., "0:InfantryType")
+- QueueItem: `{entity_data, progress, is_paused, count}`
+- `start_production()` — checks can_build via `buildable_queue`, deducts cost, adds to queue
+- `cancel_production()` — refunds cost, removes/decrements item
+- `pause_production()` / `resume_production()` — toggle timer
+- `get_progress(queue_key)` → float 0.0-1.0
+- `_process(delta)` — ticks active timers, spawns on complete
+- Production speed bonus: `1.0 + (factory_count - 1) * 0.25`
+- Unit spawning: finds factory via `factory` field, spawns at exit cell
+- Building completion: enters build mode via BuildingManager, blocks queue via `_waiting_for_placement`
+- Queue unblocks only after building is physically placed (`clear_waiting_for_placement`)
 
-#### Factory.gd (Inherited by all production buildings)
-- Queue array storing pending units: `var production_queue = []`
-- Production timer tracking progress toward completion
-- Unlock check against tech tree requirements
-- Spawn unit at designated location on completion
-
-### Unit Spawning Logic
-```gdscript
-func spawn_unit(unit_type, spawn_position):
-    # Load unit scene/template from resource cache
-    var unit_scene = load("res://scenes/units/" + unit_type + ".tscn")
-    var unit_instance = unit_scene.instantiate()
-    
-    # Set owner and faction properties
-    unit_instance.owner_id = self.owner_id
-    unit_instance.faction = self.faction
-    
-    # Position at spawn point with slight offset
-    unit_instance.global_position = spawn_position + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
-    
-    # Add to scene tree and enable
-    get_tree().root.add_child(unit_instance)
-    unit_instance.ready_to_use = true
-    
-    emit_signal("unit_spawned", unit_type)
+### Scene Structure
+```
+Sidebar.tscn (Control)
+├── CreditsLabel (Label)
+├── TabBar (HBoxContainer)
+│   ├── BuildingsTab (Button)
+│   ├── InfantryTab (Button)
+│   ├── VehiclesTab (Button)
+│   └── SpecialTab (Button)
+├── GridScroll (ScrollContainer) → consumes middle mouse events
+│   └── GridContainer (5×3)
+│       └── CameoButton (Button) × 15
+│           └── AngularProgress (ColorRect + shader)
+├── ScrollButtons (HBoxContainer)
+│   ├── UpButton (Button)
+│   └── DownButton (Button)
+└── QueueDisplay (VBoxContainer) → optional, shows active items
 ```
 
-### Queue Management System
-- FIFO queue with max capacity check
-- Each entry: `{type, progress, cost, prerequisites}`
-- Progress increments every frame based on build_time
-- On completion: spawn unit, remove from queue, continue next item
+### Angular Progress Shader
+```glsl
+shader_type canvas_item;
+uniform float progress : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 overlay_color : source_color = vec4(0.0, 0.0, 0.0, 0.5);
+
+void fragment() {
+    vec2 dir = UV - vec2(0.5);
+    float angle = atan(dir.x, -dir.y);
+    float norm = (angle + PI) / (2.0 * PI);
+    COLOR = norm <= progress ? overlay_color : vec4(0.0);
+}
+```
 
 ## Integration Points
 - Connect to economy system for cost deduction timing

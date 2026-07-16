@@ -30,11 +30,63 @@ The UI interface system provides players with essential information and control 
 - Build location indicators for queued structures
 - Click-to-move functionality (right-click on minimap)
 
-### 5. Build Menu Interface
-- Categorized building/unit selection tabs
-- Cost and production time display
-- Availability states (locked/unavailable/ready)
-- Preview panel showing model when hovered
+### 5. Build Menu Interface — Tabbed Sidebar
+
+**GitHub Issue**: #66 — feat: tabbed build menu sidebar with 4 production categories
+
+#### Tab Layout (Vinifera-style for TS)
+```
+┌──────────┬──────────┬──────────┬──────────┐
+│ Buildings│ Infantry │ Vehicles │ Special  │
+└──────────┴──────────┴──────────┴──────────┘
+```
+
+| Tab | Entity Type | Content | Production Building |
+|-----|-------------|---------|---------------------|
+| **Buildings** | BUILDING | Structures, defenses (sorted last) | Construction Yard |
+| **Infantry** | INFANTRY | Infantry units | Barracks / Hand of Nod |
+| **Vehicles** | VEHICLE | Tanks, buggies, harvesters, MCV | War Factory |
+| **Special** | AIRCRAFT | Aircraft, superweapons | Airfield / Shipyard |
+
+#### Sidebar Layout
+```
+┌─────────────────────────────────────────┐
+│ $1500                                  │  ← Credits (top)
+├─────────────────────────────────────────┤
+│ [Build][Infantry][Vehicles][Special]   │  ← Tab bar
+├─────────────────────────────────────────┤
+│ ┌───────┐ ┌───────┐ ┌───────┐         │
+│ │ ▓▓▓  │ │ ░░░  │ │  ░░  │ 5×3     │
+│ │ConYard│ │ Power │ │Barracks│  grid    │
+│ └───────┘ └───────┘ └───────┘         │
+│ ... (5 rows × 3 cols = 15 visible)     │
+├─────────────────────────────────────────┤
+│ [▲]                           [▼]     │  ← Scroll by row
+└─────────────────────────────────────────┘
+```
+
+- Width: 400px, Height: ~600px
+- 5 rows × 3 columns, scrollable by row steps
+- Middle mouse scroll on sidebar → scroll grid (consume event, don't zoom camera)
+- Tab hotkeys: F1-F4
+
+#### Cameo States
+| State | Visual |
+|-------|--------|
+| Available | Normal cameo, full color |
+| In queue (building) | Angular progress overlay (12 o'clock → clockwise) |
+| In queue (paused) | Darkened, progress frozen |
+| Prerequisites not met | Hidden |
+| Build limit reached | Darkened "ghost" cameo |
+
+#### Interaction
+| Action | Effect |
+|--------|--------|
+| Left-click available | Add to queue, deduct cost |
+| Left-click paused | Resume production |
+| Right-click building | Pause production |
+| Right-click paused | Cancel (refund) or decrement stack |
+| Middle scroll on sidebar | Scroll grid row (not camera zoom)
 
 ## Technical Implementation
 
