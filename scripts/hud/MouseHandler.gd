@@ -64,6 +64,12 @@ func _process(_delta):
     if hovered and _is_inside_build_menu(hovered):
         return
 
+    # Fallback: check mouse position against sidebar rect directly
+    # (covers edge case where gui_get_hovered_control returns null)
+    var sidebar := _find_sidebar()
+    if sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position()):
+        return
+
     var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
 
     # Left mouse button just pressed — start drag tracking.
@@ -147,6 +153,23 @@ func _handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
     var result := space_state.intersect_ray(query)
     if result.has("collider"):
         var collider := result.collider as Node
+        # Sell/Repair mode — handle building action
+        var sidebar := _find_sidebar()
+        if sidebar:
+            var entity := _find_entity_parent(collider)
+            if entity and entity.get_node_or_null("FoundationComponent"):
+                if sidebar.is_sell_mode():
+                    var bm := get_node("/root/BuildingManager") as BuildingManager
+                    if bm:
+                        bm.sell_building(entity)
+                    sidebar.exit_action_mode()
+                    return
+                elif sidebar.is_repair_mode():
+                    var bm := get_node("/root/BuildingManager") as BuildingManager
+                    if bm:
+                        bm.repair_building(entity)
+                    sidebar.exit_action_mode()
+                    return
         if not shift_pressed and _try_interact(collider):
             return
         var select_comp := _find_select_component(collider)
@@ -286,3 +309,20 @@ func _is_inside_build_menu(node: Node) -> bool:
             return true
         node = node.get_parent()
     return false
+
+
+func _find_sidebar() -> Node:
+    var root := get_tree().current_scene
+    if not root:
+        return null
+    return _find_sidebar_recursive(root)
+
+
+func _find_sidebar_recursive(node: Node) -> Node:
+    if node.name == "Sidebar" and node is Control:
+        return node
+    for child in node.get_children():
+        var result := _find_sidebar_recursive(child)
+        if result:
+            return result
+    return null
