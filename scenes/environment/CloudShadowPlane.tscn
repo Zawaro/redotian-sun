@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Shader" path="res://shaders/environment/CloudShadowPlane.gdshader" id="1_shader"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_cloud"]
+size = Vector2(300, 300)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cloud"]
+shader = ExtResource("1_shader")
+shader_parameter/scroll_speed = 0.04
+shader_parameter/noise_scale = 0.04
+shader_parameter/opacity = 0.8
+
+[node name="CloudShadowPlane" type="MeshInstance3D"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 50, 50, 50)
+mesh = SubResource("PlaneMesh_cloud")
+material_override = SubResource("ShaderMaterial_cloud")
+cast_shadow = 0
+extra_cull_margin = 100.0
