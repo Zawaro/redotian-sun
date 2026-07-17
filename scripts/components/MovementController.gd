@@ -361,3 +361,9 @@ func _scatter_blockers() -> void:
 func _snap_to_terrain() -> void:
     var terrain_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
     _parent.global_position.y = lerpf(_parent.global_position.y, terrain_y, 0.95)
+
+
+func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
+    if not target:
+        return CursorState.Type.MOVE
+    return CursorState.Type.DEFAULT

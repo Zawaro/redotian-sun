@@ -90,3 +90,13 @@ func remove_passenger() -> bool:
     current_passengers -= 1
     passenger_changed.emit(current_passengers, passengers)
     return true
+
+
+func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
+    if not target or passengers <= 0:
+        return CursorState.Type.DEFAULT
+    if not target.is_in_group("enemy") and target.get_node_or_null("SelectComponent"):
+        var transport := target.get_node_or_null("TransportComponent") as TransportComponent
+        if transport and transport.passengers > 0:
+            return CursorState.Type.ENTER
+    return CursorState.Type.DEFAULT

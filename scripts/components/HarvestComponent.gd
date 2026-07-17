@@ -330,3 +330,13 @@ func _get_global_rules() -> GlobalRules:
     if _entity_factory and _entity_factory.has_method("get_global_rules"):
         return _entity_factory.get_global_rules() as GlobalRules
     return null
+
+
+func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
+    if not target:
+        return CursorState.Type.DEFAULT
+    if target.get_node_or_null("ResourceComponent"):
+        return CursorState.Type.HARVEST
+    if target.get_node_or_null("DockHostComponent"):
+        return CursorState.Type.ENTER
+    return CursorState.Type.DEFAULT

@@ -132,6 +132,7 @@ The composition-based entity system is a prerequisite for most game systems. All
 ### 5.1 RTS Interface Elements
 - [x] Build tabbed sidebar with 4 categories (GitHub Issue #66)
 - [x] Implement production queue display with angular progress
+- [ ] Implement cursor system with per-unit resolution (GitHub Issue #70)
 - [ ] Implement resource HUD (credits, Tiberium)
 - [ ] Add minimap with unit markers
 - [ ] Create selection panel for selected units
