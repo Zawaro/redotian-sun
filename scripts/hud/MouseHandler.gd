@@ -17,6 +17,10 @@ var _last_hover_pos := Vector2.INF
 var _hover_miss_count := 0
 var _skip_release := false
 
+# Cursor state
+var _current_cursor: CursorState.Type = CursorState.Type.DEFAULT
+var _hovered_entity: Node3D = null
+
 
 func _ready():
     selection_rect.hide()
@@ -60,62 +64,74 @@ func _process(_delta):
             _skip_release = false
         return
 
+    # Skip input handling when hovering UI — but still update cursor below.
     var hovered := get_viewport().gui_get_hovered_control()
-    if hovered and _is_inside_build_menu(hovered):
-        return
+    var over_sidebar := _is_over_sidebar()
 
-    # Fallback: check mouse position against sidebar rect directly
-    # (covers edge case where gui_get_hovered_control returns null)
-    var sidebar := _find_sidebar()
-    if sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position()):
-        return
+    if not over_sidebar and not (hovered and _is_inside_build_menu(hovered)):
+        var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
 
-    var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
+        # Left mouse button just pressed — start drag tracking.
+        if Input.is_action_just_pressed("select_entity"):
+            mouse_dragging = true
+            drag_start_position = get_viewport().get_mouse_position()
+            selection_rect.hide()
+            selection_rect.position = drag_start_position
+            selection_rect.size = Vector2.ZERO
 
-    # Left mouse button just pressed — start drag tracking.
-    if Input.is_action_just_pressed("select_entity"):
-        mouse_dragging = true
-        drag_start_position = get_viewport().get_mouse_position()
-        selection_rect.hide()
-        selection_rect.position = drag_start_position
-        selection_rect.size = Vector2.ZERO
+        # Left mouse button just released — resolve as box-select or single click.
+        if Input.is_action_just_released("select_entity"):
+            var threshold_exceeded: bool = selection_rect.size.x >= MOUSE_DRAG_THRESHOLD
 
-    # Left mouse button just released — resolve as box-select or single click.
-    if Input.is_action_just_released("select_entity"):
-        var threshold_exceeded: bool = selection_rect.size.x >= MOUSE_DRAG_THRESHOLD
+            if mouse_dragging and threshold_exceeded:
+                if not shift_pressed and selection_manager:
+                    selection_manager.deselect_all()
+                if active_rect.has_area():
+                    _select_entities_2d_projected(active_rect)
+            elif selection_manager:
+                var mouse_pos := get_viewport().get_mouse_position()
+                _handle_single_click(mouse_pos, shift_pressed)
 
-        if mouse_dragging and threshold_exceeded:
-            if not shift_pressed and selection_manager:
+            mouse_dragging = false
+            selection_rect.hide()
+
+        # Right mouse button just released — exit sell/repair mode or deselect.
+        if Input.is_action_just_released("deselect_entity"):
+            var sidebar := _find_sidebar()
+            if sidebar and (sidebar.is_sell_mode() or sidebar.is_repair_mode()):
+                sidebar.exit_action_mode()
+            elif selection_manager:
                 selection_manager.deselect_all()
-            if active_rect.has_area():
-                _select_entities_2d_projected(active_rect)
-        elif selection_manager:
+
+        # ESC key — exit sell/repair mode.
+        if Input.is_key_pressed(KEY_ESCAPE):
+            var sidebar := _find_sidebar()
+            if sidebar and (sidebar.is_sell_mode() or sidebar.is_repair_mode()):
+                sidebar.exit_action_mode()
+
+        # Update drag rectangle while left mouse held and moving (polling).
+        if mouse_dragging:
+            var m_end := get_viewport().get_mouse_position()
+            var diff: Vector2 = m_end - drag_start_position
+            active_rect = Rect2(drag_start_position, diff).abs()
+            var over_threshold := (
+                active_rect.size.x >= MOUSE_DRAG_THRESHOLD
+                or active_rect.size.y >= MOUSE_DRAG_THRESHOLD
+            )
+            if over_threshold:
+                selection_rect.show()
+                selection_rect.position = active_rect.position
+                selection_rect.size = active_rect.size
+
+        # Hover preview during mouse motion (when not dragging).
+        if not mouse_dragging:
             var mouse_pos := get_viewport().get_mouse_position()
-            _handle_single_click(mouse_pos, shift_pressed)
+            if mouse_pos.distance_to(_last_hover_pos) > 2.0:
+                _last_hover_pos = mouse_pos
+                _handle_hover_preview(mouse_pos)
 
-        mouse_dragging = false
-        selection_rect.hide()
-
-    # Right mouse button just released — always deselect.
-    if Input.is_action_just_released("deselect_entity") and selection_manager:
-        selection_manager.deselect_all()
-
-    # Update drag rectangle while left mouse held and moving (polling).
-    if mouse_dragging:
-        var m_end := get_viewport().get_mouse_position()
-        var diff: Vector2 = m_end - drag_start_position
-        active_rect = Rect2(drag_start_position, diff).abs()
-        if active_rect.size.x >= MOUSE_DRAG_THRESHOLD or active_rect.size.y >= MOUSE_DRAG_THRESHOLD:
-            selection_rect.show()
-            selection_rect.position = active_rect.position
-            selection_rect.size = active_rect.size
-
-    # Hover preview during mouse motion (when not dragging).
-    if not mouse_dragging:
-        var mouse_pos := get_viewport().get_mouse_position()
-        if mouse_pos.distance_to(_last_hover_pos) > 2.0:
-            _last_hover_pos = mouse_pos
-            _handle_hover_preview(mouse_pos)
+    # Update cursor every frame — runs even when over sidebar or middle-clicking.
+    _update_cursor()
 
 
 func _get_camera_3d() -> Camera3D:
@@ -252,9 +268,10 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
 
     var space_state = camera.get_world_3d().direct_space_state
     var query := PhysicsRayQueryParameters3D.create(from, from + dir * raycast_distance)
-    query.collision_mask = 1 << 15
     query.collide_with_areas = true
 
+    # Pass 1: layer 16 — SelectComponent (units, buildings).
+    query.collision_mask = 1 << 15
     var result = space_state.intersect_ray(query)
 
     if result.has("collider"):
@@ -263,12 +280,26 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
         if select_comp:
             _hover_miss_count = 0
             selection_manager.set_hover_preview(true, select_comp)
+            _hovered_entity = _find_entity_parent(collider)
+            return
+
+    # Pass 2: layer 17 — interact hitboxes (tiberium, dock).
+    query.collision_mask = 1 << 16
+    result = space_state.intersect_ray(query)
+
+    if result.has("collider"):
+        var collider := result.collider as Node
+        var entity := _find_entity_parent(collider)
+        if entity:
+            _hover_miss_count = 0
+            _hovered_entity = entity
             return
 
     _hover_miss_count += 1
     if _hover_miss_count > 3:
         selection_manager.clear_hover_preview()
         _hover_miss_count = 0
+        _hovered_entity = null
 
 
 ## Return where the camera ray through mouse cursor intersects terrain surface (iterative solve).
@@ -326,3 +357,199 @@ func _find_sidebar_recursive(node: Node) -> Node:
         if result:
             return result
     return null
+
+
+func _is_over_sidebar() -> bool:
+    var sidebar := _find_sidebar()
+    return sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position())
+
+
+func _update_cursor() -> void:
+    var cursor_type: CursorState.Type
+
+    # Sidebar hover always shows system cursor
+    var sidebar := _find_sidebar()
+    if sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position()):
+        cursor_type = CursorState.Type.DEFAULT
+    elif mouse_dragging and active_rect.size.x >= MOUSE_DRAG_THRESHOLD:
+        cursor_type = CursorState.Type.SELECT
+    else:
+        # Middle-click panning — joystick cursor
+        var joystick := _resolve_joystick_cursor()
+        if joystick != CursorState.Type.DEFAULT:
+            cursor_type = joystick
+        # Edge scroll cursor
+        elif _resolve_scroll_cursor() != CursorState.Type.DEFAULT:
+            cursor_type = _resolve_scroll_cursor()
+        # Sell mode — always show SELL or SELL_BLOCKED
+        elif sidebar and sidebar.is_sell_mode():
+            if _hovered_entity and _hovered_entity.get_node_or_null("FoundationComponent"):
+                cursor_type = CursorState.Type.SELL
+            else:
+                cursor_type = CursorState.Type.SELL_BLOCKED
+        # Repair mode — always show REPAIR or REPAIR_BLOCKED
+        elif sidebar and sidebar.is_repair_mode():
+            if _hovered_entity and _hovered_entity.get_node_or_null("FoundationComponent"):
+                cursor_type = CursorState.Type.REPAIR
+            else:
+                cursor_type = CursorState.Type.REPAIR_BLOCKED
+        else:
+            cursor_type = _resolve_cursor_for_selection()
+
+    _apply_cursor(cursor_type)
+
+
+func _resolve_cursor_for_selection() -> CursorState.Type:
+    if not selection_manager or selection_manager.selected_entities.is_empty():
+        return _resolve_scroll_cursor()
+
+    var target := _hovered_entity
+    var target_cell := Vector2i.ZERO
+    if target:
+        target_cell = Pathfinder.world_to_cell(target.global_position)
+
+    var best_cursor: CursorState.Type = CursorState.Type.DEFAULT
+    var best_priority: int = -1
+
+    for select_comp in selection_manager.selected_entities:
+        if not is_instance_valid(select_comp):
+            continue
+        var entity := select_comp.get_parent() as Node3D
+        if not entity:
+            continue
+        for component in entity.get_children():
+            if component.has_method("get_cursor_for_target"):
+                var cursor: CursorState.Type = component.get_cursor_for_target(target, target_cell)
+                var priority: int = CursorState.get_priority(cursor)
+                if priority > best_priority:
+                    best_priority = priority
+                    best_cursor = cursor
+
+    if best_cursor != CursorState.Type.DEFAULT:
+        return best_cursor
+    return CursorState.Type.DEFAULT
+
+
+func _resolve_scroll_cursor() -> CursorState.Type:
+    var mouse_pos := get_viewport().get_mouse_position()
+    var viewport_size := get_viewport().get_visible_rect().size
+    var margin := 20.0
+
+    var dx := 0
+    var dy := 0
+
+    if mouse_pos.x < margin:
+        dx = -1
+    elif mouse_pos.x > viewport_size.x - margin:
+        dx = 1
+
+    if mouse_pos.y < margin:
+        dy = -1
+    elif mouse_pos.y > viewport_size.y - margin:
+        dy = 1
+
+    if dx == 0 and dy == 0:
+        return CursorState.Type.DEFAULT
+
+    var direction := Vector2i(dx, dy)
+    var blocked := _is_scroll_blocked(direction)
+
+    var cursor_map := {
+        Vector2i(0, -1): [CursorState.Type.SCROLL_T, CursorState.Type.SCROLL_T_BLOCKED],
+        Vector2i(1, -1): [CursorState.Type.SCROLL_TR, CursorState.Type.SCROLL_TR_BLOCKED],
+        Vector2i(1, 0): [CursorState.Type.SCROLL_R, CursorState.Type.SCROLL_R_BLOCKED],
+        Vector2i(1, 1): [CursorState.Type.SCROLL_BR, CursorState.Type.SCROLL_BR_BLOCKED],
+        Vector2i(0, 1): [CursorState.Type.SCROLL_B, CursorState.Type.SCROLL_B_BLOCKED],
+        Vector2i(-1, 1): [CursorState.Type.SCROLL_BL, CursorState.Type.SCROLL_BL_BLOCKED],
+        Vector2i(-1, 0): [CursorState.Type.SCROLL_L, CursorState.Type.SCROLL_L_BLOCKED],
+        Vector2i(-1, -1): [CursorState.Type.SCROLL_TL, CursorState.Type.SCROLL_TL_BLOCKED],
+    }
+
+    var default_pair: Array = [CursorState.Type.DEFAULT, CursorState.Type.DEFAULT]
+    var pair: Array = cursor_map.get(direction, default_pair)
+    return pair[1] if blocked else pair[0]
+
+
+func _is_scroll_blocked(direction: Vector2i) -> bool:
+    if not camera_controller or not camera_controller.bounds_system:
+        return true
+    var bounds_rect := camera_controller.bounds_system.get_bounds_rect()
+    var cam_pos := camera_controller.global_position
+
+    var rotated_pos := cam_pos.rotated(Vector3(0, 1, 0), -deg_to_rad(45))
+    var half_width := bounds_rect.size.x / 2.0
+    var half_height := bounds_rect.size.y / 2.0
+
+    if direction.x == -1 and rotated_pos.x <= -half_width + 1.0:
+        return true
+    if direction.x == 1 and rotated_pos.x >= half_width - 1.0:
+        return true
+    if direction.y == -1 and rotated_pos.z <= -half_height + 1.0:
+        return true
+    if direction.y == 1 and rotated_pos.z >= half_height - 1.0:
+        return true
+
+    return false
+
+
+func _resolve_joystick_cursor() -> CursorState.Type:
+    if not camera_controller or not camera_controller.is_panning:
+        return CursorState.Type.DEFAULT
+
+    var mouse_pos := get_viewport().get_mouse_position()
+    var click_pos: Vector2 = camera_controller.fixed_toggle_point
+    var diff := mouse_pos - click_pos
+
+    # Within 20px of click point — center (no pan direction yet)
+    if diff.length() < 20.0:
+        return CursorState.Type.JOYSTICK_CENTER
+
+    # Map angle to 8 directions
+    var angle := diff.angle()  # 0 = right, PI/2 = down, PI = left, -PI/2 = up
+    var sector := wrapi(floori((angle + PI) / (PI / 4.0)), 0, 7)
+
+    var direction_map := {
+        0: Vector2i(-1, 0),  # left
+        1: Vector2i(-1, -1),  # up-left
+        2: Vector2i(0, -1),  # up
+        3: Vector2i(1, -1),  # up-right
+        4: Vector2i(1, 0),  # right
+        5: Vector2i(1, 1),  # down-right
+        6: Vector2i(0, 1),  # down
+        7: Vector2i(-1, 1),  # down-left
+    }
+
+    var direction: Vector2i = direction_map.get(sector, Vector2i.ZERO)
+    var blocked := _is_scroll_blocked(direction)
+
+    var cursor_map := {
+        Vector2i(0, -1): [CursorState.Type.JOYSTICK_T, CursorState.Type.JOYSTICK_T_BLOCKED],
+        Vector2i(1, -1): [CursorState.Type.JOYSTICK_TR, CursorState.Type.JOYSTICK_TR_BLOCKED],
+        Vector2i(1, 0): [CursorState.Type.JOYSTICK_R, CursorState.Type.JOYSTICK_R_BLOCKED],
+        Vector2i(1, 1): [CursorState.Type.JOYSTICK_BR, CursorState.Type.JOYSTICK_BR_BLOCKED],
+        Vector2i(0, 1): [CursorState.Type.JOYSTICK_B, CursorState.Type.JOYSTICK_B_BLOCKED],
+        Vector2i(-1, 1): [CursorState.Type.JOYSTICK_BL, CursorState.Type.JOYSTICK_BL_BLOCKED],
+        Vector2i(-1, 0): [CursorState.Type.JOYSTICK_L, CursorState.Type.JOYSTICK_L_BLOCKED],
+        Vector2i(-1, -1): [CursorState.Type.JOYSTICK_TL, CursorState.Type.JOYSTICK_TL_BLOCKED],
+    }
+
+    var default_pair: Array = [
+        CursorState.Type.JOYSTICK_CENTER,
+        CursorState.Type.JOYSTICK_CENTER,
+    ]
+    var pair: Array = cursor_map.get(direction, default_pair)
+    return pair[1] if blocked else pair[0]
+
+
+func _apply_cursor(type: CursorState.Type) -> void:
+    if type == _current_cursor:
+        return
+    _current_cursor = type
+
+    if type == CursorState.Type.DEFAULT:
+        Input.set_custom_mouse_cursor(null)
+        return
+
+    var texture := CursorState.get_texture(type)
+    var hotspot := CursorState.get_hotspot(type)
+    Input.set_custom_mouse_cursor(texture, Input.CURSOR_ARROW, hotspot)

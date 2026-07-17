@@ -151,6 +151,38 @@ func update_power_display(current, max):
 - Coordinate with production manager for queue display
 - Interface with camera system for minimap position sync
 
+## 6. Cursor System
+
+**GitHub Issue**: #70 — feat: Tiberian Sun cursor system with per-unit resolution
+
+### Overview
+Context-sensitive cursors matching original Tiberian Sun. Placeholder SVGs, later PNG sequences for animation. Per-unit resolution — each entity component determines what cursor to show.
+
+### Cursor Types (28 unique + 28 minimap)
+- **Scroll (16)**: 8 directions × 2 (normal + blocked). Edge detection at 20px from viewport edge.
+- **Core (12)**: default, select, move, move-blocked, attack, attack-out-of-range, harvest, enter, guard, sell, repair, generic-blocked
+- **Minimap (28)**: Same sprites at 16×16 (asset-ready, not used yet)
+
+### Resolution Architecture
+1. **Global overrides**: dragging → SELECT, screen edge → SCROLL_*, sell/repair mode → SELL/REPAIR
+2. **Per-unit resolution**: each selected entity's components return a cursor + priority. Highest priority wins.
+3. **Fallback**: DEFAULT
+
+### Component → Cursor Mapping
+| Component | Target | Cursor | Priority |
+|-----------|--------|--------|----------|
+| CombatComponent | Enemy | ATTACK | 30 |
+| HarvestComponent | Tiberium | HARVEST | 20 |
+| HarvestComponent | Refinery | ENTER | 15 |
+| TransportComponent | Friendly infantry | ENTER | 10 |
+| MovementController | Ground | MOVE | 5 |
+
+### Files
+- `scripts/hud/CursorState.gd` — enum + texture registry
+- `scripts/hud/MouseHandler.gd` — _update_cursor(), resolve_cursor(), scroll detection
+- `scripts/components/{Combat,Harvest,Transport}Component.gd` + `MovementController.gd` — add get_cursor_for_target()
+- `assets/cursors/*.svg` — 28 placeholder SVGs
+
 ## Future Enhancements
 - Customizable UI scaling and positioning
 - Compact vs expanded view modes

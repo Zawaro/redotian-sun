@@ -43,3 +43,11 @@ func validate(data: EntityData) -> PackedStringArray:
             for err in weapon_errors:
                 errors.append("CombatComponent: '%s' - %s" % [data.id, err])
     return errors
+
+
+func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
+    if not target or weapons.is_empty():
+        return CursorState.Type.DEFAULT
+    if target.is_in_group("enemy"):
+        return CursorState.Type.ATTACK
+    return CursorState.Type.DEFAULT
