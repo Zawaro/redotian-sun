@@ -25,16 +25,66 @@ Resource and Resource Tree entities are **overlays** — TERRAIN-type entities w
 
 ## Architecture
 
-### PlayerData (Resource)
+### PlayerData (Resource) — Issue #77
 ```gdscript
 class_name PlayerData extends Resource
 @export var player_id: int = 0
 @export var credits: int = 0
+@export var faction_id: String = ""     # e.g. "GDI", "Nod"
+@export var color: Color = Color.WHITE
+@export var team_id: int = 0            # same team = ally, different = enemy
+@export var spawn_index: int = 0
+@export var display_name: String = ""
+@export var is_bot: bool = false        # AI player flag
 ```
-Per-player treasury resource. No income_rate or storage_capacity stored here — those are derived values computed from buildings the player owns.
+Per-player identity + economy resource. Owned by PlayerManager autoload. Other per-player state (queues, power, shroud) lives in separate resources or systems.
 
-### EconomyManager (Autoload Singleton)
-Thin ledger. No income tick, no passive generation. Pure add/deduct.
+### Faction (Resource) — Issue #77
+```gdscript
+class_name Faction extends Resource
+@export var id: String = ""              # "GDI", "Nod"
+@export var display_name: String = ""
+@export var color: Color = Color.WHITE
+```
+Per-faction definition. Stored as .tres files under `resources/factions/`. Referenced by PlayerData.faction_id.
+
+### MapConfig (Resource) — Issue #77
+```gdscript
+class_name MapConfig extends Resource
+@export var players: Array[PlayerConfig] = []
+```
+Per-map player definitions. Loaded by PlayerManager at _ready() from a child node of the map scene. Each PlayerConfig is an inner class:
+```gdscript
+class PlayerConfig:
+    @export var player_id: int = 0
+    @export var display_name: String = ""
+    @export var faction_id: String = ""
+    @export var team_id: int = 0
+    @export var color: Color = Color.WHITE
+    @export var spawn_index: int = 0
+    @export var is_bot: bool = false
+    @export var starting_credits: int = -1   # -1 = use GlobalRules.starting_credits
+    @export var starting_units: PackedStringArray = []  # field only, no spawning yet
+    @export var power_output: int = -1       # field only, no power system yet
+```
+If no MapConfig is found, PlayerManager creates defaults: player 0 (human, GDI, team 1) + player 1 (AI, Nod, team 2) with GlobalRules.starting_credits.
+
+### PlayerManager (Autoload) — Issue #77
+```gdscript
+extends Node
+var _players: Dictionary = {}            # player_id → PlayerData
+var _local_player_id: int = 0
+
+func get_local_player_id() -> int
+func get_player_data(player_id: int) -> PlayerData
+func is_enemy(a_id: int, b_id: int) -> bool
+func get_all_players() -> Array[PlayerData]
+func get_players_by_team(team_id: int) -> Array[PlayerData]
+```
+Thin registry. Owns PlayerData instances. Reads MapConfig child node at _ready() to initialize players. Lazy-creates PlayerData on first access if not pre-populated. First autoload in load order.
+
+### EconomyManager (Autoload Singleton) — Issue #77 refactored
+Thin ledger. Stateless — calls PlayerManager.get_player_data() instead of owning _players dict. Signals stay on EconomyManager.
 ```gdscript
 extends Node
 signal credits_changed(player_id: int, new_balance: int, reason: String)
@@ -438,7 +488,7 @@ A `Label` above the build menu grid showing the current credit balance, updated 
 - Uses white-to-green text (~18px) with a "$" prefix
 - Updates on every `credits_changed` emission — no polling in `_process()`
 - When balance is insufficient for the cheapest buildable item, the label turns red
-- Reads initial balance from `EconomyManager.get_balance(0)` in `_ready()`
+- Reads initial balance from `EconomyManager.get_balance(PlayerManager.get_local_player_id())` in `_ready()`
 
 ## Transport Pip Display
 
@@ -486,4 +536,4 @@ SelectionOverlay → updates pip fill colors
 - Real 3D models replacing placeholder cubes (20 variants × 3 stages per resource type)
 - Normal tree art (separate from Resource Tree Art)
 - Resource toxicity/veins (ResourceType for "vein" category exists, needs gameplay)
-- Multiplayer per-player treasury
+- ~~Multiplayer per-player treasury~~ — implemented in #77 (single-player + AI scope)
