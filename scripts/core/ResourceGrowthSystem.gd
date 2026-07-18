@@ -35,6 +35,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
     if Engine.is_editor_hint():
         return
+    if get_tree().current_scene and get_tree().current_scene.name == "MapEditor":
+        return
 
     var rules := _get_rules()
     if not rules:
