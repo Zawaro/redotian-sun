@@ -164,7 +164,7 @@ func _box_select(rect: Rect2) -> void:
         return
     deselect_all()
     var ground_rects := _screen_rect_to_ground_rect(rect)
-    if ground_rects.size() < 2:
+    if ground_rects.is_empty():
         return
     var ground_rect: Rect2 = ground_rects[0]
     for cell_key in editor._painted_entities:
