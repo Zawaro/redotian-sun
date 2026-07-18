@@ -51,6 +51,7 @@ func _load_model() -> void:
         if tex:
             var mat := StandardMaterial3D.new()
             mat.albedo_texture = tex
+            _apply_emission(mat)
             _apply_material(instance, mat)
 
 
@@ -59,6 +60,13 @@ func _apply_material(node: Node, mat: StandardMaterial3D) -> void:
         node.set_surface_override_material(0, mat)
     for child in node.get_children():
         _apply_material(child, mat)
+
+
+func _apply_emission(mat: StandardMaterial3D) -> void:
+    if art_data and art_data.emission_enabled:
+        mat.emission_enabled = true
+        mat.emission = art_data.emission_color
+        mat.emission_energy_multiplier = art_data.emission_energy_multiplier
 
 
 func _add_placeholder() -> void:
@@ -74,6 +82,7 @@ func _add_placeholder() -> void:
     instance.position = Vector3(0, half_y, 0)
     var mat := StandardMaterial3D.new()
     mat.albedo_color = Color(0.4, 0.4, 0.4)
+    _apply_emission(mat)
     instance.material_override = mat
     add_child(instance)
     instance.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else owner
