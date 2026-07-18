@@ -42,6 +42,10 @@ func _on_save_file_selected(path: String) -> void:
         }
         if data.has("player_id"):
             entity_entry["player_id"] = data["player_id"]
+        if data.has("rotation_y"):
+            entity_entry["rotation_y"] = data["rotation_y"]
+        if data.has("current_health"):
+            entity_entry["current_health"] = data["current_health"]
         for key in MapLoader.OVERRIDE_KEYS:
             if data.has(key):
                 entity_entry[key] = data[key]

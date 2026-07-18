@@ -18,6 +18,8 @@ var _grid: Node
 var _entity_placer: Node
 var _resource_painter: Node
 var _save_load: Node
+var _entity_selector: Node
+var _entity_properties: Node
 
 
 func _ready() -> void:
@@ -37,6 +39,7 @@ func _exit_tree() -> void:
     if Engine.is_editor_hint():
         return
     _entity_placer.cleanup()
+    _entity_selector.cleanup()
     _painted_entities.clear()
     TerrainSystem.clear()
     var renderer := get_node_or_null("TerrainRenderer")
@@ -57,7 +60,11 @@ func _input(event: InputEvent) -> void:
     if get_viewport().gui_get_hovered_control() != null:
         return
 
-    if _active_tool == Tool.PAINT_HEIGHT or _active_tool == Tool.NONE:
+    if _active_tool == Tool.PAINT_HEIGHT:
+        return
+
+    if _active_tool == Tool.NONE:
+        _entity_selector.handle_input(event)
         return
 
     if _active_tool == Tool.PLACE_TREE:
@@ -220,6 +227,19 @@ func _setup_ui() -> void:
     add_child(_entity_placer)
     _entity_placer.setup(ui)
 
+    _entity_selector = preload("res://scripts/editor/EntitySelector.gd").new()
+    _entity_selector.name = "EntitySelector"
+    _entity_selector.editor = self
+    add_child(_entity_selector)
+    _entity_selector.setup(_camera)
+    _entity_selector.selection_changed.connect(_on_editor_selection_changed)
+
+    _entity_properties = preload("res://scripts/editor/EntityProperties.gd").new()
+    _entity_properties.name = "EntityProperties"
+    _entity_properties.position = Vector2(get_viewport().size.x - 230, 220)
+    ui.add_child(_entity_properties)
+    _entity_properties.setup(_entity_selector)
+
 
 func _on_tool_toggled(btn: Button, tool_id: int) -> void:
     if btn.button_pressed:
@@ -227,6 +247,9 @@ func _on_tool_toggled(btn: Button, tool_id: int) -> void:
         for tid in _tool_buttons:
             _tool_buttons[tid].button_pressed = (tid == tool_id)
         _entity_placer.on_tool_toggled()
+        if tool_id != Tool.NONE:
+            _entity_selector.deselect_all()
+            _entity_properties.hide_panel()
     else:
         _active_tool = Tool.NONE
         _entity_placer.on_tool_toggled()
@@ -296,6 +319,8 @@ func _on_height_changed(cell: Vector2i, new_height: int) -> void:
         var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
         if tib:
             tib.update_slope_positions()
+    if _entity_selector.is_entity_selected(key):
+        _entity_selector.refresh_slope_tilt()
 
 
 func _on_terrain_cell_changed(key: String, data: Dictionary) -> void:
@@ -308,3 +333,17 @@ func _on_terrain_cell_changed(key: String, data: Dictionary) -> void:
     var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
     if tib:
         tib.update_slope_positions()
+    if _entity_selector.is_entity_selected(key):
+        _entity_selector.refresh_slope_tilt()
+
+
+func _on_editor_selection_changed(selected_count: int) -> void:
+    if selected_count == 0:
+        _entity_properties.hide_panel()
+        return
+    var entries: Array[Dictionary] = _entity_selector.get_selected_entries()
+    if entries.is_empty():
+        _entity_properties.hide_panel()
+        return
+    var first: Dictionary = entries[0]
+    _entity_properties.rebuild(first.get("cell_key", ""), first.get("data", {}))
