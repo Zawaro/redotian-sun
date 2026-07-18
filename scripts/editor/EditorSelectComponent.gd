@@ -55,8 +55,6 @@ func get_entry_data() -> Dictionary:
 
 
 func _resolve_entity_height(entity_data: EntityData) -> float:
-    if entity_data.height != 1.0:
-        return entity_data.height * TerrainSystem.HEIGHT_STEP
     var art: ArtData = entity_data.art_data
     if art and not art.model_path.is_empty() and ResourceLoader.exists(art.model_path):
         var scene := load(art.model_path) as PackedScene
