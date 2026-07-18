@@ -154,8 +154,8 @@ func _place_entity_on_cell(cell: Vector2i) -> void:
     editor.add_child(entity)
     var select_comp := EditorSelectComponent.new()
     select_comp.name = "EditorSelectComponent"
-    select_comp.configure(entity_data, key, entry)
     entity.add_child(select_comp)
+    select_comp.configure(entity_data, key, entry)
     _remove_preview()
     _update_preview()
 
