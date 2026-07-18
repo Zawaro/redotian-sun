@@ -21,3 +21,4 @@ buildable = true
 buildable_queue = "BuildingType"
 build_time = 24.0
 factory = "InfantryType"
+owner = PackedStringArray("GDI")
