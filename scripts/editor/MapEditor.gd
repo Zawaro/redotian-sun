@@ -1,7 +1,7 @@
 @tool
 extends Node3D
 
-enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE }
+enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE, PLACE_ENTITY }
 
 @export var map_size: Vector2 = Vector2(64.0, 64.0)
 @export var visible_bounds_size: Vector2 = Vector2(54.0, 54.0)
@@ -23,6 +23,11 @@ var _highlight_quad_mat: ORMMaterial3D
 var _highlight_line_mat: ORMMaterial3D
 var _height_label: Label
 var _painted_entities: Dictionary = {}
+var _entity_browser: PanelContainer
+var _selected_entity_id: String = ""
+var _selected_player_id: int = 0
+var _preview_entity: Node3D = null
+var _preview_entity_id: String = ""
 
 const TIB_DEFAULT_STRENGTH: int = 300
 const OVERRIDE_KEYS: PackedStringArray = [
@@ -52,6 +57,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
     if Engine.is_editor_hint():
         return
+    _remove_preview()
     for key in _painted_entities:
         var node := _painted_entities[key].get("node") as Node3D
         if is_instance_valid(node):
@@ -224,14 +230,29 @@ func _setup_ui() -> void:
         minimap.position = Vector2(get_viewport().size.x - 210, 10)
         ui.add_child(minimap)
 
+    # Entity browser panel
+    var entity_browser_script = load("res://scripts/editor/EntityBrowser.gd")
+    if entity_browser_script:
+        _entity_browser = entity_browser_script.new()
+        _entity_browser.name = "EntityBrowser"
+        _entity_browser.position = Vector2(10, 50)
+        _entity_browser.visible = true
+        _entity_browser.entity_selected.connect(_on_entity_selected)
+        _entity_browser.player_changed.connect(_on_player_changed)
+        ui.add_child(_entity_browser)
+
 
 func _on_tool_toggled(btn: Button, tool_id: int) -> void:
     if btn.button_pressed:
         _active_tool = tool_id
         for tid in _tool_buttons:
             _tool_buttons[tid].button_pressed = (tid == tool_id)
+        _remove_preview()
+        _selected_entity_id = ""
+        _update_preview()
     else:
         _active_tool = Tool.NONE
+        _remove_preview()
 
 
 func _on_strength_changed(value: float) -> void:
@@ -261,6 +282,16 @@ func _input(event: InputEvent) -> void:
             and event.button_index == MOUSE_BUTTON_LEFT
         ):
             _place_tree_on_cell(_hovered_cell)
+        return
+
+    if _active_tool == Tool.PLACE_ENTITY:
+        if event is InputEventMouseButton and event.pressed:
+            if event.button_index == MOUSE_BUTTON_LEFT:
+                _place_entity_on_cell(_hovered_cell)
+            elif event.button_index == MOUSE_BUTTON_RIGHT:
+                _selected_entity_id = ""
+                _remove_preview()
+                _active_tool = Tool.NONE
         return
 
     if _active_tool in [Tool.PAINT_RESOURCE, Tool.ERASE]:
@@ -354,6 +385,107 @@ func _place_tree_on_cell(cell: Vector2i) -> void:
     add_child(entity)
 
 
+func _place_entity_on_cell(cell: Vector2i) -> void:
+    if _selected_entity_id.is_empty():
+        return
+    var key := str(cell.x) + "," + str(cell.y)
+    if _painted_entities.has(key):
+        return
+    var entity_data := EntityFactory.get_entity_data(_selected_entity_id)
+    if not entity_data:
+        return
+    var overrides: Dictionary = {}
+    var entity := EntityFactory.create_entity(_selected_entity_id, overrides)
+    if not entity:
+        return
+    var foundation: Vector2i = entity_data.foundation
+    entity.position = _cell_origin_world_pos(cell, foundation)
+    var data: Dictionary = {
+        "id": _selected_entity_id,
+        "player_id": _selected_player_id,
+    }
+    _painted_entities[key] = {"node": entity, "data": data}
+    add_child(entity)
+    _remove_preview()
+    _update_preview()
+
+
+func _on_entity_selected(entity_id: String) -> void:
+    if _selected_entity_id == entity_id:
+        _selected_entity_id = ""
+        _active_tool = Tool.NONE
+        _remove_preview()
+    else:
+        _selected_entity_id = entity_id
+        _active_tool = Tool.PLACE_ENTITY
+        _update_preview()
+
+
+func _on_player_changed(player_id: int) -> void:
+    _selected_player_id = player_id
+
+
+func _update_preview() -> void:
+    if _active_tool != Tool.PLACE_ENTITY or _selected_entity_id.is_empty():
+        _remove_preview()
+        return
+    if _selected_entity_id == _preview_entity_id and is_instance_valid(_preview_entity):
+        return
+    _remove_preview()
+    var entity := EntityFactory.create_entity(_selected_entity_id)
+    if not entity:
+        return
+    _preview_entity = entity
+    _preview_entity_id = _selected_entity_id
+    _set_preview_transparency(entity, 0.5)
+    add_child(entity)
+    _update_preview_position()
+
+
+func _update_preview_position() -> void:
+    if not is_instance_valid(_preview_entity):
+        return
+    var entity_data := EntityFactory.get_entity_data(_preview_entity_id)
+    if not entity_data:
+        return
+    var foundation: Vector2i = entity_data.foundation
+    _preview_entity.position = _cell_origin_world_pos(_hovered_cell, foundation)
+
+
+func _remove_preview() -> void:
+    if is_instance_valid(_preview_entity):
+        _preview_entity.queue_free()
+    _preview_entity = null
+    _preview_entity_id = ""
+
+
+func _set_preview_transparency(node: Node, alpha: float) -> void:
+    if node is MeshInstance3D:
+        var mesh_instance := node as MeshInstance3D
+        var tex: Texture2D = null
+        for surface_idx in mesh_instance.get_surface_override_material_count():
+            var existing_mat := mesh_instance.get_surface_override_material(surface_idx)
+            if existing_mat is StandardMaterial3D:
+                tex = existing_mat.albedo_texture
+                break
+        if tex == null and mesh_instance.mesh:
+            for surface_idx in mesh_instance.mesh.get_surface_count():
+                var surf_mat := mesh_instance.mesh.surface_get_material(surface_idx)
+                if surf_mat is StandardMaterial3D:
+                    tex = surf_mat.albedo_texture
+                    break
+        for surface_idx in mesh_instance.get_surface_override_material_count():
+            var mat := StandardMaterial3D.new()
+            mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+            mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+            mat.albedo_color = Color(1, 1, 1, alpha)
+            if tex:
+                mat.albedo_texture = tex
+            mesh_instance.set_surface_override_material(surface_idx, mat)
+    for child in node.get_children():
+        _set_preview_transparency(child, alpha)
+
+
 func _draw_grid() -> void:
     var mesh := ImmediateMesh.new()
     var material := ORMMaterial3D.new()
@@ -421,6 +553,7 @@ func _update_hovered_cell() -> void:
     if cell != _hovered_cell and not TerrainSystem.get_cell(cell).is_empty():
         _hovered_cell = cell
         _update_cell_highlight()
+    _update_preview_position()
 
 
 func _update_cell_highlight() -> void:
@@ -501,6 +634,22 @@ func _cell_world_pos(cell: Vector2i) -> Vector3:
     return pos
 
 
+func _cell_origin_world_pos(origin: Vector2i, footprint: Vector2i) -> Vector3:
+    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
+    var center_x := (origin.x + footprint.x * 0.5) * Pathfinder.CELL_SIZE - grid_half
+    var center_z := (origin.y + footprint.y * 0.5) * Pathfinder.CELL_SIZE - grid_half
+    var max_h := 0
+    for dx in footprint.x:
+        for dz in footprint.y:
+            var cell := origin + Vector2i(dx, dz)
+            var cell_data: Dictionary = TerrainSystem.get_cell(cell)
+            if not cell_data.is_empty():
+                var h: int = cell_data.get("max_height", cell_data.get("height", 0))
+                if h > max_h:
+                    max_h = h
+    return Vector3(center_x, float(max_h) * TerrainSystem.HEIGHT_STEP, center_z)
+
+
 func get_hovered_cell() -> Vector2i:
     return _hovered_cell
 
@@ -522,6 +671,8 @@ func _on_save_file_selected(path: String) -> void:
             "id": data.get("id", ""),
             "cell": cell_key,
         }
+        if data.has("player_id"):
+            entity_entry["player_id"] = data["player_id"]
         for key in OVERRIDE_KEYS:
             if data.has(key):
                 entity_entry[key] = data[key]

@@ -40,6 +40,8 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
         for key in OVERRIDE_KEYS:
             if entry_dict.has(key):
                 overrides[key] = entry_dict[key]
+        if entry_dict.has("player_id"):
+            overrides["player_id"] = entry_dict["player_id"]
         var entity := EntityFactory.create_entity(entity_id, overrides)
         if not entity:
             continue
