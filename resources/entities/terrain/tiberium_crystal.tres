@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/terrain/tiberium_crystal_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
@@ -13,3 +14,4 @@ height = 0.5
 owner = PackedStringArray("Neutral")
 resource_category = "tiberium"
 resource_type_id = "tiberium_green"
+art_data = ExtResource("2_art")
