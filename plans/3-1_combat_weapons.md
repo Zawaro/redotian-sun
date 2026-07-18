@@ -152,10 +152,35 @@ func take_damage(amount, damage_type):
 
 ## Implementation Status
 - ✅ WeaponData.gd — unlimited weapons per entity via `Array[WeaponData]`
-- ✅ WarheadData.gd — warhead type definitions
-- ✅ GlobalRules.armor_types — customizable armor dictionary
-- ✅ CombatComponent — stores weapons, turret info, threat posed
-- 🔄 Remaining: Firing logic (Issue #28), damage forwarding (Issue #29), armor calculation (Issue #30)
+- ❌ WarheadData.gd — **does not exist yet** (listed in #23 but not created)
+- ❌ GlobalRules.armor_types — referenced but unused, chain broken without WarheadData
+- ✅ CombatComponent — stores weapons, turret info, threat posed (no firing logic)
+- ✅ HitboxComponent — detects projectile hits, forwards to HealthComponent (no projectile to trigger it)
+- ✅ HealthComponent — take_damage(), health_zero signal (no death handler listens)
+
+## Gaps (added 2026-07-18)
+
+### Projectile System (Issue #78)
+- No projectile nodes exist — entire damage pipeline dead-ends
+- Need: Projectile Node3D scene + ProjectileData resource
+- Alternative: hitscan (instant raycast) for high-speed weapons
+- WeaponData already has `projectile` and `speed` fields
+
+### Attack Command (Issue #79)
+- SelectionManager has no `request_attack()` — only move/harvest
+- MouseHandler has no right-click-on-enemy handler
+- CombatComponent has no `set_target()` entry point from player input
+- Need: entity ownership (player_id) + PlayerManager.is_enemy() for target filtering
+
+### WarheadData (Issue #23 gap)
+- WeaponData.warhead is a String but no WarheadData class exists
+- Chain: weapon warhead string → WarheadData → damage type → armor modifier
+- Without this, armor calculation has no input
+
+### Death Handler (Issue #82)
+- health_zero signal fires but nothing listens
+- Destroyed buildings persist as ghosts occupying cells
+- Need: BuildingManager cleanup on health_zero (unregister cells, free node)
 
 ## Future Enhancements
 - Cover mechanics (units gain defense behind obstacles)

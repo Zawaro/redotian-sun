@@ -234,17 +234,33 @@ The composition-based entity system is a prerequisite for most game systems. All
 
 ## Next Steps
 
-1. **Per-Player Data & Logic** (Issue #77) — PlayerManager autoload, PlayerData, ProductionState, Faction, MapConfig resources. Refactor EconomyManager/BuildingManager/ProductionManager/Sidebar.
-2. **Data Population** (Issue #23) — populate remaining .tres files for entities, weapons, warheads
-3. **Component Logic** (Issues #28-40) — implement actual behavior for each component
-   - **Highest priority**: HitboxComponent (#29), HealthComponent (#30), CombatComponent (#28) — core combat loop (requires #77 for owner tracking + team-based targeting)
-   - **Economy**: PowerComponent (#33), FactoryComponent (#31), TransportComponent (#32) — production and harvesting (requires #77 for per-player production queues)
-4. **GlobalRules Integration** (Issue #26) — wire armor calculation, veterancy, movement coefficients
-5. **BuildingManager Migration** (Issue #25) — move from BuildingType to EntityFactory
-6. **Debug Menu** (Issue #27) — in-game debug tools for testing
-7. Conduct early playtesting to validate design decisions
-8. Review weekly and adjust timeline based on actual development velocity
+### Priority: First Blood Goal (Issue #84)
+End-to-end combat demo: deploy MCV → build base → train infantry → destroy enemy Con Yard. See `plans/10-1_first_blood_goal.md` for full breakdown.
+
+1. **Per-Player Data & Logic** (Issue #77) — current branch, prerequisite for all player-aware systems
+2. **MapEditor Entity Placement** (Issue #83) — place buildings with player assignment for test scenarios
+3. **MCV Deploy** (Issue #80) — transform MCV into Construction Yard
+4. **Prerequisite Chain** (Issue #81) — wire .tres files: Con Yard → Power Plant → Barracks → Infantry
+5. **Weapon Data** (Issue #23) — populate E1 infantry weapons, create WeaponData .tres
+6. **Attack Command** (Issue #79) — right-click enemy → unit attacks
+7. **CombatComponent Firing** (Issue #28) — fire rate timer, range check, target acquisition
+8. **Projectile System** (Issue #78) — Projectile node or hitscan for ranged weapons
+9. **HitboxComponent** (Issue #29) — already works, needs projectile to trigger it
+10. **HealthComponent Death** (Issue #30) — health_zero → cleanup
+11. **Death Handler** (Issue #82) — remove destroyed buildings from game
+
+### Remaining Component Logic (Issues #28-40)
+- **Economy**: PowerComponent (#33), FactoryComponent (#31), TransportComponent (#32)
+- **Movement**: Locomotor enforcement (#34), Terrain movement costs (#51)
+- **UI**: Infantry health bars (#39), Art damaged states (#38)
+
+### Infrastructure
+- **GlobalRules Integration** (Issue #26) — wire armor, veterancy, movement coefficients
+- **BuildingManager Migration** (Issue #25) — move from BuildingType to EntityFactory
+- **Debug Menu** (Issue #27) — in-game debug tools for testing
+- Conduct early playtesting to validate design decisions
+- Review weekly and adjust timeline based on actual development velocity
 
 ---
 
-*Last updated: 2026-07-18 — Per-player infrastructure (#77) added as prerequisite for component logic*
+*Last updated: 2026-07-18 — First Blood goal defined, 6 new issues created (#78-83), milestone issue #84*
