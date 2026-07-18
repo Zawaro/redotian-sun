@@ -231,7 +231,7 @@ func _setup_ui() -> void:
     _entity_selector.name = "EntitySelector"
     _entity_selector.editor = self
     add_child(_entity_selector)
-    _entity_selector.setup(_camera)
+    _entity_selector.setup(_camera, ui)
     _entity_selector.selection_changed.connect(_on_editor_selection_changed)
 
     _entity_properties = preload("res://scripts/editor/EntityProperties.gd").new()

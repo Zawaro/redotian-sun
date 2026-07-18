@@ -14,12 +14,20 @@ var _drag_start: Vector2 = Vector2.ZERO
 var _drag_rect: Rect2 = Rect2()
 var _drag_threshold: float = 5.0
 var _camera: Camera3D = null
+var _selection_rect: ReferenceRect = null
 
 const EDITOR_SELECT_LAYER: int = 1 << 17
 
 
-func setup(cam: Camera3D) -> void:
+func setup(cam: Camera3D, ui_layer: CanvasLayer) -> void:
     _camera = cam
+    _selection_rect = ReferenceRect.new()
+    _selection_rect.name = "EditorSelectionRect"
+    _selection_rect.editor_only = false
+    _selection_rect.border_width = 1.0
+    _selection_rect.border_color = Color.WHITE
+    _selection_rect.visible = false
+    ui_layer.add_child(_selection_rect)
 
 
 func cleanup() -> void:
@@ -37,12 +45,18 @@ func handle_input(event: InputEvent) -> void:
                 _dragging = true
                 _drag_start = event.position
                 _drag_rect = Rect2()
+                if _selection_rect:
+                    _selection_rect.visible = true
+                    _selection_rect.position = _drag_start
+                    _selection_rect.size = Vector2.ZERO
             MOUSE_BUTTON_RIGHT:
                 deselect_all()
 
     if event is InputEventMouseButton and not event.pressed:
         if event.button_index == MOUSE_BUTTON_LEFT and _dragging:
             _dragging = false
+            if _selection_rect:
+                _selection_rect.visible = false
             var dist: float = event.position.distance_to(_drag_start)
             if dist >= _drag_threshold:
                 _box_select(_drag_rect)
@@ -52,6 +66,9 @@ func handle_input(event: InputEvent) -> void:
     if event is InputEventMouseMotion and _dragging:
         var diff: Vector2 = event.position - _drag_start
         _drag_rect = Rect2(_drag_start, diff).abs()
+        if _selection_rect:
+            _selection_rect.position = _drag_rect.position
+            _selection_rect.size = _drag_rect.size
 
     if event is InputEventKey and event.pressed and not event.echo:
         if event.keycode == KEY_BACKSPACE:
