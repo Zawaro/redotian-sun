@@ -93,7 +93,7 @@ func _draw_grid() -> void:
 func _update_cell_highlight() -> void:
     if not _cell_highlight:
         return
-    if editor._active_tool == editor.Tool.PLACE_ENTITY:
+    if editor._active_tool != editor.Tool.PAINT_HEIGHT:
         _cell_highlight.visible = false
         return
     var cell_data: Dictionary = TerrainSystem.get_cell(editor._hovered_cell)
