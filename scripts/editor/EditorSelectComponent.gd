@@ -91,6 +91,7 @@ func _setup_hitbox(box_size: Vector3) -> void:
     var hitbox := CollisionShape3D.new()
     hitbox.name = "SelectionHitbox"
     hitbox.shape = _box_shape
+    hitbox.transform = Transform3D(Basis.IDENTITY, Vector3(0, box_size.y * 0.5, 0))
     hitbox.visible = false
     add_child(hitbox)
 
@@ -111,16 +112,16 @@ func _setup_selection_box(box_size: Vector3) -> void:
     mat.albedo_color = Color.WHITE
     mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
-    var half := box_size * 0.5
+    var half_xz := Vector2(box_size.x * 0.5, box_size.z * 0.5)
     var corners: Array[Vector3] = [
-        Vector3(-half.x, -half.y, -half.z),
-        Vector3(half.x, -half.y, -half.z),
-        Vector3(half.x, -half.y, half.z),
-        Vector3(-half.x, -half.y, half.z),
-        Vector3(-half.x, half.y, -half.z),
-        Vector3(half.x, half.y, -half.z),
-        Vector3(half.x, half.y, half.z),
-        Vector3(-half.x, half.y, half.z),
+        Vector3(-half_xz.x, 0.0, -half_xz.y),
+        Vector3(half_xz.x, 0.0, -half_xz.y),
+        Vector3(half_xz.x, 0.0, half_xz.y),
+        Vector3(-half_xz.x, 0.0, half_xz.y),
+        Vector3(-half_xz.x, box_size.y, -half_xz.y),
+        Vector3(half_xz.x, box_size.y, -half_xz.y),
+        Vector3(half_xz.x, box_size.y, half_xz.y),
+        Vector3(-half_xz.x, box_size.y, half_xz.y),
     ]
     var edges: Array[Array] = [
         [0, 1],
