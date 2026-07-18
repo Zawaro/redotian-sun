@@ -32,7 +32,7 @@ func _ready() -> void:
 func _on_building_placed(_building: Node3D, entity_data: EntityData) -> void:
     var ps := get_node_or_null("/root/PrerequisiteSystem")
     if ps:
-        ps.register_building(0, entity_data)
+        ps.register_building(PlayerManager.get_local_player_id(), entity_data)
 
 
 func set_skip_next_deduction() -> void:
@@ -137,6 +137,7 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     # Consume skip-deduction flag early so it never leaks on early returns
     var skip := _skip_next_deduction
     _skip_next_deduction = false
+    var pid := PlayerManager.get_local_player_id()
 
     if not can_place(building_type, origin_cell):
         return false
@@ -144,7 +145,8 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     # Deduct cost unless already paid via production queue
     if not skip:
         var em := get_node("/root/EconomyManager") as EconomyManager
-        if em and not em.deduct(0, building_type.cost, "build:%s" % building_type.id):
+        var reason := "build:%s" % building_type.id
+        if em and not em.deduct(pid, building_type.cost, reason):
             push_warning("[BuildingManager] Insufficient funds for %s" % building_type.id)
             return false
 
@@ -192,7 +194,7 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     # Resume production queue for this player
     var pm := get_node_or_null("/root/ProductionManager")
     if pm:
-        pm.clear_waiting_for_placement(0)
+        pm.clear_waiting_for_placement(pid)
 
     return true
 
@@ -604,15 +606,16 @@ func sell_building(building_node: Node3D) -> bool:
     var entity_data: EntityData = entry.get("type") as EntityData
     if not entity_data:
         return false
+    var pid := PlayerManager.get_local_player_id()
     # Refund half the cost
     var em := get_node("/root/EconomyManager") as EconomyManager
     if em:
         var refund: int = int(entity_data.cost * 0.5)
-        em.add(0, refund, "sell:%s" % entity_data.id)
+        em.add(pid, refund, "sell:%s" % entity_data.id)
     # Unregister from prerequisite system
     var ps := get_node_or_null("/root/PrerequisiteSystem")
     if ps:
-        ps.unregister_building(0, entity_data)
+        ps.unregister_building(pid, entity_data)
     # Unregister cells
     var cells: Array = entry.get("cells", []) as Array
     if not cells.is_empty():

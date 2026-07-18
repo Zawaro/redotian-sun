@@ -3,8 +3,6 @@ extends Node
 signal credits_changed(player_id: int, new_balance: int, reason: String)
 signal insufficient_funds(player_id: int, cost: int, balance: int)
 
-var _players: Dictionary = {}
-
 
 func get_balance(player_id: int) -> int:
     return _get_player_data(player_id).credits
@@ -35,13 +33,4 @@ func get_storage_capacity(_player_id: int) -> int:
 
 
 func _get_player_data(player_id: int) -> PlayerData:
-    if not _players.has(player_id):
-        var data := PlayerData.new()
-        data.player_id = player_id
-        var entity_factory := get_node_or_null("/root/EntityFactory")
-        if entity_factory and entity_factory.has_method("get_global_rules"):
-            var rules := entity_factory.get_global_rules() as GlobalRules
-            if rules:
-                data.credits = rules.starting_credits
-        _players[player_id] = data
-    return _players[player_id] as PlayerData
+    return PlayerManager.get_player_data(player_id)

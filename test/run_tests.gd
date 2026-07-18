@@ -83,3 +83,5 @@ func _inject_autoloads(obj: Object) -> void:
             obj.set("_bm", child)
         elif child_name == "EconomyManager":
             obj.set("_em", child)
+        elif child_name == "PlayerManager":
+            obj.set("_pm", child)

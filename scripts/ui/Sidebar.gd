@@ -59,7 +59,7 @@ func _ready() -> void:
     var em := get_node("/root/EconomyManager")
     if em:
         em.credits_changed.connect(_on_credits_changed)
-        credits_label.text = "$%d" % em.get_balance(0)
+        credits_label.text = "$%d" % em.get_balance(PlayerManager.get_local_player_id())
 
     var ps := get_node("/root/PrerequisiteSystem") as Node
     if ps:
@@ -135,7 +135,7 @@ func _get_current_entities() -> Array[EntityData]:
         # Buildings tab: show all buildable buildings (skip prerequisite check for buildings)
         if entity_type == EntityData.EntityType.BUILDING:
             result.append(data)
-        elif ps and ps.can_build(0, data):
+        elif ps and ps.can_build(PlayerManager.get_local_player_id(), data):
             result.append(data)
         elif not ps:
             result.append(data)
@@ -251,7 +251,7 @@ func _create_cameo(data: EntityData) -> Button:
     # Check build limit
     var ps := get_node("/root/PrerequisiteSystem")
     if ps and data.build_limit > 0:
-        var count: int = ps.get_build_count(0, data.id)
+        var count: int = ps.get_build_count(PlayerManager.get_local_player_id(), data.id)
         if count >= data.build_limit:
             btn.modulate = Color(0.4, 0.4, 0.4, 0.6)
 
@@ -364,20 +364,25 @@ func _is_ready_to_place(data: EntityData) -> bool:
     var pm := get_node("/root/ProductionManager")
     if not pm:
         return false
-    var ready_buildings: Array = pm.get_ready_buildings(0)
+    var ready_buildings: Array = pm.get_ready_buildings(PlayerManager.get_local_player_id())
     for item in ready_buildings:
         if (item as EntityData).id == data.id:
             return true
     return false
 
 
-func _is_paused(data: EntityData) -> bool:
+func _get_queue_items_for_entity(data: EntityData) -> Array:
     var pm := get_node("/root/ProductionManager")
     if not pm:
-        return false
-    var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(0, factory_type)
-    var items: Array = pm.get_queue_items(queue_key)
+        return []
+    var queue_key: String = pm.get_queue_key(
+        PlayerManager.get_local_player_id(), data.buildable_queue
+    )
+    return pm.get_queue_items(queue_key)
+
+
+func _is_paused(data: EntityData) -> bool:
+    var items := _get_queue_items_for_entity(data)
     for item in items:
         var pq: ProductionQueue = item as ProductionQueue
         if pq.entity_data.id == data.id and pq.is_paused:
@@ -389,8 +394,9 @@ func _is_queued_non_active(data: EntityData) -> bool:
     var pm := get_node("/root/ProductionManager")
     if not pm:
         return false
-    var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(0, factory_type)
+    var queue_key: String = pm.get_queue_key(
+        PlayerManager.get_local_player_id(), data.buildable_queue
+    )
     var items: Array = pm.get_queue_items(queue_key)
     var active_idx: int = pm.get_active_index(queue_key)
     for i in range(items.size()):
@@ -406,12 +412,7 @@ func _is_placing(data: EntityData) -> bool:
 
 
 func _get_queue_count(data: EntityData) -> int:
-    var pm := get_node("/root/ProductionManager")
-    if not pm:
-        return 0
-    var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(0, factory_type)
-    var items: Array = pm.get_queue_items(queue_key)
+    var items := _get_queue_items_for_entity(data)
     var total := 0
     for item in items:
         var pq: ProductionQueue = item as ProductionQueue
@@ -421,12 +422,7 @@ func _get_queue_count(data: EntityData) -> int:
 
 
 func _get_item_progress(data: EntityData) -> float:
-    var pm := get_node("/root/ProductionManager")
-    if not pm:
-        return 0.0
-    var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(0, factory_type)
-    var items: Array = pm.get_queue_items(queue_key)
+    var items := _get_queue_items_for_entity(data)
     for item in items:
         var pq: ProductionQueue = item as ProductionQueue
         if pq.entity_data.id == data.id:
@@ -453,12 +449,12 @@ func _on_cameo_gui_input(event: InputEvent, data: EntityData) -> void:
 func _handle_left_click(pm: ProductionManager, data: EntityData, shift: bool) -> void:
     # Building ready to place → enter build mode
     if data.entity_type == EntityData.EntityType.BUILDING and _is_ready_to_place(data):
-        pm.place_ready_building(0, data.id)
+        pm.place_ready_building(PlayerManager.get_local_player_id(), data.id)
         return
 
     # Check if item is already in queue — resume if paused
     var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(0, factory_type)
+    var queue_key: String = pm.get_queue_key(PlayerManager.get_local_player_id(), factory_type)
     var items: Array = pm.get_queue_items(queue_key)
     for i in range(items.size()):
         var item: ProductionQueue = items[i] as ProductionQueue
@@ -468,35 +464,37 @@ func _handle_left_click(pm: ProductionManager, data: EntityData, shift: bool) ->
 
     # Not in queue or not paused — start/stack production
     var count := 5 if shift else 1
-    pm.start_production(0, data, count)
+    pm.start_production(PlayerManager.get_local_player_id(), data, count)
 
 
 func _handle_right_click(pm: ProductionManager, data: EntityData, shift: bool) -> void:
     # Ready-to-place building → cancel and refund
     if data.entity_type == EntityData.EntityType.BUILDING and _is_ready_to_place(data):
-        pm.cancel_ready_building(0, data.id)
+        pm.cancel_ready_building(PlayerManager.get_local_player_id(), data.id)
         return
 
     var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(0, factory_type)
+    var queue_key: String = pm.get_queue_key(PlayerManager.get_local_player_id(), factory_type)
     var items: Array = pm.get_queue_items(queue_key)
     for i in range(items.size()):
         var item: ProductionQueue = items[i] as ProductionQueue
         if item.entity_data.id == data.id:
             if shift:
                 var cancel_count := 5 if item.count > 5 else item.count
-                pm.cancel_production(0, queue_key, i, cancel_count)
+                pm.cancel_production(
+                    PlayerManager.get_local_player_id(), queue_key, i, cancel_count
+                )
             elif item.is_paused:
-                pm.cancel_production(0, queue_key, i, 1)
+                pm.cancel_production(PlayerManager.get_local_player_id(), queue_key, i, 1)
             elif i == pm.get_active_index(queue_key):
                 pm.pause_production(queue_key, i)
             else:
-                pm.cancel_production(0, queue_key, i, 1)
+                pm.cancel_production(PlayerManager.get_local_player_id(), queue_key, i, 1)
             break
 
 
 func _on_credits_changed(player_id: int, new_balance: int, _reason: String) -> void:
-    if player_id != 0:
+    if player_id != PlayerManager.get_local_player_id():
         return
     credits_label.text = "$%d" % new_balance
 
