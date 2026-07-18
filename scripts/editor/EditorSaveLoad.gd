@@ -63,5 +63,18 @@ func _on_load_file_selected(path: String) -> void:
     var loaded := MapLoader.load_map_into(path, editor)
     for entry in loaded:
         var key: String = entry.get("key", "")
-        if not key.is_empty():
-            editor._painted_entities[key] = {"node": entry.get("node"), "data": entry.get("data")}
+        if key.is_empty():
+            continue
+        var node: Node3D = entry.get("node") as Node3D
+        var data: Dictionary = entry.get("data", {})
+        editor._painted_entities[key] = {"node": node, "data": data}
+        if not is_instance_valid(node):
+            continue
+        var entity_id: String = data.get("id", "")
+        var entity_data := EntityFactory.get_entity_data(entity_id)
+        if not entity_data:
+            continue
+        var select_comp := EditorSelectComponent.new()
+        select_comp.name = "EditorSelectComponent"
+        node.add_child(select_comp)
+        select_comp.configure(entity_data, key, editor._painted_entities[key])
