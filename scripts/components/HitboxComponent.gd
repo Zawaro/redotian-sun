@@ -18,16 +18,8 @@ const LAYER_PROJECTILE: int = 1 << 4
 
 
 func _ready() -> void:
-    area_entered.connect(_on_area_entered)
-    body_entered.connect(_on_body_entered)
-
-
-func _on_area_entered(area: Area3D) -> void:
-    _try_deal_damage(area)
-
-
-func _on_body_entered(body: Node3D) -> void:
-    _try_deal_damage(body)
+    area_entered.connect(_try_deal_damage)
+    body_entered.connect(_try_deal_damage)
 
 
 ## Checks if the entering node deals damage and forwards to HealthComponent.
@@ -37,7 +29,9 @@ func _try_deal_damage(node: Node3D) -> void:
         return
     if not node.has_method("get_damage_info"):
         return
-    var info: Dictionary = node.get_damage_info()
+    var info: Variant = node.get_damage_info()
+    if not info is Dictionary:
+        return
     var damage: int = info.get("amount", 0)
     var damage_type: String = info.get("type", "")
     if damage > 0:
