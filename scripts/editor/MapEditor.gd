@@ -7,38 +7,17 @@ enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE, PLACE_ENTITY 
 @export var visible_bounds_size: Vector2 = Vector2(54.0, 54.0)
 @export var show_grid: bool = true
 
-var _grid_overlay: MeshInstance3D
-var _cell_highlight: MeshInstance3D
 var _hovered_cell: Vector2i = Vector2i(-999, -999)
 var _camera: Camera3D
 var _height_painter: Node
 var _tool_buttons: Dictionary = {}
 var _active_tool: int = Tool.NONE
-var _paint_strength: float = 50.0
-var _paint_radius: int = 1
-var _is_painting: bool = false
-var _save_dialog: FileDialog
-var _load_dialog: FileDialog
-var _highlight_quad_mat: ORMMaterial3D
-var _highlight_line_mat: ORMMaterial3D
-var _height_label: Label
 var _painted_entities: Dictionary = {}
-var _entity_browser: PanelContainer
-var _selected_entity_id: String = ""
-var _selected_player_id: int = 0
-var _preview_entity: Node3D = null
-var _preview_entity_id: String = ""
 
-const TIB_DEFAULT_STRENGTH: int = 300
-const OVERRIDE_KEYS: PackedStringArray = [
-    "strength",
-    "resource_type_id",
-    "resource_regrowth_rate",
-    "radius_cells",
-    "node_count",
-    "spawn_strength",
-    "max_spawn_strength",
-]
+var _grid: Node
+var _entity_placer: Node
+var _resource_painter: Node
+var _save_load: Node
 
 
 func _ready() -> void:
@@ -46,7 +25,7 @@ func _ready() -> void:
         return
     TerrainSystem.init_grid(ceili(map_size.x * sqrt(2)))
     _setup_camera()
-    _setup_grid_overlay()
+    _setup_grid()
     _setup_height_painter()
     _height_painter.height_changed.connect(_on_height_changed)
     TerrainSystem.cell_changed.connect(_on_terrain_cell_changed)
@@ -57,11 +36,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
     if Engine.is_editor_hint():
         return
-    _remove_preview()
-    for key in _painted_entities:
-        var node := _painted_entities[key].get("node") as Node3D
-        if is_instance_valid(node):
-            node.queue_free()
+    _entity_placer.cleanup()
     _painted_entities.clear()
     TerrainSystem.clear()
     var renderer := get_node_or_null("TerrainRenderer")
@@ -73,7 +48,28 @@ func _process(_delta: float) -> void:
     if Engine.is_editor_hint():
         return
     _update_hovered_cell()
-    _update_height_label()
+    _grid.update()
+
+
+func _input(event: InputEvent) -> void:
+    if Engine.is_editor_hint() or _camera == null:
+        return
+    if get_viewport().gui_get_hovered_control() != null:
+        return
+
+    if _active_tool == Tool.PAINT_HEIGHT or _active_tool == Tool.NONE:
+        return
+
+    if _active_tool == Tool.PLACE_TREE:
+        _entity_placer.handle_tree_input(event)
+        return
+
+    if _active_tool == Tool.PLACE_ENTITY:
+        _entity_placer.handle_input(event)
+        return
+
+    if _active_tool in [Tool.PAINT_RESOURCE, Tool.ERASE]:
+        _resource_painter.handle_input(event)
 
 
 func _setup_camera() -> void:
@@ -89,27 +85,12 @@ func _setup_camera() -> void:
     camera_instance.bounds_system = bounds
 
 
-func _setup_grid_overlay() -> void:
-    _grid_overlay = MeshInstance3D.new()
-    _grid_overlay.name = "GridOverlay"
-    _grid_overlay.top_level = true
-    add_child(_grid_overlay)
-    _draw_grid()
-    _cell_highlight = MeshInstance3D.new()
-    _cell_highlight.name = "CellHighlight"
-    _cell_highlight.top_level = true
-    add_child(_cell_highlight)
-    _highlight_quad_mat = ORMMaterial3D.new()
-    _highlight_quad_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    _highlight_quad_mat.albedo_color = Color(1, 1, 0, 0.3)
-    _highlight_quad_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    _highlight_quad_mat.render_priority = 1
-    _highlight_line_mat = ORMMaterial3D.new()
-    _highlight_line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    _highlight_line_mat.albedo_color = Color(0, 0, 0, 0.5)
-    _highlight_line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    _highlight_line_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-    _highlight_line_mat.render_priority = 1
+func _setup_grid() -> void:
+    _grid = preload("res://scripts/editor/EditorGrid.gd").new()
+    _grid.name = "EditorGrid"
+    _grid.editor = self
+    add_child(_grid)
+    _grid.setup()
 
 
 func _setup_height_painter() -> void:
@@ -146,13 +127,19 @@ func _setup_ui() -> void:
     tool_bar.position = Vector2(10, 10)
     ui.add_child(tool_bar)
 
+    _save_load = preload("res://scripts/editor/EditorSaveLoad.gd").new()
+    _save_load.name = "EditorSaveLoad"
+    _save_load.editor = self
+    add_child(_save_load)
+    _save_load.setup(ui)
+
     var save_btn := Button.new()
     save_btn.text = "Save"
-    save_btn.pressed.connect(_on_save_pressed)
+    save_btn.pressed.connect(_save_load.on_save_pressed)
     tool_bar.add_child(save_btn)
     var load_btn := Button.new()
     load_btn.text = "Load"
-    load_btn.pressed.connect(_on_load_pressed)
+    load_btn.pressed.connect(_save_load.on_load_pressed)
     tool_bar.add_child(load_btn)
 
     var sep1 := VSeparator.new()
@@ -176,6 +163,11 @@ func _setup_ui() -> void:
     var sep2 := VSeparator.new()
     tool_bar.add_child(sep2)
 
+    _resource_painter = preload("res://scripts/editor/ResourcePainter.gd").new()
+    _resource_painter.name = "ResourcePainter"
+    _resource_painter.editor = self
+    add_child(_resource_painter)
+
     var str_label := Label.new()
     str_label.text = "Strength:"
     tool_bar.add_child(str_label)
@@ -183,11 +175,11 @@ func _setup_ui() -> void:
     str_slider.name = "StrengthSlider"
     str_slider.min_value = 0.0
     str_slider.max_value = 100.0
-    str_slider.value = _paint_strength
+    str_slider.value = _resource_painter._paint_strength
     str_slider.step = 1.0
     str_slider.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
     str_slider.custom_minimum_size = Vector2(100, 0)
-    str_slider.value_changed.connect(_on_strength_changed)
+    str_slider.value_changed.connect(_resource_painter.set_strength)
     tool_bar.add_child(str_slider)
 
     var rad_label := Label.new()
@@ -197,31 +189,23 @@ func _setup_ui() -> void:
     rad_spin.name = "RadiusSpinBox"
     rad_spin.min_value = 1.0
     rad_spin.max_value = 20.0
-    rad_spin.value = _paint_radius
-    rad_spin.value_changed.connect(_on_radius_changed)
+    rad_spin.value = _resource_painter._paint_radius
+    rad_spin.value_changed.connect(_resource_painter.set_radius)
     tool_bar.add_child(rad_spin)
 
     var sep3 := VSeparator.new()
     tool_bar.add_child(sep3)
+
+    var grid_cb := CheckBox.new()
+    grid_cb.text = "Grid"
+    grid_cb.button_pressed = true
+    grid_cb.toggled.connect(func(pressed: bool) -> void: _grid.set_grid_visible(pressed))
+    tool_bar.add_child(grid_cb)
+
     var h_label := Label.new()
     h_label.text = "Height: 0"
-    _height_label = h_label
+    _grid._height_label = h_label
     tool_bar.add_child(h_label)
-
-    _save_dialog = FileDialog.new()
-    _save_dialog.name = "SaveDialog"
-    _save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-    _save_dialog.access = FileDialog.ACCESS_FILESYSTEM
-    _save_dialog.filters = PackedStringArray(["*.json ; JSON Files"])
-    _save_dialog.file_selected.connect(_on_save_file_selected)
-    ui.add_child(_save_dialog)
-    _load_dialog = FileDialog.new()
-    _load_dialog.name = "LoadDialog"
-    _load_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-    _load_dialog.access = FileDialog.ACCESS_FILESYSTEM
-    _load_dialog.filters = PackedStringArray(["*.json ; JSON Files"])
-    _load_dialog.file_selected.connect(_on_load_file_selected)
-    ui.add_child(_load_dialog)
 
     var minimap_script = load("res://scripts/editor/Minimap.gd")
     if minimap_script:
@@ -230,16 +214,11 @@ func _setup_ui() -> void:
         minimap.position = Vector2(get_viewport().size.x - 210, 10)
         ui.add_child(minimap)
 
-    # Entity browser panel
-    var entity_browser_script = load("res://scripts/editor/EntityBrowser.gd")
-    if entity_browser_script:
-        _entity_browser = entity_browser_script.new()
-        _entity_browser.name = "EntityBrowser"
-        _entity_browser.position = Vector2(10, 50)
-        _entity_browser.visible = true
-        _entity_browser.entity_selected.connect(_on_entity_selected)
-        _entity_browser.player_changed.connect(_on_player_changed)
-        ui.add_child(_entity_browser)
+    _entity_placer = preload("res://scripts/editor/EntityPlacer.gd").new()
+    _entity_placer.name = "EntityPlacer"
+    _entity_placer.editor = self
+    add_child(_entity_placer)
+    _entity_placer.setup(ui)
 
 
 func _on_tool_toggled(btn: Button, tool_id: int) -> void:
@@ -247,290 +226,10 @@ func _on_tool_toggled(btn: Button, tool_id: int) -> void:
         _active_tool = tool_id
         for tid in _tool_buttons:
             _tool_buttons[tid].button_pressed = (tid == tool_id)
-        _remove_preview()
-        _selected_entity_id = ""
-        _update_preview()
+        _entity_placer.on_tool_toggled()
     else:
         _active_tool = Tool.NONE
-        _remove_preview()
-
-
-func _on_strength_changed(value: float) -> void:
-    _paint_strength = value
-
-
-func _on_radius_changed(value: float) -> void:
-    _paint_radius = ceili(value)
-
-
-func _input(event: InputEvent) -> void:
-    if Engine.is_editor_hint() or _camera == null:
-        return
-    if get_viewport().gui_get_hovered_control() != null:
-        return
-
-    if _active_tool == Tool.PAINT_HEIGHT:
-        return
-
-    if _active_tool == Tool.NONE:
-        return
-
-    if _active_tool == Tool.PLACE_TREE:
-        if (
-            event is InputEventMouseButton
-            and event.pressed
-            and event.button_index == MOUSE_BUTTON_LEFT
-        ):
-            _place_tree_on_cell(_hovered_cell)
-        return
-
-    if _active_tool == Tool.PLACE_ENTITY:
-        if event is InputEventMouseButton and event.pressed:
-            if event.button_index == MOUSE_BUTTON_LEFT:
-                _place_entity_on_cell(_hovered_cell)
-            elif event.button_index == MOUSE_BUTTON_RIGHT:
-                _selected_entity_id = ""
-                _remove_preview()
-                _active_tool = Tool.NONE
-        return
-
-    if _active_tool in [Tool.PAINT_RESOURCE, Tool.ERASE]:
-        if event is InputEventMouseButton:
-            if event.button_index == MOUSE_BUTTON_LEFT:
-                _is_painting = event.pressed
-                if _is_painting and _hovered_cell.x >= 0:
-                    _apply_brush(_hovered_cell)
-        elif event is InputEventMouseMotion and _is_painting and _hovered_cell.x >= 0:
-            _apply_brush(_hovered_cell)
-
-
-func _apply_brush(center: Vector2i) -> void:
-    var extent := _paint_radius - 1
-    for dx in range(-extent, extent + 1):
-        for dz in range(-extent, extent + 1):
-            var cell := center + Vector2i(dx, dz)
-            var key := str(cell.x) + "," + str(cell.y)
-            if _active_tool == Tool.PAINT_RESOURCE:
-                _paint_resource_cell(cell, key)
-            elif _active_tool == Tool.ERASE:
-                _erase_resource_cell(cell, key)
-
-
-func _paint_resource_cell(cell: Vector2i, key: String) -> void:
-    if _painted_entities.has(key):
-        var entry: Dictionary = _painted_entities[key]
-        var node := entry.get("node") as Node3D
-        if is_instance_valid(node):
-            var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
-            var hp := node.get_node_or_null("HealthComponent") as HealthComponent
-            if tib and hp:
-                var bales_to_add := _paint_strength / 100.0
-                var health_to_add := int(bales_to_add * float(hp.max_health))
-                hp.heal(health_to_add)
-                tib._update_visual()
-                entry["data"]["strength"] = hp.current_health
-            return
-
-    var health_val := int(_paint_strength / 100.0 * float(TIB_DEFAULT_STRENGTH))
-    var overrides: Dictionary = {
-        "strength": health_val,
-        "resource_type_id": "tiberium_green",
-    }
-    var entity := EntityFactory.create_entity("TIB", overrides)
-    if not entity:
-        return
-    entity.position = _cell_world_pos(cell)
-    var data: Dictionary = overrides.duplicate()
-    data["id"] = "TIB"
-    _painted_entities[key] = {"node": entity, "data": data}
-    add_child(entity)
-
-
-func _erase_resource_cell(_cell: Vector2i, key: String) -> void:
-    if not _painted_entities.has(key):
-        return
-    var entry: Dictionary = _painted_entities[key]
-    var node := entry.get("node") as Node3D
-    if not is_instance_valid(node):
-        _painted_entities.erase(key)
-        return
-    var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
-    var hp := node.get_node_or_null("HealthComponent") as HealthComponent
-    if not tib or not hp:
-        _painted_entities.erase(key)
-        return
-    var bales_to_remove := _paint_strength / 100.0
-    var health_to_remove := int(bales_to_remove * float(hp.max_health))
-    hp.take_damage(health_to_remove)
-    entry["data"]["strength"] = hp.current_health
-    tib._update_visual()
-    if hp.current_health <= 0:
-        node.queue_free()
-        _painted_entities.erase(key)
-
-
-func _place_tree_on_cell(cell: Vector2i) -> void:
-    var key := str(cell.x) + "," + str(cell.y)
-    if _painted_entities.has(key):
-        var existing := _painted_entities[key].get("node") as Node3D
-        if is_instance_valid(existing):
-            existing.queue_free()
-        _painted_entities.erase(key)
-    var entity := EntityFactory.create_entity("TIBTREE")
-    if not entity:
-        return
-    entity.position = _cell_world_pos(cell)
-    var data: Dictionary = {"id": "TIBTREE"}
-    _painted_entities[key] = {"node": entity, "data": data}
-    add_child(entity)
-
-
-func _place_entity_on_cell(cell: Vector2i) -> void:
-    if _selected_entity_id.is_empty():
-        return
-    var key := str(cell.x) + "," + str(cell.y)
-    if _painted_entities.has(key):
-        return
-    var entity_data := EntityFactory.get_entity_data(_selected_entity_id)
-    if not entity_data:
-        return
-    var overrides: Dictionary = {}
-    var entity := EntityFactory.create_entity(_selected_entity_id, overrides)
-    if not entity:
-        return
-    var foundation: Vector2i = entity_data.foundation
-    entity.position = _cell_origin_world_pos(cell, foundation)
-    var data: Dictionary = {
-        "id": _selected_entity_id,
-        "player_id": _selected_player_id,
-    }
-    _painted_entities[key] = {"node": entity, "data": data}
-    add_child(entity)
-    _remove_preview()
-    _update_preview()
-
-
-func _on_entity_selected(entity_id: String) -> void:
-    if _selected_entity_id == entity_id:
-        _selected_entity_id = ""
-        _active_tool = Tool.NONE
-        _remove_preview()
-    else:
-        _selected_entity_id = entity_id
-        _active_tool = Tool.PLACE_ENTITY
-        _update_preview()
-
-
-func _on_player_changed(player_id: int) -> void:
-    _selected_player_id = player_id
-
-
-func _update_preview() -> void:
-    if _active_tool != Tool.PLACE_ENTITY or _selected_entity_id.is_empty():
-        _remove_preview()
-        return
-    if _selected_entity_id == _preview_entity_id and is_instance_valid(_preview_entity):
-        return
-    _remove_preview()
-    var entity := EntityFactory.create_entity(_selected_entity_id)
-    if not entity:
-        return
-    _preview_entity = entity
-    _preview_entity_id = _selected_entity_id
-    _set_preview_transparency(entity, 0.5)
-    add_child(entity)
-    _update_preview_position()
-
-
-func _update_preview_position() -> void:
-    if not is_instance_valid(_preview_entity):
-        return
-    var entity_data := EntityFactory.get_entity_data(_preview_entity_id)
-    if not entity_data:
-        return
-    var foundation: Vector2i = entity_data.foundation
-    _preview_entity.position = _cell_origin_world_pos(_hovered_cell, foundation)
-
-
-func _remove_preview() -> void:
-    if is_instance_valid(_preview_entity):
-        _preview_entity.queue_free()
-    _preview_entity = null
-    _preview_entity_id = ""
-
-
-func _set_preview_transparency(node: Node, alpha: float) -> void:
-    if node is MeshInstance3D:
-        var mesh_instance := node as MeshInstance3D
-        var tex: Texture2D = null
-        for surface_idx in mesh_instance.get_surface_override_material_count():
-            var existing_mat := mesh_instance.get_surface_override_material(surface_idx)
-            if existing_mat is StandardMaterial3D:
-                tex = existing_mat.albedo_texture
-                break
-        if tex == null and mesh_instance.mesh:
-            for surface_idx in mesh_instance.mesh.get_surface_count():
-                var surf_mat := mesh_instance.mesh.surface_get_material(surface_idx)
-                if surf_mat is StandardMaterial3D:
-                    tex = surf_mat.albedo_texture
-                    break
-        for surface_idx in mesh_instance.get_surface_override_material_count():
-            var mat := StandardMaterial3D.new()
-            mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-            mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-            mat.albedo_color = Color(1, 1, 1, alpha)
-            if tex:
-                mat.albedo_texture = tex
-            mesh_instance.set_surface_override_material(surface_idx, mat)
-    for child in node.get_children():
-        _set_preview_transparency(child, alpha)
-
-
-func _draw_grid() -> void:
-    var mesh := ImmediateMesh.new()
-    var material := ORMMaterial3D.new()
-    material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    material.albedo_color = Color(1, 1, 1, 0.3)
-    mesh.surface_begin(Mesh.PRIMITIVE_LINES, material)
-
-    var cell_size := Pathfinder.CELL_SIZE
-    var cells := TerrainSystem.grid_cells
-    var center_world: float = float(cells) * 0.5 * cell_size
-    var half_extent: float = center_world
-
-    for i in range(cells + 1):
-        var world_x: float = float(i) * cell_size - center_world
-        var abs_x: float = absf(world_x)
-        var z_limit: float = half_extent * (1.0 - abs_x / half_extent) if half_extent > 0.0 else 0.0
-        if z_limit > 0.0:
-            mesh.surface_add_vertex(Vector3(world_x, 0.01, -z_limit))
-            mesh.surface_add_vertex(Vector3(world_x, 0.01, z_limit))
-
-    for j in range(cells + 1):
-        var world_z: float = float(j) * cell_size - center_world
-        var abs_z: float = absf(world_z)
-        var x_limit: float = half_extent * (1.0 - abs_z / half_extent) if half_extent > 0.0 else 0.0
-        if x_limit > 0.0:
-            mesh.surface_add_vertex(Vector3(-x_limit, 0.01, world_z))
-            mesh.surface_add_vertex(Vector3(x_limit, 0.01, world_z))
-
-    if half_extent > 0.0:
-        var tip_left := Vector3(-half_extent, 0.01, 0.0)
-        var tip_top := Vector3(0.0, 0.01, -half_extent)
-        var tip_right := Vector3(half_extent, 0.01, 0.0)
-        var tip_bottom := Vector3(0.0, 0.01, half_extent)
-        mesh.surface_add_vertex(tip_left)
-        mesh.surface_add_vertex(tip_top)
-        mesh.surface_add_vertex(tip_top)
-        mesh.surface_add_vertex(tip_right)
-        mesh.surface_add_vertex(tip_right)
-        mesh.surface_add_vertex(tip_bottom)
-        mesh.surface_add_vertex(tip_bottom)
-        mesh.surface_add_vertex(tip_left)
-
-    mesh.surface_end()
-    _grid_overlay.mesh = mesh
-    _grid_overlay.material_override = material
+        _entity_placer.on_tool_toggled()
 
 
 func _update_hovered_cell() -> void:
@@ -552,76 +251,8 @@ func _update_hovered_cell() -> void:
     var cell := Pathfinder.world_to_cell(hit_pos + Vector3(grid_half, 0, grid_half))
     if cell != _hovered_cell and not TerrainSystem.get_cell(cell).is_empty():
         _hovered_cell = cell
-        _update_cell_highlight()
-    _update_preview_position()
-
-
-func _update_cell_highlight() -> void:
-    if not _cell_highlight:
-        return
-    var cell_data: Dictionary = TerrainSystem.get_cell(_hovered_cell)
-    if cell_data.is_empty():
-        _cell_highlight.visible = false
-        return
-    _cell_highlight.visible = true
-    var mesh := ImmediateMesh.new()
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var world_pos := Pathfinder.cell_to_world(_hovered_cell) - Vector3(grid_half, 0, grid_half)
-    var height: int = cell_data.get("max_height", cell_data.get("height", 0))
-    world_pos.y = float(height) * TerrainSystem.HEIGHT_STEP + 0.02
-    var half: float = Pathfinder.CELL_SIZE * 0.475
-    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _highlight_quad_mat)
-    var y: float = world_pos.y
-    var x0: float = world_pos.x - half
-    var x1: float = world_pos.x + half
-    var z0: float = world_pos.z - half
-    var z1: float = world_pos.z + half
-    mesh.surface_add_vertex(Vector3(x0, y, z0))
-    mesh.surface_add_vertex(Vector3(x1, y, z0))
-    mesh.surface_add_vertex(Vector3(x1, y, z1))
-    mesh.surface_add_vertex(Vector3(x0, y, z0))
-    mesh.surface_add_vertex(Vector3(x1, y, z1))
-    mesh.surface_add_vertex(Vector3(x0, y, z1))
-    mesh.surface_end()
-    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _highlight_line_mat)
-    var drop: float = 2.0
-    var lw: float = 0.04
-    var corners: Array[Vector3] = [
-        Vector3(x0, y, z0),
-        Vector3(x1, y, z0),
-        Vector3(x1, y, z1),
-        Vector3(x0, y, z1),
-    ]
-    for c in corners:
-        var cx: float = c.x
-        var cy: float = c.y
-        var cz: float = c.z
-        var by: float = cy - drop
-        mesh.surface_add_vertex(Vector3(cx - lw, cy, cz))
-        mesh.surface_add_vertex(Vector3(cx + lw, cy, cz))
-        mesh.surface_add_vertex(Vector3(cx + lw, by, cz))
-        mesh.surface_add_vertex(Vector3(cx - lw, cy, cz))
-        mesh.surface_add_vertex(Vector3(cx + lw, by, cz))
-        mesh.surface_add_vertex(Vector3(cx - lw, by, cz))
-        mesh.surface_add_vertex(Vector3(cx, cy, cz - lw))
-        mesh.surface_add_vertex(Vector3(cx, cy, cz + lw))
-        mesh.surface_add_vertex(Vector3(cx, by, cz + lw))
-        mesh.surface_add_vertex(Vector3(cx, cy, cz - lw))
-        mesh.surface_add_vertex(Vector3(cx, by, cz + lw))
-        mesh.surface_add_vertex(Vector3(cx, by, cz - lw))
-    mesh.surface_end()
-    _cell_highlight.mesh = mesh
-    _cell_highlight.material_override = null
-    _cell_highlight.position = Vector3.ZERO
-    _update_height_label()
-
-
-func _update_height_label() -> void:
-    if not _height_label:
-        return
-    var cell_data: Dictionary = TerrainSystem.get_cell(_hovered_cell)
-    var h: int = cell_data.get("height", 0)
-    _height_label.text = "Height: %d" % h
+        _grid.update()
+    _entity_placer.on_cell_changed()
 
 
 func _cell_world_pos(cell: Vector2i) -> Vector3:
@@ -654,49 +285,9 @@ func get_hovered_cell() -> Vector2i:
     return _hovered_cell
 
 
-func _on_save_pressed() -> void:
-    _save_dialog.popup_centered(Vector2i(400, 300))
-
-
-func _on_load_pressed() -> void:
-    _load_dialog.popup_centered(Vector2i(400, 300))
-
-
-func _on_save_file_selected(path: String) -> void:
-    var entities_array: Array[Dictionary] = []
-    for cell_key in _painted_entities:
-        var entry: Dictionary = _painted_entities[cell_key]
-        var data: Dictionary = entry.get("data", {})
-        var entity_entry: Dictionary = {
-            "id": data.get("id", ""),
-            "cell": cell_key,
-        }
-        if data.has("player_id"):
-            entity_entry["player_id"] = data["player_id"]
-        for key in OVERRIDE_KEYS:
-            if data.has(key):
-                entity_entry[key] = data[key]
-        entities_array.append(entity_entry)
-    if not entities_array.is_empty():
-        TerrainSystem.export_to_json(path, {"entities": entities_array})
-
-
-func _on_load_file_selected(path: String) -> void:
-    for key in _painted_entities:
-        var node := _painted_entities[key].get("node") as Node3D
-        if is_instance_valid(node):
-            node.queue_free()
-    _painted_entities.clear()
-    var loaded := MapLoader.load_map_into(path, self)
-    for entry in loaded:
-        var key: String = entry.get("key", "")
-        if not key.is_empty():
-            _painted_entities[key] = {"node": entry.get("node"), "data": entry.get("data")}
-
-
 func _on_height_changed(cell: Vector2i, new_height: int) -> void:
     if cell == _hovered_cell:
-        _update_cell_highlight()
+        _grid.update()
     var key := str(cell.x) + "," + str(cell.y)
     var entry := _painted_entities.get(key, {}) as Dictionary
     var node := entry.get("node") as Node3D
