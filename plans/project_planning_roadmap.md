@@ -234,16 +234,17 @@ The composition-based entity system is a prerequisite for most game systems. All
 
 ## Next Steps
 
-1. **Data Population** (Issue #23) — populate remaining .tres files for entities, weapons, warheads
-2. **Component Logic** (Issues #28-40) — implement actual behavior for each component
-   - **Highest priority**: HitboxComponent (#29), HealthComponent (#30), CombatComponent (#28) — core combat loop
-   - **Economy**: PowerComponent (#33), FactoryComponent (#31), TransportComponent (#32) — production and harvesting
-3. **GlobalRules Integration** (Issue #26) — wire armor calculation, veterancy, movement coefficients
-4. **BuildingManager Migration** (Issue #25) — move from BuildingType to EntityFactory
-5. **Debug Menu** (Issue #27) — in-game debug tools for testing
-6. Conduct early playtesting to validate design decisions
-7. Review weekly and adjust timeline based on actual development velocity
+1. **Per-Player Data & Logic** (Issue #77) — PlayerManager autoload, PlayerData, ProductionState, Faction, MapConfig resources. Refactor EconomyManager/BuildingManager/ProductionManager/Sidebar.
+2. **Data Population** (Issue #23) — populate remaining .tres files for entities, weapons, warheads
+3. **Component Logic** (Issues #28-40) — implement actual behavior for each component
+   - **Highest priority**: HitboxComponent (#29), HealthComponent (#30), CombatComponent (#28) — core combat loop (requires #77 for owner tracking + team-based targeting)
+   - **Economy**: PowerComponent (#33), FactoryComponent (#31), TransportComponent (#32) — production and harvesting (requires #77 for per-player production queues)
+4. **GlobalRules Integration** (Issue #26) — wire armor calculation, veterancy, movement coefficients
+5. **BuildingManager Migration** (Issue #25) — move from BuildingType to EntityFactory
+6. **Debug Menu** (Issue #27) — in-game debug tools for testing
+7. Conduct early playtesting to validate design decisions
+8. Review weekly and adjust timeline based on actual development velocity
 
 ---
 
-*Last updated: 2026-07-07 — Entity System implemented, 18 GitHub issues created (#22-40)*
+*Last updated: 2026-07-18 — Per-player infrastructure (#77) added as prerequisite for component logic*
