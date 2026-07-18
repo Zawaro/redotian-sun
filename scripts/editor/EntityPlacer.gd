@@ -149,8 +149,13 @@ func _place_entity_on_cell(cell: Vector2i) -> void:
         "id": _selected_entity_id,
         "player_id": _selected_player_id,
     }
-    editor._painted_entities[key] = {"node": entity, "data": data}
+    var entry: Dictionary = {"node": entity, "data": data}
+    editor._painted_entities[key] = entry
     editor.add_child(entity)
+    var select_comp := EditorSelectComponent.new()
+    select_comp.name = "EditorSelectComponent"
+    select_comp.configure(entity_data, key, entry)
+    entity.add_child(select_comp)
     _remove_preview()
     _update_preview()
 
