@@ -1,7 +1,7 @@
 class_name HealthComponent extends Node3D
 
 signal health_changed(new_health: int, old_health: int)
-signal damage_taken(damage_amount: int)
+signal damage_taken(damage_amount: int, damage_type: String)
 signal healed(heal_amount: int)
 signal health_zero
 
@@ -20,11 +20,11 @@ func configure(data: EntityData) -> void:
         current_health = data.spawn_health if data.spawn_health > 0 else data.strength
 
 
-func take_damage(damage: int) -> void:
+func take_damage(damage: int, damage_type: String = "") -> void:
     if damage <= 0:
         return
     current_health -= damage
-    damage_taken.emit(damage)
+    damage_taken.emit(damage, damage_type)
     if current_health <= 0:
         health_zero.emit()
 
