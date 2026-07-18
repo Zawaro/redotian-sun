@@ -5,7 +5,6 @@ extends Node3D
 
 func _ready() -> void:
     _load_terrain()
-    _spawn_test_entities()
 
 
 func _load_terrain() -> void:
@@ -13,13 +12,6 @@ func _load_terrain() -> void:
         MapLoader.load_map_into(terrain_json_path, self)
         return
     _create_test_terrain()
-
-
-func _spawn_test_entities() -> void:
-    var buggy := EntityFactory.create_entity("BGGY")
-    if buggy:
-        buggy.position = Vector3(4, 0, 0)
-        add_child(buggy)
 
 
 func _create_test_terrain() -> void:
