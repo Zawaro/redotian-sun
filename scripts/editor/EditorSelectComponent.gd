@@ -55,18 +55,19 @@ func get_entry_data() -> Dictionary:
 
 
 func _resolve_entity_height(entity_data: EntityData) -> float:
+    var height: float = 0.0
     var art: ArtData = entity_data.art_data
     if art and not art.model_path.is_empty() and ResourceLoader.exists(art.model_path):
         var scene := load(art.model_path) as PackedScene
         if scene:
             var instance := scene.instantiate()
-            var found_y := _find_max_y_recursive(instance)
+            height = _find_max_y_recursive(instance)
             instance.queue_free()
-            if found_y > 0.01:
-                return found_y
-    if art and art.placeholder_size != Vector3.ZERO:
-        return art.placeholder_size.y
-    return entity_data.height * TerrainSystem.HEIGHT_STEP
+    if height <= 0.01 and art and art.placeholder_size != Vector3.ZERO:
+        height = art.placeholder_size.y
+    if height <= 0.01:
+        height = entity_data.height * TerrainSystem.HEIGHT_STEP
+    return maxf(height, 1.5)
 
 
 func _find_max_y_recursive(node: Node) -> float:
