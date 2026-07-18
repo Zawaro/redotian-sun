@@ -173,8 +173,10 @@ This project's source code lives in `scripts/` (Redot/Godot convention). The ind
 The canonical project name is **`Redotian-Sun`** (PascalCase). Always pass `name="Redotian-Sun"` when calling `index_repository` to keep the identifier consistent:
 
 ```
-codebase-memory-mcp index_repository repo_path="/mnt/work2/Redot/redotian-sun" mode="full" name="Redotian-Sun"
+codebase-memory-mcp index_repository repo_path="<repo-root>" mode="full" name="Redotian-Sun"
 ```
+
+Use the current repo root as `repo_path` — do not hardcode a developer-specific path. If CWD is the repo root, you can omit `repo_path`.
 
 The `auto_watch` feature (enabled by default) uses this name for git-event-triggered re-indexing. If the name doesn't match, a duplicate entry with a different casing will appear in `list_projects`.
 
@@ -182,7 +184,7 @@ To verify the active project: `codebase-memory-mcp list_projects` — look for `
 
 To re-index this repo (e.g. after adding new scripts):
 ```
-codebase-memory-mcp index_repository repo_path="/mnt/work2/Redot/redotian-sun" mode="full" name="Redotian-Sun"
+codebase-memory-mcp index_repository mode="full" name="Redotian-Sun"
 ```
 
 ### Redot Engine Docs (Context7 MCP)
