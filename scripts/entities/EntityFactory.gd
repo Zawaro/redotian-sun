@@ -178,6 +178,16 @@ func _add_hitbox_component(entity: Node3D, data: EntityData) -> void:
         component.health_component = health
     if data.hitbox_size != Vector3.ZERO:
         component.size = data.hitbox_size
+    match data.entity_type:
+        EntityData.EntityType.INFANTRY, EntityData.EntityType.VEHICLE:
+            component.collision_layer = HitboxComponent.LAYER_HITBOX_GROUND
+        EntityData.EntityType.AIRCRAFT:
+            component.collision_layer = HitboxComponent.LAYER_HITBOX_AIR
+        EntityData.EntityType.BUILDING:
+            component.collision_layer = HitboxComponent.LAYER_HITBOX_BUILDING
+        _:
+            component.collision_layer = HitboxComponent.LAYER_HITBOX_GROUND
+    component.collision_mask = HitboxComponent.LAYER_PROJECTILE
     entity.add_child(component)
     component.owner = entity
 
