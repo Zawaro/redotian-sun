@@ -27,6 +27,7 @@ func rebuild(cell_key: String, entry: Dictionary) -> void:
         return
     visible = true
     _build_header()
+    _build_position_fields()
     _build_rotation_field()
     _build_player_field()
     _build_component_fields()
@@ -54,8 +55,21 @@ func _clear_children() -> void:
         child.queue_free()
 
 
-func _build_header() -> void:
+func _get_entity_id() -> String:
     var entity_id: String = _current_entry.get("id", "")
+    if not entity_id.is_empty():
+        return entity_id
+    var node: Node3D = _current_entry.get("node") as Node3D
+    if not is_instance_valid(node):
+        return entity_id
+    var stats := node.get_node_or_null("StatsComponent") as StatsComponent
+    if stats:
+        return stats.id
+    return entity_id
+
+
+func _build_header() -> void:
+    var entity_id: String = _get_entity_id()
     var entity_data := EntityFactory.get_entity_data(entity_id)
     var display_name: String = entity_data.display_name if entity_data else entity_id
 
@@ -74,10 +88,30 @@ func _build_header() -> void:
     _vbox.add_child(sep)
 
 
+func _build_position_fields() -> void:
+    var node: Node3D = _current_entry.get("node") as Node3D
+    if not is_instance_valid(node):
+        return
+    var section := Label.new()
+    section.text = "Position"
+    section.add_theme_font_size_override("font_size", 13)
+    _vbox.add_child(section)
+
+    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
+    var world_pos: Vector3 = node.global_position
+    var cell_x: int = int((world_pos.x + grid_half) / Pathfinder.CELL_SIZE)
+    var cell_y: int = int((world_pos.z + grid_half) / Pathfinder.CELL_SIZE)
+    _add_read_only_row("Cell", "(%d, %d)" % [cell_x, cell_y])
+    _add_read_only_row("World", "(%.1f, %.1f, %.1f)" % [world_pos.x, world_pos.y, world_pos.z])
+    _add_separator()
+
+
 func _build_rotation_field() -> void:
-    var entity_id: String = _current_entry.get("id", "")
+    var entity_id: String = _get_entity_id()
     var entity_data := EntityFactory.get_entity_data(entity_id)
-    if entity_data and entity_data.entity_type == EntityData.EntityType.BUILDING:
+    if not entity_data:
+        return
+    if entity_data.entity_type == EntityData.EntityType.BUILDING:
         return
 
     var section := Label.new()
@@ -131,7 +165,7 @@ func _build_player_field() -> void:
 
 
 func _build_component_fields() -> void:
-    var entity_id: String = _current_entry.get("id", "")
+    var entity_id: String = _get_entity_id()
     var entity_data := EntityFactory.get_entity_data(entity_id)
     if not entity_data:
         return
@@ -139,7 +173,7 @@ func _build_component_fields() -> void:
     if not is_instance_valid(node):
         return
 
-    _build_health_fields(node)
+    _build_health_fields(node, entity_data)
     _build_power_fields(node)
     _build_stats_fields(node, entity_data)
     _build_foundation_fields(entity_data)
@@ -149,38 +183,39 @@ func _build_component_fields() -> void:
     _build_select_fields(node)
 
 
-func _build_health_fields(node: Node3D) -> void:
+func _build_health_fields(node: Node3D, entity_data: EntityData) -> void:
     var hp := node.get_node_or_null("HealthComponent") as HealthComponent
-    if not hp:
-        return
     var section := Label.new()
     section.text = "Health"
     section.add_theme_font_size_override("font_size", 13)
     _vbox.add_child(section)
 
-    var row := HBoxContainer.new()
-    _vbox.add_child(row)
-    var lbl := Label.new()
-    lbl.text = "HP:"
-    row.add_child(lbl)
-    var spin := SpinBox.new()
-    spin.min_value = 0
-    spin.max_value = hp.max_health
-    spin.value = hp.current_health
-    spin.value_changed.connect(_on_health_changed.bind(spin))
-    row.add_child(spin)
+    _add_read_only_row("Strength", str(entity_data.strength))
 
-    var max_row := HBoxContainer.new()
-    _vbox.add_child(max_row)
-    var max_lbl := Label.new()
-    max_lbl.text = "Max:"
-    max_row.add_child(max_lbl)
-    var max_spin := SpinBox.new()
-    max_spin.min_value = 1
-    max_spin.max_value = 65535
-    max_spin.value = hp.max_health
-    max_spin.value_changed.connect(_on_max_health_changed.bind(max_spin))
-    max_row.add_child(max_spin)
+    if hp:
+        var row := HBoxContainer.new()
+        _vbox.add_child(row)
+        var lbl := Label.new()
+        lbl.text = "HP:"
+        row.add_child(lbl)
+        var spin := SpinBox.new()
+        spin.min_value = 0
+        spin.max_value = hp.max_health
+        spin.value = hp.current_health
+        spin.value_changed.connect(_on_health_changed.bind(spin))
+        row.add_child(spin)
+
+        var max_row := HBoxContainer.new()
+        _vbox.add_child(max_row)
+        var max_lbl := Label.new()
+        max_lbl.text = "Max:"
+        max_row.add_child(max_lbl)
+        var max_spin := SpinBox.new()
+        max_spin.min_value = 1
+        max_spin.max_value = 65535
+        max_spin.value = hp.max_health
+        max_spin.value_changed.connect(_on_max_health_changed.bind(max_spin))
+        max_row.add_child(max_spin)
 
     _add_separator()
 

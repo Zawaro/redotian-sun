@@ -13,7 +13,6 @@ var is_selected: bool = false
 
 var _selection_box: MeshInstance3D
 var _health_bar: MeshInstance3D
-var _health_bar_grid: MeshInstance3D
 var _box_shape: BoxShape3D
 var _outline_shape: BoxShape3D
 var _has_health: bool = false
@@ -27,9 +26,10 @@ func configure(entity_data: EntityData, p_cell_key: String, p_entry: Dictionary)
     collision_mask = 0
 
     var foundation: Vector2i = entity_data.foundation
+    var entity_height: float = _resolve_entity_height(entity_data)
     var box_size := Vector3(
         float(foundation.x) * Pathfinder.CELL_SIZE,
-        entity_data.height * TerrainSystem.HEIGHT_STEP,
+        entity_height,
         float(foundation.y) * Pathfinder.CELL_SIZE,
     )
 
@@ -44,8 +44,6 @@ func set_selected(value: bool) -> void:
         _selection_box.visible = value
     if _health_bar:
         _health_bar.visible = value
-    if _health_bar_grid:
-        _health_bar_grid.visible = value
 
 
 func get_cell_key() -> String:
@@ -54,6 +52,39 @@ func get_cell_key() -> String:
 
 func get_entry_data() -> Dictionary:
     return entry_data
+
+
+func _resolve_entity_height(entity_data: EntityData) -> float:
+    if entity_data.height != 1.0:
+        return entity_data.height * TerrainSystem.HEIGHT_STEP
+    var art: ArtData = entity_data.art_data
+    if art and not art.model_path.is_empty() and ResourceLoader.exists(art.model_path):
+        var scene := load(art.model_path) as PackedScene
+        if scene:
+            var instance := scene.instantiate()
+            var found_y := _find_max_y_recursive(instance)
+            instance.queue_free()
+            if found_y > 0.01:
+                return found_y
+    if art and art.placeholder_size != Vector3.ZERO:
+        return art.placeholder_size.y
+    return entity_data.height * TerrainSystem.HEIGHT_STEP
+
+
+func _find_max_y_recursive(node: Node) -> float:
+    var max_y := 0.0
+    if node is MeshInstance3D:
+        var mesh_inst := node as MeshInstance3D
+        if mesh_inst.mesh:
+            var aabb := mesh_inst.get_aabb()
+            var top_y: float = aabb.position.y + aabb.size.y
+            if top_y > max_y:
+                max_y = top_y
+    for child in node.get_children():
+        var child_y := _find_max_y_recursive(child)
+        if child_y > max_y:
+            max_y = child_y
+    return max_y
 
 
 func _setup_hitbox(box_size: Vector3) -> void:
@@ -134,11 +165,8 @@ func _setup_health_bar(_box_size: Vector3) -> void:
 
     hp.health_changed.connect(_on_health_changed)
 
-    var select_outline_shape := _outline_shape
-    var hit_box_size: Vector3 = select_outline_shape.size
+    var hit_box_size: Vector3 = _outline_shape.size
     var min_x: float = hit_box_size.x / -2.0
-    var max_x: float = hit_box_size.x / 2.0
-    var min_y: float = 0.01
     var max_y: float = hit_box_size.y
     var min_z: float = hit_box_size.z / -2.0
     var max_z: float = hit_box_size.z / 2.0
@@ -168,69 +196,6 @@ func _setup_health_bar(_box_size: Vector3) -> void:
     _health_bar.material_override = bar_mat
     _health_bar.visible = false
     add_child(_health_bar)
-
-    var grid_mat := ORMMaterial3D.new()
-    grid_mat.albedo_color = Color(0, 0, 0)
-    grid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    var grid_mesh := ImmediateMesh.new()
-    var segments: int = int(ceil((max_z - min_z) / HEALTH_BAR_CUBE_SIZE))
-    for i in segments:
-        var z_pos: float = min_z + i * HEALTH_BAR_CUBE_SIZE
-        var seg_lines: Array[Array] = [
-            [Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, z_pos), Vector3(min_x, max_y, z_pos)],
-            [
-                Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, z_pos),
-                Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, z_pos),
-            ],
-            [
-                Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, z_pos),
-                Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, z_pos),
-            ],
-            [
-                Vector3(min_x, max_y, z_pos),
-                Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, z_pos),
-            ],
-        ]
-        for line in seg_lines:
-            grid_mesh.surface_begin(Mesh.PRIMITIVE_LINES, grid_mat)
-            grid_mesh.surface_add_vertex(line[0])
-            grid_mesh.surface_add_vertex(line[1])
-            grid_mesh.surface_end()
-    var length_lines: Array[Array] = [
-        [Vector3(min_x, max_y, min_z), Vector3(min_x, max_y, max_z)],
-        [
-            Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z),
-            Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, max_z),
-        ],
-        [
-            Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z),
-            Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, max_z),
-        ],
-        [
-            Vector3(
-                min_x + HEALTH_BAR_CUBE_SIZE,
-                max_y - HEALTH_BAR_CUBE_SIZE,
-                min_z,
-            ),
-            Vector3(
-                min_x + HEALTH_BAR_CUBE_SIZE,
-                max_y - HEALTH_BAR_CUBE_SIZE,
-                max_z,
-            ),
-        ],
-    ]
-    for line in length_lines:
-        grid_mesh.surface_begin(Mesh.PRIMITIVE_LINES, grid_mat)
-        grid_mesh.surface_add_vertex(line[0])
-        grid_mesh.surface_add_vertex(line[1])
-        grid_mesh.surface_end()
-
-    _health_bar_grid = MeshInstance3D.new()
-    _health_bar_grid.name = "HealthBarGrid"
-    _health_bar_grid.mesh = grid_mesh
-    _health_bar_grid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-    _health_bar_grid.visible = false
-    add_child(_health_bar_grid)
 
 
 func _on_health_changed(_new_health: int, _old_health: int) -> void:

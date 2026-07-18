@@ -180,6 +180,13 @@ func _update_cell_highlight() -> void:
 func _update_height_label() -> void:
     if not _height_label:
         return
-    var cell_data: Dictionary = TerrainSystem.get_cell(editor._hovered_cell)
+    var cell: Vector2i = editor._hovered_cell
+    var cell_data: Dictionary = TerrainSystem.get_cell(cell)
     var h: int = cell_data.get("height", 0)
-    _height_label.text = "Height: %d" % h
+    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
+    var wx: float = float(cell.x) * Pathfinder.CELL_SIZE - grid_half + Pathfinder.CELL_SIZE * 0.5
+    var wz: float = float(cell.y) * Pathfinder.CELL_SIZE - grid_half + Pathfinder.CELL_SIZE * 0.5
+    var wy: float = float(h) * TerrainSystem.HEIGHT_STEP
+    _height_label.text = (
+        "Cell: (%d,%d) | Pos: (%.1f, %.1f, %.1f) | H: %d" % [cell.x, cell.y, wx, wy, wz, h]
+    )
