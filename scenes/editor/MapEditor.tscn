@@ -1,19 +1,21 @@
-[gd_scene load_steps=4 format=3 uid="uid://bg6lf1t861p2w"]
+[gd_scene load_steps=6 format=3 uid="uid://bg6lf1t861p2w"]
 
 [ext_resource type="Script" uid="uid://c6hp7isi5rsjo" path="res://scripts/editor/MapEditor.gd" id="1_map"]
 [ext_resource type="Script" uid="uid://daixg6wgj6fyd" path="res://scripts/core/TerrainRenderer.gd" id="2_terrain"]
+[ext_resource type="PackedScene" uid="uid://lyypxbj55k8q" path="res://scenes/environment/DefaultSunLight01.tscn" id="3_sun"]
 [ext_resource type="PackedScene" uid="uid://6bkboqg3gg1r" path="res://scenes/environment/DefaultWorldEnvironment01.tscn" id="4_env"]
+[ext_resource type="PackedScene" path="res://scenes/environment/CloudShadowPlane.tscn" id="5_cloud"]
 
 [node name="MapEditor" type="Node3D"]
 script = ExtResource("1_map")
 map_size = Vector2(32, 32)
 visible_bounds_size = Vector2(26, 26)
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 10, 0)
-shadow_enabled = true
+[node name="LightPivot" parent="." instance=ExtResource("3_sun")]
 
 [node name="DefaultWorldEnvironment01" parent="." instance=ExtResource("4_env")]
+
+[node name="CloudShadowOverlay" parent="." instance=ExtResource("5_cloud")]
 
 [node name="TerrainRenderer" type="Node" parent="."]
 script = ExtResource("2_terrain")
