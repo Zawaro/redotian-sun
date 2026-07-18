@@ -230,14 +230,17 @@ func _apply_rotation_with_slope(node: Node3D, rotation_y_deg: float) -> void:
     var normal := TerrainSystem.get_normal_at_world(node.global_position).normalized()
     if normal.is_equal_approx(Vector3.UP):
         node.rotation.y = yaw
-        return
-    var projected := (forward - forward.dot(normal) * normal).normalized()
-    var right := projected.cross(normal).normalized()
-    var basis := Basis()
-    basis.x = right
-    basis.y = normal
-    basis.z = -projected
-    node.global_transform.basis = basis
+    else:
+        var projected := (forward - forward.dot(normal) * normal).normalized()
+        var right := projected.cross(normal).normalized()
+        var basis := Basis()
+        basis.x = right
+        basis.y = normal
+        basis.z = -projected
+        node.global_transform.basis = basis
+    var comp := node.get_node_or_null("EditorSelectComponent") as EditorSelectComponent
+    if comp:
+        comp.basis = node.basis.inverse()
 
 
 func refresh_slope_tilt() -> void:
