@@ -38,6 +38,7 @@ func deselect_entity(entity: SelectComponent):
 
 
 func deselect_all():
+    clear_hover_preview()
     for entity in selected_entities:
         if is_instance_valid(entity) and entity.has_method("set_is_selected"):
             entity.set_is_selected(false)

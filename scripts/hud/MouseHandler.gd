@@ -440,6 +440,8 @@ func _resolve_cursor_for_selection() -> CursorState.Type:
             continue
         for component in entity.get_children():
             if component.has_method("get_cursor_for_target"):
+                if not is_instance_valid(target):
+                    target = null
                 var cursor: CursorState.Type = component.get_cursor_for_target(target, target_cell)
                 var priority: int = CursorState.get_priority(cursor)
                 if priority > best_priority:
