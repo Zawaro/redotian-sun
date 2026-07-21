@@ -26,19 +26,20 @@ func _process(_delta):
         if Input.is_action_pressed("move_map") and is_panning:
             slide_map_around(_delta)
 
-        # Keyboard controls (WASD for camera pan)
-        if Input.is_key_pressed(KEY_W):
-            self.global_position -= forward * axis_speed * _delta
-        if Input.is_key_pressed(KEY_S):
-            self.global_position += forward * axis_speed * _delta
-        if Input.is_key_pressed(KEY_A):
-            self.global_position -= (
-                forward.rotated(Vector3(0, 1, 0), deg_to_rad(90)) * axis_speed * _delta
-            )
-        if Input.is_key_pressed(KEY_D):
-            self.global_position += (
-                forward.rotated(Vector3(0, 1, 0), deg_to_rad(90)) * axis_speed * _delta
-            )
+        # Keyboard controls (WASD for camera pan) — skip when Ctrl held (deploy hotkey)
+        if not Input.is_key_pressed(KEY_CTRL):
+            if Input.is_key_pressed(KEY_W):
+                self.global_position -= forward * axis_speed * _delta
+            if Input.is_key_pressed(KEY_S):
+                self.global_position += forward * axis_speed * _delta
+            if Input.is_key_pressed(KEY_A):
+                self.global_position -= (
+                    forward.rotated(Vector3(0, 1, 0), deg_to_rad(90)) * axis_speed * _delta
+                )
+            if Input.is_key_pressed(KEY_D):
+                self.global_position += (
+                    forward.rotated(Vector3(0, 1, 0), deg_to_rad(90)) * axis_speed * _delta
+                )
 
         # Handle border panning (only when middle mouse not pressed)
         if not Input.is_action_pressed("move_map"):

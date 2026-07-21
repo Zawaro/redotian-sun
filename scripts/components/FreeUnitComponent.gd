@@ -46,6 +46,13 @@ func _spawn_free_unit() -> void:
         _retrying = true
         _retry_timer = RETRY_INTERVAL
         return
+
+    var stats := free_entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats:
+        var parent_stats := parent.get_node_or_null("StatsComponent") as StatsComponent
+        if parent_stats:
+            stats.player_id = parent_stats.player_id
+
     var world_pos := Pathfinder.cell_to_world(found)
     free_entity.position = world_pos
     parent.get_parent().add_child(free_entity)

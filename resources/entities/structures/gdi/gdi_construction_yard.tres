@@ -23,3 +23,4 @@ buildable_queue = "BuildingType"
 build_time = 120.0
 art_data = ExtResource("2_art")
 owner = PackedStringArray("GDI", "Nod")
+undeploys_into = "MCV"

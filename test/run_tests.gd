@@ -6,6 +6,7 @@ extends SceneTree
 var _total_passed := 0
 var _total_failed := 0
 
+
 func _init() -> void:
     print("=== Redotian Sun Test Suite ===\n")
 

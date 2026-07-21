@@ -1,0 +1,516 @@
+class_name DeployComponent extends Node
+
+## Bidirectional deploy/undeploy component.
+## Configures vehicle→building (deploy) and building→vehicle (undeploy) transformations.
+
+enum DeployState { IDLE, ROTATING_DEPLOY, ROTATING_UNDEPLOY }
+
+## Entity id to create when deploying (e.g., "GACNST" for MCV).
+@export var deploys_into: String = ""
+## Entity id to create when undeploying (e.g., "MCV" for ConYard).
+@export var undeploys_into: String = ""
+## Rotation in degrees the source entity rotates to before deploying (0 = default/north).
+@export var deploy_rotation: float = 0.0
+## Rotation in degrees the source entity rotates to before undeploying (0 = default/north).
+@export var undeploy_rotation: float = 0.0
+## Local cell offset where the entity appears after deploy/undeploy.
+## Default (0,0) = origin cell (top-left for buildings).
+@export var deploy_cell: Vector2i = Vector2i(0, 0)
+## Transfer health as ratio between source and target max_health.
+@export var transfer_health_ratio: bool = true
+
+var _state: int = DeployState.IDLE
+var _target_entity: Node3D = null
+var _target_rot_y: float = 0.0
+var _rotation_speed: float = 180.0
+
+
+func _exit_tree() -> void:
+    _state = DeployState.IDLE
+    _target_entity = null
+
+
+func _process(delta: float) -> void:
+    if _state == DeployState.IDLE or not is_instance_valid(_target_entity):
+        return
+    var step := deg_to_rad(_rotation_speed) * delta
+    var diff := angle_difference(_target_entity.rotation.y, _target_rot_y)
+    if abs(diff) < 0.05:
+        _target_entity.rotation.y = _target_rot_y
+        var was_deploy := _state == DeployState.ROTATING_DEPLOY
+        var entity := _target_entity
+        _state = DeployState.IDLE
+        _target_entity = null
+        if was_deploy:
+            _complete_deploy(entity)
+        else:
+            _complete_undeploy(entity)
+    else:
+        _target_entity.rotation.y += sign(diff) * minf(step, abs(diff))
+
+
+func configure(data: EntityData) -> void:
+    deploys_into = data.deploys_into
+    undeploys_into = data.undeploys_into
+    deploy_rotation = data.deploy_rotation
+    undeploy_rotation = data.undeploy_rotation
+
+
+func can_deploy() -> bool:
+    return not deploys_into.is_empty()
+
+
+func can_undeploy() -> bool:
+    return not undeploys_into.is_empty()
+
+
+func is_transitioning() -> bool:
+    return _state != DeployState.IDLE
+
+
+func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
+    if target and target == get_parent() and can_deploy():
+        return CursorState.Type.DEPLOY
+    return CursorState.Type.DEFAULT
+
+
+## Validate that deploy is possible. Returns true if foundation cells are free.
+func validate_deploy(source_entity: Node3D) -> bool:
+    if not can_deploy():
+        return false
+    var source_data := EntityFactory.get_entity_data(deploys_into)
+    if not source_data:
+        push_warning("[Deploy] Unknown deploy target: %s" % deploys_into)
+        return false
+    var origin := calculate_deploy_origin(source_entity, source_data)
+    return _are_foundation_cells_free(origin, source_data.foundation, source_entity)
+
+
+## Calculate the origin cell for the deployed building, centering it on the source entity.
+func calculate_deploy_origin(source_entity: Node3D, target_data: EntityData) -> Vector2i:
+    var source_cell := Pathfinder.world_to_cell(source_entity.global_position)
+    var foundation := target_data.foundation
+    return source_cell + Vector2i(-foundation.x / 2, -foundation.y / 2)
+
+
+## Check if all foundation cells are free (no buildings, blocked cells, or entities).
+func _are_foundation_cells_free(
+    origin: Vector2i,
+    foundation: Vector2i,
+    source_entity: Node3D = null,
+) -> bool:
+    for dx in foundation.x:
+        for dz in foundation.y:
+            var cell := origin + Vector2i(dx, dz)
+            if not _is_cell_free_for_deploy(cell, source_entity):
+                return false
+    return true
+
+
+## Check if a single cell is free for deploy (reuses BuildingManager logic pattern).
+## source_entity is excluded from the entity check — the deploying unit occupies its own cell.
+func _is_cell_free_for_deploy(cell: Vector2i, source_entity: Node3D = null) -> bool:
+    var key := SpatialHash.instance._cell_key(cell)
+    if SpatialHash.instance.get_building_cells().has(key):
+        return false
+    # Check blocked cells — exclude source entity if it's the only blocker
+    if SpatialHash.instance.is_cell_blocked(cell):
+        if not _is_only_source_blocking(cell, source_entity):
+            return false
+    # Check entity presence — exclude source entity
+    if SpatialHash.instance.is_any_entity_on_cell(cell):
+        if not _is_only_source_on_cell(cell, source_entity):
+            return false
+    if SpatialHash.instance.is_bib_cell(cell) or SpatialHash.instance.has_resource_cell(cell):
+        return false
+    var cell_type := TerrainSystem.get_cell_type(cell)
+    return cell_type == "" or cell_type == "clear"
+
+
+## Check if the only entity blocking a cell is the source entity.
+func _is_only_source_blocking(cell: Vector2i, source_entity: Node3D) -> bool:
+    if not source_entity:
+        return false
+    var entries := SpatialHash.instance.get_entries(cell)
+    for entry in entries:
+        var node: Node3D = entry.get("node")
+        var mc: MovementController = entry.get("mc")
+        if is_instance_valid(node) and node != source_entity and mc:
+            return false
+    return true
+
+
+## Check if the only entity on a cell is the source entity.
+func _is_only_source_on_cell(cell: Vector2i, source_entity: Node3D) -> bool:
+    if not source_entity:
+        return false
+    var entries := SpatialHash.instance.get_entries(cell)
+    for entry in entries:
+        var node: Node3D = entry.get("node")
+        if is_instance_valid(node) and node != source_entity:
+            return false
+    return true
+
+
+## Scatter allied units blocking foundation cells. Returns true if all cells cleared.
+func scatter_blockers(source_entity: Node3D, target_data: EntityData) -> bool:
+    var origin := calculate_deploy_origin(source_entity, target_data)
+    var foundation := target_data.foundation
+    var scattered_any := false
+
+    for dx in foundation.x:
+        for dz in foundation.y:
+            var cell := origin + Vector2i(dx, dz)
+            if _can_scatter_cell(cell):
+                if _scatter_single_cell(cell, source_entity):
+                    scattered_any = true
+
+    return scattered_any
+
+
+## Check if a cell can be cleared by scattering (no terrain/building/resource blockers).
+func _can_scatter_cell(cell: Vector2i) -> bool:
+    var key := SpatialHash.instance._cell_key(cell)
+    if SpatialHash.instance.get_building_cells().has(key):
+        return false
+    if SpatialHash.instance.is_bib_cell(cell) or SpatialHash.instance.has_resource_cell(cell):
+        return false
+    var cell_type := TerrainSystem.get_cell_type(cell)
+    if cell_type != "" and cell_type != "clear":
+        return false
+    # Cell blocked by terrain/building/resource — scatter won't help.
+    # Only attempt scatter if the only blockers are scatterable entities.
+    return true
+
+
+## Scatter units from a single cell. Returns true if scatter was attempted.
+func _scatter_single_cell(cell: Vector2i, source_entity: Node3D) -> bool:
+    var entries := SpatialHash.instance.get_entries(cell)
+    var local_pid := PlayerManager.get_local_player_id()
+    var scattered := false
+    for entry in entries:
+        var entity_node: Node3D = entry.get("node")
+        if not is_instance_valid(entity_node):
+            continue
+        if entity_node == source_entity:
+            continue
+        var stats := entity_node.get_node_or_null("StatsComponent") as StatsComponent
+        if not stats:
+            continue
+        # Only scatter own units (infantry/vehicles)
+        if stats.player_id != local_pid:
+            continue
+        if (
+            stats.entity_type != EntityData.EntityType.INFANTRY
+            and stats.entity_type != EntityData.EntityType.VEHICLE
+        ):
+            continue
+        var mc := entity_node.get_node_or_null("MovementController") as MovementController
+        if not mc:
+            continue
+        if mc._state != MovementController.State.IDLE:
+            continue
+        var push_cell := _find_adjacent_free_cell(cell)
+        if push_cell == Vector2i(-1, -1):
+            continue
+        mc.set_target_position(Pathfinder.cell_to_world(push_cell))
+        scattered = true
+    return scattered
+
+
+## Find an adjacent free cell for scattering.
+func _find_adjacent_free_cell(origin: Vector2i) -> Vector2i:
+    for radius in range(1, 4):
+        for dx in range(-radius, radius + 1):
+            for dz in range(-radius, radius + 1):
+                if abs(dx) != radius and abs(dz) != radius:
+                    continue
+                var cell := origin + Vector2i(dx, dz)
+                if _is_cell_free_for_deploy(cell):
+                    return cell
+    return Vector2i(-1, -1)
+
+
+## Execute the deploy transformation. Returns true on success.
+func execute_deploy(source_entity: Node3D) -> bool:
+    if is_transitioning():
+        return false
+    if not can_deploy():
+        return false
+    var target_data := EntityFactory.get_entity_data(deploys_into)
+    if not target_data:
+        return false
+    if not validate_deploy(source_entity):
+        scatter_blockers(source_entity, target_data)
+        if not validate_deploy(source_entity):
+            push_warning("[Deploy] Cannot deploy — foundation cells blocked")
+            return false
+
+    _rotation_speed = _get_rotation_speed(source_entity)
+    _target_rot_y = deg_to_rad(deploy_rotation)
+    _target_entity = source_entity
+
+    if abs(angle_difference(source_entity.rotation.y, _target_rot_y)) < 0.05:
+        source_entity.rotation.y = _target_rot_y
+        _target_entity = null
+        _complete_deploy(source_entity)
+    else:
+        _state = DeployState.ROTATING_DEPLOY
+    return true
+
+
+func _complete_deploy(source_entity: Node3D) -> void:
+    if not is_instance_valid(source_entity):
+        return
+    var target_data := EntityFactory.get_entity_data(deploys_into)
+    if not target_data:
+        return
+    var origin := calculate_deploy_origin(source_entity, target_data)
+    var pid := PlayerManager.get_local_player_id()
+    var source_health := _get_source_health(source_entity)
+    var retain_selection := _is_selected(source_entity)
+
+    _deselect_entity(source_entity)
+    _remove_source_from_systems(source_entity, pid)
+
+    var target_entity := EntityFactory.create_entity(deploys_into)
+    if not target_entity:
+        push_error("[Deploy] Failed to create target entity: %s" % deploys_into)
+        return
+
+    var target_stats := target_entity.get_node_or_null("StatsComponent") as StatsComponent
+    if target_stats:
+        var source_stats := source_entity.get_node_or_null("StatsComponent") as StatsComponent
+        if source_stats:
+            target_stats.player_id = source_stats.player_id
+        else:
+            target_stats.player_id = pid
+
+    var world_pos := _cell_origin_to_world(origin, target_data.foundation)
+    world_pos.y = _get_max_height(origin, target_data.foundation)
+    target_entity.position = world_pos
+
+    var buildings_parent := _get_buildings_parent()
+    if buildings_parent:
+        buildings_parent.add_child(target_entity)
+    else:
+        var tree := get_tree()
+        if tree and tree.current_scene:
+            tree.current_scene.add_child(target_entity)
+
+    var cells: Array[Vector2i] = []
+    for dx in target_data.foundation.x:
+        for dz in target_data.foundation.y:
+            cells.append(origin + Vector2i(dx, dz))
+    SpatialHash.instance.register_building_cells(cells)
+
+    var bm := get_node_or_null("/root/BuildingManager") as BuildingManager
+    if bm:
+        (
+            bm
+            . _buildings
+            . append(
+                {
+                    "node": target_entity,
+                    "type": target_data,
+                    "origin": origin,
+                    "cells": cells,
+                }
+            )
+        )
+
+    var ps := get_node_or_null("/root/PrerequisiteSystem")
+    if ps:
+        ps.register_building(pid, target_data)
+
+    _transfer_health(source_entity, target_entity, source_health)
+    _set_owner(target_entity, pid)
+    if retain_selection:
+        _select_entity(target_entity)
+    source_entity.queue_free()
+
+
+## Execute the undeploy transformation. Returns true on success.
+func execute_undeploy(source_entity: Node3D) -> bool:
+    if is_transitioning():
+        return false
+    if not can_undeploy():
+        return false
+    var target_data := EntityFactory.get_entity_data(undeploys_into)
+    if not target_data:
+        return false
+
+    _rotation_speed = _get_rotation_speed(source_entity)
+    _target_rot_y = deg_to_rad(undeploy_rotation)
+    _target_entity = source_entity
+
+    if abs(angle_difference(source_entity.rotation.y, _target_rot_y)) < 0.05:
+        source_entity.rotation.y = _target_rot_y
+        _target_entity = null
+        _complete_undeploy(source_entity)
+    else:
+        _state = DeployState.ROTATING_UNDEPLOY
+    return true
+
+
+func _complete_undeploy(source_entity: Node3D) -> void:
+    if not is_instance_valid(source_entity):
+        return
+    var target_data := EntityFactory.get_entity_data(undeploys_into)
+    if not target_data:
+        return
+
+    var pid := PlayerManager.get_local_player_id()
+    var source_health := _get_source_health(source_entity)
+    var source_position := source_entity.global_position
+    var retain_selection := _is_selected(source_entity)
+
+    _deselect_entity(source_entity)
+    _unregister_building_cells(source_entity)
+
+    var ps := get_node_or_null("/root/PrerequisiteSystem")
+    if ps:
+        var source_stats := source_entity.get_node_or_null("StatsComponent") as StatsComponent
+        if source_stats:
+            var source_data := EntityFactory.get_entity_data(source_stats.id)
+            if source_data:
+                ps.unregister_building(pid, source_data)
+
+    var target_entity := EntityFactory.create_entity(undeploys_into)
+    if not target_entity:
+        push_error("[Deploy] Failed to create target entity: %s" % undeploys_into)
+        return
+
+    var target_stats := target_entity.get_node_or_null("StatsComponent") as StatsComponent
+    if target_stats:
+        var undeploy_src_stats := source_entity.get_node_or_null("StatsComponent") as StatsComponent
+        if undeploy_src_stats:
+            target_stats.player_id = undeploy_src_stats.player_id
+        else:
+            target_stats.player_id = pid
+
+    var target_cell := Pathfinder.world_to_cell(source_position) + deploy_cell
+    var world_pos := Pathfinder.cell_to_world(target_cell)
+    world_pos.y = TerrainSystem.get_height_at_world_smooth(world_pos)
+    target_entity.position = world_pos
+
+    var parent := _get_buildings_parent()
+    if parent:
+        parent.add_child(target_entity)
+    else:
+        var tree := get_tree()
+        if tree and tree.current_scene:
+            tree.current_scene.add_child(target_entity)
+
+    _transfer_health(source_entity, target_entity, source_health)
+    _set_owner(target_entity, pid)
+    if retain_selection:
+        _select_entity(target_entity)
+    source_entity.queue_free()
+
+
+## Get source entity health ratio.
+func _get_source_health(source_entity: Node3D) -> float:
+    var health := source_entity.get_node_or_null("HealthComponent") as HealthComponent
+    if health:
+        return health.get_health_ratio()
+    return 1.0
+
+
+## Transfer health from source to target using ratio.
+func _transfer_health(_source_entity: Node3D, target_entity: Node3D, source_ratio: float) -> void:
+    if not transfer_health_ratio:
+        return
+    var target_health := target_entity.get_node_or_null("HealthComponent") as HealthComponent
+    if not target_health:
+        return
+    var target_max := target_health.max_health
+    if target_max <= 0:
+        target_health.current_health = target_max
+        return
+    target_health.current_health = int(float(target_max) * source_ratio)
+
+
+## Deselect an entity from SelectionManager.
+func _deselect_entity(entity: Node3D) -> void:
+    var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
+    if select_comp:
+        SelectionManager.deselect_entity(select_comp)
+
+
+func _is_selected(entity: Node3D) -> bool:
+    var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
+    return select_comp != null and SelectionManager.is_entity_selected(select_comp)
+
+
+## Select an entity in SelectionManager (retains selection after deploy/undeploy).
+func _select_entity(entity: Node3D) -> void:
+    var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
+    if select_comp:
+        SelectionManager.add_entity(select_comp)
+
+
+## Remove source entity from spatial hash and building manager.
+func _remove_source_from_systems(_source_entity: Node3D, _pid: int) -> void:
+    # If source is a vehicle, just remove from spatial hash
+    # Vehicle cells are managed by spatial hash rebuild, no explicit unregister needed
+    pass
+
+
+## Unregister building cells from spatial hash.
+func _unregister_building_cells(building_entity: Node3D) -> void:
+    var bm := get_node_or_null("/root/BuildingManager") as BuildingManager
+    if bm:
+        var idx := bm._find_building_index(building_entity)
+        if idx >= 0:
+            var entry: Dictionary = bm._buildings[idx]
+            var cells: Array = entry.get("cells", []) as Array
+            if not cells.is_empty():
+                SpatialHash.instance.unregister_building_cells(cells)
+            bm._buildings.remove_at(idx)
+
+
+## Get buildings parent node.
+func _get_buildings_parent() -> Node3D:
+    var bm := get_node_or_null("/root/BuildingManager") as BuildingManager
+    if bm:
+        return bm._get_buildings_parent()
+    var tree := get_tree()
+    if tree and tree.current_scene:
+        return tree.current_scene
+    return null
+
+
+## Calculate world position from origin cell and foundation.
+func _cell_origin_to_world(origin: Vector2i, footprint: Vector2i) -> Vector3:
+    var center_x := (origin.x + footprint.x * 0.5) * Pathfinder.CELL_SIZE
+    var center_z := (origin.y + footprint.y * 0.5) * Pathfinder.CELL_SIZE
+    return Vector3(center_x, 0.0, center_z)
+
+
+## Get max height across foundation cells.
+func _get_max_height(origin: Vector2i, footprint: Vector2i) -> float:
+    var max_h := 0.0
+    for dx in footprint.x:
+        for dz in footprint.y:
+            var cell := origin + Vector2i(dx, dz)
+            var h := TerrainSystem.get_cell_max_height(cell)
+            max_h = maxf(max_h, h)
+    return max_h
+
+
+## Set owner on entity using PlayerManager.
+func _set_owner(_entity: Node3D, _pid: int) -> void:
+    # Owner is tracked via PlayerManager, not on the entity node itself
+    # The entity's EntityData.owner field already has the faction info
+    pass
+
+
+## Get rotation speed from the source entity data.
+func _get_rotation_speed(entity: Node3D) -> float:
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and not stats.id.is_empty():
+        var data := EntityFactory.get_entity_data(stats.id)
+        if data:
+            return data.rotation_speed
+    return 180.0

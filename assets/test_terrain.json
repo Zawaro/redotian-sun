@@ -8299,14 +8299,14 @@
 			"id": "TIBTREE"
 		},
 		{
-			"cell": "13,28",
-			"id": "GACNST",
-			"player_id": 0
-		},
-		{
 			"cell": "34,21",
 			"id": "GACNST",
-			"player_id": 1
+			"player_id": 1.0
+		},
+		{
+			"cell": "15,29",
+			"id": "MCV",
+			"player_id": 0
 		}
 	],
 	"grid_cells": 46,

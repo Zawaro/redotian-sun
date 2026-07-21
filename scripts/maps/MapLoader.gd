@@ -40,11 +40,15 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
         for key in OVERRIDE_KEYS:
             if entry_dict.has(key):
                 overrides[key] = entry_dict[key]
-        if entry_dict.has("player_id"):
-            overrides["player_id"] = entry_dict["player_id"]
         var entity := EntityFactory.create_entity(entity_id, overrides)
         if not entity:
             continue
+
+        var entry_player_id: int = entry_dict.get("player_id", -1)
+        if entry_player_id >= 0:
+            var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+            if stats:
+                stats.player_id = entry_player_id
         var cell_str: String = entry_dict.get("cell", "")
         if not cell_str.is_empty():
             var parts := cell_str.split(",")

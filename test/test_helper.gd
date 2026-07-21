@@ -5,6 +5,7 @@ static var _passed := 0
 static var _failed := 0
 static var _errors: Array[String] = []
 
+
 static func assert_eq(got, expected, msg: String = "") -> void:
     if got == expected:
         _passed += 1
@@ -17,6 +18,7 @@ static func assert_eq(got, expected, msg: String = "") -> void:
         _errors.append(err)
         print("    FAIL: " + err)
 
+
 static func assert_true(value: bool, msg: String = "") -> void:
     if value:
         _passed += 1
@@ -26,6 +28,7 @@ static func assert_true(value: bool, msg: String = "") -> void:
         var err := "expected true" if msg == "" else msg
         _errors.append(err)
         print("    FAIL: " + err)
+
 
 static func reset() -> void:
     _passed = 0

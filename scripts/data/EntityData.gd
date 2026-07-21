@@ -118,6 +118,16 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY }
 @export var prerequisite: PackedStringArray = []
 @export var prerequisite_necessary: PackedStringArray = []
 
+## Deploy — vehicle↔building transformation configuration.
+## Entity id to create when this entity deploys (e.g., "GACNST" for MCV).
+@export var deploys_into: String = ""
+## Entity id to create when this entity undeploys (e.g., "MCV" for ConYard).
+@export var undeploys_into: String = ""
+## Rotation in degrees the source entity rotates to before deploying (0 = default/north).
+@export var deploy_rotation: float = 0.0
+## Rotation in degrees the source entity rotates to before undeploying (0 = default/north).
+@export var undeploy_rotation: float = 0.0
+
 ## Art reference
 @export var art_data: ArtData = null
 

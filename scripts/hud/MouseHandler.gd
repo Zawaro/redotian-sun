@@ -64,6 +64,12 @@ func _process(_delta):
             _skip_release = false
         return
 
+    # Deploy hotkey (Ctrl+D)
+    if Input.is_action_just_pressed("deploy"):
+        if selection_manager:
+            selection_manager.request_deploy()
+        return
+
     # Skip input handling when hovering UI — but still update cursor below.
     var hovered := get_viewport().gui_get_hovered_control()
     var over_sidebar := _is_over_sidebar()
@@ -95,7 +101,7 @@ func _process(_delta):
             mouse_dragging = false
             selection_rect.hide()
 
-        # Right mouse button just released — exit sell/repair mode or deselect.
+        # Right mouse button is RESERVED for deselect/cancel only — never issue commands.
         if Input.is_action_just_released("deselect_entity"):
             var sidebar := _find_sidebar()
             if sidebar and (sidebar.is_sell_mode() or sidebar.is_repair_mode()):
@@ -190,7 +196,22 @@ func _handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
             return
         var select_comp := _find_select_component(collider)
         if select_comp and selection_manager:
-            selection_manager.select_entity(select_comp, shift_pressed)
+            # If entity is already selected and deployable, deploy on click
+            var already_selected := selection_manager.is_entity_selected(select_comp)
+            if already_selected:
+                var entity := _find_entity_parent(collider)
+                if entity:
+                    var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
+                    if deploy and deploy.can_deploy():
+                        deploy.execute_deploy(entity)
+                    elif deploy and deploy.can_undeploy():
+                        deploy.execute_undeploy(entity)
+                    else:
+                        selection_manager.select_entity(select_comp, shift_pressed)
+                else:
+                    selection_manager.select_entity(select_comp, shift_pressed)
+            else:
+                selection_manager.select_entity(select_comp, shift_pressed)
         return
 
     # Pass 2: layer 17 — interact hitboxes (tiberium, dock).
