@@ -2,8 +2,9 @@ class_name DeployComponent extends Node
 
 ## Bidirectional deploy/undeploy component.
 ## Configures vehicle→building (deploy) and building→vehicle (undeploy) transformations.
+## Uses snapshot+deferred pattern: capture state → deselect → defer create+free.
 
-enum DeployState { IDLE, ROTATING_DEPLOY, ROTATING_UNDEPLOY }
+enum DeployState { IDLE, ROTATING_DEPLOY, ROTATING_UNDEPLOY, TRANSFORMING }
 
 ## Entity id to create when deploying (e.g., "GACNST" for MCV).
 @export var deploys_into: String = ""
@@ -23,17 +24,21 @@ var _state: int = DeployState.IDLE
 var _target_entity: Node3D = null
 var _target_rot_y: float = 0.0
 var _rotation_speed: float = 180.0
-var _retain_selection: bool = false
+var _pending_move_target: Vector3 = Vector3.ZERO
+var _has_pending_move: bool = false
 
 
 func _exit_tree() -> void:
     _state = DeployState.IDLE
     _target_entity = null
-    _retain_selection = false
 
 
 func _process(delta: float) -> void:
-    if _state == DeployState.IDLE or not is_instance_valid(_target_entity):
+    if _state == DeployState.IDLE or _state == DeployState.TRANSFORMING:
+        return
+    if not is_instance_valid(_target_entity):
+        _state = DeployState.IDLE
+        _target_entity = null
         return
     var step := deg_to_rad(_rotation_speed) * delta
     var diff := angle_difference(_target_entity.rotation.y, _target_rot_y)
@@ -41,7 +46,7 @@ func _process(delta: float) -> void:
         _target_entity.rotation.y = _target_rot_y
         var was_deploy := _state == DeployState.ROTATING_DEPLOY
         var entity := _target_entity
-        _state = DeployState.IDLE
+        _state = DeployState.TRANSFORMING
         _target_entity = null
         if was_deploy:
             _complete_deploy(entity)
@@ -73,6 +78,8 @@ func is_transitioning() -> bool:
 func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
     if target and target == get_parent() and can_deploy():
         return CursorState.Type.DEPLOY
+    if not target and can_undeploy():
+        return CursorState.Type.MOVE
     return CursorState.Type.DEFAULT
 
 
@@ -251,11 +258,11 @@ func execute_deploy(source_entity: Node3D) -> bool:
     _rotation_speed = _get_rotation_speed(source_entity)
     _target_rot_y = deg_to_rad(deploy_rotation)
     _target_entity = source_entity
-    _capture_selection(source_entity)
 
     if abs(angle_difference(source_entity.rotation.y, _target_rot_y)) < 0.05:
         source_entity.rotation.y = _target_rot_y
         _target_entity = null
+        _state = DeployState.TRANSFORMING
         _complete_deploy(source_entity)
     else:
         _state = DeployState.ROTATING_DEPLOY
@@ -264,35 +271,34 @@ func execute_deploy(source_entity: Node3D) -> bool:
 
 func _complete_deploy(source_entity: Node3D) -> void:
     if not is_instance_valid(source_entity):
+        _state = DeployState.IDLE
         return
     var target_data := EntityFactory.get_entity_data(deploys_into)
     if not target_data:
+        _state = DeployState.IDLE
         return
     var origin := calculate_deploy_origin(source_entity, target_data)
-    var pid := PlayerManager.get_local_player_id()
-    var source_health := _get_source_health(source_entity)
-    var retain_selection := _retain_selection
-    _retain_selection = false
+    var snap := _snapshot_entity(source_entity)
+    _deselect_entity(source_entity)
+    _remove_source_from_systems(source_entity)
+    call_deferred("_do_deploy", source_entity, origin, target_data, snap)
 
-    _remove_source_from_systems(source_entity, pid)
 
+## Execute the deferred deploy: create target, apply snapshot, free source.
+func _do_deploy(
+    source: Node3D, origin: Vector2i, target_data: EntityData, snap: Dictionary
+) -> void:
+    if not is_instance_valid(source):
+        _state = DeployState.IDLE
+        return
     var target_entity := EntityFactory.create_entity(deploys_into)
     if not target_entity:
         push_error("[Deploy] Failed to create target entity: %s" % deploys_into)
+        _state = DeployState.IDLE
         return
-
-    var target_stats := target_entity.get_node_or_null("StatsComponent") as StatsComponent
-    if target_stats:
-        var source_stats := source_entity.get_node_or_null("StatsComponent") as StatsComponent
-        if source_stats:
-            target_stats.player_id = source_stats.player_id
-        else:
-            target_stats.player_id = pid
-
     var world_pos := _cell_origin_to_world(origin, target_data.foundation)
     world_pos.y = _get_max_height(origin, target_data.foundation)
     target_entity.position = world_pos
-
     var buildings_parent := _get_buildings_parent()
     if buildings_parent:
         buildings_parent.add_child(target_entity)
@@ -300,13 +306,11 @@ func _complete_deploy(source_entity: Node3D) -> void:
         var tree := get_tree()
         if tree and tree.current_scene:
             tree.current_scene.add_child(target_entity)
-
     var cells: Array[Vector2i] = []
     for dx in target_data.foundation.x:
         for dz in target_data.foundation.y:
             cells.append(origin + Vector2i(dx, dz))
     SpatialHash.instance.register_building_cells(cells)
-
     var bm := get_node_or_null("/root/BuildingManager") as BuildingManager
     if bm:
         (
@@ -321,22 +325,16 @@ func _complete_deploy(source_entity: Node3D) -> void:
                 }
             )
         )
-
     var ps := get_node_or_null("/root/PrerequisiteSystem")
     if ps:
-        ps.register_building(pid, target_data)
-
-    _transfer_health(source_entity, target_entity, source_health)
-    _set_owner(target_entity, pid)
-    if retain_selection:
-        _transfer_selection(source_entity, target_entity)
-    else:
-        _deselect_entity(source_entity)
-    source_entity.queue_free()
+        ps.register_building(snap["player_id"], target_data)
+    _apply_snapshot(target_entity, snap)
+    source.queue_free()
+    _state = DeployState.IDLE
 
 
 ## Execute the undeploy transformation. Returns true on success.
-func execute_undeploy(source_entity: Node3D) -> bool:
+func execute_undeploy(source_entity: Node3D, move_target: Vector3 = Vector3.ZERO) -> bool:
     if is_transitioning():
         return false
     if not can_undeploy():
@@ -348,11 +346,14 @@ func execute_undeploy(source_entity: Node3D) -> bool:
     _rotation_speed = _get_rotation_speed(source_entity)
     _target_rot_y = deg_to_rad(undeploy_rotation)
     _target_entity = source_entity
-    _capture_selection(source_entity)
+    if move_target != Vector3.ZERO:
+        _pending_move_target = move_target
+        _has_pending_move = true
 
     if abs(angle_difference(source_entity.rotation.y, _target_rot_y)) < 0.05:
         source_entity.rotation.y = _target_rot_y
         _target_entity = null
+        _state = DeployState.TRANSFORMING
         _complete_undeploy(source_entity)
     else:
         _state = DeployState.ROTATING_UNDEPLOY
@@ -361,45 +362,45 @@ func execute_undeploy(source_entity: Node3D) -> bool:
 
 func _complete_undeploy(source_entity: Node3D) -> void:
     if not is_instance_valid(source_entity):
+        _state = DeployState.IDLE
         return
     var target_data := EntityFactory.get_entity_data(undeploys_into)
     if not target_data:
+        _state = DeployState.IDLE
         return
-
-    var pid := PlayerManager.get_local_player_id()
-    var source_health := _get_source_health(source_entity)
+    var snap := _snapshot_entity(source_entity)
     var source_position := source_entity.global_position
-    var retain_selection := _retain_selection
-    _retain_selection = false
-
+    var source_stats := source_entity.get_node_or_null("StatsComponent") as StatsComponent
+    var source_data_id: String = source_stats.id if source_stats else ""
+    _deselect_entity(source_entity)
     _unregister_building_cells(source_entity)
-
     var ps := get_node_or_null("/root/PrerequisiteSystem")
-    if ps:
-        var source_stats := source_entity.get_node_or_null("StatsComponent") as StatsComponent
-        if source_stats:
-            var source_data := EntityFactory.get_entity_data(source_stats.id)
-            if source_data:
-                ps.unregister_building(pid, source_data)
+    if ps and not source_data_id.is_empty():
+        var source_data := EntityFactory.get_entity_data(source_data_id)
+        if source_data:
+            ps.unregister_building(snap["player_id"], source_data)
+    call_deferred("_do_undeploy", source_entity, source_position, target_data, snap)
 
+
+## Execute the deferred undeploy: create target, apply snapshot, free source.
+func _do_undeploy(
+    source: Node3D,
+    source_position: Vector3,
+    _target_data: EntityData,
+    snap: Dictionary,
+) -> void:
+    if not is_instance_valid(source):
+        _state = DeployState.IDLE
+        return
     var target_entity := EntityFactory.create_entity(undeploys_into)
     if not target_entity:
         push_error("[Deploy] Failed to create target entity: %s" % undeploys_into)
+        _state = DeployState.IDLE
         return
-
-    var target_stats := target_entity.get_node_or_null("StatsComponent") as StatsComponent
-    if target_stats:
-        var undeploy_src_stats := source_entity.get_node_or_null("StatsComponent") as StatsComponent
-        if undeploy_src_stats:
-            target_stats.player_id = undeploy_src_stats.player_id
-        else:
-            target_stats.player_id = pid
-
     var target_cell := Pathfinder.world_to_cell(source_position) + deploy_cell
     var world_pos := Pathfinder.cell_to_world(target_cell)
     world_pos.y = TerrainSystem.get_height_at_world_smooth(world_pos)
     target_entity.position = world_pos
-
     var parent := _get_buildings_parent()
     if parent:
         parent.add_child(target_entity)
@@ -407,36 +408,53 @@ func _complete_undeploy(source_entity: Node3D) -> void:
         var tree := get_tree()
         if tree and tree.current_scene:
             tree.current_scene.add_child(target_entity)
-
-    _transfer_health(source_entity, target_entity, source_health)
-    _set_owner(target_entity, pid)
-    if retain_selection:
-        _transfer_selection(source_entity, target_entity)
-    else:
-        _deselect_entity(source_entity)
-    source_entity.queue_free()
-
-
-## Get source entity health ratio.
-func _get_source_health(source_entity: Node3D) -> float:
-    var health := source_entity.get_node_or_null("HealthComponent") as HealthComponent
-    if health:
-        return health.get_health_ratio()
-    return 1.0
+    _apply_snapshot(target_entity, snap)
+    # Issue pending move command to the new entity after creation.
+    if _has_pending_move:
+        var mc := target_entity.get_node_or_null("MovementController") as MovementController
+        if mc:
+            mc.set_target_position(_pending_move_target)
+        _has_pending_move = false
+    source.queue_free()
+    _state = DeployState.IDLE
 
 
-## Transfer health from source to target using ratio.
-func _transfer_health(_source_entity: Node3D, target_entity: Node3D, source_ratio: float) -> void:
-    if not transfer_health_ratio:
-        return
-    var target_health := target_entity.get_node_or_null("HealthComponent") as HealthComponent
-    if not target_health:
-        return
-    var target_max := target_health.max_health
-    if target_max <= 0:
-        target_health.current_health = target_max
-        return
-    target_health.current_health = int(float(target_max) * source_ratio)
+## --- Snapshot / Apply --------------------------------------------------------
+
+
+## Capture all transferable entity state before destroy.
+func _snapshot_entity(entity: Node3D) -> Dictionary:
+    var snap: Dictionary = {}
+    # Health ratio
+    var health := entity.get_node_or_null("HealthComponent") as HealthComponent
+    snap["health_ratio"] = health.get_health_ratio() if health else 1.0
+    # Selection
+    snap["was_selected"] = _is_selected(entity)
+    # Player ID
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    snap["player_id"] = stats.player_id if stats else -1
+    return snap
+
+
+## Apply snapshot state to the newly created target entity.
+func _apply_snapshot(target: Node3D, snap: Dictionary) -> void:
+    # Health
+    if transfer_health_ratio:
+        var health := target.get_node_or_null("HealthComponent") as HealthComponent
+        if health and health.max_health > 0:
+            health.current_health = int(float(health.max_health) * snap["health_ratio"])
+    # Player ID
+    var stats := target.get_node_or_null("StatsComponent") as StatsComponent
+    if stats:
+        stats.player_id = snap["player_id"]
+    # Selection
+    if snap["was_selected"]:
+        var select := target.get_node_or_null("SelectComponent") as SelectComponent
+        if select:
+            SelectionManager.add_entity(select)
+
+
+## --- Selection helpers -------------------------------------------------------
 
 
 func _is_selected(entity: Node3D) -> bool:
@@ -447,28 +465,20 @@ func _is_selected(entity: Node3D) -> bool:
     )
 
 
-func _capture_selection(entity: Node3D) -> void:
-    _retain_selection = _is_selected(entity)
-
-
-## Deselect an entity from SelectionManager.
+## Deselect an entity from SelectionManager and clear hover state.
 func _deselect_entity(entity: Node3D) -> void:
     var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
     if select_comp:
         select_comp.set_is_selected(false)
+        select_comp.set_is_hovering(false)
         SelectionManager.deselect_entity(select_comp)
 
 
-## Clear the source selection before selecting the result entity.
-func _transfer_selection(source_entity: Node3D, target_entity: Node3D) -> void:
-    _deselect_entity(source_entity)
-    var target_select := target_entity.get_node_or_null("SelectComponent") as SelectComponent
-    if target_select:
-        SelectionManager.add_entity(target_select)
+## --- System registration helpers ---------------------------------------------
 
 
 ## Remove source entity from spatial hash and building manager.
-func _remove_source_from_systems(_source_entity: Node3D, _pid: int) -> void:
+func _remove_source_from_systems(_source_entity: Node3D) -> void:
     # If source is a vehicle, just remove from spatial hash
     # Vehicle cells are managed by spatial hash rebuild, no explicit unregister needed
     pass
@@ -485,6 +495,9 @@ func _unregister_building_cells(building_entity: Node3D) -> void:
             if not cells.is_empty():
                 SpatialHash.instance.unregister_building_cells(cells)
             bm._buildings.remove_at(idx)
+
+
+## --- Utility ----------------------------------------------------------------
 
 
 ## Get buildings parent node.
@@ -514,13 +527,6 @@ func _get_max_height(origin: Vector2i, footprint: Vector2i) -> float:
             var h := TerrainSystem.get_cell_max_height(cell)
             max_h = maxf(max_h, h)
     return max_h
-
-
-## Set owner on entity using PlayerManager.
-func _set_owner(_entity: Node3D, _pid: int) -> void:
-    # Owner is tracked via PlayerManager, not on the entity node itself
-    # The entity's EntityData.owner field already has the faction info
-    pass
 
 
 ## Get rotation speed from the source entity data.

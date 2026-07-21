@@ -48,3 +48,24 @@
 - [x] 7.5 Test owner preservation through deploy/undeploy cycle
 - [x] 7.6 Test auto-scatter when foundation cells are blocked
 - [x] 7.7 Test multi-select undeploy — 3 buildings undeploy simultaneously
+
+## 8. Stat Snapshot Refactor (Issue #80)
+
+- [x] 8.1 Add `_snapshot_entity(entity) -> Dictionary` to DeployComponent
+- [x] 8.2 Add `_apply_snapshot(target, snap)` to DeployComponent
+- [x] 8.3 Refactor `_complete_deploy` / `_complete_undeploy` to use snapshot + call_deferred
+- [x] 8.4 Add TRANSFORMING state to DeployState enum
+- [x] 8.5 Remove ad-hoc transfer functions
+- [x] 8.6 SelectionManager.deselect_all clears hover preview
+- [x] 8.7 MouseHandler is_instance_valid guard for freed entity references
+- [x] 8.8 DeployComponent move cursor for undeployable buildings
+- [x] 8.9 Snapshot/apply tests, lint, format
+
+## 9. Retain Move Command After Undeploy
+
+- [ ] 9.1 Add `_pending_move_target` / `_has_pending_move` to DeployComponent
+- [ ] 9.2 Update `execute_undeploy` to accept optional `move_target` parameter
+- [ ] 9.3 Update `SelectionManager.request_move` to pass target to `execute_undeploy`
+- [ ] 9.4 Update `_do_undeploy` to issue move command after creation
+- [ ] 9.5 Add unit tests for pending move target
+- [ ] 9.6 Run lint, format, full test suite
