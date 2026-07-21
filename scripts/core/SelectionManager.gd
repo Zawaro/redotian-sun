@@ -41,6 +41,12 @@ func deselect_all():
     for entity in selected_entities:
         if is_instance_valid(entity) and entity.has_method("set_is_selected"):
             entity.set_is_selected(false)
+    var tree := get_tree()
+    if tree:
+        for entity in tree.get_nodes_in_group("selectable"):
+            var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
+            if select_comp and select_comp.is_selected:
+                select_comp.set_is_selected(false)
     selected_entities.clear()
     emit_signal("selection_changed", [])
 
@@ -200,12 +206,23 @@ func request_dock(target: Node3D) -> bool:
 
 
 func _process(_delta: float) -> void:
+    _synchronize_visual_selection()
     var batch: int = 8
     while _pending_index < _pending_moves.size() and batch > 0:
         var data: Array = _pending_moves[_pending_index]
         _execute_move(data[0] as SelectComponent, data[1] as Vector3)
         _pending_index += 1
         batch -= 1
+
+
+func _synchronize_visual_selection() -> void:
+    var tree := get_tree()
+    if not tree:
+        return
+    for entity in tree.get_nodes_in_group("selectable"):
+        var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
+        if select_comp and select_comp.is_selected and not selected_entities.has(select_comp):
+            add_entity(select_comp)
 
 
 func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:

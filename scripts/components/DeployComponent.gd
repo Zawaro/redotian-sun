@@ -23,11 +23,13 @@ var _state: int = DeployState.IDLE
 var _target_entity: Node3D = null
 var _target_rot_y: float = 0.0
 var _rotation_speed: float = 180.0
+var _retain_selection: bool = false
 
 
 func _exit_tree() -> void:
     _state = DeployState.IDLE
     _target_entity = null
+    _retain_selection = false
 
 
 func _process(delta: float) -> void:
@@ -249,6 +251,7 @@ func execute_deploy(source_entity: Node3D) -> bool:
     _rotation_speed = _get_rotation_speed(source_entity)
     _target_rot_y = deg_to_rad(deploy_rotation)
     _target_entity = source_entity
+    _capture_selection(source_entity)
 
     if abs(angle_difference(source_entity.rotation.y, _target_rot_y)) < 0.05:
         source_entity.rotation.y = _target_rot_y
@@ -268,9 +271,9 @@ func _complete_deploy(source_entity: Node3D) -> void:
     var origin := calculate_deploy_origin(source_entity, target_data)
     var pid := PlayerManager.get_local_player_id()
     var source_health := _get_source_health(source_entity)
-    var retain_selection := _is_selected(source_entity)
+    var retain_selection := _retain_selection
+    _retain_selection = false
 
-    _deselect_entity(source_entity)
     _remove_source_from_systems(source_entity, pid)
 
     var target_entity := EntityFactory.create_entity(deploys_into)
@@ -326,7 +329,9 @@ func _complete_deploy(source_entity: Node3D) -> void:
     _transfer_health(source_entity, target_entity, source_health)
     _set_owner(target_entity, pid)
     if retain_selection:
-        _select_entity(target_entity)
+        _transfer_selection(source_entity, target_entity)
+    else:
+        _deselect_entity(source_entity)
     source_entity.queue_free()
 
 
@@ -343,6 +348,7 @@ func execute_undeploy(source_entity: Node3D) -> bool:
     _rotation_speed = _get_rotation_speed(source_entity)
     _target_rot_y = deg_to_rad(undeploy_rotation)
     _target_entity = source_entity
+    _capture_selection(source_entity)
 
     if abs(angle_difference(source_entity.rotation.y, _target_rot_y)) < 0.05:
         source_entity.rotation.y = _target_rot_y
@@ -363,9 +369,9 @@ func _complete_undeploy(source_entity: Node3D) -> void:
     var pid := PlayerManager.get_local_player_id()
     var source_health := _get_source_health(source_entity)
     var source_position := source_entity.global_position
-    var retain_selection := _is_selected(source_entity)
+    var retain_selection := _retain_selection
+    _retain_selection = false
 
-    _deselect_entity(source_entity)
     _unregister_building_cells(source_entity)
 
     var ps := get_node_or_null("/root/PrerequisiteSystem")
@@ -405,7 +411,9 @@ func _complete_undeploy(source_entity: Node3D) -> void:
     _transfer_health(source_entity, target_entity, source_health)
     _set_owner(target_entity, pid)
     if retain_selection:
-        _select_entity(target_entity)
+        _transfer_selection(source_entity, target_entity)
+    else:
+        _deselect_entity(source_entity)
     source_entity.queue_free()
 
 
@@ -431,23 +439,32 @@ func _transfer_health(_source_entity: Node3D, target_entity: Node3D, source_rati
     target_health.current_health = int(float(target_max) * source_ratio)
 
 
+func _is_selected(entity: Node3D) -> bool:
+    var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
+    return (
+        select_comp != null
+        and (select_comp.is_selected or SelectionManager.is_entity_selected(select_comp))
+    )
+
+
+func _capture_selection(entity: Node3D) -> void:
+    _retain_selection = _is_selected(entity)
+
+
 ## Deselect an entity from SelectionManager.
 func _deselect_entity(entity: Node3D) -> void:
     var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
     if select_comp:
+        select_comp.set_is_selected(false)
         SelectionManager.deselect_entity(select_comp)
 
 
-func _is_selected(entity: Node3D) -> bool:
-    var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
-    return select_comp != null and SelectionManager.is_entity_selected(select_comp)
-
-
-## Select an entity in SelectionManager (retains selection after deploy/undeploy).
-func _select_entity(entity: Node3D) -> void:
-    var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
-    if select_comp:
-        SelectionManager.add_entity(select_comp)
+## Clear the source selection before selecting the result entity.
+func _transfer_selection(source_entity: Node3D, target_entity: Node3D) -> void:
+    _deselect_entity(source_entity)
+    var target_select := target_entity.get_node_or_null("SelectComponent") as SelectComponent
+    if target_select:
+        SelectionManager.add_entity(target_select)
 
 
 ## Remove source entity from spatial hash and building manager.
