@@ -63,9 +63,19 @@
 
 ## 9. Retain Move Command After Undeploy
 
-- [ ] 9.1 Add `_pending_move_target` / `_has_pending_move` to DeployComponent
-- [ ] 9.2 Update `execute_undeploy` to accept optional `move_target` parameter
-- [ ] 9.3 Update `SelectionManager.request_move` to pass target to `execute_undeploy`
-- [ ] 9.4 Update `_do_undeploy` to issue move command after creation
-- [ ] 9.5 Add unit tests for pending move target
-- [ ] 9.6 Run lint, format, full test suite
+- [x] 9.1 Add `_pending_move_target` / `_has_pending_move` to DeployComponent
+- [x] 9.2 Update `execute_undeploy` to accept optional `move_target` parameter
+- [x] 9.3 Update `SelectionManager.request_move` to pass target to `execute_undeploy`
+- [x] 9.4 Update `_do_undeploy` to issue move command after creation
+- [x] 9.5 Add unit tests for pending move target
+- [x] 9.6 Run lint, format, full test suite
+
+## 10. Player Ownership Filtering
+
+- [x] 10.1 Add `_is_local_entity()` helper to SelectionManager
+- [x] 10.2 Add player_id filter to `request_move()` — skip enemy entities in all 3 loops
+- [x] 10.3 Add player_id filter to `request_harvest()` — skip enemy entities
+- [x] 10.4 Add player_id filter to `request_dock()` — skip enemy entities
+- [x] 10.5 Add player_id filter to `request_deploy()` — skip enemy entities
+- [x] 10.6 Add unit tests — enemy selectable but not commandable, _is_local_entity checks
+- [x] 10.7 Update OpenSpec spec with command filtering requirement

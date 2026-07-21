@@ -435,6 +435,8 @@ func _resolve_cursor_for_selection() -> CursorState.Type:
     for select_comp in selection_manager.selected_entities:
         if not is_instance_valid(select_comp):
             continue
+        if not selection_manager._is_local_entity(select_comp):
+            continue
         var entity := select_comp.get_parent() as Node3D
         if not entity:
             continue
