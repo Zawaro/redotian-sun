@@ -41,7 +41,7 @@ func _on_save_file_selected(path: String) -> void:
             "cell": cell_key,
         }
         if data.has("player_id"):
-            entity_entry["player_id"] = data["player_id"]
+            entity_entry["player_id"] = int(data["player_id"])
         if data.has("rotation_y"):
             entity_entry["rotation_y"] = data["rotation_y"]
         if data.has("current_health"):
