@@ -62,12 +62,20 @@ The system SHALL trigger building undeploy when the player left-clicks on ground
 - **AND** vehicle entity is created at `deploy_cell` offset with `undeploy_rotation` applied
 - **AND** health is transferred by ratio
 - **AND** owner is preserved
+- **AND** vehicle moves to the clicked ground position
+
+#### Scenario: Undeploy retains move command
+- **WHEN** player left-clicks on ground at position (10, 0, 5) with a ConYard selected
+- **AND** ConYard has `undeploys_into = "MCV"`
+- **THEN** ConYard undeploys into MCV
+- **AND** MCV issues a move command to position (10, 0, 5) after creation
 
 #### Scenario: Multiple buildings undeploy
 - **WHEN** player selects 3 buildings with DeployComponent and left-clicks on ground
 - **AND** all 3 have `undeploys_into` set
 - **THEN** all 3 buildings undeploy simultaneously
 - **AND** 3 vehicle entities are created at their respective `deploy_cell` offsets
+- **AND** each vehicle moves to the clicked ground position
 
 #### Scenario: Building without DeployComponent
 - **WHEN** player selects a building without DeployComponent and left-clicks on ground

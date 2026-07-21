@@ -148,7 +148,7 @@ func request_move(target_position: Vector3) -> void:
         if deploy and deploy.can_undeploy():
             var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
             if stats and stats.entity_type == EntityData.EntityType.BUILDING:
-                deploy.execute_undeploy(parent)
+                deploy.execute_undeploy(parent, target_position)
                 continue
 
         var offset := parent.global_position - center
