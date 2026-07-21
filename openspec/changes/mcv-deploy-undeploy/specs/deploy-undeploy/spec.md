@@ -142,3 +142,28 @@ The system SHALL add a DeployComponent to entities when `deploys_into` or `undep
 #### Scenario: Entity without deploy fields
 - **WHEN** EntityFactory creates an entity with `deploys_into = ""` and `undeploys_into = ""`
 - **THEN** no DeployComponent is added
+
+### Requirement: Player ownership filtering on commands
+The system SHALL only issue commands (move, harvest, dock, deploy, undeploy) to entities owned by the local player. Enemy and allied entities SHALL be selectable and hoverable for viewing, but SHALL NOT respond to commands. Entities with `player_id == -1` (unset) SHALL respond to commands for editor/test compatibility.
+
+#### Scenario: Enemy entity selectable but not commandable
+- **WHEN** player selects an entity owned by an enemy player
+- **THEN** the entity SHALL be added to the selection (viewable)
+- **AND** when player issues a move command, the enemy entity SHALL NOT move
+
+#### Scenario: Enemy entity in mixed selection
+- **WHEN** player selects both local and enemy entities and issues a move command
+- **THEN** only local entities SHALL move
+- **AND** enemy entities SHALL remain stationary
+
+#### Scenario: Local player entity commandable
+- **WHEN** player selects an entity owned by the local player and issues a command
+- **THEN** the command SHALL execute normally
+
+#### Scenario: Unset player_id entity commandable
+- **WHEN** player selects an entity with `player_id == -1` and issues a command
+- **THEN** the command SHALL execute (backward compatibility)
+
+#### Scenario: Deploy command filtered
+- **WHEN** player selects a mix of local and enemy MCVs and presses Ctrl+D
+- **THEN** only local MCVs SHALL deploy

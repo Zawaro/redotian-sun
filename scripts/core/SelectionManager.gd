@@ -111,6 +111,8 @@ func request_move(target_position: Vector3) -> void:
         var parent := ent.get_parent() as Node3D
         if _is_entity_transitioning(parent):
             continue
+        if not _is_local_entity(ent):
+            continue
         if is_instance_valid(parent):
             SpatialHash.instance.force_reserve(Pathfinder.world_to_cell(parent.global_position))
 
@@ -121,6 +123,8 @@ func request_move(target_position: Vector3) -> void:
             continue
         var parent := ent.get_parent() as Node3D
         if _is_entity_transitioning(parent):
+            continue
+        if not _is_local_entity(ent):
             continue
         if is_instance_valid(parent):
             center += parent.global_position
@@ -141,6 +145,8 @@ func request_move(target_position: Vector3) -> void:
         if not is_instance_valid(parent):
             continue
         if _is_entity_transitioning(parent):
+            continue
+        if not _is_local_entity(ent):
             continue
 
         # Check for deploy component on buildings — trigger undeploy instead of move
@@ -174,6 +180,8 @@ func request_harvest(target: Node3D) -> bool:
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent) or _is_entity_transitioning(parent):
             continue
+        if not _is_local_entity(ent):
+            continue
         var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
         if harvest:
             harvest.set_target_node(target)
@@ -194,6 +202,8 @@ func request_dock(target: Node3D) -> bool:
     for ent in selected_entities:
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent) or _is_entity_transitioning(parent):
+            continue
+        if not _is_local_entity(ent):
             continue
         var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
         if not harvest:
@@ -270,12 +280,24 @@ func get_selected_entities():
     return selected_entities
 
 
+func _is_local_entity(select_comp: SelectComponent) -> bool:
+    var parent := select_comp.get_parent() as Node3D
+    if not is_instance_valid(parent):
+        return false
+    var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
+    if not stats:
+        return true
+    return stats.player_id < 0 or stats.player_id == PlayerManager.get_local_player_id()
+
+
 func request_deploy() -> void:
     if selected_entities.is_empty():
         return
     for ent in selected_entities:
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent):
+            continue
+        if not _is_local_entity(ent):
             continue
         var deploy := parent.get_node_or_null("DeployComponent") as DeployComponent
         if not deploy or not deploy.can_deploy():
