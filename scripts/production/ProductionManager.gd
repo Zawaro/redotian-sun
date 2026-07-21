@@ -254,6 +254,10 @@ func _spawn_unit(entity_data: EntityData, player_id: int) -> void:
     if not unit:
         return
 
+    var stats := unit.get_node_or_null("StatsComponent") as StatsComponent
+    if stats:
+        stats.player_id = player_id
+
     var spawn_cell := _find_exit_cell(factory)
     var world_pos := Pathfinder.cell_to_world(spawn_cell)
     unit.position = world_pos

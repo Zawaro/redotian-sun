@@ -155,6 +155,10 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
         push_error("[BuildingManager] Failed to create building entity")
         return false
 
+    var stats := building.get_node_or_null("StatsComponent") as StatsComponent
+    if stats:
+        stats.player_id = pid
+
     var world_pos := _cell_origin_to_world(origin_cell, building_type.foundation)
     var max_height := _get_max_height(origin_cell, building_type.foundation)
     world_pos.y = max_height

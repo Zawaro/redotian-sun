@@ -99,14 +99,22 @@ func request_move(target_position: Vector3) -> void:
     SpatialHash.instance.clear_reservations()
 
     for ent in selected_entities:
+        if not is_instance_valid(ent):
+            continue
         var parent := ent.get_parent() as Node3D
+        if _is_entity_transitioning(parent):
+            continue
         if is_instance_valid(parent):
             SpatialHash.instance.force_reserve(Pathfinder.world_to_cell(parent.global_position))
 
     var center := Vector3.ZERO
     var count := 0
     for ent in selected_entities:
+        if not is_instance_valid(ent):
+            continue
         var parent := ent.get_parent() as Node3D
+        if _is_entity_transitioning(parent):
+            continue
         if is_instance_valid(parent):
             center += parent.global_position
             count += 1
@@ -117,10 +125,24 @@ func request_move(target_position: Vector3) -> void:
     _pending_moves.clear()
     _pending_index = 0
 
-    for ent in selected_entities:
+    # Snapshot — undeploy mutates selected_entities mid-loop
+    var snapshot := selected_entities.duplicate()
+    for ent in snapshot:
+        if not is_instance_valid(ent):
+            continue
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent):
             continue
+        if _is_entity_transitioning(parent):
+            continue
+
+        # Check for deploy component on buildings — trigger undeploy instead of move
+        var deploy := parent.get_node_or_null("DeployComponent") as DeployComponent
+        if deploy and deploy.can_undeploy():
+            var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
+            if stats and stats.entity_type == EntityData.EntityType.BUILDING:
+                deploy.execute_undeploy(parent)
+                continue
 
         var offset := parent.global_position - center
         var cell_offset := Vector2i(roundi(offset.x / CELL_SIZE), roundi(offset.z / CELL_SIZE))
@@ -143,7 +165,7 @@ func request_harvest(target: Node3D) -> bool:
     var issued := false
     for ent in selected_entities:
         var parent := ent.get_parent() as Node3D
-        if not is_instance_valid(parent):
+        if not is_instance_valid(parent) or _is_entity_transitioning(parent):
             continue
         var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
         if harvest:
@@ -164,7 +186,7 @@ func request_dock(target: Node3D) -> bool:
     var issued := false
     for ent in selected_entities:
         var parent := ent.get_parent() as Node3D
-        if not is_instance_valid(parent):
+        if not is_instance_valid(parent) or _is_entity_transitioning(parent):
             continue
         var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
         if not harvest:
@@ -190,6 +212,8 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
     var parent := select_comp.get_parent() as Node
     if not is_instance_valid(parent):
         return
+    if _is_entity_transitioning(parent as Node3D):
+        return
     if not parent.has_node("MovementController"):
         return
     var mc := parent.get_node("MovementController") as MovementController
@@ -213,9 +237,34 @@ func _fallback_target(target: Vector3) -> Vector3:
     return target
 
 
+func _is_entity_transitioning(entity: Node3D) -> bool:
+    if not is_instance_valid(entity):
+        return false
+    var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
+    return deploy != null and deploy.is_transitioning()
+
+
 func is_entity_selected(entity: SelectComponent) -> bool:
     return selected_entities.has(entity)
 
 
 func get_selected_entities():
     return selected_entities
+
+
+func request_deploy() -> void:
+    if selected_entities.is_empty():
+        return
+    for ent in selected_entities:
+        var parent := ent.get_parent() as Node3D
+        if not is_instance_valid(parent):
+            continue
+        var deploy := parent.get_node_or_null("DeployComponent") as DeployComponent
+        if not deploy or not deploy.can_deploy():
+            continue
+        # Check if entity is idle (for vehicles with MovementController)
+        var mc := parent.get_node_or_null("MovementController") as MovementController
+        if mc and mc._state != MovementController.State.IDLE:
+            push_warning("[SelectionManager] Cannot deploy — entity is moving")
+            continue
+        deploy.execute_deploy(parent)

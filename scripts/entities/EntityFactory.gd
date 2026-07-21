@@ -43,6 +43,7 @@ const FREE_UNIT_COMPONENT_SCRIPT: GDScript = preload(
 const DOCK_UNLOAD_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/DockUnloadComponent.gd"
 )
+const DEPLOY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DeployComponent.gd")
 
 var _entity_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
@@ -150,6 +151,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_dock_client_component(entity, data)
     _add_dock_unload_component(entity, data)
     _add_free_unit_component(entity, data)
+    _add_deploy_component(entity, data)
     if data.resource_category != "tiberium":
         _add_art_component(entity, data)
 
@@ -390,6 +392,15 @@ func _add_free_unit_component(entity: Node3D, data: EntityData) -> void:
         component.name = "FreeUnitComponent"
         component.set_script(FREE_UNIT_COMPONENT_SCRIPT)
         component.free_unit_id = data.free_unit
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_deploy_component(entity: Node3D, data: EntityData) -> void:
+    if not data.deploys_into.is_empty() or not data.undeploys_into.is_empty():
+        var component := Node.new()
+        component.name = "DeployComponent"
+        component.set_script(DEPLOY_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 

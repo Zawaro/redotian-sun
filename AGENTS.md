@@ -150,6 +150,7 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 - **Naming**: PascalCase for classes/scenes, snake_case for vars/funcs. Scene files mirror script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
 - **Autoloads**: 8 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
+- **Input roles**: Right-click = deselect / cancel only (clears selection, exits modes, cancels production). Left-click = select / act (selects entities, issues orders, starts production). Never issue unit commands on right-click.
 
 ## Research Tools
 
