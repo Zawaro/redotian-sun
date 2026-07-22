@@ -172,6 +172,12 @@ func _process(delta: float) -> void:
         if item.is_paused:
             continue
 
+        # Cheat mode: instant production
+        var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+        if debug_menu and debug_menu.no_build_time:
+            _complete_item(key, active)
+            continue
+
         var speed := _get_production_speed(key)
         var build_time: float = item.entity_data.get_build_time()
         if build_time <= 0.0:
@@ -250,18 +256,9 @@ func _spawn_unit(entity_data: EntityData, player_id: int) -> void:
         push_warning("[ProductionManager] No factory found for %s" % entity_data.id)
         return
 
-    var unit := EntityFactory.create_entity(entity_data.id)
-    if not unit:
-        return
-
-    var stats := unit.get_node_or_null("StatsComponent") as StatsComponent
-    if stats:
-        stats.player_id = player_id
-
     var spawn_cell := _find_exit_cell(factory)
     var world_pos := Pathfinder.cell_to_world(spawn_cell)
-    unit.position = world_pos
-    factory.get_parent().add_child(unit)
+    EntityPlacer.place_entity(entity_data, world_pos, player_id, factory.get_parent())
 
 
 func _find_primary_factory(_player_id: int, factory_type: String) -> Node3D:

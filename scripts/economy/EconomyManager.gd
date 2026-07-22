@@ -13,6 +13,11 @@ func can_afford(player_id: int, cost: int) -> bool:
 
 
 func deduct(player_id: int, cost: int, reason: String) -> bool:
+    # Cheat mode: no cost
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    if debug_menu and debug_menu.no_cost:
+        return true
+
     var data := _get_player_data(player_id)
     if data.credits < cost:
         insufficient_funds.emit(player_id, cost, data.credits)

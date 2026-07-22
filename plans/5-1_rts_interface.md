@@ -183,8 +183,126 @@ Context-sensitive cursors matching original Tiberian Sun. Placeholder SVGs, late
 - `scripts/components/{Combat,Harvest,Transport}Component.gd` + `MovementController.gd` — add get_cursor_for_target()
 - `assets/cursors/*.svg` — 28 placeholder SVGs
 
+## 7. Debug/Developer Menu
+
+**GitHub Issue**: #27 — feat: in-game debug menu
+
+### Overview
+In-game debug/developer panel toggled with ~ (tilde) key. Panel appears top-left as a dropdown overlay. Semi-transparent dark background, clean dev tool style. Game continues running underneath.
+
+### Toggle & Layout
+- **Key**: ~ (tilde/backtick, KEY_QUOTELEFT)
+- **Position**: Top-left, dropdown from top
+- **Size**: Medium (~400px wide, full height)
+- **Style**: White/light gray text on dark semi-transparent background
+- **Input**: Context-dependent — clicks inside panel captured, clicks outside pass through to game
+- **State**: All toggles persist across open/close
+
+### Accordion Sections (in order)
+1. **Overlays** — Checkboxes for 5 debug overlays
+2. **Lighting** — Sliders for all sun/sky/environment properties
+3. **State** — Game stats (entity counts, FPS, etc.)
+4. **Cheats** — Separate toggles for bypasses + action buttons
+5. **Entity Inspection** — Click-to-inspect any entity (shows all component data)
+
+### Debug Overlays (checkboxes)
+| Overlay | What it draws |
+|---------|--------------|
+| Pathfinding lines | Green/gray lines to movement target (extends existing DebugVisualizer) |
+| Spatial hash grid | Grid lines + occupancy counts from SpatialHashSingleton |
+| Entity bounds | Selection box outlines per entity |
+| Health bars | Color-coded bar above every entity (not just selected) |
+| Entity IDs | Floating text label per entity (display_name + id) |
+
+All overlays redraw every frame via new `DebugOverlay.gd` Node3D.
+
+### Lighting Controls (sliders)
+| Property | Source |
+|----------|--------|
+| Sun Elevation | LightPivot rotation.x (degrees) |
+| Sun Rotation | LightPivot rotation.y (degrees) |
+| Sun Intensity | DirectionalLight3D.energy |
+| Sun Color | DirectionalLight3D.light_color |
+| Shadow Strength | DirectionalLight3D shadow_opacity + shadow_blur |
+| Ambient Light | WorldEnvironment.ambient_light_energy |
+| Fog Density | WorldEnvironment.fog_density |
+| Sky Rotation | WorldEnvironment.sky_rotation |
+| Glow Intensity | WorldEnvironment.glow_intensity |
+
+Uses LightingData resource + LightingControls script (long-term: reusable by MapEditor and MapLoader).
+
+### Game State (display)
+| Stat | Source |
+|------|--------|
+| Entity count by type | get_tree().get_nodes_in_group("entities") grouped by entity_type |
+| Entity count by player | Grouped by player_id |
+| Spatial hash occupancy | SpatialHashSingleton.get_entries().size() |
+| Current selection | SelectionManager.get_selected_entities() |
+| Economy state | EconomyManager credits per player |
+| FPS | Engine.get_frames_per_second() |
+
+### Cheats (toggles + buttons)
+**Separate toggles (persist across open/close):**
+- No prerequisites — PrerequisiteSystem.can_build() always returns true
+- No build time — ProductionManager._process() multiplies delta by 999
+- No cost — EconomyManager.deduct() is no-op
+- Place anywhere (non-building entities) — BuildingManager.can_place() returns true for non-blocking cells
+
+**Action buttons (one-way):**
+- Clear All Paths — DebugVisualizer.clear_all()
+- Add 100k Credits — EconomyManager.add(player_id, 100000)
+
+Entity spawning repurposes existing build menu. When cheats are on, Sidebar shows all entities regardless of prerequisites, production is instant, placement uses BuildingManager flow.
+
+### Entity Inspection (click-to-inspect)
+- Click any entity when debug panel is open → Inspect section fills with data
+- Shows: Identity, Health, Combat, Movement, Position, Foundation, Power, Groups, EntityData fields
+- Click empty space → section clears
+- Read-only in v1 (no live-editing)
+
+### Architecture
+```
+DebugMenu.gd (panel UI, toggles, cheat flags)
+  ├── references DebugOverlay.gd (draws overlays)
+  ├── references LightingControls.gd (applies lighting)
+  └── DebugMenu flags (cheat bypasses)
+
+LightingControls.gd (owns LightPivot + WorldEnvironment)
+  ├── reads/writes LightingData.gd (serializable resource)
+  └── used by: DebugMenu, MapEditor (future), MapLoader
+
+LightingData.gd (resource class)
+  └── stored in MapConfig.gd as lighting field
+```
+
+### File Changes
+
+**New files (5):**
+| File | Purpose |
+|------|---------|
+| `scripts/data/LightingData.gd` | Resource class — all lighting properties |
+| `scripts/environment/LightingControls.gd` | Controls lighting nodes, apply()/get_data() |
+| `scripts/ui/DebugMenu.gd` | Panel controller script |
+| `scenes/ui/DebugMenu.tscn` | Panel scene |
+| `scripts/ui/DebugOverlay.gd` | Overlay drawing Node3D |
+
+**Modified files (9):**
+| File | Change |
+|------|--------|
+| `project.godot` | Add `toggle_debug` input action (KEY_QUOTELEFT) |
+| `scenes/maps/MapBase01.tscn` | Instance LightingControls, DebugMenu, DebugOverlay |
+| `scripts/data/MapConfig.gd` | Add `@export var lighting: LightingData` |
+| `scripts/maps/MapLoader.gd` | Load lighting from MapConfig, call LightingControls.apply() |
+| `scripts/ui/Sidebar.gd` | Gate _get_current_entities() on DebugMenu.no_prereqs |
+| `scripts/production/ProductionManager.gd` | Gate _process() on DebugMenu.no_build_time |
+| `scripts/core/PrerequisiteSystem.gd` | Gate can_build() on DebugMenu.no_prereqs |
+| `scripts/economy/EconomyManager.gd` | Gate deduct() on DebugMenu.no_cost, add add_credits() |
+| `scripts/hud/MouseHandler.gd` | Gate click handling on DebugMenu panel rect |
+
 ## Future Enhancements
 - Customizable UI scaling and positioning
 - Compact vs expanded view modes
 - Tooltip system for all UI elements
 - Accessibility features (colorblind modes, high contrast)
+- Debug menu: live-edit entity fields (v2)
+- Debug menu: MapEditor lighting integration
