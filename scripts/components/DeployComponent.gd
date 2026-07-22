@@ -99,7 +99,9 @@ func validate_deploy(source_entity: Node3D) -> bool:
 func calculate_deploy_origin(source_entity: Node3D, target_data: EntityData) -> Vector2i:
     var source_cell := Pathfinder.world_to_cell(source_entity.global_position)
     var foundation := target_data.foundation
-    return source_cell + Vector2i(-foundation.x / 2, -foundation.y / 2)
+    var half_x: int = int(foundation.x * 0.5)
+    var half_y: int = int(foundation.y * 0.5)
+    return source_cell - Vector2i(half_x, half_y)
 
 
 ## Check if all foundation cells are free (no buildings, blocked cells, or entities).
