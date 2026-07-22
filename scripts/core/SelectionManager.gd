@@ -154,15 +154,17 @@ func request_move(target_position: Vector3) -> void:
         if deploy and deploy.can_undeploy():
             var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
             if stats and stats.entity_type == EntityData.EntityType.BUILDING:
-                var offset := parent.global_position - center
-                var cell_offset := Vector2i(
-                    roundi(offset.x / CELL_SIZE), roundi(offset.z / CELL_SIZE)
+                var undeploy_offset := parent.global_position - center
+                var undeploy_cell_offset := Vector2i(
+                    roundi(undeploy_offset.x / CELL_SIZE), roundi(undeploy_offset.z / CELL_SIZE)
                 )
-                cell_offset.x = clampi(cell_offset.x, -2, 2)
-                cell_offset.y = clampi(cell_offset.y, -2, 2)
+                undeploy_cell_offset.x = clampi(undeploy_cell_offset.x, -2, 2)
+                undeploy_cell_offset.y = clampi(undeploy_cell_offset.y, -2, 2)
                 var undeploy_target := (
                     target_position
-                    + Vector3(cell_offset.x * CELL_SIZE, 0, cell_offset.y * CELL_SIZE)
+                    + Vector3(
+                        undeploy_cell_offset.x * CELL_SIZE, 0, undeploy_cell_offset.y * CELL_SIZE
+                    )
                 )
                 deploy.execute_undeploy(parent, undeploy_target)
                 continue

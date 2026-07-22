@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://ce077cqvy5f6p"]
+[gd_scene load_steps=12 format=3 uid="uid://ce077cqvy5f6p"]
 
 [ext_resource type="Script" uid="uid://3rhaj8dqrwil" path="res://scripts/core/SelectionManager.gd" id="1_drtgo"]
 [ext_resource type="PackedScene" uid="uid://b53rjho7dyptw" path="res://scenes/hud/Camera01.tscn" id="1_uw0ss"]
@@ -10,6 +10,8 @@
 [ext_resource type="PackedScene" path="res://scenes/components/GroundPlane.tscn" id="8_grndp"]
 [ext_resource type="PackedScene" path="res://scenes/ui/Sidebar.tscn" id="9_build"]
 [ext_resource type="PackedScene" path="res://scenes/environment/CloudShadowPlane.tscn" id="10_cloud"]
+[ext_resource type="Script" path="res://scripts/environment/LightingControls.gd" id="11_light"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DebugMenu.tscn" id="12_debug"]
 
 [node name="MapBase01" type="Node3D"]
 
@@ -40,3 +42,8 @@ visible_bounds_size = Vector2(512, 512)
 [node name="Sidebar" parent="." instance=ExtResource("9_build")]
 
 [node name="CloudShadowOverlay" parent="." instance=ExtResource("10_cloud")]
+
+[node name="LightingControls" type="Node3D" parent="."]
+script = ExtResource("11_light")
+
+[node name="DebugMenu" parent="." instance=ExtResource("12_debug")]

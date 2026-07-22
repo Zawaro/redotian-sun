@@ -1,0 +1,249 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/DebugMenu.gd" id="1_debug"]
+
+[node name="DebugMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_debug")
+
+[node name="Content" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 10.0
+offset_right = 410.0
+offset_bottom = 1080.0
+mouse_filter = 0
+
+[node name="Panel" type="PanelContainer" parent="Content"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="Content/Panel"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Content/Panel/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Content/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Debug Menu"
+
+[node name="StatsLabel" type="Label" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Stats loading..."
+
+[node name="OverlaysHeader" type="Button" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Overlays"
+toggle_mode = true
+
+[node name="OverlaysContent" type="VBoxContainer" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="CBPathfinding" type="CheckBox" parent="Content/Panel/Margin/VBox/OverlaysContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Pathfinding lines"
+
+[node name="CBSpatialHash" type="CheckBox" parent="Content/Panel/Margin/VBox/OverlaysContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Spatial hash grid"
+
+[node name="CBEntityBounds" type="CheckBox" parent="Content/Panel/Margin/VBox/OverlaysContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Entity bounds"
+
+[node name="CBHealthBars" type="CheckBox" parent="Content/Panel/Margin/VBox/OverlaysContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Health bars"
+
+[node name="CBEntityIds" type="CheckBox" parent="Content/Panel/Margin/VBox/OverlaysContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Entity IDs + Health"
+
+[node name="CBOccupiedCells" type="CheckBox" parent="Content/Panel/Margin/VBox/OverlaysContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Occupied cells"
+
+[node name="LightingHeader" type="Button" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Lighting"
+toggle_mode = true
+
+[node name="LightingContent" type="VBoxContainer" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="SunElevationLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Sun Elevation"
+
+[node name="SunElevationSlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = 0.0
+max_value = 90.0
+value = 36.0
+
+[node name="SunRotationLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Sun Rotation"
+
+[node name="SunRotationSlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = 0.0
+max_value = 360.0
+value = 0.0
+
+[node name="SunIntensityLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Sun Intensity"
+
+[node name="SunIntensitySlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = 0.0
+max_value = 5.0
+value = 1.0
+
+[node name="ShadowStrengthLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Shadow Strength"
+
+[node name="ShadowStrengthSlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = 0.0
+max_value = 1.0
+value = 0.9
+
+[node name="AmbientLightLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Ambient Light"
+
+[node name="AmbientLightSlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = 0.0
+max_value = 2.0
+value = 1.0
+
+[node name="FogDensityLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Fog Density"
+
+[node name="FogDensitySlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = 0.0
+max_value = 0.01
+value = 0.001
+
+[node name="SkyRotationLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Sky Rotation"
+
+[node name="SkyRotationSlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = -1.0
+max_value = 1.0
+step = 0.01
+value = -0.18
+
+[node name="GlowIntensityLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Glow Intensity"
+
+[node name="GlowIntensitySlider" type="HSlider" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+min_value = 0.0
+max_value = 2.0
+value = 0.1
+
+[node name="SunColorLabel" type="Label" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+text = "Sun Color"
+
+[node name="SunColorPicker" type="ColorPickerButton" parent="Content/Panel/Margin/VBox/LightingContent"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 32)
+color = Color(1, 1, 1, 1)
+
+[node name="CheatsHeader" type="Button" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cheats"
+toggle_mode = true
+
+[node name="CheatsContent" type="VBoxContainer" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="CBNoPrereqs" type="CheckBox" parent="Content/Panel/Margin/VBox/CheatsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "No prerequisites"
+
+[node name="CBNoBuildTime" type="CheckBox" parent="Content/Panel/Margin/VBox/CheatsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "No build time"
+
+[node name="CBNoCost" type="CheckBox" parent="Content/Panel/Margin/VBox/CheatsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "No cost"
+
+[node name="CBPlaceAnywhere" type="CheckBox" parent="Content/Panel/Margin/VBox/CheatsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Place anywhere"
+
+[node name="HSep" type="HSeparator" parent="Content/Panel/Margin/VBox/CheatsContent"]
+layout_mode = 2
+
+[node name="ClearPathsBtn" type="Button" parent="Content/Panel/Margin/VBox/CheatsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Clear All Paths"
+
+[node name="AddCreditsBtn" type="Button" parent="Content/Panel/Margin/VBox/CheatsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add 100k Credits"
+
+[node name="InspectHeader" type="Button" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Entity Inspection"
+toggle_mode = true
+
+[node name="InspectContent" type="VBoxContainer" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="InspectLabel" type="RichTextLabel" parent="Content/Panel/Margin/VBox/InspectContent"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 200)
+bbcode_enabled = true
+text = "Click an entity to inspect"

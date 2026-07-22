@@ -41,6 +41,10 @@ var _shader: ShaderMaterial = null
 var _sell_mode: bool = false
 var _repair_mode: bool = false
 
+## Debug "place anywhere" mode — direct entity placement bypassing production
+var _debug_place_mode: bool = false
+var _debug_skip_input: int = 0
+
 
 func _ready() -> void:
     _shader = ShaderMaterial.new()
@@ -98,6 +102,22 @@ func _gui_input(event: InputEvent) -> void:
             get_viewport().set_input_as_handled()
 
 
+func _process(_delta: float) -> void:
+    if not _debug_place_mode or not EntityPlacer.has_preview():
+        return
+    if _debug_skip_input > 0:
+        _debug_skip_input -= 1
+        _update_debug_preview_position()
+        return
+
+    _update_debug_preview_position()
+
+    if Input.is_action_just_pressed("select_entity"):
+        _finalize_debug_place()
+    elif Input.is_action_just_pressed("deselect_entity") or Input.is_key_pressed(KEY_ESCAPE):
+        exit_debug_place_mode()
+
+
 func _on_tab_pressed(tab_index: int) -> void:
     _switch_tab(tab_index)
 
@@ -132,8 +152,9 @@ func _get_current_entities() -> Array[EntityData]:
     for data in all:
         if not data.buildable:
             continue
-        # Buildings tab: show all buildable buildings (skip prerequisite check for buildings)
-        if entity_type == EntityData.EntityType.BUILDING:
+        if _debug_place_mode:
+            result.append(data)
+        elif entity_type == EntityData.EntityType.BUILDING:
             result.append(data)
         elif ps and ps.can_build(PlayerManager.get_local_player_id(), data):
             result.append(data)
@@ -434,14 +455,22 @@ func _on_cameo_gui_input(event: InputEvent, data: EntityData) -> void:
     if not (event is InputEventMouseButton and (event as InputEventMouseButton).pressed):
         return
     var mb := event as InputEventMouseButton
-    var pm := get_node("/root/ProductionManager") as ProductionManager
-    if not pm:
-        return
 
     if mb.button_index == MOUSE_BUTTON_LEFT:
+        var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+        if debug_menu and debug_menu.place_anywhere:
+            _start_debug_place(data)
+            get_viewport().set_input_as_handled()
+            return
+        var pm := get_node("/root/ProductionManager") as ProductionManager
+        if not pm:
+            return
         _handle_left_click(pm, data, mb.shift_pressed)
         get_viewport().set_input_as_handled()
     elif mb.button_index == MOUSE_BUTTON_RIGHT:
+        var pm := get_node("/root/ProductionManager") as ProductionManager
+        if not pm:
+            return
         _handle_right_click(pm, data, mb.shift_pressed)
         get_viewport().set_input_as_handled()
 
@@ -460,6 +489,13 @@ func _handle_left_click(pm: ProductionManager, data: EntityData, shift: bool) ->
         var item: ProductionQueue = items[i] as ProductionQueue
         if item.entity_data.id == data.id and item.is_paused:
             pm.resume_production(queue_key, i)
+            return
+
+    # No prerequisites + no factory → fall back to direct placement
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    if debug_menu and debug_menu.no_prereqs and not factory_type.is_empty():
+        if not _factory_exists_for_queue(factory_type):
+            _start_debug_place(data)
             return
 
     # Not in queue or not paused — start/stack production
@@ -565,3 +601,76 @@ func exit_action_mode() -> void:
     _repair_mode = false
     sell_button.button_pressed = false
     repair_button.button_pressed = false
+
+
+# --- Debug "place anywhere" mode ---
+
+
+func enter_debug_place_mode() -> void:
+    _debug_place_mode = true
+    _refresh_grid()
+
+
+func exit_debug_place_mode() -> void:
+    _debug_place_mode = false
+    EntityPlacer.cancel_preview()
+
+
+func _factory_exists_for_queue(factory_type: String) -> bool:
+    var bm := get_node("/root/BuildingManager") as BuildingManager
+    if not bm:
+        return false
+    for entry in bm.get_all_buildings():
+        var btype: EntityData = entry.get("type") as EntityData
+        if btype and btype.factory == factory_type:
+            return true
+    return false
+
+
+func _start_debug_place(data: EntityData) -> void:
+    exit_debug_place_mode()
+    _debug_place_mode = true
+    EntityPlacer.start_preview(data)
+    _debug_skip_input = 1
+
+
+func _finalize_debug_place() -> void:
+    if not EntityPlacer.has_preview():
+        exit_debug_place_mode()
+        return
+    EntityPlacer.finalize_preview(PlayerManager.get_local_player_id())
+    exit_debug_place_mode()
+
+
+func _update_debug_preview_position() -> void:
+    if not EntityPlacer.has_preview():
+        return
+    var cam := _get_camera_3d()
+    if not cam:
+        return
+    var mouse_pos := get_viewport().get_mouse_position()
+    var from := cam.project_ray_origin(mouse_pos)
+    var dir := cam.project_ray_normal(mouse_pos).normalized()
+    var ground_plane := Plane(Vector3.UP, 0.0)
+    var intersection = ground_plane.intersects_ray(from, dir)
+    if intersection == null:
+        return
+    var hit_pos := intersection as Vector3
+    for i in 4:
+        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
+        var adjusted := Plane(Vector3.UP, terrain_y)
+        var new_hit = adjusted.intersects_ray(from, dir)
+        if new_hit == null:
+            break
+        hit_pos = new_hit as Vector3
+    EntityPlacer.update_preview_position(hit_pos)
+
+
+func _get_camera_3d() -> Camera3D:
+    var root := get_tree().current_scene
+    if not root:
+        return null
+    var cam_ctrl := root.get_node_or_null("Camera")
+    if not cam_ctrl:
+        return null
+    return cam_ctrl.get_node_or_null("Camera3D") as Camera3D

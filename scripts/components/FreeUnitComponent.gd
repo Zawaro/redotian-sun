@@ -41,21 +41,21 @@ func _spawn_free_unit() -> void:
         _retry_timer = RETRY_INTERVAL
         return
 
-    var free_entity := EntityFactory.create_entity(free_unit_id)
-    if not free_entity:
+    var entity_data := EntityFactory.get_entity_data(free_unit_id)
+    if not entity_data:
         _retrying = true
         _retry_timer = RETRY_INTERVAL
         return
 
-    var stats := free_entity.get_node_or_null("StatsComponent") as StatsComponent
-    if stats:
-        var parent_stats := parent.get_node_or_null("StatsComponent") as StatsComponent
-        if parent_stats:
-            stats.player_id = parent_stats.player_id
-
+    var parent_stats := parent.get_node_or_null("StatsComponent") as StatsComponent
+    var player_id: int = parent_stats.player_id if parent_stats else 0
     var world_pos := Pathfinder.cell_to_world(found)
-    free_entity.position = world_pos
-    parent.get_parent().add_child(free_entity)
+    var parent_node := parent.get_parent()
+    var free_entity := EntityPlacer.place_entity(entity_data, world_pos, player_id, parent_node)
+    if not free_entity:
+        _retrying = true
+        _retry_timer = RETRY_INTERVAL
+        return
 
     var harvest := free_entity.get_node_or_null("HarvestComponent") as HarvestComponent
     if harvest:

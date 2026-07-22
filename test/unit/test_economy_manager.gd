@@ -3,6 +3,8 @@ extends Node
 # EconomyManager unit tests — credit tracking, add/deduct, signals
 # Note: tests operate on EconomyManager directly (assumes autoload or injected)
 
+var _test_passed := 0
+var _test_failed := 0
 var _em: Node = null
 var _last_credits_changed: Array = []
 var _last_insufficient: Array = []

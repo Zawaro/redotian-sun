@@ -96,6 +96,11 @@ func exit_build_mode() -> void:
 
 
 func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
+    # Cheat mode: place anywhere (skip cell checks, keep bounds check)
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    if debug_menu and debug_menu.place_anywhere:
+        return _is_in_bounds(origin_cell)
+
     var result: bool = true
 
     for dx in building_type.foundation.x:

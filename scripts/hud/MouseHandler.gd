@@ -59,6 +59,10 @@ func _process(_delta):
         _skip_release = true
         return
 
+    var sidebar := _find_sidebar()
+    if sidebar and sidebar.get("_debug_place_mode"):
+        return
+
     if _skip_release:
         if Input.is_action_just_released("select_entity"):
             _skip_release = false
@@ -73,8 +77,9 @@ func _process(_delta):
     # Skip input handling when hovering UI — but still update cursor below.
     var hovered := get_viewport().gui_get_hovered_control()
     var over_sidebar := _is_over_sidebar()
+    var over_debug := hovered and _is_inside_debug_menu(hovered)
 
-    if not over_sidebar and not (hovered and _is_inside_build_menu(hovered)):
+    if not over_sidebar and not over_debug and not (hovered and _is_inside_build_menu(hovered)):
         var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
 
         # Left mouse button just pressed — start drag tracking.
@@ -103,7 +108,6 @@ func _process(_delta):
 
         # Right mouse button is RESERVED for deselect/cancel only — never issue commands.
         if Input.is_action_just_released("deselect_entity"):
-            var sidebar := _find_sidebar()
             if sidebar and (sidebar.is_sell_mode() or sidebar.is_repair_mode()):
                 sidebar.exit_action_mode()
             elif selection_manager:
@@ -111,7 +115,6 @@ func _process(_delta):
 
         # ESC key — exit sell/repair mode.
         if Input.is_key_pressed(KEY_ESCAPE):
-            var sidebar := _find_sidebar()
             if sidebar and (sidebar.is_sell_mode() or sidebar.is_repair_mode()):
                 sidebar.exit_action_mode()
 
@@ -361,6 +364,14 @@ func _is_inside_build_menu(node: Node) -> bool:
     return false
 
 
+func _is_inside_debug_menu(node: Node) -> bool:
+    while is_instance_valid(node):
+        if node.name == "DebugMenu":
+            return true
+        node = node.get_parent()
+    return false
+
+
 func _find_sidebar() -> Node:
     var root := get_tree().current_scene
     if not root:
@@ -383,12 +394,22 @@ func _is_over_sidebar() -> bool:
     return sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position())
 
 
+func _is_over_debug_menu() -> bool:
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    if not debug_menu or not debug_menu._is_open:
+        return false
+    return debug_menu.content.get_global_rect().has_point(get_viewport().get_mouse_position())
+
+
 func _update_cursor() -> void:
     var cursor_type: CursorState.Type
 
     # Sidebar hover always shows system cursor
     var sidebar := _find_sidebar()
     if sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position()):
+        cursor_type = CursorState.Type.DEFAULT
+    # Debug menu hover always shows system cursor
+    elif _is_over_debug_menu():
         cursor_type = CursorState.Type.DEFAULT
     elif mouse_dragging and active_rect.size.x >= MOUSE_DRAG_THRESHOLD:
         cursor_type = CursorState.Type.SELECT
