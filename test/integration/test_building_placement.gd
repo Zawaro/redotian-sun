@@ -80,3 +80,28 @@ func test_pathfinder_avoids_building_cells():
     else:
         _test_failed += 1
         print("    FAIL: path includes building cell")
+
+
+func test_foundation_component_registers_cells():
+    SpatialHash.instance._building_cells.clear()
+    TerrainSystem.init_grid(32)
+    var entity := Node3D.new()
+    entity.name = "TestBuilding"
+    var fc := FoundationComponent.new()
+    fc.foundation = Vector2i(3, 3)
+    entity.add_child(fc)
+    entity.position = Vector3(11.0, 0.0, 11.0)
+    SpatialHash.instance.add_child(entity)
+    var sh := SpatialHash.instance
+    var has_44 := sh.get_building_cells().has(sh._cell_key(Vector2i(4, 4)))
+    var has_55 := sh.get_building_cells().has(sh._cell_key(Vector2i(5, 5)))
+    var has_66 := sh.get_building_cells().has(sh._cell_key(Vector2i(6, 6)))
+    SpatialHash.instance.remove_child(entity)
+    entity.free()
+    SpatialHash.instance._building_cells.clear()
+    if has_44 and has_55 and has_66:
+        _test_passed += 1
+        print("    PASS: FoundationComponent registers cells on _ready")
+    else:
+        _test_failed += 1
+        print("    FAIL: FC cells (%s,%s,%s)" % [has_44, has_55, has_66])
