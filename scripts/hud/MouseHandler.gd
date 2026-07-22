@@ -204,8 +204,6 @@ func _handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
                     var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
                     if deploy and deploy.can_deploy():
                         deploy.execute_deploy(entity)
-                    elif deploy and deploy.can_undeploy():
-                        deploy.execute_undeploy(entity)
                     else:
                         selection_manager.select_entity(select_comp, shift_pressed)
                 else:
