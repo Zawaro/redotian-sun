@@ -151,6 +151,7 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
 - **Autoloads**: 8 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
 - **Input roles**: Right-click = deselect / cancel only (clears selection, exits modes, cancels production). Left-click = select / act (selects entities, issues orders, starts production). Never issue unit commands on right-click.
+- **UID files**: Redot generates `.uid` files (e.g., `MyScript.gd.uid`) alongside scripts and scenes. These are valid parts of the codebase and MUST be committed. Always `git add` both the script and its `.uid` file together.
 
 ## Research Tools
 
