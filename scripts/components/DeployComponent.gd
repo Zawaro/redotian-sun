@@ -296,6 +296,7 @@ func _do_deploy(
     var target_entity := EntityFactory.create_entity(deploys_into)
     if not target_entity:
         push_error("[Deploy] Failed to create target entity: %s" % deploys_into)
+        source.queue_free()
         _state = DeployState.IDLE
         return
     var world_pos := _cell_origin_to_world(origin, target_data.foundation)
@@ -397,6 +398,7 @@ func _do_undeploy(
     var target_entity := EntityFactory.create_entity(undeploys_into)
     if not target_entity:
         push_error("[Deploy] Failed to create target entity: %s" % undeploys_into)
+        source.queue_free()
         _state = DeployState.IDLE
         return
     var target_cell := Pathfinder.world_to_cell(source_position) + deploy_cell
