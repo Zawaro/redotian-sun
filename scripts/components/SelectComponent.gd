@@ -17,6 +17,8 @@ const HEALTH_BAR_CUBE_SIZE = 0.33333333
 var health_bar: MeshInstance3D
 var _building_select_box: MeshInstance3D
 var _health_bar_grid: MeshInstance3D
+var _rally_line_mesh: MeshInstance3D = null
+var _rally_component: RallyPointComponent = null
 
 
 func _update_selection_shape():
@@ -229,6 +231,26 @@ func _ready():
             add_child(health_bar_grid)
             _health_bar_grid = health_bar_grid
 
+    # Rally line — green line from building center to rally point
+    var building := get_parent()
+    if building:
+        _rally_component = (building.get_node_or_null("RallyPointComponent") as RallyPointComponent)
+        if _rally_component:
+            _rally_component.rally_point_changed.connect(_on_rally_point_changed)
+            var mesh := MeshInstance3D.new()
+            mesh.name = "RallyLine"
+            mesh.mesh = ImmediateMesh.new()
+            mesh.cast_shadow = MeshInstance3D.SHADOW_CASTING_SETTING_OFF
+            mesh.visible = false
+            var mat := ORMMaterial3D.new()
+            mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+            mat.albedo_color = Color(0.0, 1.0, 0.0, 0.9)
+            mat.no_depth_test = true
+            mat.render_priority = 100
+            mesh.material_override = mat
+            add_child(mesh)
+            _rally_line_mesh = mesh
+
     _update_visibility()
 
 
@@ -288,5 +310,58 @@ func _update_visibility():
     if _health_bar_grid:
         _health_bar_grid.visible = vis
     for child in get_children():
-        if child != _building_select_box and child != health_bar and child != _health_bar_grid:
+        if (
+            child != _building_select_box
+            and child != health_bar
+            and child != _health_bar_grid
+            and child != _rally_line_mesh
+        ):
             child.visible = vis
+    if _rally_line_mesh:
+        var has_rally := is_selected and _rally_component and _rally_component.has_rally_point()
+        _rally_line_mesh.visible = has_rally
+        if has_rally:
+            _redraw_rally_line()
+
+
+func _on_rally_point_changed(_path: Array) -> void:
+    if _rally_line_mesh:
+        var has_rally := is_selected and _rally_component and _rally_component.has_rally_point()
+        _rally_line_mesh.visible = has_rally
+        if has_rally:
+            _redraw_rally_line()
+
+
+func _redraw_rally_line() -> void:
+    if not _rally_line_mesh or not _rally_component:
+        return
+    var immesh := _rally_line_mesh.mesh as ImmediateMesh
+    if not immesh:
+        return
+    immesh.clear_surfaces()
+
+    var rally_pos := _rally_component.get_target_position()
+    var local_rally := to_local(rally_pos)
+
+    var mat := _rally_line_mesh.material_override as ORMMaterial3D
+    immesh.surface_begin(Mesh.PRIMITIVE_LINES, mat)
+    immesh.surface_add_vertex(Vector3.ZERO)
+    immesh.surface_add_vertex(local_rally)
+    immesh.surface_end()
+
+    # Diamond marker at rally point
+    var cs := 2.0
+    var half := cs * 0.3
+    var diamond := PackedVector3Array(
+        [
+            local_rally + Vector3(half, 0, 0),
+            local_rally + Vector3(0, 0, half),
+            local_rally + Vector3(-half, 0, 0),
+            local_rally + Vector3(0, 0, -half),
+            local_rally + Vector3(half, 0, 0),
+        ]
+    )
+    immesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, mat)
+    for p in diamond:
+        immesh.surface_add_vertex(p)
+    immesh.surface_end()

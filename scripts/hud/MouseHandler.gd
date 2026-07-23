@@ -167,6 +167,16 @@ func _handle_single_click(mouse_pos: Vector2, shift_pressed: bool):
     if not camera or not camera.is_current():
         return
 
+    # Alt + Left Click → set rally point on selected building
+    if Input.is_key_pressed(KEY_ALT):
+        var ground_pos := _get_ground_position_at_mouse()
+        if ground_pos != Vector3.INF and selection_manager:
+            selection_manager.request_set_rally_point(ground_pos)
+    else:
+        _handle_left_click_normal(camera, mouse_pos, shift_pressed)
+
+
+func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_pressed: bool) -> void:
     var from = camera.project_ray_origin(mouse_pos)
     var dir := camera.project_ray_normal(mouse_pos).normalized()
     var space_state = camera.get_world_3d().direct_space_state
