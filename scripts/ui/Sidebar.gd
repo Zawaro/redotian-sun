@@ -154,8 +154,6 @@ func _get_current_entities() -> Array[EntityData]:
             continue
         if _debug_place_mode:
             result.append(data)
-        elif entity_type == EntityData.EntityType.BUILDING:
-            result.append(data)
         elif ps and ps.can_build(PlayerManager.get_local_player_id(), data):
             result.append(data)
         elif not ps:

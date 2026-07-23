@@ -22,4 +22,4 @@ owner = PackedStringArray("GDI")
 threat_posed = 30
 buildable = true
 build_time = 72.0
-prerequisite = PackedStringArray("GDI_WAR_FACTORY", "GDI_TECH_CENTER")
+prerequisite_necessary = PackedStringArray("GDI_WAR_FACTORY", "GDI_TECH_CENTER")

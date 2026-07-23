@@ -24,6 +24,6 @@ threat_posed = 30
 buildable = true
 foundation = Vector2i(2, 2)
 build_time = 46.8
-prerequisite = PackedStringArray("NOD_WAR_FACTORY", "NOD_RADAR")
+prerequisite_necessary = PackedStringArray("NOD_WAR_FACTORY", "NOD_RADAR")
 crusher = true
 weight = 3.5

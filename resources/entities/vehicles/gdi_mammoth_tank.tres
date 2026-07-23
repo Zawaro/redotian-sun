@@ -24,6 +24,6 @@ threat_posed = 50
 buildable = true
 foundation = Vector2i(2, 2)
 build_time = 96.0
-prerequisite = PackedStringArray("GDI_WAR_FACTORY", "GDI_TECH_CENTER")
+prerequisite_necessary = PackedStringArray("GDI_WAR_FACTORY", "GDI_TECH_CENTER")
 crusher = true
 weight = 4.0

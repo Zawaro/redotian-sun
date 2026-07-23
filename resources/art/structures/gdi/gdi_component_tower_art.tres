@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GDI_GUARD_TOWER"
-model_path = "res://assets/models/prism_tower01.glb"
+id = "GDI_COMPONENT_TOWER"
+placeholder_size = Vector3(2.0, 3.0, 2.0)
