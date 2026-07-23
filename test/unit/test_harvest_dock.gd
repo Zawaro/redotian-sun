@@ -12,7 +12,7 @@ var _timeout_docker_ref: Node = null
 # --- helpers ---
 
 
-func _make_entity(dock_id: String = "PROC", storage: int = 700) -> Node3D:
+func _make_entity(dock_id: String = "GDI_REFINERY", storage: int = 700) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestHarvester"
 
@@ -35,7 +35,9 @@ func _make_entity(dock_id: String = "PROC", storage: int = 700) -> Node3D:
 
 
 func _make_dock_entity(
-    dock_rotation: float = -90.0, _foundation: Vector2i = Vector2i(4, 3), _dock_id: String = "PROC"
+    dock_rotation: float = -90.0,
+    _foundation: Vector2i = Vector2i(4, 3),
+    _dock_id: String = "GDI_REFINERY"
 ) -> Node3D:
     var dock_entity := Node3D.new()
     dock_entity.name = "TestRefinery"
@@ -74,7 +76,7 @@ func _get_dock_unload(dock_entity: Node3D) -> DockUnloadComponent:
 # These helpers manually set what _ready() would compute.
 
 
-func _init_harvest(_harvest: HarvestComponent, _dock_id: String = "PROC") -> void:
+func _init_harvest(_harvest: HarvestComponent, _dock_id: String = "GDI_REFINERY") -> void:
     pass
 
 
@@ -361,18 +363,18 @@ func test_request_dock_succeeds_when_empty():
 
 
 func test_request_dock_fails_when_occupied():
-    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "PROC")
+    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "GDI_REFINERY")
     add_child(dock_entity)
-    var entity_a := _make_entity("PROC")
+    var entity_a := _make_entity("GDI_REFINERY")
     add_child(entity_a)
-    var entity_b := _make_entity("PROC")
+    var entity_b := _make_entity("GDI_REFINERY")
     add_child(entity_b)
 
     var dock_comp := _get_dock_comp(dock_entity)
     var harvest_a := _get_harvest(entity_a)
     var harvest_b := _get_harvest(entity_b)
-    _init_harvest(harvest_a, "PROC")
-    _init_harvest(harvest_b, "PROC")
+    _init_harvest(harvest_a, "GDI_REFINERY")
+    _init_harvest(harvest_b, "GDI_REFINERY")
     _init_dock(dock_comp, dock_entity)
 
     dock_comp.request_dock(harvest_a)
@@ -416,18 +418,18 @@ func test_request_dock_returns_true_for_same_docker():
 
 
 func test_request_dock_queues_second_docker():
-    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "PROC")
+    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "GDI_REFINERY")
     add_child(dock_entity)
-    var entity_a := _make_entity("PROC")
+    var entity_a := _make_entity("GDI_REFINERY")
     add_child(entity_a)
-    var entity_b := _make_entity("PROC")
+    var entity_b := _make_entity("GDI_REFINERY")
     add_child(entity_b)
 
     var dock_comp := _get_dock_comp(dock_entity)
     var harvest_a := _get_harvest(entity_a)
     var harvest_b := _get_harvest(entity_b)
-    _init_harvest(harvest_a, "PROC")
-    _init_harvest(harvest_b, "PROC")
+    _init_harvest(harvest_a, "GDI_REFINERY")
+    _init_harvest(harvest_b, "GDI_REFINERY")
     _init_dock(dock_comp, dock_entity)
 
     dock_comp.request_dock(harvest_a)
@@ -482,18 +484,18 @@ func test_leave_dock_releases_cell():
 
 
 func test_leave_dock_reserves_cell_for_next_docker():
-    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "PROC")
+    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "GDI_REFINERY")
     add_child(dock_entity)
-    var entity_a := _make_entity("PROC")
+    var entity_a := _make_entity("GDI_REFINERY")
     add_child(entity_a)
-    var entity_b := _make_entity("PROC")
+    var entity_b := _make_entity("GDI_REFINERY")
     add_child(entity_b)
 
     var dock_comp := _get_dock_comp(dock_entity)
     var harvest_a := _get_harvest(entity_a)
     var harvest_b := _get_harvest(entity_b)
-    _init_harvest(harvest_a, "PROC")
-    _init_harvest(harvest_b, "PROC")
+    _init_harvest(harvest_a, "GDI_REFINERY")
+    _init_harvest(harvest_b, "GDI_REFINERY")
     _init_dock(dock_comp, dock_entity)
 
     dock_comp.request_dock(harvest_a)
@@ -521,18 +523,18 @@ func test_leave_dock_reserves_cell_for_next_docker():
 
 
 func test_leave_dock_emits_slot_available():
-    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "PROC")
+    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "GDI_REFINERY")
     add_child(dock_entity)
-    var entity_a := _make_entity("PROC")
+    var entity_a := _make_entity("GDI_REFINERY")
     add_child(entity_a)
-    var entity_b := _make_entity("PROC")
+    var entity_b := _make_entity("GDI_REFINERY")
     add_child(entity_b)
 
     var dock_comp := _get_dock_comp(dock_entity)
     var harvest_a := _get_harvest(entity_a)
     var harvest_b := _get_harvest(entity_b)
-    _init_harvest(harvest_a, "PROC")
-    _init_harvest(harvest_b, "PROC")
+    _init_harvest(harvest_a, "GDI_REFINERY")
+    _init_harvest(harvest_b, "GDI_REFINERY")
     _init_dock(dock_comp, dock_entity)
 
     dock_comp.request_dock(harvest_a)
@@ -586,18 +588,18 @@ func test_leave_dock_no_slot_available_when_queue_empty():
 
 
 func test_full_dock_cycle_leave_transfers_to_next():
-    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "PROC")
+    var dock_entity := _make_dock_entity(-90.0, Vector2i(4, 3), "GDI_REFINERY")
     add_child(dock_entity)
-    var entity_a := _make_entity("PROC")
+    var entity_a := _make_entity("GDI_REFINERY")
     add_child(entity_a)
-    var entity_b := _make_entity("PROC")
+    var entity_b := _make_entity("GDI_REFINERY")
     add_child(entity_b)
 
     var dock_comp := _get_dock_comp(dock_entity)
     var harvest_a := _get_harvest(entity_a)
     var harvest_b := _get_harvest(entity_b)
-    _init_harvest(harvest_a, "PROC")
-    _init_harvest(harvest_b, "PROC")
+    _init_harvest(harvest_a, "GDI_REFINERY")
+    _init_harvest(harvest_b, "GDI_REFINERY")
     _init_dock(dock_comp, dock_entity)
 
     dock_comp.request_dock(harvest_a)

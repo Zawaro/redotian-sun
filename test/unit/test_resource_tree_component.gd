@@ -13,7 +13,7 @@ func _make_tree_comp() -> ResourceTreeComponent:
 func test_configure_sets_fields():
     var tree := _make_tree_comp()
     var data := EntityData.new()
-    data.spawned_entity_id = "TIB"
+    data.spawned_entity_id = "TIBERIUM_RIPARIUS"
     data.radius_cells = 10
     data.resource_type_id = "tiberium_blue"
     data.node_count = 8
@@ -22,7 +22,7 @@ func test_configure_sets_fields():
     data.resource_regrowth_rate = 1.5
     tree.configure(data)
     if (
-        tree.spawned_entity_id == "TIB"
+        tree.spawned_entity_id == "TIBERIUM_RIPARIUS"
         and tree.radius_cells == 10
         and tree.resource_type_id == "tiberium_blue"
         and tree.node_count == 8
