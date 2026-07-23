@@ -22,5 +22,4 @@ rotation_speed = 180.0
 owner = PackedStringArray("Nod")
 threat_posed = 0
 buildable = false
-foundation = Vector2i(2, 3)
 weight = 3.0

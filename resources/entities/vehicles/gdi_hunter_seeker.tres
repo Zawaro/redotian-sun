@@ -22,5 +22,4 @@ rotation_speed = 180.0
 owner = PackedStringArray("GDI")
 threat_posed = 100
 buildable = false
-foundation = Vector2i(1, 1)
 weight = 0.5

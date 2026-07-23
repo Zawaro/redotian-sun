@@ -22,7 +22,6 @@ rotation_speed = 180.0
 owner = PackedStringArray("GDI")
 threat_posed = 30
 buildable = true
-foundation = Vector2i(2, 2)
 build_time = 48.0
 prerequisite_necessary = PackedStringArray("GDI_WAR_FACTORY", "GDI_RADAR")
 weight = 3.0

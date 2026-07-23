@@ -22,7 +22,6 @@ rotation_speed = 180.0
 owner = PackedStringArray("Nod")
 threat_posed = 0
 buildable = true
-foundation = Vector2i(2, 3)
 build_time = 144.0
 prerequisite = PackedStringArray("NOD_CONSTRUCTION_YARD")
 deploys_into = "NOD_CONSTRUCTION_YARD"

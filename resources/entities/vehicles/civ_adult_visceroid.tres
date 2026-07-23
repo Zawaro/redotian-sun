@@ -22,4 +22,3 @@ rotation_speed = 180.0
 owner = PackedStringArray("GDI", "Nod")
 threat_posed = 20
 buildable = false
-foundation = Vector2i(1, 1)
