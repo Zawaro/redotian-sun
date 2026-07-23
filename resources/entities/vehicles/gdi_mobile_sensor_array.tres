@@ -24,5 +24,5 @@ threat_posed = 0
 buildable = true
 foundation = Vector2i(2, 2)
 build_time = 48.0
-prerequisite = PackedStringArray("GDI_WAR_FACTORY", "GDI_RADAR")
+prerequisite_necessary = PackedStringArray("GDI_WAR_FACTORY", "GDI_RADAR")
 weight = 2.0

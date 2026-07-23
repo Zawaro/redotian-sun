@@ -23,4 +23,4 @@ threat_posed = 50
 buildable = true
 buildable_queue = "InfantryType"
 build_time = 168.0
-prerequisite = PackedStringArray("NOD_HAND_OF_NOD", "NOD_TECH_CENTER")
+prerequisite_necessary = PackedStringArray("NOD_HAND_OF_NOD", "NOD_TECH_CENTER")
