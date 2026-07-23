@@ -89,17 +89,16 @@ func _input(event: InputEvent) -> void:
         _switch_tab(2)
     elif event.is_action_pressed("tab_special"):
         _switch_tab(3)
-
-
-func _gui_input(event: InputEvent) -> void:
-    if event is InputEventMouseButton:
+    elif event is InputEventMouseButton:
         var mb := event as InputEventMouseButton
         if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-            _on_scroll_up()
-            get_viewport().set_input_as_handled()
+            if get_global_rect().has_point(get_viewport().get_mouse_position()):
+                _on_scroll_up()
+                get_viewport().set_input_as_handled()
         elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-            _on_scroll_down()
-            get_viewport().set_input_as_handled()
+            if get_global_rect().has_point(get_viewport().get_mouse_position()):
+                _on_scroll_down()
+                get_viewport().set_input_as_handled()
 
 
 func _process(_delta: float) -> void:
