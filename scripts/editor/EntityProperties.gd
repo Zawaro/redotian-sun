@@ -311,15 +311,15 @@ func _build_factory_fields(node: Node3D) -> void:
     var factory := node.get_node_or_null("FactoryComponent") as FactoryComponent
     if not factory:
         return
-    if factory.factory_type.is_empty():
+    if factory.produces.is_empty():
         return
     var section := Label.new()
     section.text = "Factory"
     section.add_theme_font_size_override("font_size", 13)
     _vbox.add_child(section)
-    _add_read_only_row("Type", factory.factory_type)
-    if not factory.free_unit.is_empty():
-        _add_read_only_row("Free Unit", factory.free_unit)
+    _add_read_only_row("Produces", ", ".join(factory.produces))
+    if factory.is_primary:
+        _add_read_only_row("Primary", "Yes")
     _add_separator()
 
 
