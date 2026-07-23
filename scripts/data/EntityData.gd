@@ -165,6 +165,18 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 ## Entity ID of the free unit spawned when this building is placed (e.g., "GDI_HARVESTER").
 @export var free_unit: String = ""
 
+## Exit — where units spawn and exit from this building.
+## Local-space offset where unit appears inside building (Vector3.ZERO = no exit).
+@export var spawn_offset: Vector3 = Vector3.ZERO
+## Local-space offset where unit exits to (e.g., Vector3(0, 0, 2) = south side).
+@export var exit_offset: Vector3 = Vector3.ZERO
+## Rotation in degrees the unit faces after exit.
+@export var exit_facing: int = 0
+## Seconds to wait after spawn before unit starts moving (door animation time).
+@export var exit_delay: float = 0.0
+## Whether this building supports rally points for units after exit.
+@export var has_rally_point: bool = false
+
 ## Transport — unit-side cargo and docking configuration.
 ## Number of infantry passengers this unit can carry.
 @export var passengers: int = 0

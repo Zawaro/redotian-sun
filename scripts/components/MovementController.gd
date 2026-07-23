@@ -42,7 +42,7 @@ func _num_segments() -> int:
     return maxi(0, _waypoints.size() - 1)
 
 
-func set_target_position(target: Vector3) -> void:
+func set_target_position(target: Vector3, unblock_buildings: bool = false) -> void:
     if (
         is_nan(target.x)
         or is_nan(target.y)
@@ -59,7 +59,7 @@ func set_target_position(target: Vector3) -> void:
         var free := _find_nearest_free_cell(target_cell)
         target = Pathfinder.cell_to_world(free)
 
-    var blocked := _build_blocked_cells()
+    var blocked := _build_blocked_cells(unblock_buildings)
     var path: PackedVector3Array = Pathfinder.find_path(_parent.global_position, target, blocked)
 
     if path.is_empty():
@@ -294,14 +294,18 @@ func _get_spline_tangent(t: float) -> Vector3:
     return SplineUtil.tangent(_waypoints, t)
 
 
-func _build_blocked_cells() -> Dictionary:
+func _build_blocked_cells(unblock_buildings: bool = false) -> Dictionary:
     var result: Dictionary = SpatialHash.instance.get_blocked_cells().duplicate()
     var cell := Pathfinder.world_to_cell(_parent.global_position)
     result.erase(Pathfinder._cell_key(cell))
-    var building_cells := SpatialHash.instance.get_building_cells()
-    for key in SpatialHash.instance.get_reserved():
-        if not building_cells.has(key):
+    if unblock_buildings:
+        for key in SpatialHash.instance.get_building_cells():
             result.erase(key)
+    else:
+        var building_cells := SpatialHash.instance.get_building_cells()
+        for key in SpatialHash.instance.get_reserved():
+            if not building_cells.has(key):
+                result.erase(key)
     return result
 
 
@@ -356,6 +360,17 @@ func _scatter_blockers() -> void:
                     var mc := entry.mc as MovementController
                     if mc and mc._state == State.IDLE and mc != self:
                         mc.set_target_position(Pathfinder.cell_to_world(push_cell))
+
+
+func nudge_from_cell(blocking_cell: Vector2i) -> bool:
+    var entries := SpatialHash.instance.get_entries(blocking_cell)
+    for entry in entries:
+        var mc := entry.mc as MovementController
+        if mc and mc._state == State.IDLE:
+            var free := _find_nearest_free_cell(blocking_cell)
+            mc.set_target_position(Pathfinder.cell_to_world(free))
+            return true
+    return false
 
 
 func _snap_to_terrain() -> void:

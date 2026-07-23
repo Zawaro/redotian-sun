@@ -19,6 +19,10 @@ const FOUNDATION_COMPONENT_SCRIPT: GDScript = preload(
 const POWER_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/PowerComponent.gd")
 const RADAR_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/RadarComponent.gd")
 const FACTORY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/FactoryComponent.gd")
+const EXIT_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/ExitComponent.gd")
+const RALLY_POINT_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/RallyPointComponent.gd"
+)
 const TRANSPORT_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/TransportComponent.gd"
 )
@@ -152,6 +156,8 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_dock_unload_component(entity, data)
     _add_free_unit_component(entity, data)
     _add_deploy_component(entity, data)
+    _add_exit_component(entity, data)
+    _add_rally_point_component(entity, data)
     if data.resource_category != "tiberium":
         _add_art_component(entity, data)
 
@@ -264,10 +270,32 @@ func _add_radar_component(entity: Node3D, data: EntityData) -> void:
 
 
 func _add_factory_component(entity: Node3D, data: EntityData) -> void:
-    if not data.factory.is_empty():
+    if not data.buildable_queue.is_empty():
         var component := Node.new()
         component.name = "FactoryComponent"
         component.set_script(FACTORY_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_exit_component(entity: Node3D, data: EntityData) -> void:
+    if data.exit_offset != Vector3.ZERO or data.spawn_offset != Vector3.ZERO:
+        var component := Node.new()
+        component.name = "ExitComponent"
+        component.set_script(EXIT_COMPONENT_SCRIPT)
+        component.spawn_offset = data.spawn_offset
+        component.exit_offset = data.exit_offset
+        component.exit_facing = data.exit_facing
+        component.exit_delay = data.exit_delay
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_rally_point_component(entity: Node3D, data: EntityData) -> void:
+    if data.has_rally_point:
+        var component := Node.new()
+        component.name = "RallyPointComponent"
+        component.set_script(RALLY_POINT_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 
