@@ -14,9 +14,17 @@ class_name WarheadData extends Resource
 @export var kill_animation: String = ""
 
 ## Armor effectiveness multipliers: [none, wood, light, heavy, concrete].
-## Each value is a percentage (0.0–1.0) of base damage applied to that armor type.
-## Example: SA = [1.0, 0.6, 0.4, 0.25, 0.1] — shreds infantry, tickles tanks.
-@export var armor_damage_multipliers: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 1.0, 1.0, 1.0])
+## Each value is a percentage (0.0–1.0) of base damage applied to that
+## armor type. Example: SA = [1.0, 0.6, 0.4, 0.25, 0.1].
+@export var armor_damage_multipliers: PackedFloat32Array = PackedFloat32Array(
+    [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+    ]
+)
 
 ## Terrain/effect flags from rules.ini
 @export var can_damage_walls: bool = false  ## Can damage walls
@@ -52,5 +60,5 @@ func validate() -> PackedStringArray:
     if damage_modifier < 0.0:
         errors.append("%s: damage_modifier must be >= 0" % id)
     if armor_damage_multipliers.size() != 5:
-        errors.append("%s: armor_damage_multipliers must have 5 elements [none,wood,light,heavy,concrete]" % id)
+        errors.append("%s: armor_damage_multipliers must have 5 elements" % id)
     return errors
