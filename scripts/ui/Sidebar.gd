@@ -321,6 +321,29 @@ func _create_cameo(data: EntityData) -> Button:
         flicker.tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.4)
         _flicker_tweens[btn] = flicker
 
+    # Ready-to-spawn overlay for units that failed to spawn
+    elif _is_ready_to_spawn(data):
+        var ready_label := Label.new()
+        ready_label.text = "Ready"
+        ready_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        ready_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+        ready_label.anchor_left = 0.0
+        ready_label.anchor_top = 0.0
+        ready_label.anchor_right = 1.0
+        ready_label.anchor_bottom = 0.65
+        ready_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+        ready_label.grow_vertical = Control.GROW_DIRECTION_BOTH
+        ready_label.add_theme_font_size_override("font_size", 16)
+        ready_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.5))
+        ready_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        btn.add_child(ready_label)
+
+        var flicker := create_tween()
+        flicker.set_loops()
+        flicker.tween_property(btn, "modulate", Color(1.3, 1.3, 1.3, 1.0), 0.4)
+        flicker.tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.4)
+        _flicker_tweens[btn] = flicker
+
     # On hold overlay for paused items
     elif _is_paused(data):
         var hold_label := Label.new()
@@ -386,6 +409,18 @@ func _is_ready_to_place(data: EntityData) -> bool:
     var ready_buildings: Array = pm.get_ready_buildings(PlayerManager.get_local_player_id())
     for item in ready_buildings:
         if (item as EntityData).id == data.id:
+            return true
+    return false
+
+
+func _is_ready_to_spawn(data: EntityData) -> bool:
+    var pm := get_node("/root/ProductionManager")
+    if not pm:
+        return false
+    var ready_spawns: Array = pm.get_ready_spawns(PlayerManager.get_local_player_id())
+    for entry in ready_spawns:
+        var ed: EntityData = (entry as Dictionary)["entity_data"] as EntityData
+        if ed.id == data.id:
             return true
     return false
 
@@ -479,6 +514,11 @@ func _handle_left_click(pm: ProductionManager, data: EntityData, shift: bool) ->
         pm.place_ready_building(PlayerManager.get_local_player_id(), data.id)
         return
 
+    # Unit ready to spawn → retry spawn
+    if _is_ready_to_spawn(data):
+        pm.retry_ready_spawn(PlayerManager.get_local_player_id(), data.id)
+        return
+
     # Check if item is already in queue — resume if paused
     var factory_type := data.buildable_queue
     var queue_key: String = pm.get_queue_key(PlayerManager.get_local_player_id(), factory_type)
@@ -505,6 +545,11 @@ func _handle_right_click(pm: ProductionManager, data: EntityData, shift: bool) -
     # Ready-to-place building → cancel and refund
     if data.entity_type == EntityData.EntityType.BUILDING and _is_ready_to_place(data):
         pm.cancel_ready_building(PlayerManager.get_local_player_id(), data.id)
+        return
+
+    # Ready-to-spawn unit → cancel and refund
+    if _is_ready_to_spawn(data):
+        pm.cancel_ready_spawn(PlayerManager.get_local_player_id(), data.id)
         return
 
     var factory_type := data.buildable_queue
@@ -615,12 +660,12 @@ func exit_debug_place_mode() -> void:
 
 
 func _factory_exists_for_queue(factory_type: String) -> bool:
-    var bm := get_node("/root/BuildingManager") as BuildingManager
-    if not bm:
-        return false
-    for entry in bm.get_all_buildings():
-        var btype: EntityData = entry.get("type") as EntityData
-        if btype and btype.factory == factory_type:
+    var factories := get_tree().get_nodes_in_group("factories")
+    for f in factories:
+        if not f is FactoryComponent:
+            continue
+        var fc := f as FactoryComponent
+        if factory_type in fc.produces:
             return true
     return false
 
