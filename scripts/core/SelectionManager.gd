@@ -320,3 +320,18 @@ func request_deploy() -> void:
             push_warning("[SelectionManager] Cannot deploy — entity is moving")
             continue
         deploy.execute_deploy(parent)
+
+
+func request_set_rally_point(target_position: Vector3) -> void:
+    var cell := Pathfinder.world_to_cell(target_position)
+    for ent in selected_entities:
+        if not is_instance_valid(ent):
+            continue
+        if not _is_local_entity(ent):
+            continue
+        var parent := ent.get_parent() as Node3D
+        if not is_instance_valid(parent):
+            continue
+        var rally := parent.get_node_or_null("RallyPointComponent") as RallyPointComponent
+        if rally:
+            rally.set_rally_point(cell)

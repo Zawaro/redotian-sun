@@ -31,6 +31,10 @@ func configure(data: EntityData) -> void:
             _setup_animation_player()
     else:
         _add_placeholder()
+    # Connect to ExitComponent if present
+    var exit := get_parent().get_node_or_null("ExitComponent")
+    if exit and exit.has_signal("unit_spawned"):
+        exit.unit_spawned.connect(_on_exit_unit_spawned)
 
 
 func _load_model() -> void:
@@ -90,3 +94,12 @@ func _setup_animation_player() -> void:
 func play_animation(anim_name: String) -> void:
     if _animation_player and _animation_player.has_animation(anim_name):
         _animation_player.play(anim_name)
+
+
+func _on_exit_unit_spawned(_unit: Node3D) -> void:
+    if not art_data:
+        return
+    if not art_data.door_anim.is_empty():
+        play_animation(art_data.door_anim)
+    if not art_data.under_door_anim.is_empty():
+        play_animation(art_data.under_door_anim)

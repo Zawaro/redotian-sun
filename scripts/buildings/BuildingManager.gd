@@ -631,6 +631,10 @@ func sell_building(building_node: Node3D) -> bool:
         SpatialHash.instance.unregister_building_cells(cells)
     # Remove from list
     _buildings.remove_at(idx)
+    # Deselect before freeing so rally line clears
+    var select_comp := building_node.get_node_or_null("SelectComponent") as SelectComponent
+    if select_comp:
+        SelectionManager.deselect_entity(select_comp)
     # Emit signal before freeing
     building_sold.emit(building_node, entity_data)
     # Free the node
