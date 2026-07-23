@@ -29,7 +29,10 @@ selection_manager = NodePath("../SelectionManager")
 [node name="Camera" parent="." node_paths=PackedStringArray("bounds_system") instance=ExtResource("1_uw0ss")]
 bounds_system = NodePath("../BoundsSystem")
 
-[node name="FpsCounter" parent="." instance=ExtResource("2_drtgo")]
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 256
+
+[node name="FpsCounter" parent="HUD" instance=ExtResource("2_drtgo")]
 
 [node name="LightPivot" parent="." instance=ExtResource("3_4u5nk")]
 
@@ -39,11 +42,11 @@ bounds_system = NodePath("../BoundsSystem")
 map_size = Vector2(512, 512)
 visible_bounds_size = Vector2(512, 512)
 
-[node name="Sidebar" parent="." instance=ExtResource("9_build")]
+[node name="Sidebar" parent="HUD" instance=ExtResource("9_build")]
 
 [node name="CloudShadowOverlay" parent="." instance=ExtResource("10_cloud")]
 
 [node name="LightingControls" type="Node3D" parent="."]
 script = ExtResource("11_light")
 
-[node name="DebugMenu" parent="." instance=ExtResource("12_debug")]
+[node name="DebugMenu" parent="HUD" instance=ExtResource("12_debug")]
