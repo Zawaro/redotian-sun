@@ -11,6 +11,10 @@ func _ready() -> void:
     var entity := get_parent() as Node3D
     if not entity:
         return
+    # Only buildings register building cells — vehicles/infantry should not.
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and stats.entity_type != EntityData.EntityType.BUILDING:
+        return
     var origin_cell := Pathfinder.world_to_cell(entity.global_position)
     var half_x: int = int(foundation.x * 0.5)
     var half_y: int = int(foundation.y * 0.5)

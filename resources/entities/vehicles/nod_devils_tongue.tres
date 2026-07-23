@@ -22,7 +22,6 @@ rotation_speed = 180.0
 owner = PackedStringArray("Nod")
 threat_posed = 30
 buildable = true
-foundation = Vector2i(2, 2)
 build_time = 48.0
 prerequisite_necessary = PackedStringArray("NOD_WAR_FACTORY", "NOD_TECH_CENTER")
 weight = 3.0
