@@ -35,7 +35,7 @@ func test_deploy_component_configure():
     data.entity_type = EntityData.EntityType.VEHICLE
     data.strength = 1000
     data.owner = PackedStringArray(["GDI"])
-    data.deploys_into = "GACNST"
+    data.deploys_into = "GDI_CONSTRUCTION_YARD"
 
     var entity := Node3D.new()
     var component := Node.new()
@@ -46,7 +46,7 @@ func test_deploy_component_configure():
     var deploy := component as DeployComponent
     deploy.configure(data)
 
-    if deploy.deploys_into == "GACNST":
+    if deploy.deploys_into == "GDI_CONSTRUCTION_YARD":
         _test_passed += 1
         print("    PASS: DeployComponent.configure sets deploys_into")
     else:
@@ -64,7 +64,7 @@ func test_can_deploy():
     entity.add_child(component)
 
     var deploy := component as DeployComponent
-    deploy.deploys_into = "GACNST"
+    deploy.deploys_into = "GDI_CONSTRUCTION_YARD"
 
     if deploy.can_deploy() and not deploy.can_undeploy():
         _test_passed += 1
@@ -84,7 +84,7 @@ func test_can_undeploy():
     entity.add_child(component)
 
     var deploy := component as DeployComponent
-    deploy.undeploys_into = "MCV"
+    deploy.undeploys_into = "GDI_MCV"
 
     if deploy.can_undeploy() and not deploy.can_deploy():
         _test_passed += 1
@@ -321,7 +321,7 @@ func test_apply_snapshot_respects_transfer_health_ratio_flag():
 func test_undeploy_stores_pending_move_target():
     var entity := Node3D.new()
     var deploy := DeployComponent.new()
-    deploy.undeploys_into = "MCV"
+    deploy.undeploys_into = "GDI_MCV"
     entity.add_child(deploy)
 
     var target := Vector3(10.0, 0.0, 5.0)
@@ -341,7 +341,7 @@ func test_undeploy_stores_pending_move_target():
 func test_undeploy_no_pending_move_when_no_target():
     var entity := Node3D.new()
     var deploy := DeployComponent.new()
-    deploy.undeploys_into = "MCV"
+    deploy.undeploys_into = "GDI_MCV"
     entity.add_child(deploy)
 
     deploy.execute_undeploy(entity)
@@ -360,7 +360,7 @@ func test_undeploy_no_pending_move_when_no_target():
 func test_move_cursor_for_undeployable_entity():
     var entity := Node3D.new()
     var deploy := DeployComponent.new()
-    deploy.undeploys_into = "MCV"
+    deploy.undeploys_into = "GDI_MCV"
     entity.add_child(deploy)
 
     var cursor := deploy.get_cursor_for_target(null, Vector2i.ZERO)
@@ -378,7 +378,7 @@ func test_move_cursor_for_undeployable_entity():
 func test_deploy_cursor_for_deployable_entity():
     var entity := Node3D.new()
     var deploy := DeployComponent.new()
-    deploy.deploys_into = "GACNST"
+    deploy.deploys_into = "GDI_CONSTRUCTION_YARD"
     entity.add_child(deploy)
 
     var cursor := deploy.get_cursor_for_target(entity, Vector2i.ZERO)

@@ -27,7 +27,7 @@ func test_entity_placement_creates_node():
         print("    FAIL: Cannot load scripts")
         _test_failed += 1
         return
-    placer._selected_entity_id = "TIB"
+    placer._selected_entity_id = "TIBERIUM_RIPARIUS"
     placer._selected_player_id = 0
     var cell := Vector2i(5, 5)
     var key := str(cell.x) + "," + str(cell.y)
@@ -53,7 +53,7 @@ func test_entity_stored_with_player_id():
         print("    FAIL: Cannot load scripts")
         _test_failed += 1
         return
-    placer._selected_entity_id = "TIB"
+    placer._selected_entity_id = "TIBERIUM_RIPARIUS"
     placer._selected_player_id = 1
     var cell := Vector2i(6, 6)
     var key := str(cell.x) + "," + str(cell.y)
@@ -83,7 +83,7 @@ func test_cannot_place_on_occupied_cell():
         print("    FAIL: Cannot load scripts")
         _test_failed += 1
         return
-    placer._selected_entity_id = "TIB"
+    placer._selected_entity_id = "TIBERIUM_RIPARIUS"
     placer._selected_player_id = 0
     var cell := Vector2i(7, 7)
     var key := str(cell.x) + "," + str(cell.y)

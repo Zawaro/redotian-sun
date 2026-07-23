@@ -9,7 +9,7 @@ var _undocked_emitted := false
 var _failed_emitted := false
 
 
-func _make_dock_client(dock_id: String = "PROC") -> DockClientComponent:
+func _make_dock_client(dock_id: String = "GDI_REFINERY") -> DockClientComponent:
     var client := DockClientComponent.new()
     client.name = "DockClientComponent"
     client._dock_id = dock_id
@@ -17,7 +17,7 @@ func _make_dock_client(dock_id: String = "PROC") -> DockClientComponent:
     return client
 
 
-func _make_dock_host(_dock_id: String = "PROC", queue_size: int = 0) -> Node3D:
+func _make_dock_host(_dock_id: String = "GDI_REFINERY", queue_size: int = 0) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestRefinery"
 
@@ -31,7 +31,7 @@ func _make_dock_host(_dock_id: String = "PROC", queue_size: int = 0) -> Node3D:
     return entity
 
 
-func _make_entity_with_client(dock_id: String = "PROC") -> Node3D:
+func _make_entity_with_client(dock_id: String = "GDI_REFINERY") -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestHarvester"
 
@@ -61,8 +61,8 @@ func _on_failed() -> void:
 
 
 func test_configure_sets_can_dock_with():
-    var client := _make_dock_client("PROC")
-    if client.can_dock_with.has("PROC") and client.get_dock_id() == "PROC":
+    var client := _make_dock_client("GDI_REFINERY")
+    if client.can_dock_with.has("GDI_REFINERY") and client.get_dock_id() == "GDI_REFINERY":
         _test_passed += 1
         print("    PASS: configure sets can_dock_with")
     else:
@@ -144,7 +144,7 @@ func test_no_dock_slot_reserved_signal():
 func test_seek_dock_transitions_to_queued_when_host_occupied():
     var entity := _make_entity_with_client()
     add_child(entity)
-    var host_entity := _make_dock_host("PROC", 1)
+    var host_entity := _make_dock_host("GDI_REFINERY", 1)
     add_child(host_entity)
 
     var client := entity.get_node("DockClientComponent") as DockClientComponent
@@ -190,7 +190,7 @@ func test_seek_dock_emits_failed_when_no_host():
 func test_on_slot_available_moves_to_docked_when_queued():
     var entity := _make_entity_with_client()
     add_child(entity)
-    var host_entity := _make_dock_host("PROC")
+    var host_entity := _make_dock_host("GDI_REFINERY")
     add_child(host_entity)
 
     var client := entity.get_node("DockClientComponent") as DockClientComponent

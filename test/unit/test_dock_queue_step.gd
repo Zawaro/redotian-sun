@@ -9,7 +9,7 @@ var _undocked_emitted := false
 var _failed_emitted := false
 
 
-func _make_client(dock_id: String = "PROC") -> DockClientComponent:
+func _make_client(dock_id: String = "GDI_REFINERY") -> DockClientComponent:
     var c := DockClientComponent.new()
     c.name = "DockClientComponent"
     c._dock_id = dock_id
@@ -29,7 +29,7 @@ func _make_host(dock_wait: int = 10, stale: float = 5.0) -> Node3D:
     return entity
 
 
-func _make_harvester(dock_id: String = "PROC") -> Node3D:
+func _make_harvester(dock_id: String = "GDI_REFINERY") -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestHarvester"
     var mc := MovementController.new()
