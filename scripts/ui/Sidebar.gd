@@ -3,12 +3,12 @@ extends Control
 ## Tabbed build menu sidebar with production queue, prerequisites, and angular progress.
 
 const TAB_NAMES: Array[String] = ["Buildings", "Infantry", "Vehicles", "Special"]
-const TAB_ENTITY_TYPES: Array[int] = [
-    EntityData.EntityType.BUILDING,
-    EntityData.EntityType.INFANTRY,
-    EntityData.EntityType.VEHICLE,
-    EntityData.EntityType.AIRCRAFT,
-]
+const TAB_ENTITY_TYPES: Dictionary = {
+    0: [EntityData.EntityType.BUILDING],
+    1: [EntityData.EntityType.INFANTRY],
+    2: [EntityData.EntityType.VEHICLE, EntityData.EntityType.AIRCRAFT],
+    3: [],
+}
 const CAMEO_W: int = 125
 const CAMEO_H: int = 90
 const GRID_COLS: int = 3
@@ -145,19 +145,20 @@ func _on_scroll_down() -> void:
 
 
 func _get_current_entities() -> Array[EntityData]:
-    var entity_type: int = TAB_ENTITY_TYPES[_current_tab]
-    var all := EntityFactory.get_all_by_type(entity_type as EntityData.EntityType)
+    var types: Array = TAB_ENTITY_TYPES.get(_current_tab, [])
     var result: Array[EntityData] = []
     var ps := get_node("/root/PrerequisiteSystem") as Node
-    for data in all:
-        if not data.buildable:
-            continue
-        if _debug_place_mode:
-            result.append(data)
-        elif ps and ps.can_build(PlayerManager.get_local_player_id(), data):
-            result.append(data)
-        elif not ps:
-            result.append(data)
+    for etype in types:
+        var all := EntityFactory.get_all_by_type(etype as EntityData.EntityType)
+        for data in all:
+            if not data.buildable:
+                continue
+            if _debug_place_mode:
+                result.append(data)
+            elif ps and ps.can_build(PlayerManager.get_local_player_id(), data):
+                result.append(data)
+            elif not ps:
+                result.append(data)
     return result
 
 
