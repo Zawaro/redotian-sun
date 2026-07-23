@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/infantry/nod_engineer_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_ENGINEER"
+display_name = "Engineer"
+legacy_id = "ENGINEER"
+entity_type = 0
+strength = 100
+armor = "none"
+cost = 500
+tech_level = 2
+sight = 4
+speed = 4.0
+movement_zone = "Infantry"
+locomotor = "Foot"
+owner = PackedStringArray("Nod")
+threat_posed = 0
+buildable = true
+buildable_queue = "InfantryType"
+build_time = 24.0
+prerequisite = PackedStringArray("NOD_HAND_OF_NOD")

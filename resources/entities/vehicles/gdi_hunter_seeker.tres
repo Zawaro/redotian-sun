@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/vehicles/gdi_hunter_seeker_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_HUNTER_SEEKER"
+display_name = "Hunter-Seeker"
+legacy_id = "GHUNTER"
+entity_type = 1
+strength = 100
+armor = "none"
+cost = 1000
+tech_level = 8
+sight = 0
+speed = 15.0
+movement_zone = "Fly"
+locomotor = "Fly"
+rotation_speed = 180.0
+owner = PackedStringArray("GDI")
+threat_posed = 100
+buildable = false
+foundation = Vector2i(1, 1)
+weight = 0.5

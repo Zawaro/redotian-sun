@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/civilian/civ_solar_panel_4_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "CIV_SOLAR_PANEL_4"
+display_name = "Solar Panel"
+legacy_id = "CA0021"
+entity_type = 2
+strength = 50
+armor = "none"
+cost = 0
+tech_level = -1
+sight = 3
+foundation = Vector2i(1, 2)
+height = 0.5
+owner = PackedStringArray()
+buildable = false
+capturable = false
+crewed = false
+explodes = false
+toggle_power = false

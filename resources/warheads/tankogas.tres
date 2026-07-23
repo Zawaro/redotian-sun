@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WarheadData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WarheadData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "TankOGas"
+display_name = "Tank O Gas"
+splash_radius = 8
+armor_damage_multipliers = PackedFloat32Array([0.9, 1.0, 0.6, 0.25, 0.1])
+can_damage_walls = true
+can_damage_wood = true
+can_damage_tiberium = true
+sets_on_fire = true
+is_conventional = false
+produces_sparks = true
+rocks_target = false
+infantry_death_type = 4
+prone_damage_modifier = 0.5

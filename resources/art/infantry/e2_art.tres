@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "E2"
+id = "GDI_DISC_THROWER"
 placeholder_size = Vector3(0.4, 1.0, 0.4)

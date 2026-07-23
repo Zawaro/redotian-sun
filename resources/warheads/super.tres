@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WarheadData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WarheadData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "Super"
+display_name = "Super"
+splash_radius = 0
+armor_damage_multipliers = PackedFloat32Array([1.0, 1.0, 1.0, 1.0, 1.0])
+can_damage_walls = false
+can_damage_wood = false
+can_damage_tiberium = true
+sets_on_fire = false
+is_conventional = false
+produces_sparks = true
+rocks_target = false
+infantry_death_type = 5
+prone_damage_modifier = 0.6

@@ -5,8 +5,10 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "BIKE"
+art_data = ExtResource("2_art")
+id = "NOD_ATTACK_CYCLE"
 display_name = "Attack Cycle"
+legacy_id = "BIKE"
 entity_type = 1
 strength = 150
 armor = "wood"
@@ -16,10 +18,11 @@ sight = 5
 speed = 12.0
 movement_zone = "Destroyer"
 locomotor = "Wheel"
+rotation_speed = 180.0
 owner = PackedStringArray("Nod")
 threat_posed = 20
 buildable = true
-buildable_queue = "VehicleType"
+foundation = Vector2i(1, 1)
 build_time = 28.8
 prerequisite = PackedStringArray("NOD_WAR_FACTORY")
-art_data = ExtResource("2_art")
+weight = 0.5

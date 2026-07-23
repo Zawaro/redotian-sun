@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "BIKE"
+id = "NOD_ATTACK_CYCLE"
 placeholder_size = Vector3(0.8, 0.6, 1.5)

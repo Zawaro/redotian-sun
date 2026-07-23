@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/vehicles/gdi_hover_mlrs_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_HOVER_MLRS"
+display_name = "Hover MLRS"
+legacy_id = "HVR"
+entity_type = 1
+strength = 150
+armor = "light"
+cost = 1000
+tech_level = 6
+sight = 8
+speed = 8.0
+movement_zone = "Normal"
+locomotor = "Hover"
+rotation_speed = 180.0
+owner = PackedStringArray("GDI")
+threat_posed = 30
+buildable = true
+foundation = Vector2i(2, 2)
+build_time = 48.0
+prerequisite = PackedStringArray("GDI_WAR_FACTORY", "GDI_RADAR")

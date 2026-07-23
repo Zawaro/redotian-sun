@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/terrain/tree_22_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "TREE_22"
+display_name = "Tree 22"
+legacy_id = "TREE22"
+entity_type = 4
+strength = 200
+armor = "wood"
+foundation = Vector2i(1, 1)
+height = 3.0
+owner = PackedStringArray("Neutral")

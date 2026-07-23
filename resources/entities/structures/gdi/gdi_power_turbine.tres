@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/gdi/gdi_power_turbine_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_POWER_TURBINE"
+display_name = "Power Turbine"
+legacy_id = "GAPOWRUP"
+entity_type = 2
+strength = 0
+armor = "none"
+cost = 500
+tech_level = 2
+sight = 1
+foundation = Vector2i(1, 1)
+height = 1.0
+owner = PackedStringArray("GDI")
+buildable = false
+power = 50
+capturable = false
+crewed = false
+explodes = false
+toggle_power = false

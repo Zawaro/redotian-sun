@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/vehicles/nod_weed_eater_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_WEED_EATER"
+display_name = "Weed Eater"
+legacy_id = "WEED"
+entity_type = 1
+strength = 200
+armor = "light"
+cost = 600
+tech_level = 4
+sight = 5
+speed = 6.0
+movement_zone = "Normal"
+locomotor = "Track"
+rotation_speed = 180.0
+owner = PackedStringArray("Nod")
+threat_posed = 0
+buildable = true
+foundation = Vector2i(2, 2)
+build_time = 28.8
+prerequisite = PackedStringArray("NOD_WAR_FACTORY")
+harvester = true
+dock = "NOD_TIBERIUM_WASTE_FACILITY"
+weight = 2.0

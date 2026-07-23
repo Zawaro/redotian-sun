@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WarheadData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WarheadData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "Fire"
+display_name = "Fire"
+splash_radius = 8
+armor_damage_multipliers = PackedFloat32Array([6.0, 1.48, 0.59, 0.06, 0.02])
+can_damage_walls = false
+can_damage_wood = true
+can_damage_tiberium = false
+sets_on_fire = true
+is_conventional = false
+produces_sparks = true
+rocks_target = false
+infantry_death_type = 4
+prone_damage_modifier = 6.0

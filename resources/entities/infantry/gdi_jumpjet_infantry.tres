@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/infantry/gdi_jumpjet_infantry_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_JUMPJET_INFANTRY"
+display_name = "Jumpjet Infantry"
+legacy_id = "JUMPJET"
+entity_type = 0
+strength = 120
+armor = "light"
+cost = 600
+tech_level = 6
+sight = 6
+speed = 5.0
+movement_zone = "Fly"
+locomotor = "Jumpjet"
+owner = PackedStringArray("GDI")
+threat_posed = 15
+buildable = true
+buildable_queue = "InfantryType"
+build_time = 28.8
+prerequisite = PackedStringArray("GDI_BARRACKS", "GDI_RADAR")

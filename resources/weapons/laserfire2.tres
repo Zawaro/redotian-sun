@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "LaserFire2"
+display_name = "Laser Fire 2"
+damage = 30
+rate_of_fire = 40
+attack_range = 8.0
+minimum_range = 0.0
+warhead = "Super"
+projectile = "LLine2"
+burst = 1
+is_lobber = false
+requires_charge = false
+is_laser = true
+anti_air = false
+fire_animation = ""
+sound_report = ""
+ambient_damage = 0

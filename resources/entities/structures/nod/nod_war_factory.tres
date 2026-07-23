@@ -1,25 +1,30 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/nod/nod_war_factory_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
+art_data = ExtResource("2_art")
 id = "NOD_WAR_FACTORY"
 display_name = "War Factory"
+legacy_id = "NAWEAP"
 entity_type = 2
 strength = 1000
 armor = "heavy"
 cost = 2000
 tech_level = 1
 sight = 4
-is_drag_selectable = false
 foundation = Vector2i(4, 3)
 height = 2.5
-power = 0
-powered = false
-capturable = true
+owner = PackedStringArray("Nod")
 buildable = true
 buildable_queue = "BuildingType"
 build_time = 96.0
+prerequisite = PackedStringArray("NOD_POWER_PLANT")
 factory = "VehicleType"
-owner = PackedStringArray("Nod")
+capturable = true
+adjacent = 2
+crewed = true
+explodes = false
+toggle_power = false

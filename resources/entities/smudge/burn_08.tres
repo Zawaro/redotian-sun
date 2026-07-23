@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "BURN_08"
+display_name = "Burn 08"
+legacy_id = "BURN08"
+entity_type = 6
+strength = 0
+armor = "none"
+foundation = Vector2i(1, 1)
+height = 0.0
+owner = PackedStringArray("Neutral")

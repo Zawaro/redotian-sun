@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/nod/nod_laser_turret_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_LASER_TURRET"
+display_name = "Laser Turret"
+legacy_id = "NALASR"
+entity_type = 2
+strength = 400
+armor = "heavy"
+cost = 600
+tech_level = 2
+sight = 6
+foundation = Vector2i(1, 1)
+height = 2.0
+owner = PackedStringArray("Nod")
+buildable = true
+buildable_queue = "BuildingType"
+build_time = 28.8
+prerequisite = PackedStringArray("NOD_HAND_OF_NOD")
+capturable = true
+crewed = false
+explodes = false
+toggle_power = false

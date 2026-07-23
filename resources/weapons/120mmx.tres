@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "120mmx"
+display_name = "120mm Cannon (Dual)"
+damage = 50
+rate_of_fire = 80
+attack_range = 6.75
+minimum_range = 0.0
+warhead = "AP"
+projectile = "Cannon"
+burst = 2
+is_lobber = false
+requires_charge = false
+is_laser = false
+anti_air = false
+fire_animation = "GUNFIRE"
+sound_report = "120MMX9"
+ambient_damage = 0

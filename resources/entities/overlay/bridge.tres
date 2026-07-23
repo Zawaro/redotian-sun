@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "BRIDGE"
+display_name = "Bridge"
+legacy_id = "BRIDGE"
+entity_type = 5
+strength = 1000
+armor = "concrete"
+foundation = Vector2i(1, 1)
+height = 0.1
+owner = PackedStringArray("Neutral")

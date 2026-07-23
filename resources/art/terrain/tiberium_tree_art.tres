@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "TIBTREE"
+id = "TIBERIUM_TREE"
 placeholder_size = Vector3(0.33, 2, 0.33)

@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/nod/nod_refinery_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_REFINERY"
+display_name = "Refinery"
+legacy_id = "PROC"
+entity_type = 2
+strength = 900
+armor = "wood"
+cost = 2000
+tech_level = 1
+sight = 4
+foundation = Vector2i(4, 3)
+height = 2.0
+owner = PackedStringArray("Nod")
+buildable = true
+buildable_queue = "BuildingType"
+build_time = 96.0
+prerequisite = PackedStringArray("NOD_POWER_PLANT")
+capturable = true
+free_unit = "NOD_HARVESTER"
+adjacent = 2
+crewed = true
+explodes = false
+toggle_power = false
+dock_position = Vector3(6, 0, 2)
+dock_rotation = -90.0
+dock_unload = true
+accepted_resource_categories = PackedStringArray("tiberium")
+bib_cells = Array[Vector2i]([Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2)])
