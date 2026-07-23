@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "FiendShard"
+display_name = "Fiend Shard"
+damage = 35
+rate_of_fire = 30
+attack_range = 4.0
+minimum_range = 0.0
+warhead = "Shard"
+projectile = "DogShard"
+burst = 1
+is_lobber = true
+requires_charge = false
+is_laser = false
+anti_air = false
+fire_animation = ""
+sound_report = ""
+ambient_damage = 0

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/infantry/civ_mutant_sergeant_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "CIV_MUTANT_SERGEANT"
+display_name = "Mutant Sergeant"
+legacy_id = "MUTANT3"
+entity_type = 0
+strength = 125
+armor = "none"
+cost = 0
+tech_level = -1
+sight = 5
+speed = 5.0
+movement_zone = "Infantry"
+locomotor = "Foot"
+owner = PackedStringArray("GDI", "Nod")
+threat_posed = 10
+buildable = false

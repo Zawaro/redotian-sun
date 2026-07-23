@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/vehicles/civ_recreational_vehicle_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "CIV_RECREATIONAL_VEHICLE"
+display_name = "Recreational Vehicle"
+legacy_id = "WINI"
+entity_type = 1
+strength = 50
+armor = "light"
+cost = 0
+tech_level = -1
+sight = 3
+speed = 5.0
+movement_zone = "Normal"
+locomotor = "Wheel"
+rotation_speed = 180.0
+owner = PackedStringArray("GDI")
+threat_posed = 0
+buildable = false
+foundation = Vector2i(2, 1)

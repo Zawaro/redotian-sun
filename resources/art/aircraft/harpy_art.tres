@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "APACHE"
+id = "NOD_HARPY"
 placeholder_size = Vector3(1.2, 0.5, 1.8)

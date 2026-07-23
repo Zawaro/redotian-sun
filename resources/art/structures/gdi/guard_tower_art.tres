@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "PRISM_TOWER"
+id = "GDI_GUARD_TOWER"
 model_path = "res://assets/models/prism_tower01.glb"

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "155mm"
+display_name = "155mm Artillery"
+damage = 150
+rate_of_fire = 110
+attack_range = 18.0
+minimum_range = 5.0
+warhead = "ARTYHE"
+projectile = "Ballistic"
+burst = 1
+is_lobber = true
+requires_charge = false
+is_laser = false
+anti_air = false
+fire_animation = "GUNFIRE"
+sound_report = "120MMF"
+ambient_damage = 0

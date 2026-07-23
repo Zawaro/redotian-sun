@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/gdi/gdi_deployed_sensor_array_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_DEPLOYED_SENSOR_ARRAY"
+display_name = "Deployed Sensor Array"
+legacy_id = "GADPSA"
+entity_type = 2
+strength = 200
+armor = "light"
+cost = 0
+tech_level = -1
+sight = 20
+foundation = Vector2i(1, 1)
+height = 1.0
+owner = PackedStringArray("GDI")
+buildable = false
+capturable = false
+crewed = false
+explodes = false
+toggle_power = false

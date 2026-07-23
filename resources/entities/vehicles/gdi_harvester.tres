@@ -1,13 +1,14 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3 uid="uid://d2ycn0ldvad68"]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
-[ext_resource type="Script" uid="uid://vefqifmtliau" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://resources/art/vehicles/harvester_art.tres" id="2_art"]
-[ext_resource type="Script" uid="uid://d2ip4ainuruet" path="res://scripts/data/WeaponData.gd" id="2_j67ya"]
 
 [resource]
 script = ExtResource("1_script")
-id = "HARV"
+art_data = ExtResource("2_art")
+id = "GDI_HARVESTER"
 display_name = "Harvester"
+legacy_id = "HARV"
 entity_type = 1
 strength = 1000
 armor = "heavy"
@@ -17,11 +18,15 @@ sight = 4
 speed = 5.0
 movement_zone = "Crusher"
 locomotor = "Track"
-hitbox_size = Vector3(1.5, 1.5, 3)
-dock = "PROC"
-harvester = true
-storage = 1
+rotation_speed = 180.0
+owner = PackedStringArray("GDI")
+threat_posed = 0
+buildable = true
+foundation = Vector2i(2, 3)
 build_time = 67.2
-prerequisite = PackedStringArray()
-pip_scale = "Tiberium"
-art_data = ExtResource("2_art")
+prerequisite = PackedStringArray("GDI_REFINERY")
+harvester = true
+dock = "GDI_REFINERY"
+storage = 1
+crusher = true
+weight = 3.0

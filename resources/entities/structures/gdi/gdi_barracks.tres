@@ -1,24 +1,31 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3 uid="uid://mg2wge0bxjo2"]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
-[ext_resource type="Script" uid="uid://d2ip4ainuruet" path="res://scripts/data/WeaponData.gd" id="1_cteol"]
-[ext_resource type="Script" uid="uid://vefqifmtliau" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/gdi/gdi_barracks_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
+art_data = ExtResource("2_art")
 id = "GDI_BARRACKS"
 display_name = "Barracks"
+legacy_id = "GAPILE"
 entity_type = 2
-strength = 400
+strength = 800
 armor = "wood"
-cost = 500
+cost = 300
 tech_level = 1
-sight = 4
-is_drag_selectable = false
+sight = 5
 foundation = Vector2i(2, 2)
 height = 2.0
-capturable = true
+owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 24.0
+build_time = 14.4
+prerequisite = PackedStringArray("GDI_POWER_PLANT")
+power = -20
 factory = "InfantryType"
-owner = PackedStringArray("GDI")
+capturable = true
+adjacent = 2
+crewed = true
+explodes = false
+toggle_power = false

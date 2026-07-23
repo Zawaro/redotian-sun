@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/terrain/tiberium_riparius_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "TIBERIUM_RIPARIUS"
+display_name = "Tiberium Riparius"
+legacy_id = "TIB"
+entity_type = 5
+strength = 300
+foundation = Vector2i(1, 1)
+height = 0.5
+owner = PackedStringArray("Neutral")
+resource_category = "tiberium"
+resource_type_id = "tiberium_green"

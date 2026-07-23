@@ -1,11 +1,14 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/vehicles/gdi_mcv_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
-id = "MCV"
+art_data = ExtResource("2_art")
+id = "GDI_MCV"
 display_name = "Mobile Construction Vehicle"
+legacy_id = "MCV"
 entity_type = 1
 strength = 1000
 armor = "heavy"
@@ -16,10 +19,11 @@ speed = 4.0
 movement_zone = "Normal"
 locomotor = "Track"
 rotation_speed = 180.0
-height = 2.0
-owner = PackedStringArray("GDI", "Nod")
+owner = PackedStringArray("GDI")
+threat_posed = 0
 buildable = true
-buildable_queue = "VehicleType"
+foundation = Vector2i(2, 3)
 build_time = 144.0
-prerequisite = PackedStringArray("GACNST")
-deploys_into = "GACNST"
+prerequisite = PackedStringArray("GDI_CONSTRUCTION_YARD")
+deploys_into = "GDI_CONSTRUCTION_YARD"
+weight = 3.0

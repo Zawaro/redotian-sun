@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/infantry/nod_chameleon_spy_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_CHAMELEON_SPY"
+display_name = "Chameleon Spy"
+legacy_id = "CHAMSPY"
+entity_type = 0
+strength = 100
+armor = "none"
+cost = 1000
+tech_level = 7
+sight = 10
+speed = 4.0
+movement_zone = "Infantry"
+locomotor = "Foot"
+owner = PackedStringArray("Nod")
+threat_posed = 0
+buildable = true
+buildable_queue = "InfantryType"
+build_time = 48.0
+prerequisite = PackedStringArray("NOD_HAND_OF_NOD", "NOD_TECH_CENTER")

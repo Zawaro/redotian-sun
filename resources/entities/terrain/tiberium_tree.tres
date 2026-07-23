@@ -5,14 +5,15 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "TIBTREE"
-display_name = "Tiberium Tree"
+id = "TIBERIUM_TREE"
+display_name = "Tiberium Riparius"
+legacy_id = "TIBTREE"
 entity_type = 4
 foundation = Vector2i(1, 1)
 height = 1.0
 owner = PackedStringArray("Neutral")
 resource_category = "tiberium_tree"
-spawned_entity_id = "TIB"
+spawned_entity_id = "TIBERIUM_RIPARIUS"
 radius_cells = 8
 node_count = 12
 spawn_strength = 0.5

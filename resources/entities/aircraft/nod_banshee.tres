@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/aircraft/nod_banshee_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_BANSHEE"
+display_name = "Banshee"
+legacy_id = "SCRIN"
+entity_type = 3
+strength = 200
+armor = "light"
+cost = 1500
+tech_level = 7
+sight = 2
+speed = 16.0
+movement_zone = "Fly"
+locomotor = "Fly"
+owner = PackedStringArray("Nod")
+threat_posed = 30
+buildable = true
+build_time = 72.0
+prerequisite = PackedStringArray("NOD_WAR_FACTORY", "NOD_TECH_CENTER")

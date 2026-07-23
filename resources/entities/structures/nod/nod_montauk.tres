@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/nod/nod_montauk_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_MONTAUK"
+display_name = "Montauk"
+legacy_id = "NAMNTK"
+entity_type = 2
+strength = 1000
+armor = "heavy"
+cost = 5000
+tech_level = 8
+sight = 8
+foundation = Vector2i(1, 3)
+height = 3.0
+owner = PackedStringArray("Nod")
+buildable = false
+capturable = false
+crewed = false
+explodes = false
+toggle_power = false

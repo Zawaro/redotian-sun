@@ -5,22 +5,25 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GACNST"
+art_data = ExtResource("2_art")
+id = "GDI_CONSTRUCTION_YARD"
 display_name = "Construction Yard"
+legacy_id = "GACNST"
 entity_type = 2
 strength = 1000
 armor = "heavy"
 cost = 2500
 tech_level = -1
 sight = 6
-is_drag_selectable = false
 foundation = Vector2i(3, 3)
 height = 1.5
-factory = "BuildingType"
-capturable = true
+owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
 build_time = 120.0
-art_data = ExtResource("2_art")
-owner = PackedStringArray("GDI", "Nod")
-undeploys_into = "MCV"
+factory = "BuildingType"
+capturable = true
+crewed = true
+explodes = true
+toggle_power = false
+undeploys_into = "GDI_MCV"

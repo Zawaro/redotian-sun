@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/infantry/nod_mutant_hijacker_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_MUTANT_HIJACKER"
+display_name = "Mutant Hijacker"
+legacy_id = "MHIJACK"
+entity_type = 0
+strength = 200
+armor = "none"
+cost = 700
+tech_level = 6
+sight = 6
+speed = 5.0
+movement_zone = "Infantry"
+locomotor = "Foot"
+owner = PackedStringArray("Nod")
+threat_posed = 0
+buildable = true
+buildable_queue = "InfantryType"
+build_time = 33.6
+prerequisite = PackedStringArray("NOD_HAND_OF_NOD", "NOD_TECH_CENTER")

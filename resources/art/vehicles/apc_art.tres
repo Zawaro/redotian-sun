@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "APC"
+id = "GDI_AMPHIBIOUS_APC"
 placeholder_size = Vector3(1.0, 0.8, 2.0)

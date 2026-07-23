@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/nod/nod_wall_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_WALL"
+display_name = "Wall"
+legacy_id = "NAWALL"
+entity_type = 2
+strength = 200
+armor = "concrete"
+cost = 100
+tech_level = 1
+sight = 1
+foundation = Vector2i(1, 1)
+height = 1.5
+owner = PackedStringArray("Nod")
+buildable = true
+buildable_queue = "BuildingType"
+build_time = 4.8
+prerequisite = PackedStringArray("NOD_HAND_OF_NOD")
+capturable = false
+crewed = false
+explodes = false
+toggle_power = false

@@ -1,24 +1,30 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/gdi/gdi_power_plant_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
-id = "GAPOWR"
+art_data = ExtResource("2_art")
+id = "GDI_POWER_PLANT"
 display_name = "GDI Power Plant"
+legacy_id = "GAPOWR"
 entity_type = 2
 strength = 750
 armor = "wood"
 cost = 300
 tech_level = 1
 sight = 4
-is_drag_selectable = false
 foundation = Vector2i(2, 2)
 height = 2.0
-power = 100
-powered = false
-capturable = true
+owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
 build_time = 14.4
-owner = PackedStringArray("GDI")
+prerequisite = PackedStringArray("GDI_CONSTRUCTION_YARD")
+power = 100
+capturable = true
+adjacent = 2
+crewed = true
+explodes = false
+toggle_power = false

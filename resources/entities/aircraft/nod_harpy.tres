@@ -5,8 +5,10 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "APACHE"
+art_data = ExtResource("2_art")
+id = "NOD_HARPY"
 display_name = "Harpy"
+legacy_id = "APACHE"
 entity_type = 3
 strength = 225
 armor = "light"
@@ -19,6 +21,5 @@ locomotor = "Fly"
 owner = PackedStringArray("Nod")
 threat_posed = 15
 buildable = true
-buildable_queue = "AirType"
 build_time = 48.0
-art_data = ExtResource("2_art")
+prerequisite = PackedStringArray("NOD_WAR_FACTORY", "NOD_RADAR")

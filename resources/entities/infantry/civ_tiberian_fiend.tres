@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/infantry/civ_tiberian_fiend_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "CIV_TIBERIAN_FIEND"
+display_name = "Tiberian Fiend"
+legacy_id = "DOGGIE"
+entity_type = 0
+strength = 200
+armor = "none"
+cost = 0
+tech_level = -1
+sight = 5
+speed = 7.0
+movement_zone = "Infantry"
+locomotor = "Foot"
+owner = PackedStringArray("GDI", "Nod")
+threat_posed = 15
+buildable = false

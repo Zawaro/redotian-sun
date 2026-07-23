@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/terrain/tiberium_tree_03_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "TIBERIUM_TREE_03"
+display_name = "Tiberium Riparius"
+legacy_id = "TIBTRE03"
+entity_type = 4
+strength = 0
+armor = "none"
+foundation = Vector2i(1, 1)
+height = 3.0
+owner = PackedStringArray("Neutral")
+resource_category = "tiberium_tree"
+spawned_entity_id = "TIBERIUM_RIPARIUS"
+radius_cells = 8
+node_count = 12
+spawn_strength = 0.5
+max_spawn_strength = 1.0

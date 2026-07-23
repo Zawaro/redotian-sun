@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "BGGY"
+id = "NOD_ATTACK_BUGGY"
 is_voxel = false
-is_remapable = true
+is_remappable = true
 model_path = "res://assets/models/nod_buggy01.glb"

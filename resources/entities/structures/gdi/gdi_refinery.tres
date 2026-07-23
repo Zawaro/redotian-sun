@@ -1,31 +1,35 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3 uid="uid://tumdvcchhxwo"]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
-[ext_resource type="Script" uid="uid://vefqifmtliau" path="res://scripts/data/EntityData.gd" id="1_script"]
-[ext_resource type="Script" uid="uid://d2ip4ainuruet" path="res://scripts/data/WeaponData.gd" id="1_wvjb6"]
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://resources/art/structures/gdi/refinery_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
-id = "PROC"
+art_data = ExtResource("2_art")
+id = "GDI_REFINERY"
 display_name = "Refinery"
+legacy_id = "PROC"
 entity_type = 2
 strength = 900
 armor = "wood"
 cost = 2000
 tech_level = 1
 sight = 4
-is_drag_selectable = false
 foundation = Vector2i(4, 3)
 height = 2.0
-capturable = true
+owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
 build_time = 96.0
-owner = PackedStringArray("GDI")
-bib_cells = Array[Vector2i]([Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2)])
+prerequisite = PackedStringArray("GDI_POWER_PLANT")
+capturable = true
+free_unit = "GDI_HARVESTER"
+adjacent = 2
+crewed = true
+explodes = false
+toggle_power = false
 dock_position = Vector3(6, 0, 2)
 dock_rotation = -90.0
 dock_unload = true
 accepted_resource_categories = PackedStringArray("tiberium")
-free_unit = "HARV"
-art_data = ExtResource("2_art")
+bib_cells = Array[Vector2i]([Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2)])

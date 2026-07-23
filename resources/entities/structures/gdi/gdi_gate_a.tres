@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/gdi/gdi_gate_a_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_GATE_A"
+display_name = "Gate"
+legacy_id = "GAGATE_A"
+entity_type = 2
+strength = 300
+armor = "heavy"
+cost = 500
+tech_level = 1
+sight = 4
+foundation = Vector2i(3, 1)
+height = 2.0
+owner = PackedStringArray("GDI")
+buildable = true
+buildable_queue = "BuildingType"
+build_time = 24.0
+prerequisite = PackedStringArray("GDI_WALL")
+capturable = false
+crewed = false
+explodes = false
+toggle_power = false

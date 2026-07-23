@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/vehicles/nod_subterranean_apc_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_SUBTERRANEAN_APC"
+display_name = "Subterranean APC"
+legacy_id = "SAPC"
+entity_type = 1
+strength = 300
+armor = "heavy"
+cost = 800
+tech_level = 5
+sight = 5
+speed = 8.0
+movement_zone = "Normal"
+locomotor = "Track"
+rotation_speed = 180.0
+owner = PackedStringArray("Nod")
+threat_posed = 15
+buildable = true
+foundation = Vector2i(2, 2)
+build_time = 38.4
+prerequisite = PackedStringArray("NOD_WAR_FACTORY")
+passengers = 5
+weight = 2.0

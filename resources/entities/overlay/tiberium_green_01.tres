@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "TIBERIUM_GREEN_01"
+display_name = "Green Tiberium 01"
+legacy_id = "TIB01"
+entity_type = 5
+strength = 300
+armor = "none"
+foundation = Vector2i(1, 1)
+height = 0.5
+owner = PackedStringArray("Neutral")
+resource_category = "tiberium"
+resource_type_id = "tiberium_green"

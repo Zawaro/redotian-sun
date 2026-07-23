@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "M1Carbine"
+display_name = "M1 Carbine"
+damage = 15
+rate_of_fire = 20
+attack_range = 4.0
+minimum_range = 0.0
+warhead = "SA"
+projectile = "Invisible"
+burst = 1
+is_lobber = false
+requires_charge = false
+is_laser = false
+anti_air = false
+fire_animation = ""
+sound_report = "INFGUN3"
+ambient_damage = 0

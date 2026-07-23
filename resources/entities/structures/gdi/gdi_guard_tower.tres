@@ -5,22 +5,24 @@
 
 [resource]
 script = ExtResource("1_script")
+art_data = ExtResource("2_art")
 id = "GDI_GUARD_TOWER"
 display_name = "Guard Tower"
+legacy_id = "GACTWR"
 entity_type = 2
 strength = 500
 armor = "heavy"
 cost = 600
 tech_level = 1
 sight = 6
-is_drag_selectable = false
 foundation = Vector2i(1, 1)
 height = 3.0
-power = 0
-powered = false
-capturable = true
+owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
 build_time = 28.8
-art_data = ExtResource("2_art")
-owner = PackedStringArray("GDI")
+prerequisite = PackedStringArray("GDI_BARRACKS")
+capturable = true
+crewed = false
+explodes = false
+toggle_power = false

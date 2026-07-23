@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WarheadData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WarheadData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "RPG"
+display_name = "Rocket Propelled Grenade"
+splash_radius = 3
+armor_damage_multipliers = PackedFloat32Array([0.3, 0.75, 0.9, 1.0, 0.7])
+can_damage_walls = true
+can_damage_wood = true
+can_damage_tiberium = false
+sets_on_fire = false
+is_conventional = true
+produces_sparks = false
+rocks_target = true
+infantry_death_type = 3
+prone_damage_modifier = 1.0

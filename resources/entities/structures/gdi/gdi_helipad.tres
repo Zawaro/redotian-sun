@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/structures/gdi/gdi_helipad_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_HELIPAD"
+display_name = "Helipad"
+legacy_id = "GAHPAD"
+entity_type = 2
+strength = 400
+armor = "wood"
+cost = 1000
+tech_level = 2
+sight = 5
+foundation = Vector2i(2, 2)
+height = 1.5
+owner = PackedStringArray("GDI")
+buildable = true
+buildable_queue = "BuildingType"
+build_time = 48.0
+prerequisite = PackedStringArray("GDI_RADAR")
+power = -20
+capturable = true
+adjacent = 2
+crewed = false
+explodes = false
+toggle_power = false

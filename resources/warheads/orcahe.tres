@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WarheadData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/WarheadData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "ORCAHE"
+display_name = "Orca HE Bomb"
+splash_radius = 512
+armor_damage_multipliers = PackedFloat32Array([2.0, 0.9, 0.75, 0.32, 1.0])
+can_damage_walls = true
+can_damage_wood = true
+can_damage_tiberium = true
+sets_on_fire = true
+is_conventional = true
+produces_sparks = true
+rocks_target = true
+infantry_death_type = 2
+prone_damage_modifier = 1.5

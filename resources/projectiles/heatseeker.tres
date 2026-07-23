@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ProjectileData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ProjectileData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "HeatSeeker"
+display_name = "Heat Seeker"
+is_invisible = false
+is_high_arc = true
+is_very_high_arc = false
+is_arcing = false
+is_floater = false
+is_bouncy = false
+targets_air = false
+targets_ground = true
+has_proximity_fuse = true
+is_guided = true
+homing_turn_rate = 8
+arm_delay = 2
+sub_projectile_count = 0
+speed_override = 0.0
+casts_shadow = false
+graphic_name = "DRAGON"
