@@ -25,3 +25,5 @@ buildable = true
 build_time = 28.8
 prerequisite = PackedStringArray("GDI_WAR_FACTORY")
 weight = 1.5
+
+buildable_queue = "VehicleType"

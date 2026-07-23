@@ -25,3 +25,5 @@ buildable = true
 build_time = 48.0
 prerequisite_necessary = PackedStringArray("NOD_WAR_FACTORY", "NOD_TECH_CENTER")
 weight = 3.0
+
+buildable_queue = "VehicleType"

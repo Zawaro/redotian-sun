@@ -24,3 +24,5 @@ threat_posed = 10
 buildable = true
 build_time = 24.0
 prerequisite = PackedStringArray("NOD_WAR_FACTORY")
+
+buildable_queue = "VehicleType"

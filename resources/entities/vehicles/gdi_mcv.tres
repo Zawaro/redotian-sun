@@ -26,3 +26,5 @@ build_time = 144.0
 prerequisite_necessary = PackedStringArray("GDI_WAR_FACTORY", "GDI_TECH_CENTER")
 deploys_into = "GDI_CONSTRUCTION_YARD"
 weight = 3.0
+
+buildable_queue = "VehicleType"

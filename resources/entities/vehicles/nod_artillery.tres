@@ -26,3 +26,5 @@ build_time = 46.8
 prerequisite_necessary = PackedStringArray("NOD_WAR_FACTORY", "NOD_RADAR")
 crusher = true
 weight = 3.5
+
+buildable_queue = "VehicleType"
