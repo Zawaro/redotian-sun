@@ -6,9 +6,9 @@ class_name DeployComponent extends Node
 
 enum DeployState { IDLE, ROTATING_DEPLOY, ROTATING_UNDEPLOY, TRANSFORMING }
 
-## Entity id to create when deploying (e.g., "GACNST" for MCV).
+## Entity id to create when deploying (e.g., "GDI_CONSTRUCTION_YARD" for MCV).
 @export var deploys_into: String = ""
-## Entity id to create when undeploying (e.g., "MCV" for ConYard).
+## Entity id to create when undeploying (e.g., "GDI_MCV" for ConYard).
 @export var undeploys_into: String = ""
 ## Rotation in degrees the source entity rotates to before deploying (0 = default/north).
 @export var deploy_rotation: float = 0.0

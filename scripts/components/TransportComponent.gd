@@ -5,7 +5,7 @@ signal passenger_changed(current: int, max_passengers: int)
 
 ## Number of infantry passengers this unit can carry.
 @export var passengers: int = 0
-## Dock type ID this unit docks with (e.g. "PROC" for refinery).
+## Dock type ID this unit docks with (e.g. "GDI_REFINERY").
 @export var dock: String = ""
 ## Whether this unit is a harvester (auto-docks when full).
 @export var harvester: bool = false
