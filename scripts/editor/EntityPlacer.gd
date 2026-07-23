@@ -167,10 +167,10 @@ func _place_tree_on_cell(cell: Vector2i) -> void:
         if is_instance_valid(existing):
             existing.queue_free()
         editor._painted_entities.erase(key)
-    var entity := EntityFactory.create_entity("TIBTREE")
+    var entity := EntityFactory.create_entity("TIBERIUM_TREE")
     if not entity:
         return
     entity.position = editor._cell_world_pos(cell)
-    var data: Dictionary = {"id": "TIBTREE"}
+    var data: Dictionary = {"id": "TIBERIUM_TREE"}
     editor._painted_entities[key] = {"node": entity, "data": data}
     editor.add_child(entity)

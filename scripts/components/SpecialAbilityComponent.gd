@@ -7,7 +7,7 @@ class_name SpecialAbilityComponent extends Node
 @export var disguise: bool = false
 @export var agent: bool = false
 @export var thief: bool = false
-@export var resource_proof: bool = false
+@export var immune_to_resource_damage: bool = false
 @export var immune_to_veins: bool = false
 @export var capturable: bool = false
 
@@ -20,7 +20,7 @@ func configure(data: EntityData) -> void:
     disguise = data.disguise
     agent = data.agent
     thief = data.thief
-    resource_proof = data.resource_proof
+    immune_to_resource_damage = data.immune_to_resource_damage
     immune_to_veins = data.immune_to_veins
     capturable = data.capturable
 
@@ -34,7 +34,7 @@ func has_ability(ability: String) -> bool:
         "disguise": disguise,
         "agent": agent,
         "thief": thief,
-        "resource_proof": resource_proof,
+        "immune_to_resource_damage": immune_to_resource_damage,
         "immune_to_veins": immune_to_veins,
         "capturable": capturable,
     }

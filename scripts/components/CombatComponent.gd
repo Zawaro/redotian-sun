@@ -1,6 +1,18 @@
 @tool
 class_name CombatComponent extends Node3D
 
+# TODO: Combat system is incomplete. When implemented, this component needs to:
+# - Resolve WeaponData.projectile → ProjectileData for trajectory/visuals
+# - Resolve WeaponData.warhead → WarheadData for damage type, armor multipliers, effects
+# - Handle negative WeaponData.damage as healing (call HealthComponent.heal())
+# - Apply WeaponData.ambient_damage for continuous-damage weapons (sonic, flame)
+# - Check ProjectileData.targets_air / targets_ground for valid targets
+# - Use ProjectileData.homing_turn_rate, arm_delay, sub_projectile_count
+# - Use WarheadData.armor_damage_multipliers for per-armor damage calculation
+# - Apply WarheadData.sets_on_fire, WarheadData.rocks_target, WarheadData.produces_sparks
+# - Use ArtData fields: primary_fire_offset, barrel_length, turret_offset, sequence,
+#   walk_frames, firing_frames, buildup_name, door_anim, production_anim, etc.
+
 @export var weapons: Array[WeaponData] = []
 @export var elite_weapons: Array[WeaponData] = []
 @export var turret: bool = false
