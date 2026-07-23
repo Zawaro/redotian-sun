@@ -24,6 +24,10 @@ var _waiting_for_placement: Dictionary = {}
 ## player_id → Array[EntityData] of completed buildings waiting to be placed
 var _ready_to_place: Dictionary = {}
 
+## player_id → Array[Dictionary] of units that failed to spawn, waiting to retry
+## Each dict: { "entity_data": EntityData, "player_id": int, "queue_key": String }
+var _ready_to_spawn: Dictionary = {}
+
 const MAX_STACK: int = 25
 
 
@@ -253,25 +257,41 @@ func _complete_item(key: String, index: int) -> void:
 func _spawn_unit(entity_data: EntityData, player_id: int) -> void:
     var factory := _find_primary_factory(player_id, entity_data.buildable_queue)
     if not factory:
-        push_warning("[ProductionManager] No factory found for %s" % entity_data.id)
+        _add_ready_to_spawn(entity_data, player_id, "")
         return
 
-    var spawn_cell := _find_exit_cell(factory)
-    var world_pos := Pathfinder.cell_to_world(spawn_cell)
-    EntityPlacer.place_entity(entity_data, world_pos, player_id, factory.get_parent())
+    var factory_comp := factory.get_node_or_null("FactoryComponent")
+    if factory_comp and factory_comp is FactoryComponent:
+        if factory_comp.is_busy:
+            _add_ready_to_spawn(entity_data, player_id, "")
+            return
+        (factory_comp as FactoryComponent).on_unit_produced(entity_data, player_id)
+    else:
+        # Fallback: spawn at exit cell
+        var spawn_cell := _find_exit_cell(factory)
+        var world_pos := Pathfinder.cell_to_world(spawn_cell)
+        EntityPlacer.place_entity(entity_data, world_pos, player_id, factory)
 
 
-func _find_primary_factory(_player_id: int, factory_type: String) -> Node3D:
-    var bm := get_node("/root/BuildingManager") as BuildingManager
-    if not bm:
-        return null
-    for entry in bm.get_all_buildings():
-        var btype: EntityData = entry.get("type") as EntityData
-        if btype and btype.factory == factory_type:
-            var bnode = entry.get("node")
-            if bnode and bnode is Node3D:
-                return bnode as Node3D
-    return null
+func _find_primary_factory(player_id: int, factory_type: String) -> Node3D:
+    var factories := get_tree().get_nodes_in_group("factories")
+    var best: Node3D = null
+    var best_score := -1
+    for f in factories:
+        if not f is FactoryComponent:
+            continue
+        var fc := f as FactoryComponent
+        if fc.player_id != player_id:
+            continue
+        if not factory_type in fc.produces:
+            continue
+        var score := 0
+        if fc.is_primary:
+            score += 1000
+        if score > best_score:
+            best_score = score
+            best = f.get_parent() as Node3D
+    return best
 
 
 func _find_exit_cell(factory: Node3D) -> Vector2i:
@@ -301,15 +321,18 @@ func _get_production_speed(queue_key: String) -> float:
     return 1.0 + (count - 1) * 0.25
 
 
-func _count_factories(_player_id: int, factory_type: String) -> int:
-    var bm := get_node("/root/BuildingManager") as BuildingManager
-    if not bm:
-        return 1
+func _count_factories(player_id: int, factory_type: String) -> int:
+    var factories := get_tree().get_nodes_in_group("factories")
     var count := 0
-    for entry in bm.get_all_buildings():
-        var btype: EntityData = entry.get("type") as EntityData
-        if btype and btype.factory == factory_type:
-            count += 1
+    for f in factories:
+        if not f is FactoryComponent:
+            continue
+        var fc := f as FactoryComponent
+        if fc.player_id != player_id:
+            continue
+        if not factory_type in fc.produces:
+            continue
+        count += 1
     return maxi(count, 1)
 
 
@@ -370,3 +393,57 @@ func clear_waiting_for_placement(player_id: int) -> void:
     for key in _waiting_for_placement.keys():
         if key.begins_with("%d:" % player_id):
             _waiting_for_placement[key] = false
+
+
+# --- Ready-to-spawn (units that failed to spawn, can retry or cancel) ---
+
+
+func _add_ready_to_spawn(entity_data: EntityData, player_id: int, queue_key: String) -> void:
+    if not _ready_to_spawn.has(player_id):
+        _ready_to_spawn[player_id] = []
+    (_ready_to_spawn[player_id] as Array).append(
+        {"entity_data": entity_data, "player_id": player_id, "queue_key": queue_key}
+    )
+    production_cancelled.emit(queue_key)
+
+
+func get_ready_spawns(player_id: int) -> Array:
+    return _ready_to_spawn.get(player_id, [])
+
+
+func retry_ready_spawn(player_id: int, entity_id: String) -> bool:
+    if not _ready_to_spawn.has(player_id):
+        return false
+    var list: Array = _ready_to_spawn[player_id]
+    for i in range(list.size()):
+        var entry: Dictionary = list[i] as Dictionary
+        var data: EntityData = entry["entity_data"] as EntityData
+        if data.id == entity_id:
+            var qk: String = entry["queue_key"] as String
+            list.remove_at(i)
+            if list.is_empty():
+                _ready_to_spawn.erase(player_id)
+            _spawn_unit(data, player_id)
+            production_cancelled.emit(qk)
+            return true
+    return false
+
+
+func cancel_ready_spawn(player_id: int, entity_id: String) -> bool:
+    if not _ready_to_spawn.has(player_id):
+        return false
+    var list: Array = _ready_to_spawn[player_id]
+    for i in range(list.size()):
+        var entry: Dictionary = list[i] as Dictionary
+        var data: EntityData = entry["entity_data"] as EntityData
+        if data.id == entity_id:
+            list.remove_at(i)
+            if list.is_empty():
+                _ready_to_spawn.erase(player_id)
+            var em := get_node("/root/EconomyManager") as EconomyManager
+            if em:
+                em.add(player_id, data.cost, "cancel_ready_spawn:%s" % data.id)
+            var qk: String = entry["queue_key"] as String
+            production_cancelled.emit(qk)
+            return true
+    return false
