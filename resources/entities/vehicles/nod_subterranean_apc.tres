@@ -26,3 +26,5 @@ build_time = 38.4
 prerequisite = PackedStringArray("NOD_WAR_FACTORY")
 passengers = 5
 weight = 2.0
+
+buildable_queue = "VehicleType"

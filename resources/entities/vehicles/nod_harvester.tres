@@ -29,3 +29,5 @@ dock = "NOD_REFINERY"
 storage = 1
 crusher = true
 weight = 3.0
+
+buildable_queue = "VehicleType"

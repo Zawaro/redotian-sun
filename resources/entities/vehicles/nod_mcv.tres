@@ -26,3 +26,5 @@ build_time = 144.0
 prerequisite_necessary = PackedStringArray("NOD_WAR_FACTORY", "NOD_TECH_CENTER")
 deploys_into = "NOD_CONSTRUCTION_YARD"
 weight = 3.0
+
+buildable_queue = "VehicleType"

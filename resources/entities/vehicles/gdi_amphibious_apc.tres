@@ -27,3 +27,5 @@ prerequisite = PackedStringArray("GDI_WAR_FACTORY")
 passengers = 5
 crusher = true
 weight = 2.0
+
+buildable_queue = "VehicleType"

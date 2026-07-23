@@ -27,3 +27,5 @@ prerequisite = PackedStringArray("NOD_WAR_FACTORY")
 harvester = true
 dock = "NOD_TIBERIUM_WASTE_FACILITY"
 weight = 2.0
+
+buildable_queue = "VehicleType"
