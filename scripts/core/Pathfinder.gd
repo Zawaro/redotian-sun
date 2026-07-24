@@ -180,3 +180,51 @@ static func _heap_pop(heap: Array) -> Dictionary:
         idx = smallest
 
     return result
+
+
+static func _has_line_of_sight(
+    from: Vector2i, to: Vector2i, blocked: Dictionary
+) -> bool:
+    var dx: int = absi(to.x - from.x)
+    var dy: int = absi(to.y - from.y)
+    var sx: int = 1 if from.x < to.x else -1
+    var sy: int = 1 if from.y < to.y else -1
+    var err: int = dx - dy
+    var cx: int = from.x
+    var cy: int = from.y
+    while true:
+        var key: int = CellUtil.cell_key(Vector2i(cx, cy))
+        if blocked.has(key):
+            return false
+        if cx == to.x and cy == to.y:
+            break
+        var e2: int = 2 * err
+        if e2 > -dy:
+            err -= dy
+            cx += sx
+        if e2 < dx:
+            err += dx
+            cy += sy
+    return true
+
+
+static func smooth_path(
+    waypoints: PackedVector3Array, blocked: Dictionary
+) -> PackedVector3Array:
+    if waypoints.size() <= 2:
+        return waypoints
+    var cells: Array[Vector2i] = []
+    for w in waypoints:
+        cells.append(CellUtil.world_to_cell(w))
+    var result := PackedVector3Array()
+    result.append(waypoints[0])
+    var i: int = 0
+    while i < cells.size() - 1:
+        var farthest: int = i + 1
+        for try in range(cells.size() - 1, i, -1):
+            if _has_line_of_sight(cells[i], cells[try], blocked):
+                farthest = try
+                break
+        result.append(waypoints[farthest])
+        i = farthest
+    return result
