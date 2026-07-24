@@ -27,3 +27,4 @@ prerequisite = PackedStringArray("NOD_WAR_FACTORY")
 weight = 2.0
 
 buildable_queue = "VehicleType"
+crusher = true

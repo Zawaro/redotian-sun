@@ -23,3 +23,4 @@ owner = PackedStringArray("GDI")
 threat_posed = 0
 buildable = false
 weight = 5.0
+crusher = true

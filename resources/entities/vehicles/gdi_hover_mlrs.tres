@@ -26,3 +26,4 @@ build_time = 48.0
 prerequisite_necessary = PackedStringArray("GDI_WAR_FACTORY", "GDI_RADAR")
 
 buildable_queue = "VehicleType"
+crusher = false

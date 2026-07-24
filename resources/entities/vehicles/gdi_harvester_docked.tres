@@ -25,3 +25,4 @@ buildable = false
 harvester = true
 dock = "GDI_REFINERY"
 weight = 3.0
+crusher = true

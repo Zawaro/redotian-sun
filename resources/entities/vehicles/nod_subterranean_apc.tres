@@ -28,3 +28,4 @@ passengers = 5
 weight = 2.0
 
 buildable_queue = "VehicleType"
+crusher = true

@@ -24,3 +24,4 @@ buildable = true
 buildable_queue = "InfantryType"
 build_time = 24.0
 prerequisite = PackedStringArray("NOD_HAND_OF_NOD")
+crushable = true

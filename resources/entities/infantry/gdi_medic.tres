@@ -24,3 +24,4 @@ buildable = true
 buildable_queue = "InfantryType"
 build_time = 24.0
 prerequisite_necessary = PackedStringArray("GDI_BARRACKS", "GDI_TECH_CENTER")
+crushable = true
