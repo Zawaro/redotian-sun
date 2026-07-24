@@ -16,26 +16,31 @@ Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Re
 | Main scene | `scenes/MainScene.tscn` |
 | Viewport | 1920×1080, stretch mode = viewport |
 
-### Autoloads (8 singletons, all registered in `project.godot`)
+### Autoloads (13 singletons, all registered in `project.godot`)
 
 | Singleton | Script | Purpose |
 |-----------|--------|---------|
+| `PlayerManager` | `scripts/core/PlayerManager.gd` | Per-player identity, teams, enemy checks |
 | `SelectionManager` | `scripts/core/SelectionManager.gd` | Entity selection tracking |
 | `DebugVisualizer` | `scripts/core/DebugVisualizer.gd` | Debug mesh overlays |
 | `SpatialHashSingleton` | `scripts/core/SpatialHash.gd` | Spatial partitioning |
 | `TerrainSystem` | `scripts/core/TerrainSystem.gd` | Terrain grid management |
 | `EntityFactory` | `scripts/entities/EntityFactory.gd` | Creates entities from EntityData resources |
+| `EntityPlacer` | `scripts/entities/EntityPlacer.gd` | Places entities at world positions |
 | `BuildingManager` | `scripts/buildings/BuildingManager.gd` | Build mode, placement, preview |
 | `EconomyManager` | `scripts/economy/EconomyManager.gd` | Per-player credits, deductions |
-| `TiberiumGrowthSystem` | `scripts/core/TiberiumGrowthSystem.gd` | Tiberium spread and tree regrowth |
+| `ResourceGrowthSystem` | `scripts/core/ResourceGrowthSystem.gd` | Tiberium spread and tree regrowth |
+| `SelectionOverlay` | `scripts/ui/SelectionOverlay.gd` | Draws selection brackets, health bars, pips |
+| `PrerequisiteSystem` | `scripts/production/PrerequisiteSystem.gd` | Tech tree prerequisite checks |
+| `ProductionManager` | `scripts/production/ProductionManager.gd` | Production queues, timers, spawning |
 
 ## Folder Structure
 
 | Directory | Purpose |
 |-----------|---------|
-| `scripts/components/` | 19 reusable entity behaviors (Health, Hitbox, Select, Combat, Movement, Art, Factory, Harvest, Tiberium, etc.) |
-| `scripts/core/` | Engine-level systems: SelectionManager, BoundsSystem, Pathfinder, SpatialHash, Terrain*, TiberiumGrowth, DebugVisualizer, EntityMaskManager, PixelArtManager, SplineUtil |
-| `scripts/data/` | Resource type definitions: EntityData, WeaponData, ArtData, WarheadData, PlayerData, GlobalRules, MapOverride, ActiveAnimData |
+| `scripts/components/` | 23 reusable entity behaviors (Health, Hitbox, Select, Combat, Movement, Art, Factory, Harvest, Transport, Deploy, DockHost/Client/Unload, etc.) |
+| `scripts/core/` | Engine-level systems: SelectionManager, BoundsSystem, Pathfinder, SpatialHash, TerrainSystem, TerrainCollision, TerrainRenderer, CellUtil, CellSubPositions, ResourceGrowthSystem, PlayerManager, DebugVisualizer, EntityMaskManager, PixelArtManager, SplineUtil |
+| `scripts/data/` | Resource type definitions: EntityData, WeaponData, ArtData, WarheadData, ProjectileData, ResourceType, GlobalRules, MapConfig, PlayerData, MapOverride, ActiveAnimData |
 | `scripts/entities/` | EntityFactory autoload — creates entities from data resources |
 | `scripts/buildings/` | BuildingManager — build mode, placement, preview system |
 | `scripts/economy/` | EconomyManager — per-player credit tracking |
@@ -49,7 +54,7 @@ Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Re
 | `shaders/` | Single UI shader (`MainMenuItemBlur01.gdshader`) |
 | `plans/` | 22 design docs organized by gameplay category (1-1 through 9-2, plus roadmap) |
 | `test/` | Custom test runner, `TestHelper` class, unit and integration tests |
-| `openspec/` | OpenSpec change management (must archive changes before merge — CI enforces) |
+| `openspec/` | OpenSpec change management — all changes in `openspec/changes/` must be archived before merge (CI rejects PRs with open changes) |
 
 ## Data-Driven Architecture
 
@@ -84,7 +89,7 @@ Test files use `TestHelper` class (`test/test_helper.gd`) with static assertions
 - `TestHelper.assert_true(value, msg)`
 - `TestHelper.reset()` — called between test methods
 
-The runner auto-injects autoloads as shorthand vars: `_ts` (TerrainSystem), `_sh` (SpatialHash), `_sm` (SelectionManager), `_bm` (BuildingManager), `_em` (EconomyManager).
+The runner auto-injects autoloads as shorthand vars: `_ts` (TerrainSystem), `_sh` (SpatialHash), `_sm` (SelectionManager), `_bm` (BuildingManager), `_em` (EconomyManager), `_pm` (PlayerManager).
 
 ### Linting
 
@@ -149,7 +154,7 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 - **PR titles**: Conventional prefix + issue number in parentheses — `fix: building ignores moving entities (#59)`, `feat: async model loading (#60)`. The branch already has the number, but PR title must include it too.
 - **Naming**: PascalCase for classes/scenes, snake_case for vars/funcs. Scene files mirror script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
-- **Autoloads**: 8 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
+- **Autoloads**: 13 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
 - **Input roles**: Right-click = deselect / cancel only (clears selection, exits modes, cancels production). Left-click = select / act (selects entities, issues orders, starts production). Never issue unit commands on right-click.
 - **UID files**: Redot generates `.uid` files (e.g., `MyScript.gd.uid`) alongside scripts and scenes. These are valid parts of the codebase and MUST be committed. Always `git add` both the script and its `.uid` file together.
 
