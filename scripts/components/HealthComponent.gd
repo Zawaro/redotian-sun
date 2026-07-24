@@ -51,3 +51,8 @@ func reset_health() -> void:
     current_health = max_health
     if old_value != current_health:
         healed.emit(current_health - old_value)
+
+
+func kill() -> void:
+    current_health = 0
+    health_zero.emit()

@@ -30,12 +30,25 @@ var _repair_frames: int = 0
 var _speed_jitter: float = 1.0
 var _rotation_yaw: float = 0.0
 
+var _is_infantry: bool = false
+var _crusher: bool = false
+var _player_id: int = -1
+var _assigned_slot: int = -1
+var _sub_slot_position: Vector3 = Vector3.ZERO
+var _has_sub_slot: bool = false
+var _last_position: Vector3 = Vector3.ZERO
+
 
 func _ready() -> void:
     _parent = get_parent() as Node3D
     _resolve_rotation_target()
     _speed_jitter = randf_range(0.95, 1.0)
     _wait_threshold = 10.0 + randf_range(0.0, 15.0)
+    var stats := _parent.get_node_or_null("StatsComponent") as StatsComponent
+    if stats:
+        _is_infantry = stats.entity_type == EntityData.EntityType.INFANTRY
+        _crusher = stats.crusher
+        _player_id = stats.player_id
 
 
 func _num_segments() -> int:
@@ -58,6 +71,12 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
     if _is_cell_occupied_by_idle(target_cell):
         var free := _find_nearest_free_cell(target_cell)
         target = CellUtil.cell_to_world(free)
+        target_cell = free
+
+    if _is_infantry:
+        _assign_sub_slot_at_cell(target_cell)
+        if _has_sub_slot:
+            target = _sub_slot_position
 
     var blocked := _build_blocked_cells(unblock_buildings)
     var path: PackedVector3Array = Pathfinder.find_path(_parent.global_position, target, blocked)
@@ -67,6 +86,18 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
         pathfinding_failed.emit()
         return
 
+    if _is_infantry and path.size() > 2:
+        path = Pathfinder.smooth_path(path, blocked)
+
+    if _is_infantry and _has_sub_slot and path.size() > 0:
+        path[path.size() - 1] = _sub_slot_position
+    if _is_infantry and path.size() > 1:
+        for i in range(0, path.size() - 1):
+            var wp_cell := CellUtil.world_to_cell(path[i])
+            var wp_positions := CellSubPositions.get_sub_positions(wp_cell)
+            var offset_idx := CellUtil.cell_key(wp_cell) % wp_positions.size()
+            path[i] = path[i] + wp_positions[offset_idx]
+
     var full_path: PackedVector3Array = [_parent.global_position]
     full_path.append_array(path)
 
@@ -74,12 +105,21 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
         full_path[i].y = TerrainSystem.get_height_at_world_smooth(full_path[i])
 
     _waypoints = full_path
-    _spline_t = 0.001
+    _spline_t = 0.0
     _wait_frames = 0
     _repair_frames = 0
+    _last_position = _parent.global_position
     if is_instance_valid(_rotation_target):
         _rotation_yaw = _rotation_target.global_rotation.y
-    _state = State.ROTATING
+    if _is_infantry:
+        _state = State.MOVING
+        if is_instance_valid(_rotation_target) and _waypoints.size() > 1:
+            var tangent := (_waypoints[1] - _waypoints[0]).normalized()
+            var target_yaw := atan2(-tangent.x, -tangent.z)
+            _rotation_yaw = target_yaw
+            _apply_facing(Vector3(-sin(target_yaw), 0.0, -cos(target_yaw)))
+    else:
+        _state = State.ROTATING
     if debug_show_path:
         DebugVisualizer.draw_path(get_path(), _parent.global_position, _waypoints, 0)
 
@@ -137,15 +177,7 @@ func _handle_rotating(delta: float) -> void:
         _state = State.MOVING
     else:
         _rotation_yaw += sign(angle_difference(_rotation_yaw, target_yaw)) * step
-        var forward := Vector3(-sin(_rotation_yaw), 0.0, -cos(_rotation_yaw))
-        var normal := TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
-        var projected := (forward - forward.dot(normal) * normal).normalized()
-        var right := projected.cross(normal).normalized()
-        var rot_basis := Basis()
-        rot_basis.x = right
-        rot_basis.y = normal
-        rot_basis.z = -projected
-        _rotation_target.global_transform.basis = rot_basis
+        _apply_facing(Vector3(-sin(_rotation_yaw), 0.0, -cos(_rotation_yaw)))
 
 
 func _handle_moving_movement(delta: float) -> void:
@@ -189,6 +221,9 @@ func _handle_moving_movement(delta: float) -> void:
                 if not mc or mc._state == State.IDLE:
                     continue
 
+                if _is_infantry and mc._is_infantry:
+                    continue
+
                 var neighbor_dist: float = parent_pos.distance_to(entity_parent.global_position)
                 var to_neighbor := (entity_parent.global_position - parent_pos).normalized()
                 if to_neighbor.dot(spline_dir) > 0.0 and neighbor_dist < min_neighbor_dist_ahead:
@@ -209,15 +244,7 @@ func _handle_moving_movement(delta: float) -> void:
     var final_direction := (spline_dir + deviation).normalized()
 
     if is_instance_valid(_rotation_target):
-        var forward := Vector3(final_direction.x, 0.0, final_direction.z).normalized()
-        var normal := TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
-        var projected := (forward - forward.dot(normal) * normal).normalized()
-        var right := projected.cross(normal).normalized()
-        var rot_basis := Basis()
-        rot_basis.x = right
-        rot_basis.y = normal
-        rot_basis.z = -projected
-        _rotation_target.global_transform.basis = rot_basis
+        _apply_facing(Vector3(final_direction.x, 0.0, final_direction.z).normalized())
 
     var step := final_direction * move_speed * _speed_jitter * speed_factor * delta
     _spline_t += step.length() / seg_length
@@ -235,6 +262,9 @@ func _handle_moving_movement(delta: float) -> void:
                 _parent.global_position
             )
             _state = State.IDLE
+            # ponytail: no _claim_sub_slot() here — sub-slot is determined at
+            # movement start in set_target_position(). Snapping on arrival is
+            # visually broken.
             SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
@@ -244,10 +274,22 @@ func _handle_moving_movement(delta: float) -> void:
             _snap_to_terrain()
     else:
         _parent.global_position += step
-        var spline_pos := _get_spline_pos(_spline_t)
-        var lerped := _parent.global_position.lerp(spline_pos, 0.2)
-        _parent.global_position = Vector3(lerped.x, _parent.global_position.y, lerped.z)
+        var skip_lerp := (
+            _is_infantry
+            and (_spline_segment() == 0 or _spline_segment() >= _num_segments() - 1)
+        )
+        if not skip_lerp:
+            var spline_pos := _get_spline_pos(_spline_t)
+            var lerped := _parent.global_position.lerp(spline_pos, 0.2)
+            _parent.global_position = Vector3(lerped.x, _parent.global_position.y, lerped.z)
         _snap_to_terrain()
+
+    if _crusher:
+        var new_cell := CellUtil.world_to_cell(_parent.global_position)
+        var old_cell := CellUtil.world_to_cell(_last_position)
+        if new_cell != old_cell:
+            _try_crush(new_cell)
+    _last_position = _parent.global_position
 
 
 func _handle_wait() -> void:
@@ -271,6 +313,9 @@ func _handle_wait() -> void:
         if _parent.global_position.distance_to(cell_center) < 0.05:
             _parent.global_position = cell_center
             _state = State.IDLE
+            # ponytail: no _claim_sub_slot() here — sub-slot is determined at
+            # movement start in set_target_position(). Snapping on arrival is
+            # visually broken.
             SpatialHash.instance.release_cell(final_cell)
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
@@ -280,6 +325,71 @@ func _handle_wait() -> void:
 
 func squaref(v: float) -> float:
     return v * v
+
+
+func _try_crush(cell: Vector2i) -> void:
+    var enemies: Array = SpatialHash.instance.get_crushable_enemies_on_cell(cell, _player_id)
+    for enemy in enemies:
+        if not is_instance_valid(enemy):
+            continue
+        var hc := (enemy as Node3D).get_node_or_null("HealthComponent") as HealthComponent
+        if hc:
+            hc.kill()
+
+
+func _apply_facing(direction: Vector3) -> void:
+    if not is_instance_valid(_rotation_target):
+        return
+    var forward := Vector3(direction.x, 0.0, direction.z).normalized()
+    if forward.length_squared() < 0.001:
+        return
+    var normal := (
+        Vector3.UP if _is_infantry
+        else TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
+    )
+    var projected := (forward - forward.dot(normal) * normal).normalized()
+    if projected.length_squared() < 0.001:
+        return
+    var right := projected.cross(normal).normalized()
+    var rot_basis := Basis()
+    rot_basis.x = right
+    rot_basis.y = normal
+    rot_basis.z = -projected
+    _rotation_target.global_transform.basis = rot_basis
+
+
+func _assign_sub_slot_at_cell(cell: Vector2i) -> void:
+    var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
+    var taken_slots: Dictionary = {}
+    # Loop 1: entities already at this cell (in SpatialHash).
+    var entries: Array = SpatialHash.instance.get_entries(cell)
+    for entry in entries:
+        var entry_mc: MovementController = entry["mc"]
+        if entry_mc and entry_mc != self and entry_mc._has_sub_slot:
+            taken_slots[entry_mc._assigned_slot] = true
+    # Loop 2: entities en route to this cell (not in SpatialHash yet).
+    for entity in get_tree().get_nodes_in_group("entities"):
+        if entity == _parent:
+            continue
+        var mc: MovementController = entity.get_node_or_null("MovementController")
+        if mc and mc != self and mc._has_sub_slot:
+            var mc_cell := CellUtil.world_to_cell(mc._sub_slot_position)
+            if mc_cell == cell:
+                taken_slots[mc._assigned_slot] = true
+    if (
+        _assigned_slot >= 0
+        and _assigned_slot < positions.size()
+        and not taken_slots.has(_assigned_slot)
+    ):
+        _sub_slot_position = CellUtil.cell_to_world(cell) + positions[_assigned_slot]
+        _has_sub_slot = true
+        return
+    for i in range(positions.size()):
+        if not taken_slots.has(i):
+            _assigned_slot = i
+            _sub_slot_position = CellUtil.cell_to_world(cell) + positions[i]
+            _has_sub_slot = true
+            break
 
 
 func _spline_segment() -> int:
@@ -298,6 +408,10 @@ func _build_blocked_cells(unblock_buildings: bool = false) -> Dictionary:
     var result: Dictionary = SpatialHash.instance.get_blocked_cells().duplicate()
     var cell := CellUtil.world_to_cell(_parent.global_position)
     result.erase(CellUtil.cell_key(cell))
+    if not _is_infantry and _crusher:
+        result.merge(SpatialHash.instance.get_crusher_blocking_cells(_player_id))
+    elif not _is_infantry:
+        result.merge(SpatialHash.instance.get_infantry_cells())
     if unblock_buildings:
         for key in SpatialHash.instance.get_building_cells():
             result.erase(key)
@@ -316,6 +430,8 @@ func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
     if SpatialHash.instance._grid.has(key):
         for entry in SpatialHash.instance._grid[key]:
             if entry.node != _parent:
+                if _is_infantry and entry.entity_type == EntityData.EntityType.INFANTRY:
+                    continue
                 return true
     return false
 
@@ -368,7 +484,5 @@ func _snap_to_terrain() -> void:
     _parent.global_position.y = lerpf(_parent.global_position.y, terrain_y, 0.95)
 
 
-func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
-    if not target:
-        return CursorState.Type.MOVE
-    return CursorState.Type.DEFAULT
+func get_cursor_for_target(_target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
+    return CursorState.Type.MOVE
