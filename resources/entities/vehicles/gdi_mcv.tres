@@ -28,3 +28,4 @@ deploys_into = "GDI_CONSTRUCTION_YARD"
 weight = 3.0
 
 buildable_queue = "VehicleType"
+crusher = true

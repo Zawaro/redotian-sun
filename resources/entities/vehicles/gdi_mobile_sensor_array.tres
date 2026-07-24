@@ -27,3 +27,4 @@ prerequisite_necessary = PackedStringArray("GDI_WAR_FACTORY", "GDI_RADAR")
 weight = 2.0
 
 buildable_queue = "VehicleType"
+crusher = true

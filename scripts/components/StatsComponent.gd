@@ -12,6 +12,10 @@ class_name StatsComponent extends Node
 @export var points: int = 0
 ## Player who owns this entity instance (-1 = unset).
 @export var player_id: int = -1
+## Whether this entity can crush infantry underfoot.
+@export var crusher: bool = false
+## Whether this entity can be crushed by larger units.
+@export var crushable: bool = false
 
 
 func configure(data: EntityData) -> void:
@@ -24,6 +28,8 @@ func configure(data: EntityData) -> void:
     sight = data.sight
     owner_faction = data.owner
     points = data.points
+    crusher = data.crusher
+    crushable = data.crushable
 
 
 func validate(data: EntityData) -> PackedStringArray:

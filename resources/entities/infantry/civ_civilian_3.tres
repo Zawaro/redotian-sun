@@ -21,3 +21,4 @@ locomotor = "Foot"
 owner = PackedStringArray("GDI", "Nod")
 threat_posed = 0
 buildable = false
+crushable = true
