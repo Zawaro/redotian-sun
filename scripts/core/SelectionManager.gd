@@ -134,6 +134,9 @@ func request_move(target_position: Vector3) -> void:
     _pending_moves.clear()
     _pending_index = 0
 
+    var infantry: Array[SelectComponent] = []
+    var vehicles: Array[SelectComponent] = []
+
     # Snapshot — undeploy mutates selected_entities mid-loop
     var snapshot := selected_entities.duplicate()
     for ent in snapshot:
@@ -150,8 +153,8 @@ func request_move(target_position: Vector3) -> void:
         # Check for deploy component on buildings — trigger undeploy instead of move
         var deploy := parent.get_node_or_null("DeployComponent") as DeployComponent
         if deploy and deploy.can_undeploy():
-            var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
-            if stats and stats.entity_type == EntityData.EntityType.BUILDING:
+            var deploy_stats := parent.get_node_or_null("StatsComponent") as StatsComponent
+            if deploy_stats and deploy_stats.entity_type == EntityData.EntityType.BUILDING:
                 var undeploy_offset := parent.global_position - center
                 var undeploy_cell_offset := Vector2i(
                     roundi(undeploy_offset.x / CellUtil.CELL_SIZE),
@@ -170,6 +173,35 @@ func request_move(target_position: Vector3) -> void:
                 deploy.execute_undeploy(parent, undeploy_target)
                 continue
 
+        var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
+        if stats and stats.entity_type == EntityData.EntityType.INFANTRY:
+            infantry.append(ent)
+        else:
+            vehicles.append(ent)
+
+    var cell_occupancy: Dictionary = {}
+    var target_cell := CellUtil.world_to_cell(target_position)
+    var existing_count := SpatialHash.instance.get_infantry_count(target_cell)
+    if existing_count > 0:
+        cell_occupancy[CellUtil.cell_key(target_cell)] = existing_count
+    for inf in infantry:
+        var parent := inf.get_parent() as Node3D
+        if not is_instance_valid(parent):
+            continue
+        var assigned_cell := _find_infantry_cell(target_position, cell_occupancy)
+        var cell_key := CellUtil.cell_key(assigned_cell)
+        var slot: int = cell_occupancy.get(cell_key, 0)
+        cell_occupancy[cell_key] = slot + 1
+        var cell_center := CellUtil.cell_to_world(assigned_cell)
+        var mc := parent.get_node_or_null("MovementController") as MovementController
+        if mc:
+            mc._assigned_slot = slot
+        _pending_moves.append([inf, cell_center])
+
+    for ent in vehicles:
+        var parent := ent.get_parent() as Node3D
+        if not is_instance_valid(parent):
+            continue
         var offset := parent.global_position - center
         var cell_offset := Vector2i(
             roundi(offset.x / CellUtil.CELL_SIZE), roundi(offset.z / CellUtil.CELL_SIZE)
@@ -177,16 +209,13 @@ func request_move(target_position: Vector3) -> void:
         if abs(cell_offset.x) > 2 or abs(cell_offset.y) > 2:
             cell_offset.x = clampi(cell_offset.x, -2, 2)
             cell_offset.y = clampi(cell_offset.y, -2, 2)
-
         var target := (
             target_position
             + Vector3(cell_offset.x * CellUtil.CELL_SIZE, 0, cell_offset.y * CellUtil.CELL_SIZE)
         )
-
         var cell := CellUtil.world_to_cell(target)
         if not SpatialHash.instance.reserve_cell(cell):
             target = _fallback_target(target)
-
         _pending_moves.append([ent, target])
 
 
@@ -203,10 +232,6 @@ func request_harvest(target: Node3D) -> bool:
         var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
         if harvest:
             harvest.set_target_node(target)
-            issued = true
-        elif parent.has_node("MovementController"):
-            var mc := parent.get_node("MovementController") as MovementController
-            mc.set_target_position(target.global_position)
             issued = true
     return issued
 
@@ -340,3 +365,15 @@ func request_set_rally_point(target_position: Vector3) -> void:
         var rally := parent.get_node_or_null("RallyPointComponent") as RallyPointComponent
         if rally:
             rally.set_rally_point(cell)
+
+
+func _find_infantry_cell(target_position: Vector3, occupancy: Dictionary) -> Vector2i:
+    var target := CellUtil.world_to_cell(target_position)
+    return CellUtil.spiral_first_free(target, 4, func(cell: Vector2i) -> bool:
+        var key := CellUtil.cell_key(cell)
+        if occupancy.get(key, 0) >= 3:
+            return true
+        if SpatialHash.instance.is_cell_blocked(cell):
+            return true
+        return false
+    )
