@@ -369,11 +369,14 @@ func request_set_rally_point(target_position: Vector3) -> void:
 
 func _find_infantry_cell(target_position: Vector3, occupancy: Dictionary) -> Vector2i:
     var target := CellUtil.world_to_cell(target_position)
-    return CellUtil.spiral_first_free(target, 4, func(cell: Vector2i) -> bool:
-        var key := CellUtil.cell_key(cell)
-        if occupancy.get(key, 0) >= 3:
-            return true
-        if SpatialHash.instance.is_cell_blocked(cell):
-            return true
-        return false
+    return CellUtil.spiral_first_free(
+        target,
+        4,
+        func(cell: Vector2i) -> bool:
+            var key := CellUtil.cell_key(cell)
+            if occupancy.get(key, 0) >= 3:
+                return true
+            if SpatialHash.instance.is_cell_blocked(cell):
+                return true
+            return false
     )

@@ -39,12 +39,17 @@ func rebuild() -> void:
             _grid[key] = []
         var etype: int = stats.entity_type if stats else -1
         var pid: int = stats.player_id if stats else -1
-        _grid[key].append({
-            "node": entity_root,
-            "mc": mc,
-            "entity_type": etype,
-            "player_id": pid,
-        })
+        (
+            _grid[key]
+            . append(
+                {
+                    "node": entity_root,
+                    "mc": mc,
+                    "entity_type": etype,
+                    "player_id": pid,
+                }
+            )
+        )
         if mc and mc._state == MovementController.State.IDLE:
             # ponytail: only count IDLE infantry. Moving infantry can stack
             # beyond 3 transiently, but crush clears them. Counting MOVING

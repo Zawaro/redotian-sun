@@ -342,12 +342,14 @@ func test_get_crushable_enemies_filters_by_player():
     add_child(enemy)
     _sh._grid[key] = [
         {
-            "node": friendly, "mc": null,
+            "node": friendly,
+            "mc": null,
             "entity_type": EntityData.EntityType.INFANTRY,
             "player_id": 0,
         },
         {
-            "node": enemy, "mc": null,
+            "node": enemy,
+            "mc": null,
             "entity_type": EntityData.EntityType.INFANTRY,
             "player_id": 1,
         },

@@ -36,7 +36,8 @@ func test_crush_does_not_kill_friendly():
     friendly_stats.crushable = true
     friendly.add_child(friendly_stats)
     var entry := {
-        "node": friendly, "mc": null,
+        "node": friendly,
+        "mc": null,
         "entity_type": EntityData.EntityType.INFANTRY,
         "player_id": 0,
     }
@@ -68,7 +69,8 @@ func test_crush_does_not_affect_non_crushable():
     enemy_stats.crushable = false
     enemy.add_child(enemy_stats)
     var entry := {
-        "node": enemy, "mc": null,
+        "node": enemy,
+        "mc": null,
         "entity_type": EntityData.EntityType.INFANTRY,
         "player_id": 1,
     }
