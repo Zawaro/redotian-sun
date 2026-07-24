@@ -73,8 +73,10 @@ func _start_exit(unit: Node3D = null, exit_pos: Vector3 = Vector3.ZERO) -> void:
     _delay_timer = 0.0
     if is_instance_valid(unit):
         var mc := unit.get_node_or_null("MovementController") as MovementController
-        if mc and not mc.arrived.is_connected(_on_exit_arrived):
-            mc.arrived.connect(_on_exit_arrived.bind(unit))
+        if mc:
+            mc._has_sub_slot = false
+            if not mc.arrived.is_connected(_on_exit_arrived):
+                mc.arrived.connect(_on_exit_arrived.bind(unit))
         _move_to_exit(unit, exit_pos)
     else:
         _rally_component = null
@@ -133,6 +135,8 @@ func _find_free_near(cell: Vector2i) -> Vector2i:
 
 func _is_cell_available(cell: Vector2i) -> bool:
     if SpatialHash.instance.is_cell_blocked(cell):
+        return false
+    if SpatialHash.instance.is_cell_full_for_infantry(cell):
         return false
     var key := CellUtil.cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
