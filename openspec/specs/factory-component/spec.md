@@ -65,3 +65,7 @@ ProductionManager SHALL call `FactoryComponent.on_unit_produced()` when producti
 #### Scenario: Factory busy, find next
 - **WHEN** ProductionManager receives `exit_in_progress` from FactoryComponent
 - **THEN** ProductionManager SHALL find next free factory of same type for next queued item
+
+#### Scenario: Exit cell search consolidated
+- **WHEN** `_find_exit_cell()` is called
+- **THEN** it delegates to `CellUtil.spiral_first_free()` with max radius 6
