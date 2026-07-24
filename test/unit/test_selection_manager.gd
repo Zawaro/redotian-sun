@@ -316,3 +316,37 @@ func test_is_local_entity_allows_local():
         _test_failed += 1
         print("    FAIL: _is_local_entity should return true for local player")
     entity.free()
+
+
+func test_find_infantry_cell_empty():
+    if _sm == null:
+        _test_failed += 1
+        print("    FAIL: SelectionManager not injected")
+        return
+    var occupancy: Dictionary = {}
+    var target := Vector2i(10, 10)
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(20, 0, 20), occupancy)
+    if result == target:
+        _test_passed += 1
+        print("    PASS: _find_infantry_cell returns target when empty")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected %s, got %s" % [target, result])
+
+
+func test_find_infantry_cell_at_capacity():
+    if _sm == null:
+        _test_failed += 1
+        print("    FAIL: SelectionManager not injected")
+        return
+    var occupancy: Dictionary = {}
+    var target := Vector2i(10, 10)
+    var key: int = CellUtil.cell_key(target)
+    occupancy[key] = 3
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(20, 0, 20), occupancy)
+    if result != target:
+        _test_passed += 1
+        print("    PASS: _find_infantry_cell spirals when target is full")
+    else:
+        _test_failed += 1
+        print("    FAIL: should have spiraled away from full cell")
