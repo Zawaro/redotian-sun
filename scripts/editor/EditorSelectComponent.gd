@@ -28,9 +28,9 @@ func configure(entity_data: EntityData, p_cell_key: String, p_entry: Dictionary)
     var foundation: Vector2i = entity_data.foundation
     var entity_height: float = _resolve_entity_height(entity_data)
     var box_size := Vector3(
-        float(foundation.x) * Pathfinder.CELL_SIZE,
+        float(foundation.x) * CellUtil.CELL_SIZE,
         entity_height,
-        float(foundation.y) * Pathfinder.CELL_SIZE,
+        float(foundation.y) * CellUtil.CELL_SIZE,
     )
 
     _setup_hitbox(box_size)

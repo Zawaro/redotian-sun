@@ -27,4 +27,4 @@ func has_rally_point() -> bool:
 func get_target_position() -> Vector3:
     if not has_rally_point():
         return Vector3.ZERO
-    return Pathfinder.cell_to_world(rally_point)
+    return CellUtil.cell_to_world(rally_point)

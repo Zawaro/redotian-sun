@@ -69,20 +69,20 @@ func _compute_dock_cell() -> void:
     var entity := get_parent() as Node3D
     if not entity:
         return
-    var cs := Pathfinder.CELL_SIZE
+    var cs := CellUtil.CELL_SIZE
     var found := _get_foundation()
     var origin_cell := Vector2i(
         floori((entity.global_position.x - found.x * 0.5 * cs) / cs),
         floori((entity.global_position.z - found.y * 0.5 * cs) / cs)
     )
-    var top_left := Pathfinder.cell_to_world(origin_cell)
-    _dock_cell = Pathfinder.world_to_cell(top_left + entity.global_transform.basis * dock_position)
+    var top_left := CellUtil.cell_to_world(origin_cell)
+    _dock_cell = CellUtil.world_to_cell(top_left + entity.global_transform.basis * dock_position)
 
 
 func is_cell_available(cell: Vector2i) -> bool:
     if not SpatialHash.instance:
         return true
-    var key: int = SpatialHash.instance._cell_key(cell)
+    var key: int = CellUtil.cell_key(cell)
     if SpatialHash.instance._building_cells.has(key):
         return false
     var blocked: bool = SpatialHash.instance._blocked_cells.has(key)
@@ -91,15 +91,12 @@ func is_cell_available(cell: Vector2i) -> bool:
 
 
 func find_wait_cell(max_radius: int = 3) -> Vector2i:
-    for r in range(0, max_radius + 1):
-        for dx in range(-r, r + 1):
-            for dz in range(-r, r + 1):
-                if r > 0 and abs(dx) != r and abs(dz) != r:
-                    continue
-                var cell := _dock_cell + Vector2i(dx, dz)
-                if is_cell_available(cell) and not SpatialHash.instance.is_bib_cell(cell):
-                    return cell
-    return _dock_cell
+    return CellUtil.spiral_first_free(
+        _dock_cell,
+        max_radius,
+        func(cell: Vector2i) -> bool:
+            return not is_cell_available(cell) or SpatialHash.instance.is_bib_cell(cell)
+    )
 
 
 func has_dock_type(type: String) -> bool:

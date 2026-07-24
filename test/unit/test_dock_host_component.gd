@@ -283,7 +283,7 @@ func test_find_wait_cell_excludes_bib_cells():
     var wait_cell := host.find_wait_cell(1)
 
     # Clean up
-    SpatialHash.instance._bib_cells.erase(SpatialHash.instance._cell_key(Vector2i(5, 6)))
+    SpatialHash.instance._bib_cells.erase(CellUtil.cell_key(Vector2i(5, 6)))
 
     if wait_cell != Vector2i(5, 6):
         _test_passed += 1

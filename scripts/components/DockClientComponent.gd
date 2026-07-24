@@ -152,13 +152,13 @@ func _move_to_dock(host: Node3D) -> void:
     if not dock or not _mc:
         dock_slot_failed.emit()
         return
-    var cs := Pathfinder.CELL_SIZE
+    var cs := CellUtil.CELL_SIZE
     var found := dock._get_foundation()
     var origin_cell := Vector2i(
         floori((host.global_position.x - found.x * 0.5 * cs) / cs),
         floori((host.global_position.z - found.y * 0.5 * cs) / cs)
     )
-    var top_left_world := Pathfinder.cell_to_world(origin_cell)
+    var top_left_world := CellUtil.cell_to_world(origin_cell)
     var dock_offset := dock.dock_position
     var basis := host.global_transform.basis
     var target_pos := top_left_world + basis * dock_offset
@@ -168,7 +168,7 @@ func _move_to_dock(host: Node3D) -> void:
 func _move_to_cell(cell: Vector2i) -> void:
     if not _mc:
         return
-    _mc.set_target_position(Pathfinder.cell_to_world(cell))
+    _mc.set_target_position(CellUtil.cell_to_world(cell))
 
 
 func _on_arrived(_position: Vector3) -> void:
@@ -179,9 +179,9 @@ func _on_arrived(_position: Vector3) -> void:
             # Verify we're at the correct dock cell.
             var dock := _target_host.get_node_or_null("DockHostComponent") as DockHostComponent
             if dock and _mc:
-                var my_cell := Pathfinder.world_to_cell(get_parent().global_position)
+                var my_cell := CellUtil.world_to_cell(get_parent().global_position)
                 if my_cell != dock._dock_cell:
-                    _mc.set_target_position(Pathfinder.cell_to_world(dock._dock_cell))
+                    _mc.set_target_position(CellUtil.cell_to_world(dock._dock_cell))
                     return
             # Arrived — restart the host's stale clock so the (variable-length)
             # approach doesn't eat the rotate+unload budget.
@@ -194,9 +194,9 @@ func _on_arrived(_position: Vector3) -> void:
                 var dock := _queued_host.get_node_or_null("DockHostComponent") as DockHostComponent
                 if dock:
                     var wait_cell := dock.find_wait_cell()
-                    var my_cell := Pathfinder.world_to_cell(get_parent().global_position)
+                    var my_cell := CellUtil.world_to_cell(get_parent().global_position)
                     if my_cell != wait_cell:
-                        _mc.set_target_position(Pathfinder.cell_to_world(wait_cell))
+                        _mc.set_target_position(CellUtil.cell_to_world(wait_cell))
 
 
 func _on_pathfinding_failed() -> void:
@@ -270,7 +270,7 @@ func cancel() -> void:
 
 
 func find_nearest_host(parent: Node3D, exclude: Node3D = null) -> Node3D:
-    var parent_cell := Pathfinder.world_to_cell(parent.global_position)
+    var parent_cell := CellUtil.world_to_cell(parent.global_position)
     var nearest: Node3D = null
     var nearest_dist := float(search_radius_cells * search_radius_cells)
     var buildings_parent := get_tree().current_scene.get_node_or_null("Buildings")
@@ -286,7 +286,7 @@ func find_nearest_host(parent: Node3D, exclude: Node3D = null) -> Node3D:
         var entity_id := dock.get_entity_id()
         if not can_dock_with.is_empty() and entity_id not in can_dock_with:
             continue
-        var dock_cell := Pathfinder.world_to_cell(Pathfinder.cell_to_world(dock._dock_cell))
+        var dock_cell := CellUtil.world_to_cell(CellUtil.cell_to_world(dock._dock_cell))
         var raw_dist := Vector2(parent_cell - dock_cell).length_squared()
         var queue_size: int = dock.get_effective_queue_size()
         var penalty := queue_size * occupancy_penalty * occupancy_penalty

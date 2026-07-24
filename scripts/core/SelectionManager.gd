@@ -3,8 +3,6 @@ extends Node
 signal selection_changed(selected_entities: Array[SelectComponent])
 signal hover_changed(entity: SelectComponent)
 
-const CELL_SIZE: float = 2.0
-
 var selected_entities: Array[SelectComponent] = []
 var is_hovering: bool = false
 var hovered_entity: SelectComponent = null
@@ -114,7 +112,7 @@ func request_move(target_position: Vector3) -> void:
         if not _is_local_entity(ent):
             continue
         if is_instance_valid(parent):
-            SpatialHash.instance.force_reserve(Pathfinder.world_to_cell(parent.global_position))
+            SpatialHash.instance.force_reserve(CellUtil.world_to_cell(parent.global_position))
 
     var center := Vector3.ZERO
     var count := 0
@@ -156,30 +154,36 @@ func request_move(target_position: Vector3) -> void:
             if stats and stats.entity_type == EntityData.EntityType.BUILDING:
                 var undeploy_offset := parent.global_position - center
                 var undeploy_cell_offset := Vector2i(
-                    roundi(undeploy_offset.x / CELL_SIZE), roundi(undeploy_offset.z / CELL_SIZE)
+                    roundi(undeploy_offset.x / CellUtil.CELL_SIZE),
+                    roundi(undeploy_offset.z / CellUtil.CELL_SIZE)
                 )
                 undeploy_cell_offset.x = clampi(undeploy_cell_offset.x, -2, 2)
                 undeploy_cell_offset.y = clampi(undeploy_cell_offset.y, -2, 2)
                 var undeploy_target := (
                     target_position
                     + Vector3(
-                        undeploy_cell_offset.x * CELL_SIZE, 0, undeploy_cell_offset.y * CELL_SIZE
+                        undeploy_cell_offset.x * CellUtil.CELL_SIZE,
+                        0,
+                        undeploy_cell_offset.y * CellUtil.CELL_SIZE
                     )
                 )
                 deploy.execute_undeploy(parent, undeploy_target)
                 continue
 
         var offset := parent.global_position - center
-        var cell_offset := Vector2i(roundi(offset.x / CELL_SIZE), roundi(offset.z / CELL_SIZE))
+        var cell_offset := Vector2i(
+            roundi(offset.x / CellUtil.CELL_SIZE), roundi(offset.z / CellUtil.CELL_SIZE)
+        )
         if abs(cell_offset.x) > 2 or abs(cell_offset.y) > 2:
             cell_offset.x = clampi(cell_offset.x, -2, 2)
             cell_offset.y = clampi(cell_offset.y, -2, 2)
 
         var target := (
-            target_position + Vector3(cell_offset.x * CELL_SIZE, 0, cell_offset.y * CELL_SIZE)
+            target_position
+            + Vector3(cell_offset.x * CellUtil.CELL_SIZE, 0, cell_offset.y * CellUtil.CELL_SIZE)
         )
 
-        var cell := Pathfinder.world_to_cell(target)
+        var cell := CellUtil.world_to_cell(target)
         if not SpatialHash.instance.reserve_cell(cell):
             target = _fallback_target(target)
 
@@ -189,6 +193,8 @@ func request_move(target_position: Vector3) -> void:
 func request_harvest(target: Node3D) -> bool:
     var issued := false
     for ent in selected_entities:
+        if not is_instance_valid(ent):
+            continue
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent) or _is_entity_transitioning(parent):
             continue
@@ -212,6 +218,8 @@ func request_dock(target: Node3D) -> bool:
     var target_id := dock_comp.get_entity_id()
     var issued := false
     for ent in selected_entities:
+        if not is_instance_valid(ent):
+            continue
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent) or _is_entity_transitioning(parent):
             continue
@@ -265,16 +273,13 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
 
 
 func _fallback_target(target: Vector3) -> Vector3:
-    var cell := Pathfinder.world_to_cell(target)
-    for radius in range(0, 8):
-        for dx in range(-radius, radius + 1):
-            for dz in range(-radius, radius + 1):
-                if abs(dx) != radius and abs(dz) != radius:
-                    continue
-                var n := cell + Vector2i(dx, dz)
-                if SpatialHash.instance.reserve_cell(n):
-                    return Pathfinder.cell_to_world(n)
-    return target
+    var cell := CellUtil.world_to_cell(target)
+    var result := CellUtil.spiral_first_free(
+        cell, 8, func(c: Vector2i) -> bool: return not SpatialHash.instance.reserve_cell(c)
+    )
+    if result == cell:
+        return target
+    return CellUtil.cell_to_world(result)
 
 
 func _is_entity_transitioning(entity: Node3D) -> bool:
@@ -323,7 +328,7 @@ func request_deploy() -> void:
 
 
 func request_set_rally_point(target_position: Vector3) -> void:
-    var cell := Pathfinder.world_to_cell(target_position)
+    var cell := CellUtil.world_to_cell(target_position)
     for ent in selected_entities:
         if not is_instance_valid(ent):
             continue

@@ -597,7 +597,7 @@ func test_queued_scatter_arrived_at_wait_cell_noop():
 
     var dock_comp := host.get_node("DockHostComponent") as DockHostComponent
     var wait_cell := dock_comp.find_wait_cell()
-    h.global_position = Pathfinder.cell_to_world(wait_cell)
+    h.global_position = CellUtil.cell_to_world(wait_cell)
 
     var c := _get_client(h)
     c._queued_host = host

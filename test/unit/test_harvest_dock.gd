@@ -81,14 +81,14 @@ func _init_harvest(_harvest: HarvestComponent, _dock_id: String = "GDI_REFINERY"
 
 
 func _init_dock(dock_comp: DockHostComponent, dock_entity: Node3D) -> void:
-    var cs := Pathfinder.CELL_SIZE
+    var cs := CellUtil.CELL_SIZE
     var found := dock_comp._get_foundation()
     var origin_cell := Vector2i(
         floori((dock_entity.position.x - found.x * 0.5 * cs) / cs),
         floori((dock_entity.position.z - found.y * 0.5 * cs) / cs)
     )
-    var top_left := Pathfinder.cell_to_world(origin_cell)
-    dock_comp._dock_cell = Pathfinder.world_to_cell(
+    var top_left := CellUtil.cell_to_world(origin_cell)
+    dock_comp._dock_cell = CellUtil.world_to_cell(
         top_left + dock_entity.global_transform.basis * dock_comp.dock_position
     )
 
@@ -464,7 +464,7 @@ func test_leave_dock_releases_cell():
     dock_comp.leave_dock(harvest)
     dock_comp._process(0.0)  # resolve vacate
 
-    var key: int = SpatialHash.instance._cell_key(dock_cell)
+    var key: int = CellUtil.cell_key(dock_cell)
     var still_reserved: bool = SpatialHash.instance._reserved.has(key)
 
     if not still_reserved and dock_comp.current_docker == null:
@@ -505,7 +505,7 @@ func test_leave_dock_reserves_cell_for_next_docker():
     dock_comp.leave_dock(harvest_a)  # triggers vacate
     dock_comp._process(0.0)  # resolve vacate → promotes B
 
-    var key: int = SpatialHash.instance._cell_key(dock_cell)
+    var key: int = CellUtil.cell_key(dock_cell)
     var reserved_for_b: bool = SpatialHash.instance._reserved.has(key)
 
     if reserved_for_b and dock_comp.current_docker == harvest_b:
@@ -613,7 +613,7 @@ func test_full_dock_cycle_leave_transfers_to_next():
     var transferred: bool = dock_comp.current_docker == harvest_b
     var queue_empty: bool = dock_comp.queue.is_empty()
 
-    var key: int = SpatialHash.instance._cell_key(dock_comp._dock_cell)
+    var key: int = CellUtil.cell_key(dock_comp._dock_cell)
     var cell_reserved: bool = SpatialHash.instance._reserved.has(key)
 
     if docked_a and queued_b and transferred and queue_empty and cell_reserved:

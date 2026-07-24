@@ -8,7 +8,7 @@ var _test_failed := 0
 
 
 func test_world_to_cell_origin():
-    var got: Vector2i = Pathfinder.world_to_cell(Vector3.ZERO)
+    var got: Vector2i = CellUtil.world_to_cell(Vector3.ZERO)
     var expected: Vector2i = Vector2i(0, 0)
     if got == expected:
         _test_passed += 1
@@ -19,7 +19,7 @@ func test_world_to_cell_origin():
 
 
 func test_world_to_cell_positive():
-    var got: Vector2i = Pathfinder.world_to_cell(Vector3(5.0, 0.0, 5.0))
+    var got: Vector2i = CellUtil.world_to_cell(Vector3(5.0, 0.0, 5.0))
     var expected: Vector2i = Vector2i(2, 2)
     if got == expected:
         _test_passed += 1
@@ -30,7 +30,7 @@ func test_world_to_cell_positive():
 
 
 func test_world_to_cell_negative():
-    var got: Vector2i = Pathfinder.world_to_cell(Vector3(-3.0, 0.0, -3.0))
+    var got: Vector2i = CellUtil.world_to_cell(Vector3(-3.0, 0.0, -3.0))
     var expected: Vector2i = Vector2i(-2, -2)
     if got == expected:
         _test_passed += 1
@@ -41,7 +41,7 @@ func test_world_to_cell_negative():
 
 
 func test_cell_to_world_origin():
-    var got: Vector3 = Pathfinder.cell_to_world(Vector2i(0, 0))
+    var got: Vector3 = CellUtil.cell_to_world(Vector2i(0, 0))
     var expected: Vector3 = Vector3(1.0, 0.0, 1.0)
     if got == expected:
         _test_passed += 1
@@ -53,8 +53,8 @@ func test_cell_to_world_origin():
 
 func test_cell_to_world_roundtrip():
     var cell: Vector2i = Vector2i(5, 3)
-    var world: Vector3 = Pathfinder.cell_to_world(cell)
-    var back: Vector2i = Pathfinder.world_to_cell(world)
+    var world: Vector3 = CellUtil.cell_to_world(cell)
+    var back: Vector2i = CellUtil.world_to_cell(world)
     if back == cell:
         _test_passed += 1
         print("    PASS: cell→world→cell roundtrip")
@@ -64,8 +64,8 @@ func test_cell_to_world_roundtrip():
 
 
 func test_cell_key_deterministic():
-    var key1: int = Pathfinder._cell_key(Vector2i(3, 5))
-    var key2: int = Pathfinder._cell_key(Vector2i(3, 5))
+    var key1: int = CellUtil.cell_key(Vector2i(3, 5))
+    var key2: int = CellUtil.cell_key(Vector2i(3, 5))
     if key1 == key2 and key1 != 0:
         _test_passed += 1
         print("    PASS: _cell_key deterministic, returns non-zero int")

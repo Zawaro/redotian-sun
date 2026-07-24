@@ -523,7 +523,7 @@ func test_queued_arrived_stays_at_wait_cell():
     var dock := host_entity.get_node_or_null("DockHostComponent") as DockHostComponent
     if dock:
         var wait_cell := dock.find_wait_cell()
-        entity.global_position = Pathfinder.cell_to_world(wait_cell)
+        entity.global_position = CellUtil.cell_to_world(wait_cell)
 
     client._on_arrived(entity.global_position)
 
@@ -566,7 +566,7 @@ func test_moving_arrived_unchanged_by_scatter():
     # Simulate arrival at dock cell
     var dock := host_entity.get_node_or_null("DockHostComponent") as DockHostComponent
     if dock:
-        entity.global_position = Pathfinder.cell_to_world(dock._dock_cell)
+        entity.global_position = CellUtil.cell_to_world(dock._dock_cell)
 
     client._on_arrived(entity.global_position)
 

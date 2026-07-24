@@ -33,7 +33,7 @@ func _spawn_free_unit() -> void:
         queue_free()
         return
 
-    var cell := Pathfinder.world_to_cell(parent.global_position)
+    var cell := CellUtil.world_to_cell(parent.global_position)
     var foundation := Vector2i(1, 1)
     var found := _find_adjacent_free_cell(cell, foundation)
     if found == Vector2i(-1, -1):
@@ -49,7 +49,7 @@ func _spawn_free_unit() -> void:
 
     var parent_stats := parent.get_node_or_null("StatsComponent") as StatsComponent
     var player_id: int = parent_stats.player_id if parent_stats else 0
-    var world_pos := Pathfinder.cell_to_world(found)
+    var world_pos := CellUtil.cell_to_world(found)
     var parent_node := parent.get_parent()
     var free_entity := EntityPlacer.place_entity(entity_data, world_pos, player_id, parent_node)
     if not free_entity:
@@ -67,21 +67,19 @@ func _spawn_free_unit() -> void:
 
 
 func _find_adjacent_free_cell(origin: Vector2i, _foundation: Vector2i) -> Vector2i:
-    for radius in range(1, 6):
-        for dx in range(-radius, radius + 1):
-            for dz in range(-radius, radius + 1):
-                if abs(dx) != radius and abs(dz) != radius:
-                    continue
-                var cell := origin + Vector2i(dx, dz)
-                var key := SpatialHash.instance._cell_key(cell)
-                if SpatialHash.instance and SpatialHash.instance.get_building_cells().has(key):
-                    continue
-                if SpatialHash.instance and SpatialHash.instance.is_cell_blocked(cell):
-                    continue
-                if SpatialHash.instance and SpatialHash.instance._reserved.has(key):
-                    continue
-                var cell_type := TerrainSystem.get_cell_type(cell)
-                if cell_type != "" and cell_type != "clear":
-                    continue
-                return cell
-    return Vector2i(-1, -1)
+    return CellUtil.spiral_first_free(
+        origin,
+        5,
+        func(cell: Vector2i) -> bool:
+            var key := CellUtil.cell_key(cell)
+            if SpatialHash.instance and SpatialHash.instance.get_building_cells().has(key):
+                return true
+            if SpatialHash.instance and SpatialHash.instance.is_cell_blocked(cell):
+                return true
+            if SpatialHash.instance and SpatialHash.instance._reserved.has(key):
+                return true
+            var cell_type := TerrainSystem.get_cell_type(cell)
+            if cell_type != "" and cell_type != "clear":
+                return true
+            return false
+    )

@@ -89,7 +89,7 @@ func _setup_multimesh_nodes() -> void:
 
 
 func render_cell(cell: Vector2i, data: Dictionary) -> void:
-    var key := _cell_key(cell)
+    var key := CellUtil.cell_key_str(cell)
     if _instance_data.has(key):
         remove_cell(cell)
     var terrain_type: String = data.get("type", "clear")
@@ -112,8 +112,8 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
         return
     _active_counts[mesh_name] = idx + 1
     multimesh.visible_instance_count = idx + 1
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var world_pos := Pathfinder.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
+    var grid_half: float = TerrainSystem.get_grid_half_size()
+    var world_pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
     var height: int = data.get("height", 0)
     world_pos.y = height * TerrainSystem.HEIGHT_STEP
     var rotation: float = data.get("rotation", 0.0)
@@ -126,10 +126,10 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
 
 
 func _update_multimesh_aabb(mesh_name: String, multimesh: MultiMesh, world_pos: Vector3) -> void:
-    var half_size := Pathfinder.CELL_SIZE * 0.5
+    var half_size := CellUtil.CELL_SIZE * 0.5
     var cell_min := world_pos - Vector3(half_size, 0.0, half_size)
     var step := maxf(TerrainSystem.HEIGHT_STEP, 0.1)
-    var cell_size := Vector3(Pathfinder.CELL_SIZE, step, Pathfinder.CELL_SIZE)
+    var cell_size := Vector3(CellUtil.CELL_SIZE, step, CellUtil.CELL_SIZE)
     var cell_aabb := AABB(cell_min, cell_size)
     if not _multimesh_aabb.has(mesh_name):
         _multimesh_aabb[mesh_name] = cell_aabb
@@ -141,7 +141,7 @@ func _update_multimesh_aabb(mesh_name: String, multimesh: MultiMesh, world_pos: 
 
 
 func remove_cell(cell: Vector2i) -> void:
-    var key := _cell_key(cell)
+    var key := CellUtil.cell_key_str(cell)
     var entry: Dictionary = _instance_data.get(key, {})
     if entry.is_empty():
         return
@@ -200,10 +200,6 @@ func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
             if not mesh_data.has("type"):
                 mesh_data = TerrainSystem.calculate_cell_mesh(cell)
             render_cell(cell, mesh_data)
-
-
-func _cell_key(cell: Vector2i) -> String:
-    return str(cell.x) + "," + str(cell.y)
 
 
 func _get_mesh_name(terrain_type: String, variant: int) -> String:

@@ -109,13 +109,13 @@ func _setup_height_painter() -> void:
 
 func _prefill_terrain() -> void:
     var cells := TerrainSystem.grid_cells
-    var center_world: float = float(cells) * 0.5 * Pathfinder.CELL_SIZE
+    var center_world: float = float(cells) * 0.5 * CellUtil.CELL_SIZE
     var half_extent: float = center_world
     for x in range(cells):
         for z in range(cells):
             var cell := Vector2i(x, z)
             var world_center := (
-                Pathfinder.cell_to_world(cell) - Vector3(center_world, 0, center_world)
+                CellUtil.cell_to_world(cell) - Vector3(center_world, 0, center_world)
             )
             if half_extent > 0.0:
                 if absf(world_center.x) / half_extent + absf(world_center.z) / half_extent >= 1.0:
@@ -270,8 +270,8 @@ func _update_hovered_cell() -> void:
     if terrain_y > 0.01:
         var t := (terrain_y - ray_origin.y) / ray_direction.y
         hit_pos = ray_origin + ray_direction * t
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var cell := Pathfinder.world_to_cell(hit_pos + Vector3(grid_half, 0, grid_half))
+    var grid_half: float = TerrainSystem.get_grid_half_size()
+    var cell := CellUtil.world_to_cell(hit_pos + Vector3(grid_half, 0, grid_half))
     if cell != _hovered_cell and not TerrainSystem.get_cell(cell).is_empty():
         _hovered_cell = cell
         _grid.update()
@@ -279,8 +279,8 @@ func _update_hovered_cell() -> void:
 
 
 func _cell_world_pos(cell: Vector2i) -> Vector3:
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var pos := Pathfinder.cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
+    var grid_half: float = TerrainSystem.get_grid_half_size()
+    var pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
     var cell_data: Dictionary = TerrainSystem.get_cell(cell)
     if not cell_data.is_empty():
         var h: int = cell_data.get("max_height", cell_data.get("height", 0))
@@ -289,9 +289,9 @@ func _cell_world_pos(cell: Vector2i) -> Vector3:
 
 
 func _cell_origin_world_pos(origin: Vector2i, footprint: Vector2i) -> Vector3:
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var center_x := (origin.x + footprint.x * 0.5) * Pathfinder.CELL_SIZE - grid_half
-    var center_z := (origin.y + footprint.y * 0.5) * Pathfinder.CELL_SIZE - grid_half
+    var grid_half: float = TerrainSystem.get_grid_half_size()
+    var center_x := (origin.x + footprint.x * 0.5) * CellUtil.CELL_SIZE - grid_half
+    var center_z := (origin.y + footprint.y * 0.5) * CellUtil.CELL_SIZE - grid_half
     var max_h := 0
     for dx in footprint.x:
         for dz in footprint.y:

@@ -213,23 +213,17 @@ func get_all_buildings() -> Array[Dictionary]:
 
 
 func _cell_origin_to_world(origin: Vector2i, footprint: Vector2i) -> Vector3:
-    var center_x := (origin.x + footprint.x * 0.5) * Pathfinder.CELL_SIZE
-    var center_z := (origin.y + footprint.y * 0.5) * Pathfinder.CELL_SIZE
-    return Vector3(center_x, 0.0, center_z)
+    return CellUtil.cell_origin_to_world(origin, footprint)
 
 
 func _get_max_height(origin: Vector2i, footprint: Vector2i) -> float:
-    var max_h := 0.0
-    for dx in footprint.x:
-        for dz in footprint.y:
-            var cell := origin + Vector2i(dx, dz)
-            var h := TerrainSystem.get_cell_max_height(cell)
-            max_h = maxf(max_h, h)
-    return max_h
+    return CellUtil.get_max_height(
+        origin, footprint, func(c: Vector2i) -> float: return TerrainSystem.get_cell_max_height(c)
+    )
 
 
 func _is_cell_free(cell: Vector2i) -> bool:
-    var key := SpatialHash.instance._cell_key(cell)
+    var key := CellUtil.cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
         return false
     if SpatialHash.instance.is_cell_blocked(cell):
@@ -272,8 +266,8 @@ func _find_bounds_system() -> void:
         return
     var bs := root.get_node_or_null("BoundsSystem")
     if bs and bs is BoundsSystem:
-        _map_half_diag = int(bs.map_size.x * Pathfinder.SQRT2 / 2.0)
-        _play_area_half_diag = int(bs.visible_bounds_size.x * Pathfinder.SQRT2 / 2.0)
+        _map_half_diag = int(bs.map_size.x * CellUtil.SQRT2 / 2.0)
+        _play_area_half_diag = int(bs.visible_bounds_size.x * CellUtil.SQRT2 / 2.0)
 
 
 func _is_in_bounds(cell: Vector2i) -> bool:
@@ -333,7 +327,7 @@ func _update_preview_position() -> void:
             break
         hit_pos = new_hit as Vector3
 
-    var mouse_cell := Pathfinder.world_to_cell(hit_pos)
+    var mouse_cell := CellUtil.world_to_cell(hit_pos)
     var origin_cell := (
         mouse_cell
         - Vector2i(current_building_type.foundation.x >> 1, current_building_type.foundation.y >> 1)
@@ -390,7 +384,7 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
                 mesh_instance.material_override = red_mat
             else:
                 mesh_instance.material_override = green_mat if _is_cell_free(cell) else red_mat
-            var cell_world := Pathfinder.cell_to_world(cell)
+            var cell_world := CellUtil.cell_to_world(cell)
             mesh_instance.position = Vector3(cell_world.x, 0, cell_world.z)
             _preview.add_child(mesh_instance)
 
@@ -420,7 +414,7 @@ func _create_building_preview() -> void:
 
 func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:
     var heights := TerrainSystem.get_cell_corner_heights(cell)
-    var cs := Pathfinder.CELL_SIZE
+    var cs := CellUtil.CELL_SIZE
     var half := cs * 0.5
 
     var mesh := ImmediateMesh.new()
@@ -488,12 +482,12 @@ func _add_grid_and_indicators(
                     var inst := MeshInstance3D.new()
                     inst.mesh = indicator
                     inst.material_override = red_mat
-                    var cw := Pathfinder.cell_to_world(cell)
+                    var cw := CellUtil.cell_to_world(cell)
                     inst.position = Vector3(cw.x, 0, cw.z)
                     _preview.add_child(inst)
 
             var h := TerrainSystem.get_cell_corner_heights(cell)
-            var cs := Pathfinder.CELL_SIZE
+            var cs := CellUtil.CELL_SIZE
             var bx := x * cs
             var bz := z * cs
             var ht := thick * 0.5
@@ -581,7 +575,7 @@ func _try_place_building() -> void:
             break
         hit_pos = new_hit as Vector3
 
-    var mouse_cell := Pathfinder.world_to_cell(hit_pos)
+    var mouse_cell := CellUtil.world_to_cell(hit_pos)
     var origin_cell := (
         mouse_cell
         - Vector2i(current_building_type.foundation.x >> 1, current_building_type.foundation.y >> 1)
