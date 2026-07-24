@@ -219,3 +219,187 @@ func test_is_any_entity_on_cell_resource_only():
     else:
         _test_failed += 1
         print("    FAIL: expected false for resource-only cell, got true")
+
+
+func test_get_infantry_count_empty():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh._infantry_cell_counts.clear()
+    var cell := Vector2i(50, 50)
+    var count: int = _sh.get_infantry_count(cell)
+    if count == 0:
+        _test_passed += 1
+        print("    PASS: get_infantry_count returns 0 for empty cell")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected 0, got %d" % count)
+
+
+func test_get_infantry_count_with_entries():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh._infantry_cell_counts.clear()
+    var cell := Vector2i(10, 10)
+    var key: int = CellUtil.cell_key(cell)
+    _sh._infantry_cell_counts[key] = 2
+    var count: int = _sh.get_infantry_count(cell)
+    _sh._infantry_cell_counts.erase(key)
+    if count == 2:
+        _test_passed += 1
+        print("    PASS: get_infantry_count returns correct count")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected 2, got %d" % count)
+
+
+func test_is_cell_full_for_infantry():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh._infantry_cell_counts.clear()
+    var cell := Vector2i(10, 10)
+    var key: int = CellUtil.cell_key(cell)
+    _sh._infantry_cell_counts[key] = 3
+    var full: bool = _sh.is_cell_full_for_infantry(cell)
+    _sh._infantry_cell_counts.erase(key)
+    if full == true:
+        _test_passed += 1
+        print("    PASS: is_cell_full_for_infantry returns true at capacity")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected true at capacity, got false")
+
+
+func test_is_cell_not_full_for_infantry():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh._infantry_cell_counts.clear()
+    var cell := Vector2i(10, 10)
+    var key: int = CellUtil.cell_key(cell)
+    _sh._infantry_cell_counts[key] = 2
+    var full: bool = _sh.is_cell_full_for_infantry(cell)
+    _sh._infantry_cell_counts.erase(key)
+    if full == false:
+        _test_passed += 1
+        print("    PASS: is_cell_full_for_infantry returns false below capacity")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected false below capacity, got true")
+
+
+func test_get_crushable_enemies_empty():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh._grid.clear()
+    var cell := Vector2i(10, 10)
+    var enemies: Array = _sh.get_crushable_enemies_on_cell(cell, 0)
+    if enemies.is_empty():
+        _test_passed += 1
+        print("    PASS: get_crushable_enemies returns empty for empty cell")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected empty array, got %d entries" % enemies.size())
+
+
+func test_get_crushable_enemies_filters_by_player():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._grid.clear()
+    _sh._infantry_cell_counts.clear()
+    var cell := Vector2i(10, 10)
+    var cell_world := CellUtil.cell_to_world(cell)
+    var key: int = CellUtil.cell_key(cell)
+    var friendly := Node3D.new()
+    friendly.name = "Friendly"
+    var friendly_stats := StatsComponent.new()
+    friendly_stats.name = "StatsComponent"
+    friendly_stats.entity_type = EntityData.EntityType.INFANTRY
+    friendly_stats.player_id = 0
+    friendly_stats.crushable = true
+    friendly.add_child(friendly_stats)
+    add_child(friendly)
+    var enemy := Node3D.new()
+    enemy.name = "Enemy"
+    var enemy_stats := StatsComponent.new()
+    enemy_stats.name = "StatsComponent"
+    enemy_stats.entity_type = EntityData.EntityType.INFANTRY
+    enemy_stats.player_id = 1
+    enemy_stats.crushable = true
+    enemy.add_child(enemy_stats)
+    add_child(enemy)
+    _sh._grid[key] = [
+        {
+            "node": friendly, "mc": null,
+            "entity_type": EntityData.EntityType.INFANTRY,
+            "player_id": 0,
+        },
+        {
+            "node": enemy, "mc": null,
+            "entity_type": EntityData.EntityType.INFANTRY,
+            "player_id": 1,
+        },
+    ]
+    var enemies: Array = _sh.get_crushable_enemies_on_cell(cell, 0)
+    _sh._grid.erase(key)
+    _sh.set_process(true)
+    _sh.set_physics_process(true)
+    if enemies.size() == 1 and enemies[0] == enemy:
+        _test_passed += 1
+        print("    PASS: get_crushable_enemies filters by player_id")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected 1 enemy, got %d" % enemies.size())
+    remove_child(friendly)
+    remove_child(enemy)
+    friendly.free()
+    enemy.free()
+
+
+func test_get_crushable_enemies_skips_non_crushable():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._grid.clear()
+    _sh._infantry_cell_counts.clear()
+    var cell := Vector2i(10, 10)
+    var key: int = CellUtil.cell_key(cell)
+    var enemy := Node3D.new()
+    enemy.name = "Enemy"
+    var enemy_stats := StatsComponent.new()
+    enemy_stats.name = "StatsComponent"
+    enemy_stats.entity_type = EntityData.EntityType.INFANTRY
+    enemy_stats.player_id = 1
+    enemy_stats.crushable = false
+    enemy.add_child(enemy_stats)
+    add_child(enemy)
+    _sh._grid[key] = [
+        {"node": enemy, "mc": null, "entity_type": EntityData.EntityType.INFANTRY, "player_id": 1},
+    ]
+    var enemies: Array = _sh.get_crushable_enemies_on_cell(cell, 0)
+    _sh._grid.erase(key)
+    _sh.set_process(true)
+    _sh.set_physics_process(true)
+    if enemies.is_empty():
+        _test_passed += 1
+        print("    PASS: get_crushable_enemies skips non-crushable")
+    else:
+        _test_failed += 1
+        print("    FAIL: non-crushable enemy was returned")
+    remove_child(enemy)
+    enemy.free()
