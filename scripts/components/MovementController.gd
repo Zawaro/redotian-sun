@@ -275,8 +275,7 @@ func _handle_moving_movement(delta: float) -> void:
     else:
         _parent.global_position += step
         var skip_lerp := (
-            _is_infantry
-            and (_spline_segment() == 0 or _spline_segment() >= _num_segments() - 1)
+            _is_infantry and (_spline_segment() == 0 or _spline_segment() >= _num_segments() - 1)
         )
         if not skip_lerp:
             var spline_pos := _get_spline_pos(_spline_t)
@@ -344,7 +343,8 @@ func _apply_facing(direction: Vector3) -> void:
     if forward.length_squared() < 0.001:
         return
     var normal := (
-        Vector3.UP if _is_infantry
+        Vector3.UP
+        if _is_infantry
         else TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
     )
     var projected := (forward - forward.dot(normal) * normal).normalized()

@@ -182,9 +182,7 @@ static func _heap_pop(heap: Array) -> Dictionary:
     return result
 
 
-static func _has_line_of_sight(
-    from: Vector2i, to: Vector2i, blocked: Dictionary
-) -> bool:
+static func _has_line_of_sight(from: Vector2i, to: Vector2i, blocked: Dictionary) -> bool:
     var dx: int = absi(to.x - from.x)
     var dy: int = absi(to.y - from.y)
     var sx: int = 1 if from.x < to.x else -1
@@ -208,9 +206,7 @@ static func _has_line_of_sight(
     return true
 
 
-static func smooth_path(
-    waypoints: PackedVector3Array, blocked: Dictionary
-) -> PackedVector3Array:
+static func smooth_path(waypoints: PackedVector3Array, blocked: Dictionary) -> PackedVector3Array:
     if waypoints.size() <= 2:
         return waypoints
     var cells: Array[Vector2i] = []
