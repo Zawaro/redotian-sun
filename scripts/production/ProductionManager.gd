@@ -269,7 +269,7 @@ func _spawn_unit(entity_data: EntityData, player_id: int) -> void:
     else:
         # Fallback: spawn at exit cell
         var spawn_cell := _find_exit_cell(result.factory)
-        var world_pos := Pathfinder.cell_to_world(spawn_cell)
+        var world_pos := CellUtil.cell_to_world(spawn_cell)
         EntityPlacer.place_entity(entity_data, world_pos, player_id, result.factory)
 
 
@@ -296,23 +296,21 @@ func _find_factories(player_id: int, factory_type: String) -> Dictionary:
 
 
 func _find_exit_cell(factory: Node3D) -> Vector2i:
-    var cell := Pathfinder.world_to_cell(factory.global_position)
-    for radius in range(1, 6):
-        for dx in range(-radius, radius + 1):
-            for dz in range(-radius, radius + 1):
-                if abs(dx) != radius and abs(dz) != radius:
-                    continue
-                var candidate := cell + Vector2i(dx, dz)
-                var key := SpatialHash.instance._cell_key(candidate)
-                if SpatialHash.instance.get_building_cells().has(key):
-                    continue
-                if SpatialHash.instance.is_cell_blocked(candidate):
-                    continue
-                var cell_type := TerrainSystem.get_cell_type(candidate)
-                if cell_type != "" and cell_type != "clear":
-                    continue
-                return candidate
-    return cell
+    var cell := CellUtil.world_to_cell(factory.global_position)
+    return CellUtil.spiral_first_free(
+        cell,
+        5,
+        func(candidate: Vector2i) -> bool:
+            var key := CellUtil.cell_key(candidate)
+            if SpatialHash.instance.get_building_cells().has(key):
+                return true
+            if SpatialHash.instance.is_cell_blocked(candidate):
+                return true
+            var cell_type := TerrainSystem.get_cell_type(candidate)
+            if cell_type != "" and cell_type != "clear":
+                return true
+            return false
+    )
 
 
 func _get_production_speed(queue_key: String) -> float:

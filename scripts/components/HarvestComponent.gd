@@ -235,8 +235,8 @@ func _change_state(new_state: int) -> void:
     match _state:
         State.SEEK_NODE:
             if is_instance_valid(_current_resource):
-                var tib_cell := Pathfinder.world_to_cell(_current_resource.global_position)
-                var my_cell := Pathfinder.world_to_cell(entity_parent.global_position)
+                var tib_cell := CellUtil.world_to_cell(_current_resource.global_position)
+                var my_cell := CellUtil.world_to_cell(entity_parent.global_position)
                 if tib_cell == my_cell:
                     if SpatialHash.instance:
                         if not SpatialHash.instance.reserve_cell(tib_cell):
@@ -275,12 +275,12 @@ func _unblock_dock_if_needed(entity_parent: Node3D) -> void:
     var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
     if not dock:
         return
-    var my_cell := Pathfinder.world_to_cell(entity_parent.global_position)
+    var my_cell := CellUtil.world_to_cell(entity_parent.global_position)
     if dock._dock_cell != my_cell:
         return
     var free_cell := dock.find_wait_cell()
     if free_cell != my_cell:
-        mc.set_target_position(Pathfinder.cell_to_world(free_cell))
+        mc.set_target_position(CellUtil.cell_to_world(free_cell))
 
 
 func _find_nearest_resource(search_from: Vector3) -> Node3D:
@@ -297,10 +297,10 @@ func _find_nearest_resource(search_from: Vector3) -> Node3D:
             if not harvestable_types.is_empty() and category not in harvestable_types:
                 continue
         if SpatialHash.instance:
-            var ecell := Pathfinder.world_to_cell(entity.global_position)
+            var ecell := CellUtil.world_to_cell(entity.global_position)
             if SpatialHash.instance.is_cell_blocked(ecell):
                 continue
-            var key: int = SpatialHash.instance._cell_key(ecell)
+            var key: int = CellUtil.cell_key(ecell)
             if SpatialHash.instance._reserved.has(key):
                 continue
         var dist := search_from.distance_squared_to(entity.global_position)
@@ -322,7 +322,7 @@ func _release_resource_cell() -> void:
         and _current_resource.is_inside_tree()
         and SpatialHash.instance
     ):
-        var cell := Pathfinder.world_to_cell(_current_resource.global_position)
+        var cell := CellUtil.world_to_cell(_current_resource.global_position)
         SpatialHash.instance.release_cell(cell)
 
 

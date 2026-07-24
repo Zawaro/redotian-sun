@@ -80,7 +80,7 @@ func test_can_place_rejects_tiberium_cell():
     tib_node.add_child(tib_comp)
     tib_node.add_to_group("resources")
     _bm.add_child(tib_node)
-    var world_cell := Pathfinder.world_to_cell(tib_node.global_position)
+    var world_cell := CellUtil.world_to_cell(tib_node.global_position)
     SpatialHash.instance.register_resource_cell(world_cell)
     var result: bool = _bm.can_place(building_type, origin)
     SpatialHash.instance.unregister_resource_cell(world_cell)
@@ -106,7 +106,7 @@ func test_can_place_rejects_moving_unit():
     var origin := Vector2i(5, 5)
     _setup_2x2_terrain(origin)
     var unit_cell := Vector2i(6, 6)
-    var unit_key: int = SpatialHash.instance._cell_key(unit_cell)
+    var unit_key: int = CellUtil.cell_key(unit_cell)
     var fake_mc := MovementController.new()
     fake_mc._state = MovementController.State.MOVING
     SpatialHash.instance._grid[unit_key] = [{"node": Node3D.new(), "mc": fake_mc}]

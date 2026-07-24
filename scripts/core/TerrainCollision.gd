@@ -41,7 +41,7 @@ func _exit_tree() -> void:
 
 
 func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh) -> void:
-    var key := _cell_key(cell)
+    var key := CellUtil.cell_key_str(cell)
     remove_collision(cell)
     var static_body := StaticBody3D.new()
     static_body.name = "Collision_" + key
@@ -50,8 +50,8 @@ func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh) -> void:
     var collision_shape_node := CollisionShape3D.new()
     collision_shape_node.shape = mesh.create_trimesh_shape()
     static_body.add_child(collision_shape_node)
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var world_pos := Pathfinder.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
+    var grid_half: float = TerrainSystem.get_grid_half_size()
+    var world_pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
     var height: int = data.get("height", 0)
     world_pos.y = height * TerrainSystem.HEIGHT_STEP
     var rotation: float = data.get("rotation", 0.0)
@@ -62,7 +62,7 @@ func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh) -> void:
 
 
 func remove_collision(cell: Vector2i) -> void:
-    var key := _cell_key(cell)
+    var key := CellUtil.cell_key_str(cell)
     var body: StaticBody3D = _collision_bodies.get(key)
     if body:
         _collision_parent.remove_child(body)
@@ -94,10 +94,6 @@ func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
             var mesh := _get_cached_mesh(terrain_type, variant)
             if mesh:
                 create_collision(cell, mesh_data, mesh)
-
-
-func _cell_key(cell: Vector2i) -> String:
-    return str(cell.x) + "," + str(cell.y)
 
 
 func _get_cached_mesh(terrain_type: String, variant: int) -> Mesh:

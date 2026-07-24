@@ -2,7 +2,6 @@ extends Node
 
 signal cell_changed(cell_key: String, cell_data: Dictionary)
 
-const CELL_SIZE: float = 2.0
 const HEIGHT_STEP: float = 0.815
 const MAX_HEIGHT: int = 10
 const DEFAULT_GRID_CELLS: int = 32
@@ -116,7 +115,7 @@ func lower_cell(cell: Vector2i) -> void:
 
 
 func get_cell(cell: Vector2i) -> Dictionary:
-    var key := _cell_key(cell)
+    var key := CellUtil.cell_key_str(cell)
     return _cells.get(key, {})
 
 
@@ -126,7 +125,7 @@ func get_cell_type(cell: Vector2i) -> String:
     var cz := cell.y + offset
     if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
         return ""
-    var key := _cell_key(Vector2i(cx, cz))
+    var key := CellUtil.cell_key_str(Vector2i(cx, cz))
     var data: Dictionary = _cells.get(key, {})
     return data.get("type", "")
 
@@ -159,16 +158,16 @@ func get_cell_corner_heights(cell: Vector2i) -> Array[float]:
 
 
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
-    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+    var grid_half: float = get_grid_half_size()
     var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
-    var cell := Pathfinder.world_to_cell(adjusted)
+    var cell := CellUtil.world_to_cell(adjusted)
     return get_cell(cell)
 
 
 func get_height_at_world(world_pos: Vector3) -> float:
-    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+    var grid_half: float = get_grid_half_size()
     var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
-    var cell := Pathfinder.world_to_cell(adjusted)
+    var cell := CellUtil.world_to_cell(adjusted)
     var data := get_cell(cell)
     if data.is_empty():
         return 0.0
@@ -176,9 +175,9 @@ func get_height_at_world(world_pos: Vector3) -> float:
 
 
 func get_height_at_world_smooth(world_pos: Vector3) -> float:
-    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
-    var vx: float = (world_pos.x + grid_half) / CELL_SIZE
-    var vz: float = (world_pos.z + grid_half) / CELL_SIZE
+    var grid_half: float = get_grid_half_size()
+    var vx: float = (world_pos.x + grid_half) / CellUtil.CELL_SIZE
+    var vz: float = (world_pos.z + grid_half) / CellUtil.CELL_SIZE
     var x0 := floori(vx)
     var x1 := x0 + 1
     var z0 := floori(vz)
@@ -195,9 +194,9 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
 
 
 func get_normal_at_world(world_pos: Vector3) -> Vector3:
-    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
-    var vx: float = (world_pos.x + grid_half) / CELL_SIZE
-    var vz: float = (world_pos.z + grid_half) / CELL_SIZE
+    var grid_half: float = get_grid_half_size()
+    var vx: float = (world_pos.x + grid_half) / CellUtil.CELL_SIZE
+    var vz: float = (world_pos.z + grid_half) / CellUtil.CELL_SIZE
     var x0 := floori(vx)
     var x1 := x0 + 1
     var z0 := floori(vz)
@@ -205,8 +204,8 @@ func get_normal_at_world(world_pos: Vector3) -> Vector3:
     var h00: float = float(get_vertex(x0, z0)) * HEIGHT_STEP
     var h10: float = float(get_vertex(x1, z0)) * HEIGHT_STEP
     var h01: float = float(get_vertex(x0, z1)) * HEIGHT_STEP
-    var edge_x := Vector3(CELL_SIZE, h10 - h00, 0.0)
-    var edge_z := Vector3(0.0, h01 - h00, CELL_SIZE)
+    var edge_x := Vector3(CellUtil.CELL_SIZE, h10 - h00, 0.0)
+    var edge_z := Vector3(0.0, h01 - h00, CellUtil.CELL_SIZE)
     return edge_z.cross(edge_x).normalized()
 
 
@@ -215,7 +214,7 @@ func get_all_cells() -> Dictionary:
 
 
 func compute_and_emit_cell(cell: Vector2i) -> void:
-    var key := _cell_key(cell)
+    var key := CellUtil.cell_key_str(cell)
     _cells[key] = _compute_cell_from_vertices(cell)
     cell_changed.emit(key, _cells[key])
 
@@ -235,7 +234,7 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
     var affected_cells: Dictionary = {}
 
     for v in origins:
-        visited[_cell_key(v)] = true
+        visited[CellUtil.cell_key_str(v)] = true
         _add_cells_for_vertex(v.x, v.y, affected_cells)
 
     while not queue.is_empty():
@@ -249,7 +248,7 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
             Vector2i(cur.x + 1, cur.y),
         ]
         for nbr in neighbors:
-            var nkey := _cell_key(nbr)
+            var nkey := CellUtil.cell_key_str(nbr)
             if visited.has(nkey):
                 continue
             visited[nkey] = true
@@ -292,7 +291,7 @@ func _add_cells_for_vertex(vx: int, vz: int, cells: Dictionary) -> void:
         for cz in [vz - 1, vz]:
             if cz < 0 or cz >= grid_cells:
                 continue
-            cells[_cell_key(Vector2i(cx, cz))] = true
+            cells[CellUtil.cell_key_str(Vector2i(cx, cz))] = true
 
 
 func _recompute_cell(key: String) -> void:
@@ -402,7 +401,7 @@ func export_to_json(path: String, extra_data: Dictionary = {}) -> void:
         for vz in v_count:
             var h: int = _vertex_grid[vx][vz]
             if h != 0:
-                vertices[_cell_key(Vector2i(vx, vz))] = h
+                vertices[CellUtil.cell_key_str(Vector2i(vx, vz))] = h
 
     var data: Dictionary = {
         "version": 3,
@@ -455,7 +454,7 @@ func import_from_json(path: String) -> void:
             if center > 0.0:
                 if absf(cell_x - center) / center + absf(cell_z - center) / center >= 1.0:
                     continue
-            var key := _cell_key(Vector2i(cx, cz))
+            var key := CellUtil.cell_key_str(Vector2i(cx, cz))
             _cells[key] = _compute_cell_from_vertices(Vector2i(cx, cz))
 
     for key in _cells:
@@ -507,5 +506,5 @@ func _rotate_dir_cw(dir: String) -> String:
     return "north"
 
 
-func _cell_key(cell: Vector2i) -> String:
-    return str(cell.x) + "," + str(cell.y)
+func get_grid_half_size() -> float:
+    return float(grid_cells) * CellUtil.CELL_SIZE * 0.5

@@ -1,20 +1,9 @@
 class_name Pathfinder
 
-const CELL_SIZE: float = 2.0
-const SQRT2: float = 1.41421356237
-
-
-static func world_to_cell(world_pos: Vector3) -> Vector2i:
-    return Vector2i(floori(world_pos.x / CELL_SIZE), floori(world_pos.z / CELL_SIZE))
-
-
-static func cell_to_world(cell: Vector2i) -> Vector3:
-    return Vector3((cell.x + 0.5) * CELL_SIZE, 0.0, (cell.y + 0.5) * CELL_SIZE)
-
 
 static func cell_to_world_with_height(cell: Vector2i) -> Vector3:
     var height := get_terrain_height(cell)
-    return Vector3((cell.x + 0.5) * CELL_SIZE, height, (cell.y + 0.5) * CELL_SIZE)
+    return Vector3((cell.x + 0.5) * CellUtil.CELL_SIZE, height, (cell.y + 0.5) * CellUtil.CELL_SIZE)
 
 
 static func get_terrain_height(cell: Vector2i) -> float:
@@ -24,30 +13,30 @@ static func get_terrain_height(cell: Vector2i) -> float:
     var ts: Node = tree.root.get_node_or_null("TerrainSystem")
     if not ts:
         return 0.0
-    var grid_half: float = float(ts.grid_cells) * CELL_SIZE * 0.5
-    var world_pos := cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
+    var grid_half: float = float(ts.grid_cells) * CellUtil.CELL_SIZE * 0.5
+    var world_pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
     return ts.get_height_at_world(world_pos)
 
 
 static func find_path(
     start_world: Vector3, end_world: Vector3, blocked_cells: Dictionary = {}
 ) -> PackedVector3Array:
-    var start_cell := world_to_cell(start_world)
-    var end_cell := world_to_cell(end_world)
+    var start_cell := CellUtil.world_to_cell(start_world)
+    var end_cell := CellUtil.world_to_cell(end_world)
 
     if start_cell == end_cell:
         return PackedVector3Array()
 
-    var open_heap: Array = [{"cell": start_cell, "f": _heuristic(start_cell, end_cell)}]
+    var open_heap: Array = [{"cell": start_cell, "f": CellUtil.heuristic(start_cell, end_cell)}]
     var open_lookup: Dictionary = {}
-    open_lookup[_cell_key(start_cell)] = true
+    open_lookup[CellUtil.cell_key(start_cell)] = true
     var closed_set: Dictionary = {}
     var came_from: Dictionary = {}
     var g_score: Dictionary = {}
     var f_score: Dictionary = {}
 
-    g_score[_cell_key(start_cell)] = 0.0
-    f_score[_cell_key(start_cell)] = _heuristic(start_cell, end_cell)
+    g_score[CellUtil.cell_key(start_cell)] = 0.0
+    f_score[CellUtil.cell_key(start_cell)] = CellUtil.heuristic(start_cell, end_cell)
 
     var neighbor_dirs := [
         Vector2i(1, 0),
@@ -59,19 +48,21 @@ static func find_path(
         Vector2i(-1, 1),
         Vector2i(-1, -1)
     ]
-    var neighbor_costs: Array[float] = [1.0, 1.0, 1.0, 1.0, SQRT2, SQRT2, SQRT2, SQRT2]
+    var neighbor_costs: Array[float] = [
+        1.0, 1.0, 1.0, 1.0, CellUtil.SQRT2, CellUtil.SQRT2, CellUtil.SQRT2, CellUtil.SQRT2
+    ]
 
     const MAX_ITER: int = 1500
     const STAGNANT_LIMIT: int = 500
     var iter: int = 0
     var stagnant: int = 0
     var best_cell: Vector2i = start_cell
-    var best_dist: float = _heuristic(start_cell, end_cell)
+    var best_dist: float = CellUtil.heuristic(start_cell, end_cell)
 
     while not open_heap.is_empty():
         var current_entry: Dictionary = _heap_pop(open_heap)
         var current: Vector2i = current_entry["cell"]
-        var current_key: int = _cell_key(current)
+        var current_key: int = CellUtil.cell_key(current)
         open_lookup.erase(current_key)
 
         if closed_set.has(current_key):
@@ -82,7 +73,7 @@ static func find_path(
         if current == end_cell:
             return _reconstruct_path(came_from, current, start_cell)
 
-        var h := _heuristic(current, end_cell)
+        var h := CellUtil.heuristic(current, end_cell)
         if h < best_dist:
             best_dist = h
             best_cell = current
@@ -97,7 +88,7 @@ static func find_path(
 
         for i in 8:
             var neighbor: Vector2i = current + neighbor_dirs[i]
-            var nkey: int = _cell_key(neighbor)
+            var nkey: int = CellUtil.cell_key(neighbor)
 
             if blocked_cells.has(nkey):
                 continue
@@ -109,7 +100,7 @@ static func find_path(
             if tentative_g < g_score.get(nkey, INF):
                 came_from[nkey] = current
                 g_score[nkey] = tentative_g
-                var nf: float = tentative_g + _heuristic(neighbor, end_cell) * 1.2
+                var nf: float = tentative_g + CellUtil.heuristic(neighbor, end_cell) * 1.2
                 f_score[nkey] = nf
                 if not open_lookup.has(nkey):
                     _heap_push(open_heap, neighbor, nf)
@@ -118,32 +109,22 @@ static func find_path(
     return _path_or_fallback(came_from, start_cell, best_cell)
 
 
-static func _cell_key(cell: Vector2i) -> int:
-    return (cell.x + 512) << 16 | (cell.y + 512) & 0xFFFF
-
-
-static func _heuristic(a: Vector2i, b: Vector2i) -> float:
-    var dx: float = abs(float(a.x - b.x))
-    var dy: float = abs(float(a.y - b.y))
-    return max(dx, dy) + (SQRT2 - 1.0) * min(dx, dy)
-
-
 static func _reconstruct_path(
     came_from: Dictionary, current: Vector2i, start: Vector2i
 ) -> PackedVector3Array:
     var path_cells: Array[Vector2i] = [current]
-    var key: int = _cell_key(current)
+    var key: int = CellUtil.cell_key(current)
     while came_from.has(key):
         current = came_from[key]
         path_cells.push_front(current)
-        key = _cell_key(current)
+        key = CellUtil.cell_key(current)
 
     if path_cells.size() > 1 and path_cells[0] == start:
         path_cells.remove_at(0)
 
     var result := PackedVector3Array()
     for cell in path_cells:
-        result.append(cell_to_world(cell))
+        result.append(CellUtil.cell_to_world(cell))
     return result
 
 

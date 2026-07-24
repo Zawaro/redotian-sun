@@ -104,7 +104,7 @@ func draw_path(
     var reached_material := _get_or_create_material("reached", Color(0.5, 0.5, 0.5, 0.6))
     var remaining_material := _get_or_create_material("remaining", Color(0.0, 1.0, 0.0, 0.8))
 
-    var h: float = Pathfinder.CELL_SIZE * 0.5
+    var h: float = CellUtil.CELL_SIZE * 0.5
     var y_off: float = 0.05
     var n: int = waypoints.size()
     var start_y := TerrainSystem.get_height_at_world_smooth(start_pos) + y_off
@@ -188,7 +188,7 @@ func _draw_spatial_hash() -> void:
     var sh := SpatialHashSingleton
     if not sh:
         return
-    var cell_size := Pathfinder.CELL_SIZE
+    var cell_size := CellUtil.CELL_SIZE
     var y_off := 0.02
 
     for key: int in sh._grid.keys():
@@ -235,8 +235,8 @@ func _draw_entity_bounds() -> void:
             cell_size = foundation.foundation
 
         var pos := entity.global_position
-        var half_w := cell_size.x * Pathfinder.CELL_SIZE * 0.5
-        var half_h := cell_size.y * Pathfinder.CELL_SIZE * 0.5
+        var half_w := cell_size.x * CellUtil.CELL_SIZE * 0.5
+        var half_h := cell_size.y * CellUtil.CELL_SIZE * 0.5
         var y := TerrainSystem.get_height_at_world_smooth(pos) + 0.1
 
         var key: String = entity.name
@@ -314,7 +314,7 @@ func _draw_occupied_cells() -> void:
     if not sh:
         return
 
-    var cell_size := Pathfinder.CELL_SIZE
+    var cell_size := CellUtil.CELL_SIZE
     var y_off := 0.03
     var building_mat := _get_or_create_material("occupied_building", Color(0.0, 1.0, 0.0, 0.4))
     var blocked_mat := _get_or_create_material("occupied_blocked", Color(1.0, 0.0, 0.0, 0.4))

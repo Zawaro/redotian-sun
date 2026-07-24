@@ -76,8 +76,8 @@ func _find_bounds_system() -> void:
         return
     var bs := root.get_node_or_null("BoundsSystem")
     if bs and bs is BoundsSystem:
-        _map_half_diag = int(bs.map_size.x * Pathfinder.SQRT2 / 2.0)
-        _play_area_half_diag = int(bs.visible_bounds_size.x * Pathfinder.SQRT2 / 2.0)
+        _map_half_diag = int(bs.map_size.x * CellUtil.SQRT2 / 2.0)
+        _play_area_half_diag = int(bs.visible_bounds_size.x * CellUtil.SQRT2 / 2.0)
 
 
 func _rebuild_cache() -> void:
@@ -144,7 +144,7 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
     if tree_comp.spawned_entity_id.is_empty() or tree_comp.node_count <= 0:
         return
 
-    var tree_cell := Pathfinder.world_to_cell(tree_node.global_position)
+    var tree_cell := CellUtil.world_to_cell(tree_node.global_position)
     var rt := rules.get_resource_type(tree_comp.resource_type_id) if rules else null
     var grow_rate: float = rt.grow_rate if rt else 0.1
 
@@ -158,7 +158,7 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
         var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
         if not hp or hp.current_health >= hp.max_health:
             continue
-        var tib_cell := Pathfinder.world_to_cell(tib_node.global_position)
+        var tib_cell := CellUtil.world_to_cell(tib_node.global_position)
         var dx: float = float(tib_cell.x - tree_cell.x)
         var dz: float = float(tib_cell.y - tree_cell.y)
         if dx * dx + dz * dz > radius_sq:
@@ -210,7 +210,7 @@ func _process_resource(tib_node: Node3D, rules: GlobalRules) -> void:
 
 
 func _try_spread_from(tib_node: Node3D, tib_comp: ResourceComponent, rules: GlobalRules) -> void:
-    var tib_cell := Pathfinder.world_to_cell(tib_node.global_position)
+    var tib_cell := CellUtil.world_to_cell(tib_node.global_position)
     var neighbor: Vector2i = SPREAD_NEIGHBORS[randi() % SPREAD_NEIGHBORS.size()]
     var target_cell := tib_cell + neighbor
 
@@ -269,7 +269,7 @@ func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, bales: flo
     if not entity:
         return
 
-    var world_pos := Pathfinder.cell_to_world(cell)
+    var world_pos := CellUtil.cell_to_world(cell)
     # Set position before add_child so ResourceComponent._ready() sees the
     # correct global_position when it registers the cell in SpatialHash.
     entity.position = world_pos
@@ -305,7 +305,7 @@ func _find_resource_at_cell(cell: Vector2i) -> Dictionary:
     for entity in get_tree().get_nodes_in_group("resources"):
         if not is_instance_valid(entity):
             continue
-        var ecell := Pathfinder.world_to_cell(entity.global_position)
+        var ecell := CellUtil.world_to_cell(entity.global_position)
         if ecell == cell:
             return {"node": entity}
     return {}
@@ -320,7 +320,7 @@ func _is_in_bounds(cell: Vector2i) -> bool:
 func _is_cell_blocked_for_resource(cell: Vector2i) -> bool:
     if not SpatialHash.instance:
         return false
-    var key: int = SpatialHash.instance._cell_key(cell)
+    var key: int = CellUtil.cell_key(cell)
     if SpatialHash.instance._building_cells.has(key):
         return true
     if SpatialHash.instance._bib_cells.has(key):

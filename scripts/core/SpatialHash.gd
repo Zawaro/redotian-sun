@@ -1,7 +1,6 @@
 class_name SpatialHash extends Node
 
 static var instance: SpatialHash
-const _KEY_OFFSET: int = 512
 
 var _grid: Dictionary = {}
 var _blocked_cells: Dictionary = {}
@@ -31,8 +30,8 @@ func rebuild() -> void:
         if not is_instance_valid(entity_root):
             continue
         var mc := entity_root.get_node_or_null("MovementController") as MovementController
-        var cell := Pathfinder.world_to_cell(entity_root.global_position)
-        var key := _cell_key(cell)
+        var cell := CellUtil.world_to_cell(entity_root.global_position)
+        var key := CellUtil.cell_key(cell)
         if not _grid.has(key):
             _grid[key] = []
         _grid[key].append({"node": entity_root, "mc": mc})
@@ -41,7 +40,7 @@ func rebuild() -> void:
 
 
 func get_entries(cell: Vector2i) -> Array:
-    return _grid.get(_cell_key(cell), [])
+    return _grid.get(CellUtil.cell_key(cell), [])
 
 
 func get_blocked_cells() -> Dictionary:
@@ -59,11 +58,11 @@ func all_entries() -> Array:
 
 
 func is_cell_blocked(cell: Vector2i) -> bool:
-    return _blocked_cells.has(_cell_key(cell))
+    return _blocked_cells.has(CellUtil.cell_key(cell))
 
 
 func is_any_entity_on_cell(cell: Vector2i) -> bool:
-    var entries: Array = _grid.get(_cell_key(cell), [])
+    var entries: Array = _grid.get(CellUtil.cell_key(cell), [])
     for entry in entries:
         if entry["mc"] != null:
             return true
@@ -71,7 +70,7 @@ func is_any_entity_on_cell(cell: Vector2i) -> bool:
 
 
 func reserve_cell(cell: Vector2i) -> bool:
-    var key := _cell_key(cell)
+    var key := CellUtil.cell_key(cell)
     if _reserved.has(key) or _blocked_cells.has(key) or _building_cells.has(key):
         return false
     _reserved[key] = true
@@ -79,11 +78,11 @@ func reserve_cell(cell: Vector2i) -> bool:
 
 
 func release_cell(cell: Vector2i) -> void:
-    _reserved.erase(_cell_key(cell))
+    _reserved.erase(CellUtil.cell_key(cell))
 
 
 func force_reserve(cell: Vector2i) -> void:
-    _reserved[_cell_key(cell)] = true
+    _reserved[CellUtil.cell_key(cell)] = true
 
 
 func clear_reservations() -> void:
@@ -96,38 +95,34 @@ func get_reserved() -> Dictionary:
 
 func register_building_cells(cells: Array[Vector2i]) -> void:
     for cell in cells:
-        _building_cells[_cell_key(cell)] = true
+        _building_cells[CellUtil.cell_key(cell)] = true
 
 
 func register_bib_cells(cells: Array[Vector2i]) -> void:
     for cell in cells:
-        _bib_cells[_cell_key(cell)] = true
+        _bib_cells[CellUtil.cell_key(cell)] = true
 
 
 func is_bib_cell(cell: Vector2i) -> bool:
-    return _bib_cells.has(_cell_key(cell))
+    return _bib_cells.has(CellUtil.cell_key(cell))
 
 
 func register_resource_cell(cell: Vector2i) -> void:
-    _resource_cells[_cell_key(cell)] = true
+    _resource_cells[CellUtil.cell_key(cell)] = true
 
 
 func unregister_resource_cell(cell: Vector2i) -> void:
-    _resource_cells.erase(_cell_key(cell))
+    _resource_cells.erase(CellUtil.cell_key(cell))
 
 
 func has_resource_cell(cell: Vector2i) -> bool:
-    return _resource_cells.has(_cell_key(cell))
+    return _resource_cells.has(CellUtil.cell_key(cell))
 
 
 func unregister_building_cells(cells: Array[Vector2i]) -> void:
     for cell in cells:
-        _building_cells.erase(_cell_key(cell))
+        _building_cells.erase(CellUtil.cell_key(cell))
 
 
 func get_building_cells() -> Dictionary:
     return _building_cells
-
-
-func _cell_key(cell: Vector2i) -> int:
-    return (cell.x + _KEY_OFFSET) << 16 | (cell.y + _KEY_OFFSET) & 0xFFFF

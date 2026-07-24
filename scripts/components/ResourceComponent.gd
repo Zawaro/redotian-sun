@@ -30,14 +30,14 @@ func _ready() -> void:
 func _exit_tree() -> void:
     var root := get_parent() as Node3D
     if root and SpatialHash.instance:
-        var cell := Pathfinder.world_to_cell(root.global_position)
+        var cell := CellUtil.world_to_cell(root.global_position)
         SpatialHash.instance.unregister_resource_cell(cell)
 
 
 func _register_cell() -> void:
     var root := get_parent() as Node3D
     if root and SpatialHash.instance:
-        var cell := Pathfinder.world_to_cell(root.global_position)
+        var cell := CellUtil.world_to_cell(root.global_position)
         SpatialHash.instance.register_resource_cell(cell)
 
 
@@ -45,7 +45,7 @@ func _ensure_visual_nodes() -> void:
     var parent := get_parent() as Node3D
     if not parent:
         return
-    var cell := Pathfinder.world_to_cell(parent.global_position)
+    var cell := CellUtil.world_to_cell(parent.global_position)
     var rng := RandomNumberGenerator.new()
     rng.seed = hash(cell)
 

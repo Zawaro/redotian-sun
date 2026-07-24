@@ -456,7 +456,7 @@ func _resolve_cursor_for_selection() -> CursorState.Type:
     var target := _hovered_entity
     var target_cell := Vector2i.ZERO
     if target:
-        target_cell = Pathfinder.world_to_cell(target.global_position)
+        target_cell = CellUtil.world_to_cell(target.global_position)
 
     var best_cursor: CursorState.Type = CursorState.Type.DEFAULT
     var best_priority: int = -1

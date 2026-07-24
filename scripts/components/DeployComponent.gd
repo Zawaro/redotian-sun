@@ -97,7 +97,7 @@ func validate_deploy(source_entity: Node3D) -> bool:
 
 ## Calculate the origin cell for the deployed building, centering it on the source entity.
 func calculate_deploy_origin(source_entity: Node3D, target_data: EntityData) -> Vector2i:
-    var source_cell := Pathfinder.world_to_cell(source_entity.global_position)
+    var source_cell := CellUtil.world_to_cell(source_entity.global_position)
     var foundation := target_data.foundation
     var half_x: int = int(foundation.x * 0.5)
     var half_y: int = int(foundation.y * 0.5)
@@ -121,7 +121,7 @@ func _are_foundation_cells_free(
 ## Check if a single cell is free for deploy (reuses BuildingManager logic pattern).
 ## source_entity is excluded from the entity check — the deploying unit occupies its own cell.
 func _is_cell_free_for_deploy(cell: Vector2i, source_entity: Node3D = null) -> bool:
-    var key := SpatialHash.instance._cell_key(cell)
+    var key := CellUtil.cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
         return false
     # Check blocked cells — exclude source entity if it's the only blocker
@@ -181,7 +181,7 @@ func scatter_blockers(source_entity: Node3D, target_data: EntityData) -> bool:
 
 ## Check if a cell can be cleared by scattering (no terrain/building/resource blockers).
 func _can_scatter_cell(cell: Vector2i) -> bool:
-    var key := SpatialHash.instance._cell_key(cell)
+    var key := CellUtil.cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
         return false
     if SpatialHash.instance.is_bib_cell(cell) or SpatialHash.instance.has_resource_cell(cell):
@@ -224,7 +224,7 @@ func _scatter_single_cell(cell: Vector2i, source_entity: Node3D) -> bool:
         var push_cell := _find_adjacent_free_cell(cell)
         if push_cell == Vector2i(-1, -1):
             continue
-        mc.set_target_position(Pathfinder.cell_to_world(push_cell))
+        mc.set_target_position(CellUtil.cell_to_world(push_cell))
         scattered = true
     return scattered
 
@@ -401,8 +401,8 @@ func _do_undeploy(
         source.queue_free()
         _state = DeployState.IDLE
         return
-    var target_cell := Pathfinder.world_to_cell(source_position) + deploy_cell
-    var world_pos := Pathfinder.cell_to_world(target_cell)
+    var target_cell := CellUtil.world_to_cell(source_position) + deploy_cell
+    var world_pos := CellUtil.cell_to_world(target_cell)
     world_pos.y = TerrainSystem.get_height_at_world_smooth(world_pos)
     target_entity.position = world_pos
     var parent := _get_buildings_parent()
@@ -517,20 +517,14 @@ func _get_buildings_parent() -> Node3D:
 
 ## Calculate world position from origin cell and foundation.
 func _cell_origin_to_world(origin: Vector2i, footprint: Vector2i) -> Vector3:
-    var center_x := (origin.x + footprint.x * 0.5) * Pathfinder.CELL_SIZE
-    var center_z := (origin.y + footprint.y * 0.5) * Pathfinder.CELL_SIZE
-    return Vector3(center_x, 0.0, center_z)
+    return CellUtil.cell_origin_to_world(origin, footprint)
 
 
 ## Get max height across foundation cells.
 func _get_max_height(origin: Vector2i, footprint: Vector2i) -> float:
-    var max_h := 0.0
-    for dx in footprint.x:
-        for dz in footprint.y:
-            var cell := origin + Vector2i(dx, dz)
-            var h := TerrainSystem.get_cell_max_height(cell)
-            max_h = maxf(max_h, h)
-    return max_h
+    return CellUtil.get_max_height(
+        origin, footprint, func(c: Vector2i) -> float: return TerrainSystem.get_cell_max_height(c)
+    )
 
 
 ## Get rotation speed from the source entity data.

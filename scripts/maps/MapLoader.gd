@@ -26,7 +26,7 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
 
     TerrainSystem.import_from_json(path)
 
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
+    var grid_half: float = TerrainSystem.get_grid_half_size()
     var result: Array[Dictionary] = []
     var entities: Array = json.get("entities", [])
     for entry in entities:
@@ -55,7 +55,7 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
             if parts.size() == 2:
                 var cell := Vector2i(parts[0].to_int(), parts[1].to_int())
                 var world_pos: Vector3 = (
-                    Pathfinder.cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
+                    CellUtil.cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
                 )
                 var cell_data: Dictionary = TerrainSystem.get_cell(cell)
                 if not cell_data.is_empty():

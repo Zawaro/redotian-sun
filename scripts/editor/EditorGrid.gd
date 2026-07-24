@@ -50,7 +50,7 @@ func _draw_grid() -> void:
     material.albedo_color = Color(1, 1, 1, 0.3)
     mesh.surface_begin(Mesh.PRIMITIVE_LINES, material)
 
-    var cell_size := Pathfinder.CELL_SIZE
+    var cell_size := CellUtil.CELL_SIZE
     var cells := TerrainSystem.grid_cells
     var center_world: float = float(cells) * 0.5 * cell_size
     var half_extent: float = center_world
@@ -102,14 +102,12 @@ func _update_cell_highlight() -> void:
         return
     _cell_highlight.visible = true
     var mesh := ImmediateMesh.new()
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var world_pos := (
-        Pathfinder.cell_to_world(editor._hovered_cell) - Vector3(grid_half, 0, grid_half)
-    )
+    var grid_half: float = TerrainSystem.get_grid_half_size()
+    var world_pos := CellUtil.cell_to_world(editor._hovered_cell) - Vector3(grid_half, 0, grid_half)
     var height: int = cell_data.get("max_height", cell_data.get("height", 0))
     world_pos.y = float(height) * TerrainSystem.HEIGHT_STEP + 0.02
-    var half: float = Pathfinder.CELL_SIZE * 0.475
-    var lw: float = Pathfinder.CELL_SIZE * 0.03
+    var half: float = CellUtil.CELL_SIZE * 0.475
+    var lw: float = CellUtil.CELL_SIZE * 0.03
     mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _highlight_quad_mat)
     var y: float = world_pos.y
     var x0: float = world_pos.x - half
@@ -183,9 +181,9 @@ func _update_height_label() -> void:
     var cell: Vector2i = editor._hovered_cell
     var cell_data: Dictionary = TerrainSystem.get_cell(cell)
     var h: int = cell_data.get("height", 0)
-    var grid_half: float = float(TerrainSystem.grid_cells) * Pathfinder.CELL_SIZE * 0.5
-    var wx: float = float(cell.x) * Pathfinder.CELL_SIZE - grid_half + Pathfinder.CELL_SIZE * 0.5
-    var wz: float = float(cell.y) * Pathfinder.CELL_SIZE - grid_half + Pathfinder.CELL_SIZE * 0.5
+    var grid_half: float = TerrainSystem.get_grid_half_size()
+    var wx: float = float(cell.x) * CellUtil.CELL_SIZE - grid_half + CellUtil.CELL_SIZE * 0.5
+    var wz: float = float(cell.y) * CellUtil.CELL_SIZE - grid_half + CellUtil.CELL_SIZE * 0.5
     var wy: float = float(h) * TerrainSystem.HEIGHT_STEP
     _height_label.text = (
         "Cell: (%d,%d) | Pos: (%.1f, %.1f, %.1f) | H: %d" % [cell.x, cell.y, wx, wy, wz, h]
