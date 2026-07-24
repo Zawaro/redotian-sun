@@ -324,7 +324,7 @@ func _update_visibility():
             _redraw_rally_line()
 
 
-func _on_rally_point_changed(_path: Array) -> void:
+func _on_rally_point_changed(_point: Vector2i) -> void:
     if _rally_line_mesh:
         var has_rally := is_selected and _rally_component and _rally_component.has_rally_point()
         _rally_line_mesh.visible = has_rally

@@ -100,13 +100,21 @@ func _move_to_exit(unit: Node3D, exit_pos: Vector3) -> void:
 
     # Nudge any idle unit blocking the target cell
     if target_cell != exit_cell:
-        var mc_for_nudge := unit.get_node_or_null("MovementController") as MovementController
-        if mc_for_nudge:
-            mc_for_nudge.nudge_from_cell(target_cell)
+        _nudge_blocker(target_cell)
 
     var mc := unit.get_node_or_null("MovementController") as MovementController
     if mc:
         mc.set_target_position(target_pos, true)
+
+
+func _nudge_blocker(cell: Vector2i) -> void:
+    var entries := SpatialHash.instance.get_entries(cell)
+    for entry in entries:
+        var mc: MovementController = entry.get("mc", null)
+        if mc and mc._state == MovementController.State.IDLE:
+            var free := _find_free_near(cell)
+            mc.set_target_position(Pathfinder.cell_to_world(free))
+            return
 
 
 func _find_free_near(cell: Vector2i) -> Vector2i:

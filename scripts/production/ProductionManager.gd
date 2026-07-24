@@ -255,12 +255,12 @@ func _complete_item(key: String, index: int) -> void:
 
 
 func _spawn_unit(entity_data: EntityData, player_id: int) -> void:
-    var factory := _find_primary_factory(player_id, entity_data.buildable_queue)
-    if not factory:
+    var result := _find_factories(player_id, entity_data.buildable_queue)
+    if not result.factory:
         _add_ready_to_spawn(entity_data, player_id, "")
         return
 
-    var factory_comp := factory.get_node_or_null("FactoryComponent")
+    var factory_comp: Node = result.factory.get_node_or_null("FactoryComponent")
     if factory_comp and factory_comp is FactoryComponent:
         if factory_comp.is_busy:
             _add_ready_to_spawn(entity_data, player_id, "")
@@ -268,15 +268,17 @@ func _spawn_unit(entity_data: EntityData, player_id: int) -> void:
         (factory_comp as FactoryComponent).on_unit_produced(entity_data, player_id)
     else:
         # Fallback: spawn at exit cell
-        var spawn_cell := _find_exit_cell(factory)
+        var spawn_cell := _find_exit_cell(result.factory)
         var world_pos := Pathfinder.cell_to_world(spawn_cell)
-        EntityPlacer.place_entity(entity_data, world_pos, player_id, factory)
+        EntityPlacer.place_entity(entity_data, world_pos, player_id, result.factory)
 
 
-func _find_primary_factory(player_id: int, factory_type: String) -> Node3D:
+## Single-pass factory search: returns best factory + count for speed bonus.
+func _find_factories(player_id: int, factory_type: String) -> Dictionary:
     var factories := get_tree().get_nodes_in_group("factories")
-    var best: Node3D = null
-    var best_score := -1
+    var count := 0
+    var primary: Node3D = null
+    var first_match: Node3D = null
     for f in factories:
         if not f is FactoryComponent:
             continue
@@ -285,13 +287,12 @@ func _find_primary_factory(player_id: int, factory_type: String) -> Node3D:
             continue
         if not factory_type in fc.produces:
             continue
-        var score := 0
+        count += 1
         if fc.is_primary:
-            score += 1000
-        if score > best_score:
-            best_score = score
-            best = f.get_parent() as Node3D
-    return best
+            primary = f.get_parent() as Node3D
+        elif not first_match:
+            first_match = f.get_parent() as Node3D
+    return {"factory": primary if primary else first_match, "count": maxi(count, 1)}
 
 
 func _find_exit_cell(factory: Node3D) -> Vector2i:
@@ -317,23 +318,8 @@ func _find_exit_cell(factory: Node3D) -> Vector2i:
 func _get_production_speed(queue_key: String) -> float:
     var player_id := int(queue_key.get_slice(":", 0))
     var factory_type := queue_key.get_slice(":", 1)
-    var count := _count_factories(player_id, factory_type)
-    return 1.0 + (count - 1) * 0.25
-
-
-func _count_factories(player_id: int, factory_type: String) -> int:
-    var factories := get_tree().get_nodes_in_group("factories")
-    var count := 0
-    for f in factories:
-        if not f is FactoryComponent:
-            continue
-        var fc := f as FactoryComponent
-        if fc.player_id != player_id:
-            continue
-        if not factory_type in fc.produces:
-            continue
-        count += 1
-    return maxi(count, 1)
+    var result := _find_factories(player_id, factory_type)
+    return 1.0 + (result.count - 1) * 0.25
 
 
 func _queue_key(player_id: int, factory_type: String) -> String:
