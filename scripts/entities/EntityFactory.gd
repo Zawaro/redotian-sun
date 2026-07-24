@@ -208,7 +208,9 @@ func _add_select_component(entity: Node3D, data: EntityData) -> void:
         match data.entity_type:
             EntityData.EntityType.INFANTRY:
                 component.select_box_type = 0
+                component.selection_size = Vector3(1.0, 1.0, 1.0)
                 component.outline_2d_size = Vector2(1.0, 1.5)
+                component.vertical_offset = 0.25
             EntityData.EntityType.VEHICLE, EntityData.EntityType.AIRCRAFT:
                 component.select_box_type = 1
             EntityData.EntityType.BUILDING:

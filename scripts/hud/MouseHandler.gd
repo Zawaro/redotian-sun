@@ -229,8 +229,8 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
     query.collision_mask = 1 << 16
     result = space_state.intersect_ray(query)
     if result.has("collider"):
-        _try_interact(result.collider as Node)
-        return
+        if _try_interact(result.collider as Node):
+            return
 
     # No entity — movement command.
     var ground_pos := _get_ground_position_at_mouse()

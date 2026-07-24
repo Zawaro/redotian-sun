@@ -110,7 +110,7 @@ func _collect_entities():
             continue
 
         var size := _get_selection_size(ent, parent)
-        var rect: Variant = _project_entity(parent, camera, size)
+        var rect: Variant = _project_entity(parent, camera, size, ent.vertical_offset)
         if not rect:
             continue
 
@@ -169,8 +169,11 @@ func _get_selection_size(ent: SelectComponent, parent: Node3D) -> Vector2:
     return Vector2(2.0, 2.0)
 
 
-func _project_entity(parent: Node3D, camera: Camera3D, size: Vector2) -> Variant:
-    var center_screen := camera.unproject_position(parent.global_position)
+func _project_entity(
+    parent: Node3D, camera: Camera3D, size: Vector2, v_offset: float = 0.0
+) -> Variant:
+    var center := parent.global_position + Vector3(0, v_offset, 0)
+    var center_screen := camera.unproject_position(center)
     var ref_x_screen := camera.unproject_position(parent.global_position + Vector3(size.x, 0, 0))
     var ref_z_screen := camera.unproject_position(parent.global_position + Vector3(0, 0, size.y))
     var screen_half_x: float = center_screen.distance_to(ref_x_screen) / 2.0
