@@ -8,6 +8,9 @@ var _test_failed := 0
 # Injected by test runner (see run_tests.gd:_inject_autoloads)
 var _em: Node = null
 
+# Unique player ID to avoid state leakage
+const PID := 200
+
 
 func _get_pm() -> Node:
     if _em == null:
@@ -25,6 +28,30 @@ func _make_infantry(id: String = "test_infantry", cost: int = 100) -> EntityData
     data.buildable_queue = "InfantryType"
     data.buildable = true
     return data
+
+
+func _make_factory() -> EntityData:
+    var data := EntityData.new()
+    data.id = "test_barracks"
+    data.entity_type = EntityData.EntityType.BUILDING
+    data.display_name = "Test Barracks"
+    data.factory = "InfantryType"
+    data.buildable = true
+    return data
+
+
+func _ensure_factory() -> void:
+    if _em == null:
+        return
+    var ps := _em.get_node_or_null("/root/PrerequisiteSystem")
+    if ps and ps.get_build_count(PID, "test_barracks") > 0:
+        return
+    var factory_data := _make_factory()
+    var ef := _em.get_node_or_null("/root/EntityFactory")
+    if ef:
+        ef._entity_cache["test_barracks"] = factory_data
+    if ps:
+        ps.register_building(PID, factory_data)
 
 
 func _cleanup_queue(pm: Node, queue_key: String) -> void:
@@ -48,10 +75,11 @@ func test_start_production_default_count():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_default", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
     if items.size() == 1:
         _test_passed += 1
@@ -68,11 +96,17 @@ func test_start_production_count_5():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_count5", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data, 5)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data, 5)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        _cleanup_queue(pm, key)
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     if pq.count == 5:
         _test_passed += 1
@@ -89,12 +123,18 @@ func test_start_production_stacking_increments():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_stack", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data)
-    pm.start_production(0, data)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data)
+    pm.start_production(PID, data)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        _cleanup_queue(pm, key)
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     if items.size() == 1 and pq.count == 2:
         _test_passed += 1
@@ -111,12 +151,18 @@ func test_start_production_stacking_adds_5():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_stack5", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data, 3)
-    pm.start_production(0, data, 5)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data, 3)
+    pm.start_production(PID, data, 5)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        _cleanup_queue(pm, key)
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     if pq.count == 8:
         _test_passed += 1
@@ -133,12 +179,18 @@ func test_start_production_stacking_caps_at_max():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_cap", 100)
-    _em.add(0, 5000, "test")
-    pm.start_production(0, data, 24)
-    pm.start_production(0, data, 5)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 5000, "test")
+    pm.start_production(PID, data, 24)
+    pm.start_production(PID, data, 5)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        _cleanup_queue(pm, key)
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     if pq.count == pm.MAX_STACK:
         _test_passed += 1
@@ -155,12 +207,13 @@ func test_start_production_different_entities_not_stacked():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data_a := _make_infantry("test_a", 100)
     var data_b := _make_infantry("test_b", 200)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data_a)
-    pm.start_production(0, data_b)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data_a)
+    pm.start_production(PID, data_b)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
     if items.size() == 2:
         _test_passed += 1
@@ -180,16 +233,21 @@ func test_cancel_single_item_refunds():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_refund", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     pq.deducted = 40.0
-    var balance_before: int = _em.get_balance(0)
-    pm.cancel_production(0, key, 0)
-    var balance_after: int = _em.get_balance(0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_production(PID, key, 0)
+    var balance_after: int = _em.get_balance(PID)
     if balance_after == balance_before + 40:
         _test_passed += 1
         print("    PASS: single item cancel refunds deducted amount")
@@ -205,16 +263,21 @@ func test_cancel_stacked_decrement_no_refund():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_norefund", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data, 5)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data, 5)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     pq.deducted = 50.0
-    var balance_before: int = _em.get_balance(0)
-    pm.cancel_production(0, key, 0, 1)
-    var balance_after: int = _em.get_balance(0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_production(PID, key, 0, 1)
+    var balance_after: int = _em.get_balance(PID)
     if pq.count == 4 and balance_after == balance_before:
         _test_passed += 1
         print("    PASS: stacked decrement: count=4, no refund")
@@ -231,16 +294,21 @@ func test_cancel_stacked_by_5_no_refund():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_cancel5", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data, 10)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data, 10)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     pq.deducted = 80.0
-    var balance_before: int = _em.get_balance(0)
-    pm.cancel_production(0, key, 0, 5)
-    var balance_after: int = _em.get_balance(0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_production(PID, key, 0, 5)
+    var balance_after: int = _em.get_balance(PID)
     if pq.count == 5 and balance_after == balance_before:
         _test_passed += 1
         print("    PASS: cancel 5 from 10: count=5, no refund")
@@ -257,16 +325,21 @@ func test_cancel_stacked_force_removes_and_refunds():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_force", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data, 3)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data, 3)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     pq.deducted = 60.0
-    var balance_before: int = _em.get_balance(0)
-    pm.cancel_production(0, key, 0, 5)
-    var balance_after: int = _em.get_balance(0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_production(PID, key, 0, 5)
+    var balance_after: int = _em.get_balance(PID)
     var remaining: Array = pm.get_queue_items(key)
     if remaining.size() == 0 and balance_after == balance_before + 60:
         _test_passed += 1
@@ -285,11 +358,12 @@ func test_cancel_entire_queue_cleans_up():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_cleanup", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data)
-    var key: String = pm.get_queue_key(0, "InfantryType")
-    pm.cancel_production(0, key, 0)
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    pm.cancel_production(PID, key, 0)
     var items: Array = pm.get_queue_items(key)
     if items.size() == 0:
         _test_passed += 1
@@ -309,11 +383,16 @@ func test_pause_and_resume():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_pauses", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     var ok := true
     if pq.is_paused:
@@ -342,17 +421,22 @@ func test_cancel_paused_single_removes():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_cancel_paused", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     pq.deducted = 30.0
     pm.pause_production(key, 0)
-    var balance_before: int = _em.get_balance(0)
-    pm.cancel_production(0, key, 0, 1)
-    var balance_after: int = _em.get_balance(0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_production(PID, key, 0, 1)
+    var balance_after: int = _em.get_balance(PID)
     var remaining: Array = pm.get_queue_items(key)
     if remaining.size() == 0 and balance_after == balance_before + 30:
         _test_passed += 1
@@ -371,17 +455,22 @@ func test_cancel_paused_stacked_decrements():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_cancel_paused_stack", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data, 5)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data, 5)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     pq.deducted = 40.0
     pm.pause_production(key, 0)
-    var balance_before: int = _em.get_balance(0)
-    pm.cancel_production(0, key, 0, 1)
-    var balance_after: int = _em.get_balance(0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_production(PID, key, 0, 1)
+    var balance_after: int = _em.get_balance(PID)
     if pq.count == 4 and balance_after == balance_before:
         _test_passed += 1
         print("    PASS: cancel paused stacked item decrements count, no refund")
@@ -398,16 +487,21 @@ func test_cancel_active_single_removes():
         _test_failed += 1
         print("    FAIL: autoloads not available")
         return
+    _ensure_factory()
     var data := _make_infantry("test_cancel_active", 100)
-    _em.add(0, 500, "test")
-    pm.start_production(0, data)
-    var key: String = pm.get_queue_key(0, "InfantryType")
+    _em.add(PID, 500, "test")
+    pm.start_production(PID, data)
+    var key: String = pm.get_queue_key(PID, "InfantryType")
     var items: Array = pm.get_queue_items(key)
+    if items.size() == 0:
+        _test_failed += 1
+        print("    FAIL: expected 1 item, got 0")
+        return
     var pq: ProductionQueue = items[0] as ProductionQueue
     pq.deducted = 25.0
-    var balance_before: int = _em.get_balance(0)
-    pm.cancel_production(0, key, 0, 1)
-    var balance_after: int = _em.get_balance(0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_production(PID, key, 0, 1)
+    var balance_after: int = _em.get_balance(PID)
     var remaining: Array = pm.get_queue_items(key)
     if remaining.size() == 0 and balance_after == balance_before + 25:
         _test_passed += 1
