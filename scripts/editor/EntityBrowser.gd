@@ -92,6 +92,8 @@ func _refresh_list(filter: String = "") -> void:
     _entity_list.clear()
     _filtered_entities.clear()
     for entity in _entities:
+        if entity.id.is_empty():
+            continue
         if (
             filter.is_empty()
             or entity.display_name.containsn(filter)
@@ -116,7 +118,9 @@ func _on_search_changed(text: String) -> void:
 
 func _on_entity_selected(index: int) -> void:
     if index >= 0 and index < _filtered_entities.size():
-        entity_selected.emit(_filtered_entities[index].id)
+        var entity_id: String = _filtered_entities[index].id
+        if not entity_id.is_empty():
+            entity_selected.emit(entity_id)
 
 
 func set_player_count(count: int) -> void:
