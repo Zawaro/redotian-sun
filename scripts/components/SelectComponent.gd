@@ -10,6 +10,7 @@ class_name SelectComponent extends Area3D
 @export var selection_size := Vector3(2.0, 0.01, 2.0)
 @export var outline_size := Vector3(2.0, 2.0, 2.0)
 @export var outline_2d_size := Vector2.ZERO
+@export var vertical_offset: float = 0.0
 
 enum SelectBoxType { Infantry, Vehicle, Structure }
 
