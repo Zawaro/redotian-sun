@@ -1,32 +1,30 @@
 class_name RallyPointComponent extends Node
 
-## Manages rally path for units after they exit the building.
-## Players can set rally points by right-clicking on terrain.
+## Manages rally point for units after they exit the building.
+## Players can set rally points by Alt+Left Clicking on terrain.
 
-## Path of waypoints units follow after exiting (in cell coordinates).
-@export var rally_path: Array[Vector2i] = []
+## Cell coordinate of rally point, or Vector2i(-1, -1) if unset.
+@export var rally_point: Vector2i = Vector2i(-1, -1)
 
 ## Emitted when rally point is changed.
-signal rally_point_changed(path: Array[Vector2i])
+signal rally_point_changed(point: Vector2i)
 
 
 func set_rally_point(cell: Vector2i) -> void:
-    rally_path = [cell]
-    rally_point_changed.emit(rally_path)
+    rally_point = cell
+    rally_point_changed.emit(rally_point)
 
 
 func clear_rally_point() -> void:
-    rally_path = []
-    rally_point_changed.emit(rally_path)
+    rally_point = Vector2i(-1, -1)
+    rally_point_changed.emit(rally_point)
 
 
 func has_rally_point() -> bool:
-    return not rally_path.is_empty()
+    return rally_point != Vector2i(-1, -1)
 
 
 func get_target_position() -> Vector3:
-    if rally_path.is_empty():
+    if not has_rally_point():
         return Vector3.ZERO
-    var cell: Vector2i = rally_path[rally_path.size() - 1]
-    var cs := Pathfinder.CELL_SIZE
-    return Vector3((cell.x + 0.5) * cs, 0.0, (cell.y + 0.5) * cs)
+    return Pathfinder.cell_to_world(rally_point)

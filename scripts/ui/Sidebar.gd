@@ -299,50 +299,11 @@ func _create_cameo(data: EntityData) -> Button:
 
     # Ready-to-place overlay for buildings
     if data.entity_type == EntityData.EntityType.BUILDING and _is_ready_to_place(data):
-        var ready_label := Label.new()
-        ready_label.text = "Ready"
-        ready_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-        ready_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-        ready_label.anchor_left = 0.0
-        ready_label.anchor_top = 0.0
-        ready_label.anchor_right = 1.0
-        ready_label.anchor_bottom = 0.65
-        ready_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-        ready_label.grow_vertical = Control.GROW_DIRECTION_BOTH
-        ready_label.add_theme_font_size_override("font_size", 16)
-        ready_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.5))
-        ready_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        btn.add_child(ready_label)
-
-        # Flicker tween for Ready state
-        var flicker := create_tween()
-        flicker.set_loops()
-        flicker.tween_property(btn, "modulate", Color(1.3, 1.3, 1.3, 1.0), 0.4)
-        flicker.tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.4)
-        _flicker_tweens[btn] = flicker
+        _add_ready_overlay(btn)
 
     # Ready-to-spawn overlay for units that failed to spawn
     elif _is_ready_to_spawn(data):
-        var ready_label := Label.new()
-        ready_label.text = "Ready"
-        ready_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-        ready_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-        ready_label.anchor_left = 0.0
-        ready_label.anchor_top = 0.0
-        ready_label.anchor_right = 1.0
-        ready_label.anchor_bottom = 0.65
-        ready_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-        ready_label.grow_vertical = Control.GROW_DIRECTION_BOTH
-        ready_label.add_theme_font_size_override("font_size", 16)
-        ready_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.5))
-        ready_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        btn.add_child(ready_label)
-
-        var flicker := create_tween()
-        flicker.set_loops()
-        flicker.tween_property(btn, "modulate", Color(1.3, 1.3, 1.3, 1.0), 0.4)
-        flicker.tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.4)
-        _flicker_tweens[btn] = flicker
+        _add_ready_overlay(btn)
 
     # On hold overlay for paused items
     elif _is_paused(data):
@@ -644,6 +605,28 @@ func exit_action_mode() -> void:
     _repair_mode = false
     sell_button.button_pressed = false
     repair_button.button_pressed = false
+
+
+func _add_ready_overlay(btn: Button) -> void:
+    var label := Label.new()
+    label.text = "Ready"
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    label.anchor_left = 0.0
+    label.anchor_top = 0.0
+    label.anchor_right = 1.0
+    label.anchor_bottom = 0.65
+    label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+    label.grow_vertical = Control.GROW_DIRECTION_BOTH
+    label.add_theme_font_size_override("font_size", 16)
+    label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.5))
+    label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    btn.add_child(label)
+    var flicker := create_tween()
+    flicker.set_loops()
+    flicker.tween_property(btn, "modulate", Color(1.3, 1.3, 1.3, 1.0), 0.4)
+    flicker.tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.4)
+    _flicker_tweens[btn] = flicker
 
 
 # --- Debug "place anywhere" mode ---
