@@ -75,21 +75,22 @@ func _on_test_player_changed(id: int) -> void:
     _received_player_id = id
 
 
+func _on_test_entity_selected(id: String) -> void:
+    _signal_received = true
+    _received_player_id = 1 if not id.is_empty() else -1
+
+
 func test_entity_selection_signal():
     if not _guard():
         return
-    # Test entity selection emits signal
-    var signal_received := false
-    var received_entity_id := ""
-    _browser.entity_selected.connect(
-        func(id: String) -> void:
-            signal_received = true
-            received_entity_id = id
-    )
+    # Test entity selection emits signal — use member vars, not lambda captures
+    _signal_received = false
+    _received_player_id = -1
+    _browser.entity_selected.connect(_on_test_entity_selected)
     # Select first entity if available
     if _browser._filtered_entities.size() > 0:
         _browser._on_entity_selected(0)
-        if signal_received and not received_entity_id.is_empty():
+        if _signal_received and _received_player_id != -1:
             print("    PASS: Entity selection signal emitted correctly")
             _test_passed += 1
         else:
@@ -98,6 +99,7 @@ func test_entity_selection_signal():
     else:
         print("    SKIP: No entities to select")
         _test_passed += 1
+    _browser.entity_selected.disconnect(_on_test_entity_selected)
 
 
 func test_category_switching():
