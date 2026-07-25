@@ -28,6 +28,7 @@ var immediate_visible_mesh: ImmediateMesh
 func _ready():
     create_bounds_nodes()
     create_bounds_edges()
+    TerrainSystem.grid_initialized.connect(create_bounds_edges)
 
 
 func _process(_delta):
@@ -115,13 +116,9 @@ func create_bounds_nodes():
 
 
 func create_bounds_edges():
-    var GODOT_CELL_SCALE = 2.0
-
-    # Use both X and Y dimensions for bounds
-    var half_map_x = map_size.x * GODOT_CELL_SCALE / 2.0
-    var half_map_y = map_size.y * GODOT_CELL_SCALE / 2.0
-    var half_visible_x = visible_bounds_size.x * GODOT_CELL_SCALE / 2.0
-    var half_visible_y = visible_bounds_size.y * GODOT_CELL_SCALE / 2.0
+    # Both diamonds computed from actual grid
+    var half_grid: float = float(TerrainSystem.grid_cells) * CellUtil.CELL_SIZE / 2.0
+    var half_visible: float = float(TerrainSystem.grid_cells - 4) * CellUtil.CELL_SIZE / 2.0
 
     # Recreate meshes with fresh instances (this clears old data)
     immediate_map_mesh = ImmediateMesh.new()
@@ -133,7 +130,7 @@ func create_bounds_edges():
     if not immediate_map_mesh or not immediate_visible_mesh:
         return
 
-    # Create map bounds edges (outer) - RED
+    # Create map bounds edges (outer) - RED — diamond drawn directly in world space
     if immediate_map_mesh:
         var map_material = ORMMaterial3D.new()
         map_material.albedo_color = line_color
@@ -142,27 +139,24 @@ func create_bounds_edges():
 
         immediate_map_mesh.surface_begin(Mesh.PRIMITIVE_LINES, map_material)
 
-        # Draw rectangle edges using both x and y dimensions
-        var min_x = -half_map_x
-        var max_x = half_map_x
-        var min_z = -half_map_y  # Y dimension becomes Z in world space
-        var max_z = half_map_y
+        var d: float = half_grid
+        var top := Vector3(0.0, 0.02, -d)
+        var right := Vector3(d, 0.02, 0.0)
+        var bottom := Vector3(0.0, 0.02, d)
+        var left := Vector3(-d, 0.02, 0.0)
 
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, min_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, min_z))  # Top edge
-
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, max_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, max_z))  # Bottom edge
-
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, min_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(min_x, 0.02, max_z))  # Left edge
-
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, min_z))
-        immediate_map_mesh.surface_add_vertex(Vector3(max_x, 0.02, max_z))  # Right edge
+        immediate_map_mesh.surface_add_vertex(top)
+        immediate_map_mesh.surface_add_vertex(right)
+        immediate_map_mesh.surface_add_vertex(right)
+        immediate_map_mesh.surface_add_vertex(bottom)
+        immediate_map_mesh.surface_add_vertex(bottom)
+        immediate_map_mesh.surface_add_vertex(left)
+        immediate_map_mesh.surface_add_vertex(left)
+        immediate_map_mesh.surface_add_vertex(top)
 
         immediate_map_mesh.surface_end()
 
-    # Create visible bounds edges (inner) - BLUE
+    # Create visible bounds edges (inner) - BLUE — diamond drawn directly in world space
     if immediate_visible_mesh:
         var visible_material = ORMMaterial3D.new()
         visible_material.albedo_color = visible_bounds_color
@@ -171,27 +165,19 @@ func create_bounds_edges():
 
         immediate_visible_mesh.surface_begin(Mesh.PRIMITIVE_LINES, visible_material)
 
-        # Draw rectangle edges using both x and y dimensions
-        var min_x_vis = -half_visible_x
-        var max_x_vis = half_visible_x
-        var min_z_vis = -half_visible_y  # Y dimension becomes Z in world space
-        var max_z_vis = half_visible_y
+        var vd: float = half_visible
+        var vtop := Vector3(0.0, 0.02, -vd)
+        var vright := Vector3(vd, 0.02, 0.0)
+        var vbottom := Vector3(0.0, 0.02, vd)
+        var vleft := Vector3(-vd, 0.02, 0.0)
 
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, min_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, min_z_vis))  # Top edge
-
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, max_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, max_z_vis))
-        # Bottom edge
-
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, min_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(min_x_vis, 0.02, max_z_vis))  # Left edge
-
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, min_z_vis))
-        immediate_visible_mesh.surface_add_vertex(Vector3(max_x_vis, 0.02, max_z_vis))  # Right edge
+        immediate_visible_mesh.surface_add_vertex(vtop)
+        immediate_visible_mesh.surface_add_vertex(vright)
+        immediate_visible_mesh.surface_add_vertex(vright)
+        immediate_visible_mesh.surface_add_vertex(vbottom)
+        immediate_visible_mesh.surface_add_vertex(vbottom)
+        immediate_visible_mesh.surface_add_vertex(vleft)
+        immediate_visible_mesh.surface_add_vertex(vleft)
+        immediate_visible_mesh.surface_add_vertex(vtop)
 
         immediate_visible_mesh.surface_end()
-
-    # Rotate both meshes 45 degrees around Y axis (set rotation instead of accumulate)
-    map_bounds_mesh_instance.rotation.y = deg_to_rad(45.0)
-    visible_bounds_mesh_instance.rotation.y = deg_to_rad(45.0)
