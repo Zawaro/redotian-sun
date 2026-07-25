@@ -73,7 +73,7 @@
 ## 11. Verification
 
 - [x] 11.1 Run full test suite — all tests pass
-- [ ] 11.2 Manual test: cursor changes correctly for all unit types x target combinations
-- [ ] 11.3 Manual test: click orders execute correctly for multiple selected units (move, attack, harvest, dock, deploy, sell, repair)
-- [ ] 11.4 Manual test: modifiers work (Ctrl = force attack, Alt = force move)
-- [ ] 11.5 Manual test: sell/repair mode toggle works correctly
+- [x] 11.2 Manual test: cursor changes correctly for all unit types x target combinations
+- [x] 11.3 Manual test: click orders execute correctly for multiple selected units (move, attack, harvest, dock, deploy, sell, repair)
+- [x] 11.4 Manual test: modifiers work (Ctrl = force attack, Alt = force move)
+- [x] 11.5 Manual test: sell/repair mode toggle works correctly

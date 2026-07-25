@@ -24,4 +24,4 @@
 ## 5. Verification
 
 - [x] 5.1 Unit tests: config load defaults when no file exists, load saved settings from config file, `remap_action` applies binding to InputMap
-- [ ] 5.2 Manual test: WASD moves camera, edge scroll toggle on/off, remap camera key in config file persists after restart
+- [x] 5.2 Manual test: WASD moves camera, edge scroll toggle on/off, remap camera key in config file persists after restart
