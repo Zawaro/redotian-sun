@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: EconomyManager autoload
-The system SHALL provide an `EconomyManager.gd` autoload singleton for credit tracking. It SHALL NOT generate income or run per-frame ticks — it is a pure ledger. EconomyManager SHALL be stateless — it reads and writes PlayerData via PlayerManager.get_player_data() instead of owning its own player data dictionary.
+The system SHALL provide an `EconomyManager.gd` autoload singleton for credit tracking. It SHALL NOT generate income or run per-frame ticks — it is a pure ledger. EconomyManager SHALL delegate all state to PlayerData via PlayerManager.get_player_data() — it owns no player data dictionary and no per-frame timers.
 
 #### Scenario: Add credits
 - **WHEN** `EconomyManager.add(0, 500, "harvest")` is called

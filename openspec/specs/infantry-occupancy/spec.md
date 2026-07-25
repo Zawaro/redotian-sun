@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Infantry cell capacity
-The system SHALL allow up to 3 infantry entities to occupy the same cell. Idle infantry cells SHALL be blocked for non-infantry entities when at least 1 idle infantry is present. Infantry cells SHALL be blocked for infantry when at capacity (3 idle infantry). Moving infantry do not block cells.
+The system SHALL allow up to 3 infantry entities to occupy the same cell. Idle infantry cells SHALL block pathfinding for non-infantry entities (vehicles cannot path through) when at least 1 idle infantry is present. Infantry cells SHALL block pathfinding for other infantry when at capacity (3 idle infantry). Moving infantry do not block cells.
 
 #### Scenario: Vehicle blocked by single infantry
 - **WHEN** a vehicle attempts to pathfind through a cell with 1 idle infantry
@@ -50,6 +50,8 @@ The system SHALL NOT apply repulsion forces between infantry entities during mov
 
 ### Requirement: Infantry group pre-assignment
 The system SHALL separate infantry from vehicles when processing a group move command. Infantry SHALL be distributed to cells near the target with max 3 per cell. Each infantry SHALL receive an assigned sub-slot position before movement begins.
+
+> **Note:** This requirement describes SelectionManager's `_find_infantry_cell()` behavior, which is a selection/movement concern. It is included here for completeness but may be moved to the selection-manager spec in the future.
 
 #### Scenario: Group move with mixed units
 - **WHEN** a player issues a move command with 6 infantry and 2 vehicles selected

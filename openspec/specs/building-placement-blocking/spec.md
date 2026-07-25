@@ -5,12 +5,14 @@
 
 #### Scenario: Moving unit blocks placement
 - **WHEN** a unit is in MOVING state on cell (5, 5)
+- **AND** SpatialHash has been rebuilt this frame (entity is registered in _grid)
 - **AND** the player attempts to place a building whose foundation covers cell (5, 5)
 - **THEN** `_is_cell_free(Vector2i(5, 5))` returns `false`
 - **AND** the foundation preview shows red for that cell
 
 #### Scenario: Idle unit still blocks placement
 - **WHEN** a unit is in IDLE state on cell (5, 5)
+- **AND** SpatialHash has been rebuilt this frame
 - **AND** the player attempts to place a building whose foundation covers cell (5, 5)
 - **THEN** `_is_cell_free(Vector2i(5, 5))` returns `false`
 

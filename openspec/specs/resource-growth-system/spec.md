@@ -46,6 +46,14 @@ The system SHALL provide a `ResourceGrowthSystem.gd` autoload that manages resou
 - **WHEN** there are 100k resource entities on the map and `growth_batch_crystals = 500`
 - **THEN** only 500 resource entities are processed per tick, cycling through all entities over multiple ticks
 
+#### Scenario: Tree freed during timer
+- **WHEN** a tree entity is freed while the growth timer is active
+- **THEN** the system skips the freed entity (is_instance_valid guard)
+
+#### Scenario: Concurrent growth on same cell
+- **WHEN** two trees attempt to spawn on the same empty cell in the same tick
+- **THEN** only one resource is spawned (second spawn finds cell occupied)
+
 ### Requirement: ResourceComponent spread tracking
 ResourceComponent SHALL include a `spread_count: int = 0` field tracking how many times this resource entity has spread to new cells.
 
