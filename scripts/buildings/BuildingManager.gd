@@ -446,6 +446,7 @@ func _add_grid_and_indicators(
 
     var grid_mesh := ImmediateMesh.new()
     grid_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+    var has_vertices := false
 
     for z in range(grid_start.y, grid_end.y + 1):
         for x in range(grid_start.x, grid_end.x + 1):
@@ -491,6 +492,7 @@ func _add_grid_and_indicators(
             var t2 := Vector3(bx, h[0], bz + ht)
             var t3 := Vector3(bx + cs, h[1], bz + ht)
             _quad(grid_mesh, t0, t1, t2, t3)
+            has_vertices = true
 
             var r0 := Vector3(bx + cs - ht, h[1], bz)
             var r1 := Vector3(bx + cs + ht, h[1], bz)
@@ -510,13 +512,14 @@ func _add_grid_and_indicators(
             var l3 := Vector3(bx + ht, h[2], bz + cs)
             _quad(grid_mesh, l0, l1, l2, l3)
 
-    grid_mesh.surface_end()
+    if has_vertices:
+        grid_mesh.surface_end()
 
-    var grid_inst := MeshInstance3D.new()
-    grid_inst.mesh = grid_mesh
-    grid_inst.material_override = grid_mat
-    grid_inst.position.y = 0.001
-    _preview.add_child(grid_inst)
+        var grid_inst := MeshInstance3D.new()
+        grid_inst.mesh = grid_mesh
+        grid_inst.material_override = grid_mat
+        grid_inst.position.y = 0.001
+        _preview.add_child(grid_inst)
 
 
 func _quad(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
