@@ -5,9 +5,7 @@ class_name GlobalRules extends Resource
 @export var veteran_ratio: float = 10.0
 @export var veteran_cap: int = 2
 @export var initial_veteran: bool = false
-
 ## Veterancy multipliers per level
-@export_group("Veterancy Multipliers")
 @export var veteran_combat: float = 0.25
 @export var veteran_speed: float = 0.30
 @export var veteran_sight: float = 0.0

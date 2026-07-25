@@ -134,8 +134,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 ## Whether this building requires power to function (shutdown when low power).
 @export var powered: bool = false
 
-## Radar
-@export_group("Radar")
+## Sensor & Cloak
+@export_group("Sensor & Cloak")
 ## Whether this building provides radar/minimap functionality.
 @export var radar: bool = false
 ## Whether this building has a sensor array (detects cloaked units).
@@ -147,12 +147,9 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 ## Radius in cells of the cloak generator field.
 # ponytail: schema-first, no consumer yet
 @export var cloak_radius_cells: int = 0
-## Whether units can reload ammunition at this building.
-# ponytail: schema-first, no consumer yet
-@export var unit_reload: bool = false
-## Upgrade IDs available at this building (e.g., ["WEAP_UPGRADE"]).
-# ponytail: schema-first, no consumer yet
-@export var upgrades: PackedStringArray = []
+
+## Building Capabilities
+@export_group("Building Capabilities")
 ## Whether this building is a construction yard (can deploy from MCV).
 # ponytail: schema-first, no consumer yet
 @export var construction_yard: bool = false
@@ -165,6 +162,12 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 ## Whether this building is a helipad (lands and reloads aircraft).
 # ponytail: schema-first, no consumer yet
 @export var helipad: bool = false
+## Whether units can reload ammunition at this building.
+# ponytail: schema-first, no consumer yet
+@export var unit_reload: bool = false
+## Upgrade IDs available at this building (e.g., ["WEAP_UPGRADE"]).
+# ponytail: schema-first, no consumer yet
+@export var upgrades: PackedStringArray = []
 
 ## Factory — which production queue this entity belongs to (used for queue routing).
 @export_group("Factory")

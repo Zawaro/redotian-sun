@@ -3,12 +3,9 @@ class_name ArtData extends Resource
 ## Art configuration for an entity — defines model, textures, animations,
 ## and rendering properties. Referenced by EntityData.art_data.
 
-## Identity
-@export_group("Identity")
-@export var id: String = ""
-
 ## Model
 @export_group("Model")
+@export var id: String = ""
 ## Whether this entity uses a voxel model (true) or a polygonal mesh (false).
 # ponytail: schema-first, no consumer yet
 @export var is_voxel: bool = false
@@ -157,6 +154,12 @@ class_name ArtData extends Resource
 ## Name of the charge-up animation (e.g., Obelisk charging).
 # ponytail: schema-first, no consumer yet
 @export var charge_anim: String = ""
+## Midpoint offset for projectile launch tracking.
+# ponytail: schema-first, no consumer yet
+@export var mid_point: Vector3 = Vector3.ZERO
+## Number of gate open/close stages.
+# ponytail: schema-first, no consumer yet
+@export var gate_stages: int = 0
 
 ## Building damage visuals
 @export_group("Building Damage Visuals")
@@ -169,18 +172,6 @@ class_name ArtData extends Resource
 ## Number of damage visual levels (0 = no damage stages).
 # ponytail: schema-first, no consumer yet
 @export var damage_levels: int = 0
-
-## SAM site
-@export_group("SAM Site")
-## Midpoint offset for projectile launch tracking.
-# ponytail: schema-first, no consumer yet
-@export var mid_point: Vector3 = Vector3.ZERO
-
-## Gate
-@export_group("Gate")
-## Number of gate open/close stages.
-# ponytail: schema-first, no consumer yet
-@export var gate_stages: int = 0
 
 ## Overlay
 @export_group("Overlay")
