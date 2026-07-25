@@ -64,3 +64,43 @@ The system SHALL emit `prerequisites_changed(player_id)` whenever a building is 
 #### Scenario: Signal emitted on building placed
 - **WHEN** a building is registered for player 0
 - **THEN** `prerequisites_changed(0)` is emitted
+
+### Requirement: Debug cheat bypass
+When the debug menu's `no_prereqs` flag is active, `can_build()` SHALL bypass all prerequisite, build limit, and factory checks, always returning true.
+
+#### Scenario: Debug mode active
+- **WHEN** `debug_menu.no_prereqs == true`
+- **AND** entity has unmet prerequisites
+- **THEN** `can_build()` returns true
+
+#### Scenario: Debug mode inactive
+- **WHEN** `debug_menu.no_prereqs == false` or debug menu does not exist
+- **THEN** `can_build()` applies normal prerequisite checks
+
+### Requirement: Query build count
+`get_build_count(player_id, entity_id)` SHALL return the number of buildings of the given entity_id owned by the player, or 0 if none.
+
+#### Scenario: Has buildings
+- **WHEN** player 0 owns 3× "FACT"
+- **THEN** `get_build_count(0, "FACT")` returns 3
+
+#### Scenario: Has no buildings
+- **WHEN** player 0 owns no "FACT"
+- **THEN** `get_build_count(0, "FACT")` returns 0
+
+### Requirement: Factory ownership check
+The system SHALL verify the player owns at least one building whose `factory` field matches the entity's `buildable_queue`. If the entity has no `buildable_queue`, this check is skipped.
+
+#### Scenario: Has matching factory
+- **WHEN** entity has `buildable_queue = "infantry"`
+- **AND** player owns a building with `factory = "infantry"`
+- **THEN** `can_build()` passes the factory check
+
+#### Scenario: No matching factory
+- **WHEN** entity has `buildable_queue = "infantry"`
+- **AND** player owns no building with `factory = "infantry"`
+- **THEN** `can_build()` returns false
+
+#### Scenario: No buildable queue
+- **WHEN** entity has empty `buildable_queue`
+- **THEN** factory check is skipped
