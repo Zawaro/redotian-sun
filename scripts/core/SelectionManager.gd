@@ -97,7 +97,7 @@ func clear_hover_preview():
     set_hover_preview(false, null)
 
 
-func request_move(target_position: Vector3) -> void:
+func request_move(target_position: Vector3, skip_formation: bool = false) -> void:
     if selected_entities.is_empty():
         return
 
@@ -188,17 +188,21 @@ func request_move(target_position: Vector3) -> void:
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent):
             continue
-        var offset := parent.global_position - center
-        var cell_offset := Vector2i(
-            roundi(offset.x / CellUtil.CELL_SIZE), roundi(offset.z / CellUtil.CELL_SIZE)
-        )
-        if abs(cell_offset.x) > 2 or abs(cell_offset.y) > 2:
-            cell_offset.x = clampi(cell_offset.x, -2, 2)
-            cell_offset.y = clampi(cell_offset.y, -2, 2)
-        var target := (
-            target_position
-            + Vector3(cell_offset.x * CellUtil.CELL_SIZE, 0, cell_offset.y * CellUtil.CELL_SIZE)
-        )
+        var target: Vector3
+        if skip_formation:
+            target = target_position
+        else:
+            var offset := parent.global_position - center
+            var cell_offset := Vector2i(
+                roundi(offset.x / CellUtil.CELL_SIZE), roundi(offset.z / CellUtil.CELL_SIZE)
+            )
+            if abs(cell_offset.x) > 2 or abs(cell_offset.y) > 2:
+                cell_offset.x = clampi(cell_offset.x, -2, 2)
+                cell_offset.y = clampi(cell_offset.y, -2, 2)
+            target = (
+                target_position
+                + Vector3(cell_offset.x * CellUtil.CELL_SIZE, 0, cell_offset.y * CellUtil.CELL_SIZE)
+            )
         var cell := CellUtil.world_to_cell(target)
         if not SpatialHash.instance.reserve_cell(cell):
             target = _fallback_target(target)

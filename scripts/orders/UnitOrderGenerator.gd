@@ -35,7 +35,10 @@ func get_cursor(
             elif _is_enemy(target):
                 cursor = CursorState.Type.SELECT
             elif _is_already_selected(target, sm):
-                cursor = CursorState.Type.GENERIC_BLOCKED
+                if target.get_node_or_null("MovementController"):
+                    cursor = CursorState.Type.MOVE
+                else:
+                    cursor = CursorState.Type.GENERIC_BLOCKED
             elif target.is_in_group("selectable"):
                 cursor = CursorState.Type.SELECT
             elif _has_movable(sm):
@@ -54,30 +57,42 @@ func get_orders(
     var sm := _get_selection_manager()
     if not sm or sm.selected_entities.is_empty():
         return []
-    # Terrain click — check for undeploy before group move
+    var result: Array[OrderResult] = []
     if not target:
         if _has_undeployable(sm):
-            return OrderResolver.resolve_all(
+            result = OrderResolver.resolve_all(
                 sm.selected_entities, target, target_cell, target_pos, modifiers
             )
-        # Only issue move order if at least one entity can move
-        if not _has_movable(sm):
-            return []
-        var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
-        return [
-            OrderResult.new(
-                CursorState.Type.MOVE,
-                5,
-                null,
-                target_pos,
-                queued,
-                func(): sm.request_move(target_pos),
-            )
-        ]
-    # Entity click — per-entity orders (attack, harvest, deploy, etc.)
-    return OrderResolver.resolve_all(
-        sm.selected_entities, target, target_cell, target_pos, modifiers
-    )
+        elif _has_movable(sm):
+            var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+            result = [
+                OrderResult.new(
+                    CursorState.Type.MOVE,
+                    5,
+                    null,
+                    target_pos,
+                    queued,
+                    func(): sm.request_move(target_pos),
+                )
+            ]
+    else:
+        result = OrderResolver.resolve_all(
+            sm.selected_entities, target, target_cell, target_pos, modifiers
+        )
+        if result.is_empty() and _is_already_selected(target, sm):
+            if target.get_node_or_null("MovementController"):
+                var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+                result = [
+                    OrderResult.new(
+                        CursorState.Type.MOVE,
+                        5,
+                        target,
+                        target_pos,
+                        queued,
+                        func(): sm.request_move(target_pos, true),
+                    )
+                ]
+    return result
 
 
 func _has_undeployable(sm: SelectionManager) -> bool:
