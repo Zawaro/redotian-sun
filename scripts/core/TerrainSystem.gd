@@ -1,6 +1,7 @@
 extends Node
 
 signal cell_changed(cell_key: String, cell_data: Dictionary)
+signal grid_initialized
 
 const HEIGHT_STEP: float = 0.815
 const MAX_HEIGHT: int = 10
@@ -459,6 +460,8 @@ func import_from_json(path: String) -> void:
 
     for key in _cells:
         cell_changed.emit(key, _cells[key])
+
+    grid_initialized.emit()
 
 
 # ========================================
