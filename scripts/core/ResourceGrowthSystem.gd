@@ -30,6 +30,7 @@ func _ready() -> void:
     _reset_tree_timer()
     _reset_resource_timer()
     _rebuild_cache()
+    TerrainSystem.grid_initialized.connect(_find_bounds_system)
 
 
 func _physics_process(delta: float) -> void:
