@@ -31,26 +31,24 @@ class_name WeaponData extends Resource
 @export var anti_air: bool = false
 @export var anti_ground: bool = true
 
+## Firing Behavior
+@export_group("Firing Behavior")
 ## Burst count — number of shots per attack cycle (e.g., Burst=2 fires two rounds then pauses).
 @export var burst: int = 1
-
 ## Lobber — projectile arcs upward then drops (artillery-style trajectory).
 @export var is_lobber: bool = false
 ## Charges — weapon must charge before firing (e.g., Obelisk of Light).
 @export var requires_charge: bool = false
 ## Is laser — renders as a continuous laser beam instead of projectile.
 @export var is_laser: bool = false
-
 ## Splash radius in cells (0 = no splash damage).
 @export var splash_radius: float = 0.0
 ## Ammo count (-1 = unlimited).
 @export var ammo: int = -1
-
 ## Animation name played when this weapon fires (e.g., "GUNFIRE", "MGUN-N").
 @export var fire_animation: String = ""
 ## Sound report(s) played when firing — comma-separated IDs (e.g., "INFGUN3,GOSTGUN1").
 @export var sound_report: String = ""
-
 ## Ambient damage per tick — used for continuous-damage weapons (e.g., sonic, flame).
 ## Separate from per-shot damage; applied while the weapon is active.
 @export var ambient_damage: int = 0
