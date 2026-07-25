@@ -15,6 +15,8 @@ func _process(_delta):
 func _unhandled_input(event: InputEvent) -> void:
     if Engine.is_editor_hint():
         return
+    if UIUtil.is_mouse_over_sidebar() or UIUtil.is_mouse_over_debug_menu():
+        return
     if event.is_action("zoom_in"):
         var camera_size = self.size - size_step
         self.size = clamp(camera_size, min_size, max_size)

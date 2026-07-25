@@ -2,6 +2,11 @@ class_name CellSubPositions
 
 const MARGIN: float = 0.15
 const NUM_SLOTS: int = 3
+# Chord length between adjacent vertices of inscribed regular polygon
+# Scale factor 0.69 (vs 0.7 in get_sub_positions) gives floating-point tolerance
+const MIN_SLOT_DIST: float = (
+    2.0 * (CellUtil.CELL_SIZE * 0.5 - MARGIN) * 0.69 * sin(TAU / NUM_SLOTS / 2.0)
+)
 
 
 static func _hash_cell(cell: Vector2i) -> int:

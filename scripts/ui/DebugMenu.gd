@@ -54,7 +54,7 @@ func _ready() -> void:
     content.visible = false
 
     # Cache sidebar reference
-    _sidebar = _find_sidebar()
+    _sidebar = UIUtil.find_sidebar()
 
     # Cache selection overlay
     _selection_overlay = _find_selection_overlay()
@@ -254,23 +254,6 @@ func clear_inspection() -> void:
 
 
 # --- Lighting sliders ---
-
-
-func _find_sidebar() -> Node:
-    var root := get_tree().current_scene
-    if not root:
-        return null
-    return _find_sidebar_recursive(root)
-
-
-func _find_sidebar_recursive(node: Node) -> Node:
-    if node.name == "Sidebar" and node is Control:
-        return node
-    for child in node.get_children():
-        var result := _find_sidebar_recursive(child)
-        if result:
-            return result
-    return null
 
 
 func _find_selection_overlay() -> CanvasLayer:
