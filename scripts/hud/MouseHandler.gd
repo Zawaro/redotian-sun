@@ -63,23 +63,35 @@ func _process(_delta):
     if sidebar and sidebar.get("_debug_place_mode"):
         return
 
-    if _skip_release:
-        if Input.is_action_just_released("select_entity"):
-            _skip_release = false
-        return
-
-    # Deploy hotkey (Ctrl+D)
-    if Input.is_action_just_pressed("deploy"):
+    # Deploy hotkey (Ctrl+D) or Stop hotkey (Ctrl+S) — above _skip_release so hotkeys always work.
+    if Input.is_action_just_pressed("deploy") or Input.is_action_just_pressed("stop"):
         if selection_manager:
+            var is_stop := Input.is_action_just_pressed("stop")
             for sc in selection_manager.selected_entities:
                 if not is_instance_valid(sc):
                     continue
                 var entity := sc.get_parent() as Node3D
                 if not is_instance_valid(entity):
                     continue
-                var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
-                if deploy and deploy.can_deploy():
-                    deploy.execute_deploy(entity)
+                if Input.is_action_just_pressed("deploy"):
+                    var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
+                    if deploy and deploy.can_deploy():
+                        deploy.execute_deploy(entity)
+                else:
+                    var harvest := entity.get_node_or_null("HarvestComponent") as HarvestComponent
+                    if harvest:
+                        harvest.cancel_harvest(true)
+                    var mc := entity.get_node_or_null("MovementController") as MovementController
+                    if mc:
+                        mc.stop()
+            if is_stop:
+                selection_manager._pending_moves.clear()
+                selection_manager._pending_index = 0
+        return
+
+    if _skip_release:
+        if Input.is_action_just_released("select_entity"):
+            _skip_release = false
         return
 
     # Skip input handling when hovering UI — but still update cursor below.

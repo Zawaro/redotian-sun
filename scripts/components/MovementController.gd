@@ -55,6 +55,60 @@ func _num_segments() -> int:
     return maxi(0, _waypoints.size() - 1)
 
 
+func stop() -> void:
+    if _state == State.IDLE:
+        return
+    if _state == State.ROTATING:
+        _finish_stop()
+        return
+    if _state == State.WAIT:
+        var final_pos := _waypoints[_waypoints.size() - 1]
+        var dist := _parent.global_position.distance_to(final_pos)
+        if dist < 0.1:
+            var final_cell := CellUtil.world_to_cell(final_pos)
+            if not _is_cell_occupied_by_idle(final_cell):
+                _finish_stop()
+                return
+    if _state == State.MOVING:
+        var seg := _spline_segment()
+        var next_idx := mini(seg + 1, _waypoints.size() - 1)
+        var next_waypoint := _waypoints[next_idx]
+        if _is_infantry:
+            var current_cell := CellUtil.world_to_cell(_parent.global_position)
+            _assign_sub_slot_at_cell(current_cell)
+            if _has_sub_slot:
+                next_waypoint = _sub_slot_position
+            else:
+                var free_cell := CellUtil.spiral_first_free(
+                    current_cell, 3, _is_cell_occupied_by_idle
+                )
+                _assign_sub_slot_at_cell(free_cell)
+                if _has_sub_slot:
+                    next_waypoint = _sub_slot_position
+                else:
+                    next_waypoint = CellUtil.cell_to_world(free_cell)
+        else:
+            var dist_to_next := (next_waypoint - _parent.global_position).length()
+            if dist_to_next > CellUtil.CELL_SIZE:
+                var dir := (next_waypoint - _parent.global_position).normalized()
+                var candidate := _parent.global_position + dir * CellUtil.CELL_SIZE
+                var candidate_cell := CellUtil.world_to_cell(candidate)
+                var current_cell := CellUtil.world_to_cell(_parent.global_position)
+                if candidate_cell != current_cell:
+                    next_waypoint = CellUtil.cell_to_world(candidate_cell)
+        _waypoints = PackedVector3Array([_parent.global_position, next_waypoint])
+        _spline_t = 0.0
+
+
+func _finish_stop() -> void:
+    _waypoints = PackedVector3Array()
+    _spline_t = 0.0
+    _state = State.IDLE
+    SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
+    if debug_show_path:
+        DebugVisualizer.clear_path(get_path())
+
+
 func set_target_position(target: Vector3, unblock_buildings: bool = false) -> void:
     if (
         is_nan(target.x)
@@ -359,6 +413,7 @@ func _apply_facing(direction: Vector3) -> void:
 
 
 func _assign_sub_slot_at_cell(cell: Vector2i) -> void:
+    _has_sub_slot = false
     var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
     var taken_slots: Dictionary = {}
     # Loop 1: entities already at this cell (in SpatialHash).
