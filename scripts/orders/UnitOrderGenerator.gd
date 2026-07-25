@@ -15,27 +15,26 @@ func get_cursor(
     target_pos: Vector3,
     modifiers: Dictionary,
 ) -> CursorState.Type:
+    var cursor := CursorState.Type.DEFAULT
     var sm := _get_selection_manager()
-    if not sm or sm.selected_entities.is_empty():
-        return CursorState.Type.DEFAULT
-    # Terrain click with selection — check for undeploy first
-    if not target:
-        if _has_undeployable(sm):
-            var result := OrderResolver.resolve_single(
+    if sm and not sm.selected_entities.is_empty():
+        if not target:
+            if _has_undeployable(sm):
+                var result := OrderResolver.resolve_single(
+                    sm.selected_entities, target, target_cell, target_pos, modifiers
+                )
+                cursor = result.cursor if result else CursorState.Type.MOVE
+            elif _has_movable(sm):
+                cursor = CursorState.Type.MOVE
+        else:
+            var result: OrderResult = OrderResolver.resolve_single(
                 sm.selected_entities, target, target_cell, target_pos, modifiers
             )
-            return result.cursor if result else CursorState.Type.MOVE
-        # Only show MOVE cursor if at least one selected entity can move
-        if _has_movable(sm):
-            return CursorState.Type.MOVE
-        return CursorState.Type.DEFAULT
-    var result: OrderResult = OrderResolver.resolve_single(
-        sm.selected_entities, target, target_cell, target_pos, modifiers
-    )
-    if result:
-        return result.cursor
-    # No component claimed this entity — clicking will select it
-    return CursorState.Type.SELECT
+            if result:
+                cursor = result.cursor
+            elif target.is_in_group("selectable"):
+                cursor = CursorState.Type.SELECT
+    return cursor
 
 
 func get_orders(
