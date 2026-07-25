@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: FactoryComponent declares queue types
-FactoryComponent SHALL have `produces: Array[String]` field listing queue types this building handles (e.g., `["infantry"]`, `["vehicle"]`). FactoryComponent SHALL read this from EntityData.buildable_queue at configure time.
+FactoryComponent SHALL have `produces: Array[String]` field listing queue types this building handles (e.g., `["infantry"]`, `["vehicle"]`). FactoryComponent SHALL read this from EntityData.factory at configure time.
 
 #### Scenario: Barracks produces infantry
-- **WHEN** EntityData has `buildable_queue = "infantry"`
+- **WHEN** EntityData has `factory = "infantry"`
 - **THEN** FactoryComponent `produces` SHALL contain `["infantry"]`
 
 #### Scenario: War factory produces vehicles
-- **WHEN** EntityData has `buildable_queue = "vehicle"`
+- **WHEN** EntityData has `factory = "vehicle"`
 - **THEN** FactoryComponent `produces` SHALL contain `["vehicle"]`
 
 ### Requirement: FactoryComponent registers in factories group

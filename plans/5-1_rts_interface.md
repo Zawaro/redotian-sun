@@ -151,37 +151,206 @@ func update_power_display(current, max):
 - Coordinate with production manager for queue display
 - Interface with camera system for minimap position sync
 
-## 6. Cursor System
+## 6. Unified Cursor + Order System — IMPLEMENTED
 
 **GitHub Issue**: #70 — feat: Tiberian Sun cursor system with per-unit resolution
 
-### Overview
-Context-sensitive cursors matching original Tiberian Sun. Placeholder SVGs, later PNG sequences for animation. Per-unit resolution — each entity component determines what cursor to show.
+**Status**: ✅ Implemented. All files created, all modifications applied. OrderSystem autoload registered.
 
-### Cursor Types (28 unique + 28 minimap)
+### Overview
+Context-sensitive cursors matching original Tiberian Sun. Per-unit resolution — each entity component determines what cursor to show AND what order to issue. A central `OrderSystem` autoload holds the active `OrderGenerator` and delegates mouse input — eliminating hardcoded order logic in `MouseHandler`.
+
+### Architecture
+
+```
+MouseHandler._process()
+│
+├─ 1. Global overrides (modal state)
+│   ├─ dragging box → SELECT
+│   ├─ screen edge → SCROLL_* (with blocked variant if at map bounds)
+│   └─ sell/repair mode → delegated to OrderSystem → SellOrderGenerator / RepairOrderGenerator
+│
+├─ 2. Per-unit resolution (if no global override)
+│   └─ OrderSystem.get_cursor(target, target_cell, target_pos, modifiers)
+│       └─ active_generator.get_cursor()  [UnitOrderGenerator by default]
+│           └─ OrderResolver.resolve()
+│               ├─ for each selected entity:
+│               │   ├─ CombatComponent.get_order_for_target() → { cursor: ATTACK, priority: 30 }
+│               │   ├─ HarvestComponent.get_order_for_target() → { cursor: HARVEST, priority: 20 }
+│               │   ├─ TransportComponent.get_order_for_target() → { cursor: ENTER, priority: 15 }
+│               │   └─ MovementController.get_order_for_target() → { cursor: MOVE, priority: 5 }
+│               └─ highest priority wins
+│
+└─ 3. Fallback → DEFAULT
+```
+
+### Component Interface
+
+Each component that can issue orders implements:
+
+```gdscript
+func get_order_for_target(
+    target: Node3D,
+    target_cell: Vector2i,
+    target_pos: Vector3,
+    modifiers: Dictionary  # { force_attack, force_move, queued }
+) -> OrderResult:
+    # Returns null if this component cannot handle this target
+```
+
+### OrderResult
+
+```gdscript
+class_name OrderResult
+
+var cursor: CursorState.Type   # what cursor to show
+var priority: int              # higher wins
+var order_id: String           # "move", "attack", "harvest", "enter", "deploy"
+var target: Node3D             # target entity (null for terrain)
+var target_pos: Vector3        # world position (for movement)
+var queued: bool               # shift-queue support
+var execute: Callable          # the actual order execution
+```
+
+### OrderResolver (static)
+
+```gdscript
+static func resolve(
+    selected_entities: Array[SelectComponent],
+    target: Node3D,
+    target_cell: Vector2i,
+    target_pos: Vector3,
+    modifiers: Dictionary
+) -> OrderResult:
+    var best: OrderResult = null
+    for select_comp in selected_entities:
+        var entity = select_comp.get_parent()
+        for component in entity.get_children():
+            if component.has_method("get_order_for_target"):
+                var result = component.get_order_for_target(target, target_cell, target_pos, modifiers)
+                if result and (not best or result.priority > best.priority):
+                    best = result
+    return best
+```
+
+### OrderGenerator Hierarchy
+
+```
+OrderGenerator (base class)
+  ├── UnitOrderGenerator    # normal gameplay — uses OrderResolver
+  ├── SellOrderGenerator    # sell mode — sell cursor + sell order on buildings
+  └── RepairOrderGenerator  # repair mode — repair cursor + repair order on buildings
+```
+
+Each generator has:
+- `get_cursor(target, target_cell, target_pos, modifiers) → CursorState.Type`
+- `get_orders(target, target_cell, target_pos, modifiers) → Array[OrderResult]`
+- `cancel() → void`
+
+### OrderSystem (autoload)
+
+```gdscript
+var active_generator: OrderGenerator = UnitOrderGenerator.new()
+
+func get_cursor(...) → CursorState.Type:
+    return active_generator.get_cursor(...)
+
+func get_orders(...) → Array[OrderResult]:
+    return active_generator.get_orders(...)
+
+func set_generator(gen: OrderGenerator):
+    active_generator = gen
+
+func cancel():
+    active_generator.cancel()
+    active_generator = UnitOrderGenerator.new()
+```
+
+### Sell/Repair Mode
+
+When the player toggles sell/repair mode in the sidebar:
+```
+Sidebar: sell button pressed
+  → OrderSystem.set_generator(SellOrderGenerator.new())
+  → MouseHandler cursor: delegates to OrderSystem.get_cursor()
+  → MouseHandler click: delegates to OrderSystem.get_orders()
+  → SellOrderGenerator.get_cursor(): returns SELL if building under cursor, else SELL_BLOCKED
+  → SellOrderGenerator.get_orders(): returns [OrderResult with sell callback]
+  → Right-click or toggle: OrderSystem.cancel() → restores UnitOrderGenerator
+```
+
+### Modifier Support
+
+Modifiers passed from MouseHandler as a Dictionary:
+```gdscript
+var modifiers := {
+    "force_attack": Input.is_key_pressed(KEY_CTRL),
+    "force_move": Input.is_key_pressed(KEY_ALT),
+    "queued": Input.is_key_pressed(KEY_SHIFT),
+}
+```
+
+Components check these in `get_order_for_target()`:
+- `force_attack` → CombatComponent can target allies/terrain
+- `force_move` → MovementController overrides CombatComponent on enemy actors
+
+### Priority Chain
+
+| Component | Target Condition | Cursor | Priority |
+|-----------|-----------------|--------|----------|
+| `CombatComponent` | Enemy unit/building | `ATTACK` | 30 |
+| `HarvestComponent` | Tiberium (ResourceComponent) | `HARVEST` | 20 |
+| `HarvestComponent` | Refinery (DockHostComponent) | `ENTER` | 15 |
+| `TransportComponent` | Friendly infantry | `ENTER` | 10 |
+| `DeployComponent` | Self (can deploy) | `DEPLOY` | 15 |
+| `MovementController` | Ground (no entity) | `MOVE` | 5 |
+| Any | — | `DEFAULT` | 0 |
+
+### Example Scenarios
+
+| Selection | Target | Cursor | Order | Why |
+|-----------|--------|--------|-------|-----|
+| Harvester + Tank | Tiberium | HARVEST | harvest | Harvest priority 20 > Attack priority 0 |
+| Harvester + Tank | Enemy Tank | ATTACK | attack | Attack priority 30 > Harvest priority 0 |
+| Harvester + Tank | Refinery | ENTER | dock | Enter priority 15 (harvest) > Attack 0 (friendly) |
+| Two Buggies | Ground | MOVE | move | Move priority 5 |
+| Combat unit + friendly unit | Friendly unit | SELECT | (none) | No order targeter matches allies |
+| MCV (deployable) | Self | DEPLOY | deploy | Deploy priority 15 |
+| Empty selection | Anything | DEFAULT | (none) | No components queried |
+
+### Cursor Types (52 total)
+
 - **Scroll (16)**: 8 directions × 2 (normal + blocked). Edge detection at 20px from viewport edge.
+- **Joystick (17)**: center + 8 directions × 2 (normal + blocked). Middle-click panning directional cursor.
 - **Core (12)**: default, select, move, move-blocked, attack, attack-out-of-range, harvest, enter, guard, sell, repair, generic-blocked
+- **Deploy (2)**: deploy, deploy-blocked
 - **Minimap (28)**: Same sprites at 16×16 (asset-ready, not used yet)
 
-### Resolution Architecture
-1. **Global overrides**: dragging → SELECT, screen edge → SCROLL_*, sell/repair mode → SELL/REPAIR
-2. **Per-unit resolution**: each selected entity's components return a cursor + priority. Highest priority wins.
-3. **Fallback**: DEFAULT
+### Files to Create
 
-### Component → Cursor Mapping
-| Component | Target | Cursor | Priority |
-|-----------|--------|--------|----------|
-| CombatComponent | Enemy | ATTACK | 30 |
-| HarvestComponent | Tiberium | HARVEST | 20 |
-| HarvestComponent | Refinery | ENTER | 15 |
-| TransportComponent | Friendly infantry | ENTER | 10 |
-| MovementController | Ground | MOVE | 5 |
+| File | Purpose |
+|------|---------|
+| `scripts/orders/OrderResult.gd` | Data class — cursor, priority, order_id, execute callback |
+| `scripts/orders/OrderResolver.gd` | Static — iterates components, picks best OrderResult |
+| `scripts/orders/OrderGenerator.gd` | Base class — get_cursor(), get_orders(), cancel() |
+| `scripts/orders/UnitOrderGenerator.gd` | Default — normal gameplay, uses OrderResolver |
+| `scripts/orders/SellOrderGenerator.gd` | Sell mode — sell cursor on buildings |
+| `scripts/orders/RepairOrderGenerator.gd` | Repair mode — repair cursor on damaged buildings |
+| `scripts/core/OrderSystem.gd` | Autoload — holds active generator, delegates input |
 
-### Files
-- `scripts/hud/CursorState.gd` — enum + texture registry
-- `scripts/hud/MouseHandler.gd` — _update_cursor(), resolve_cursor(), scroll detection
-- `scripts/components/{Combat,Harvest,Transport}Component.gd` + `MovementController.gd` — add get_cursor_for_target()
-- `assets/cursors/*.svg` — 28 placeholder SVGs
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `scripts/hud/MouseHandler.gd` | Delegate cursor + order resolution to OrderSystem; remove hardcoded sell/repair/deploy logic |
+| `scripts/core/SelectionManager.gd` | Remove `request_harvest()`, `request_dock()`, `request_deploy()` — execution moves to component OrderResult.execute callbacks. `request_move()` stays — called by UnitOrderGenerator for group formation. |
+| `scripts/components/MovementController.gd` | Add `get_order_for_target()` — returns MOVE order for terrain targets |
+| `scripts/components/CombatComponent.gd` | Add `get_order_for_target()` — returns ATTACK order for enemy actors |
+| `scripts/components/HarvestComponent.gd` | Add `get_order_for_target()` — returns HARVEST for resources, ENTER for dock hosts |
+| `scripts/components/TransportComponent.gd` | Add `get_order_for_target()` — returns ENTER for friendly transports |
+| `scripts/components/DeployComponent.gd` | Add `get_order_for_target()` — returns DEPLOY for self, MOVE for undeploy |
+| `scripts/ui/Sidebar.gd` | Wire sell/repair toggle to `OrderSystem.set_generator()` |
+| `project.godot` | Register OrderSystem autoload |
 
 ## 7. Debug/Developer Menu
 

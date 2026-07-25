@@ -26,10 +26,10 @@ The factory SHALL add components based on these rules:
 - FoundationComponent: if `foundation != Vector2i(1,1)`
 - PowerComponent: if `power != 0` or `powered == true`
 - RadarComponent: if `radar == true`
-- FactoryComponent: if `factory != ""`
+- FactoryComponent: if `buildable_queue != ""`
 - TransportComponent: if `passengers > 0` or `harvester == true`
 - SpecialAbilityComponent: if any ability flag is true
-- ArtComponent: ALWAYS
+- ArtComponent: if `resource_category != "tiberium"` (skipped for tiberium resource entities)
 - ResourceTreeComponent: if `spawned_entity_id != ""`
 - ResourceComponent: if `resource_category != ""`
 - HarvestComponent: if `harvester == true`

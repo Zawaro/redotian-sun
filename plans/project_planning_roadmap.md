@@ -6,7 +6,7 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 ## Current Status
 - **Engine Version**: Redot 26.1 LTS
 - **Project State**: Development in progress - Core Systems phase
-- **Last Updated**: 2026-07-07
+- **Last Updated**: 2026-07-25
 
 ---
 
@@ -132,7 +132,8 @@ The composition-based entity system is a prerequisite for most game systems. All
 ### 5.1 RTS Interface Elements
 - [x] Build tabbed sidebar with 4 categories (GitHub Issue #66)
 - [x] Implement production queue display with angular progress
-- [ ] Implement cursor system with per-unit resolution (GitHub Issue #70)
+- [x] Implement cursor system with per-unit resolution (GitHub Issue #70)
+- [x] Implement centralized input routing — InputSettings autoload, camera actions, edge scroll toggle
 - [ ] Implement resource HUD (credits, Tiberium)
 - [ ] Add minimap with unit markers
 - [ ] Create selection panel for selected units
@@ -237,14 +238,14 @@ The composition-based entity system is a prerequisite for most game systems. All
 ### Priority: First Blood Goal (Issue #84)
 End-to-end combat demo: deploy MCV → build base → train infantry → destroy enemy Con Yard. See `plans/10-1_first_blood_goal.md` for full breakdown.
 
-1. **Per-Player Data & Logic** (Issue #77) — current branch, prerequisite for all player-aware systems
-2. **MapEditor Entity Placement** (Issue #83) — place buildings with player assignment for test scenarios
-3. **MCV Deploy** (Issue #80) — transform MCV into Construction Yard
-4. **Prerequisite Chain** (Issue #81) — wire .tres files: Con Yard → Power Plant → Barracks → Infantry
-5. **Weapon Data** (Issue #23) — populate E1 infantry weapons, create WeaponData .tres
+1. ~~**Per-Player Data & Logic** (Issue #77)~~ ✅
+2. ~~**MapEditor Entity Placement** (Issue #83)~~ ✅
+3. ~~**MCV Deploy** (Issue #80)~~ ✅
+4. ~~**Weapon Data** (Issue #23)~~ ✅
+5. **Prerequisite Chain** (Issue #81) — wire .tres files: Con Yard → Power Plant → Barracks → Infantry
 6. **Attack Command** (Issue #79) — right-click enemy → unit attacks
 7. **CombatComponent Firing** (Issue #28) — fire rate timer, range check, target acquisition
-8. **Projectile System** (Issue #78) — Projectile node or hitscan for ranged weapons
+8. **Projectile System** (Issue #78) + **ProjectileData Resource** (Issue #89) — Projectile node or hitscan for ranged weapons
 9. **HitboxComponent** (Issue #29) — already works, needs projectile to trigger it
 10. **HealthComponent Death** (Issue #30) — health_zero → cleanup
 11. **Death Handler** (Issue #82) — remove destroyed buildings from game
@@ -263,4 +264,4 @@ End-to-end combat demo: deploy MCV → build base → train infantry → destroy
 
 ---
 
-*Last updated: 2026-07-18 — First Blood goal defined, 6 new issues created (#78-83), milestone issue #84*
+*Last updated: 2026-07-25 — Unified order system + centralized input routing implemented, specs and plans synced*
