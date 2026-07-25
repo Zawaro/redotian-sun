@@ -332,11 +332,31 @@ func _get_global_rules() -> GlobalRules:
     return null
 
 
-func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
+func get_order_for_target(
+    target: Node3D,
+    _target_cell: Vector2i,
+    target_pos: Vector3,
+    modifiers: Dictionary,
+) -> OrderResult:
     if not target:
-        return CursorState.Type.DEFAULT
+        return null
+    var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
     if target.get_node_or_null("ResourceComponent"):
-        return CursorState.Type.HARVEST
+        return OrderResult.new(
+            CursorState.Type.HARVEST,
+            20,
+            target,
+            target_pos,
+            queued,
+            func(): set_target_node(target),
+        )
     if target.get_node_or_null("DockHostComponent"):
-        return CursorState.Type.ENTER
-    return CursorState.Type.DEFAULT
+        return OrderResult.new(
+            CursorState.Type.ENTER,
+            15,
+            target,
+            target_pos,
+            queued,
+            func(): set_target_refinery(target),
+        )
+    return null

@@ -100,3 +100,29 @@ func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorStat
         if transport and transport.passengers > 0:
             return CursorState.Type.ENTER
     return CursorState.Type.DEFAULT
+
+
+func get_order_for_target(
+    target: Node3D,
+    _target_cell: Vector2i,
+    target_pos: Vector3,
+    modifiers: Dictionary,
+) -> OrderResult:
+    if not target or passengers <= 0:
+        return null
+    if target.is_in_group("enemy"):
+        return null
+    if not target.get_node_or_null("SelectComponent"):
+        return null
+    var transport := target.get_node_or_null("TransportComponent") as TransportComponent
+    if not transport or transport.passengers <= 0:
+        return null
+    var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+    return OrderResult.new(
+        CursorState.Type.ENTER,
+        10,
+        target,
+        target_pos,
+        queued,
+        func(): pass,
+    )

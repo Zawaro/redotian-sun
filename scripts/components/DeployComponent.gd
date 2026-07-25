@@ -75,12 +75,65 @@ func is_transitioning() -> bool:
     return _state != DeployState.IDLE
 
 
-func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
-    if target and target == get_parent() and can_deploy():
-        return CursorState.Type.DEPLOY
+func get_order_for_target(
+    target: Node3D,
+    _target_cell: Vector2i,
+    target_pos: Vector3,
+    modifiers: Dictionary,
+) -> OrderResult:
+    var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+    var entity := get_parent() as Node3D
+    if target and target == entity and can_deploy():
+        return OrderResult.new(
+            CursorState.Type.DEPLOY,
+            15,
+            entity,
+            target_pos,
+            queued,
+            func(): execute_deploy(entity),
+        )
     if not target and can_undeploy():
-        return CursorState.Type.MOVE
-    return CursorState.Type.DEFAULT
+        return OrderResult.new(
+            CursorState.Type.MOVE,
+            5,
+            null,
+            target_pos,
+            queued,
+            func(): _undeploy_with_offset(entity, target_pos),
+        )
+    return null
+
+
+func _undeploy_with_offset(entity: Node3D, click_pos: Vector3) -> void:
+    var sm := Engine.get_main_loop().root.get_node_or_null("SelectionManager") as SelectionManager
+    var center := entity.global_position
+    if sm and sm.selected_entities.size() > 1:
+        var sum := Vector3.ZERO
+        var count := 0
+        for sc in sm.selected_entities:
+            if is_instance_valid(sc):
+                var p := sc.get_parent() as Node3D
+                if is_instance_valid(p):
+                    sum += p.global_position
+                    count += 1
+        if count > 0:
+            center = sum / count
+    var offset := entity.global_position - center
+    var cell_offset := Vector2i(
+        roundi(offset.x / CellUtil.CELL_SIZE),
+        roundi(offset.z / CellUtil.CELL_SIZE),
+    )
+    cell_offset.x = clampi(cell_offset.x, -2, 2)
+    cell_offset.y = clampi(cell_offset.y, -2, 2)
+    var undeploy_target := (
+        click_pos
+        + Vector3(
+            cell_offset.x * CellUtil.CELL_SIZE,
+            0,
+            cell_offset.y * CellUtil.CELL_SIZE,
+        )
+    )
+    execute_undeploy(entity, undeploy_target)
 
 
 ## Validate that deploy is possible. Returns true if foundation cells are free.
