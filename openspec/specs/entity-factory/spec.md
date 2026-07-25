@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: EntityFactory creates entities from data
-The system SHALL provide an `EntityFactory.gd` autoload singleton that creates entities from EntityData resources. The factory SHALL instantiate a base scene and add components dynamically based on data properties.
+The system SHALL provide an `EntityFactory.gd` autoload singleton that creates entities from EntityData resources. The factory SHALL instantiate a base `Entity.tscn` scene and add components dynamically based on data properties.
 
 #### Scenario: Create infantry entity
 - **WHEN** `EntityFactory.create_entity("E1")` is called
@@ -19,7 +19,7 @@ The system SHALL provide an `EntityFactory.gd` autoload singleton that creates e
 The factory SHALL add components based on these rules:
 - StatsComponent: ALWAYS
 - HealthComponent: if `strength > 0`
-- HitboxComponent: ALWAYS
+- HitboxComponent: if `resource_category == ""` (skipped for resource entities — they use interact hitbox on layer 17)
 - SelectComponent: if `entity_type != TERRAIN`
 - CombatComponent: if `weapons.size() > 0`
 - MovementController: if `speed > 0`
@@ -30,7 +30,7 @@ The factory SHALL add components based on these rules:
 - TransportComponent: if `passengers > 0` or `harvester == true`
 - SpecialAbilityComponent: if any ability flag is true
 - ArtComponent: if `resource_category != "tiberium"` (skipped for tiberium resource entities)
-- ResourceTreeComponent: if `spawned_entity_id != ""`
+- ResourceTreeComponent: if `resource_category == "tiberium_tree"`
 - ResourceComponent: if `resource_category != ""`
 - HarvestComponent: if `harvester == true`
 - DockHostComponent: if `dock_position != Vector3.ZERO`
