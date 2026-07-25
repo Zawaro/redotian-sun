@@ -250,8 +250,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 ## Can be captured by engineers (neutral buildings).
 @export var capturable: bool = false
 
-## Building adjacent cell requirement (number of cells the building must be placed next to).
 @export_group("Building Properties")
+## Building adjacent cell requirement (number of cells the building must be placed next to).
 @export var adjacent: int = 0
 ## Whether the building is crewed (affects survival on destruction).
 @export var crewed: bool = false

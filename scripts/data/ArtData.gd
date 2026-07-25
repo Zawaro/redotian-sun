@@ -154,9 +154,15 @@ class_name ArtData extends Resource
 ## Name of the charge-up animation (e.g., Obelisk charging).
 # ponytail: schema-first, no consumer yet
 @export var charge_anim: String = ""
+
+## SAM site
+@export_group("SAM Site")
 ## Midpoint offset for projectile launch tracking.
 # ponytail: schema-first, no consumer yet
 @export var mid_point: Vector3 = Vector3.ZERO
+
+## Gate
+@export_group("Gate")
 ## Number of gate open/close stages.
 # ponytail: schema-first, no consumer yet
 @export var gate_stages: int = 0

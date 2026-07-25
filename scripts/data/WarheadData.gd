@@ -15,10 +15,10 @@ class_name WarheadData extends Resource
 ## Animation played on the target when this warhead kills (e.g., "PIFF", "EXPLOMED").
 @export var kill_animation: String = ""
 
+@export_group("Armor Multipliers")
 ## Armor effectiveness multipliers: [none, wood, light, heavy, concrete].
 ## Each value is a percentage (0.0–1.0) of base damage applied to that
 ## armor type. Example: SA = [1.0, 0.6, 0.4, 0.25, 0.1].
-@export_group("Armor Multipliers")
 @export var armor_damage_multipliers: PackedFloat32Array = PackedFloat32Array(
     [
         1.0,
