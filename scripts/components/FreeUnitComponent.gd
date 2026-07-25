@@ -12,6 +12,11 @@ func _ready() -> void:
         return
     if get_parent().get_meta("_preview", false):
         return
+    var ancestor := get_parent()
+    while ancestor:
+        if ancestor.has_meta("is_map_editor"):
+            return
+        ancestor = ancestor.get_parent()
     if free_unit_id.is_empty():
         queue_free()
         return
