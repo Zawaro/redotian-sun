@@ -32,8 +32,16 @@ func get_cursor(
             )
             if result:
                 cursor = result.cursor
+            elif _is_enemy(target):
+                cursor = CursorState.Type.SELECT
+            elif _is_already_selected(target, sm):
+                cursor = CursorState.Type.GENERIC_BLOCKED
             elif target.is_in_group("selectable"):
                 cursor = CursorState.Type.SELECT
+            elif _has_movable(sm):
+                cursor = CursorState.Type.MOVE
+            elif _has_undeployable(sm):
+                cursor = CursorState.Type.MOVE
     return cursor
 
 
@@ -107,6 +115,20 @@ func _is_local_entity(entity: Node3D) -> bool:
     if not stats:
         return true
     return stats.player_id < 0 or stats.player_id == PlayerManager.get_local_player_id()
+
+
+func _is_enemy(target: Node3D) -> bool:
+    var stats := target.get_node_or_null("StatsComponent") as StatsComponent
+    if not stats or stats.player_id < 0:
+        return false
+    return PlayerManager.is_enemy(stats.player_id, PlayerManager.get_local_player_id())
+
+
+func _is_already_selected(target: Node3D, sm: SelectionManager) -> bool:
+    var target_sc := target.get_node_or_null("SelectComponent") as SelectComponent
+    if not target_sc:
+        return false
+    return target_sc in sm.selected_entities
 
 
 func _get_selection_manager() -> SelectionManager:
