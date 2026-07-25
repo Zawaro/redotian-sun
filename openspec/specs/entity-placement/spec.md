@@ -1,219 +1,107 @@
-# Entity Placement Spec
+## ADDED Requirements
 
-## Overview
+### Requirement: Entity type selection
+The MapEditor SHALL provide an entity browser panel listing all buildable entities from `EntityFactory.get_all_by_type()`. Entities SHALL be filterable by category (Buildings, Infantry, Vehicles, Aircraft, Naval) and searchable by name or ID.
 
-Entity placement allows map editors to place game entities (buildings, infantry, vehicles) on the map with player assignment. This is essential for setting up starting conditions, mission scenarios, and test maps.
+#### Scenario: Entity list populated
+- **WHEN** the MapEditor opens
+- **THEN** the entity browser lists all entities with `buildable == true` from EntityFactory
 
-## Requirements
+#### Scenario: Category filter
+- **WHEN** user selects "Buildings" category tab
+- **THEN** only entities with `entity_type == BUILDING` are shown
 
-### Functional Requirements
+#### Scenario: Search filter
+- **WHEN** user types "barr" in search bar
+- **THEN** only entities matching "barr" in name or ID are shown
 
-1. **Entity Type Selection**
-   - User can select entity type from a list in the left sidebar panel
-   - List is populated from EntityFactory.get_all_by_type()
-   - Filtered by entity category (Buildings, Infantry, Vehicles, Aircraft, Naval)
-   - Searchable by name or ID
-   - Click to toggle placement mode; click same entity to deselect
+#### Scenario: Toggle placement mode
+- **WHEN** user clicks an entity in the list
+- **THEN** placement mode activates for that entity type
+- **AND** clicking the same entity again deselects it
 
-2. **Player Assignment**
-   - User can select player/owner from dropdown in entity browser
-   - Dropdown populated from PlayerManager
-   - Default to Player 0
-   - Each placed entity stores `player_id` in metadata
+### Requirement: Player assignment
+The entity browser SHALL provide a player/owner dropdown populated from PlayerManager. Each placed entity SHALL store `player_id` in its metadata.
 
-3. **Entity Placement**
-   - Click map cell to place selected entity
-   - Entity created via EntityFactory.create_entity()
-   - Single-cell entities positioned at cell center
-   - Multi-cell entities (buildings) positioned via `_cell_origin_world_pos()` to account for foundation footprint
-   - Cannot place on occupied cells (checks `_painted_entities` dictionary)
-   - Entity added to scene tree
-   - Right-click cancels placement mode
+#### Scenario: Player dropdown populated
+- **WHEN** the entity browser opens
+- **THEN** the player dropdown shows all players from PlayerManager
 
-4. **Preview Ghost**
-   - 50% opacity entity follows cursor before placement
-   - Uses `_set_preview_transparency()` to recursively apply alpha to all MeshInstance3D nodes
-   - Positioned with foundation-aware offset for multi-cell buildings
-   - Hidden during height painting (PLACE_ENTITY mode check)
+#### Scenario: Default player
+- **WHEN** no player is selected
+- **THEN** defaults to Player 0
 
-5. **Data Persistence**
-   - Placed entities stored in `_painted_entities` dictionary
-   - Key format: `"x,y"` (cell coordinates)
-   - Value: `{"node": Node3D, "data": Dictionary}`
-   - Data includes: `id`, `player_id`, optional overrides
+#### Scenario: Place entity with player
+- **WHEN** user selects Player 1 and places an entity
+- **THEN** the entity's `player_id` metadata is set to 1
 
-6. **Save/Load**
-   - Save includes `player_id` field in JSON
-   - Load restores entity with correct player assignment
-   - Backward compatible with existing maps (no player_id = Player 0)
+### Requirement: Entity placement
+Clicking a map cell SHALL place the selected entity at that cell via `EntityFactory.create_entity()`. Single-cell entities are centered on the cell. Multi-cell entities (buildings) use foundation-aware positioning.
 
-### Non-Functional Requirements
+#### Scenario: Place single-cell entity
+- **WHEN** user clicks cell (5, 3) with an infantry entity selected
+- **THEN** entity is created at cell center (5, 3)
 
-1. **Performance**
-   - Entity list population < 100ms
-   - Entity placement < 16ms (60fps)
-   - Search filtering < 50ms
+#### Scenario: Place multi-cell building
+- **WHEN** user clicks cell (5, 3) with a 2×2 building selected
+- **THEN** building is positioned via `_cell_origin_world_pos()` to account for foundation footprint
 
-2. **Usability**
-   - Industry standard UI pattern (WAE, OpenRA)
-   - Intuitive workflow: select player → select entity → click to place
-   - Visual feedback on cell hover (preview ghost)
-   - Clear indication of selected entity and player
-   - Right-click to cancel placement
+#### Scenario: Cannot place on occupied cell
+- **WHEN** user clicks a cell already occupied by another entity
+- **THEN** placement is rejected, no entity is created
 
-3. **Extensibility**
-   - Support for additional entity categories (infantry, vehicles, aircraft, naval)
-   - Support for additional player properties (faction, color)
-   - Support for entity overrides (health, facing, mission)
+#### Scenario: Right-click cancels
+- **WHEN** user right-clicks during placement mode
+- **THEN** placement mode exits, no entity is placed
 
-## Data Model
+### Requirement: Preview ghost
+A 50% opacity preview entity SHALL follow the cursor before placement. The preview SHALL use `_set_preview_transparency()` to apply alpha to all MeshInstance3D nodes.
 
-### Entity Entry
+#### Scenario: Preview follows cursor
+- **WHEN** placement mode is active
+- **THEN** a semi-transparent entity follows the mouse cursor
 
-```gdscript
-{
-    "id": "GACNST",           # Entity type ID
-    "cell": "15,20",          # Cell coordinates
-    "player_id": 0,           # Owner player ID
-    "strength": 256,          # Optional: health override
-    "facing": 0,              # Optional: facing override
-    "mission": "Guard",       # Optional: mission override
-}
-```
+#### Scenario: Preview hidden during height painting
+- **WHEN** the MapEditor tool is not PLACE_ENTITY
+- **THEN** the preview is hidden
 
-### Map JSON Format
+#### Scenario: Preview removed on exit
+- **WHEN** placement mode exits
+- **THEN** the preview node is removed from the scene tree
 
-```json
-{
-    "entities": [
-        {
-            "id": "TIB",
-            "cell": "5,10",
-            "strength": 300
-        },
-        {
-            "id": "GACNST",
-            "cell": "15,20",
-            "player_id": 0
-        },
-        {
-            "id": "BGGY",
-            "cell": "25,20",
-            "player_id": 1
-        }
-    ]
-}
-```
+### Requirement: Data persistence
+Placed entities SHALL be stored in `_painted_entities` dictionary with key format `"x,y"` (cell coordinates). Value is `{"node": Node3D, "data": Dictionary}` containing `id`, `player_id`, and optional overrides.
 
-## API Changes
+#### Scenario: Entity stored on placement
+- **WHEN** entity is placed at cell (15, 20)
+- **THEN** `_painted_entities["15,20"]` contains the entity node and metadata
 
-### EntityFactory
+#### Scenario: Entity metadata includes player_id
+- **WHEN** entity is placed for Player 1
+- **THEN** metadata `data.player_id` is 1
 
-```gdscript
-# New method
-func get_all_by_type(entity_type: EntityData.EntityType) -> Array[EntityData]:
-    # Returns array of EntityData for all entities of given type
-    # Example: get_all_by_type(EntityData.EntityType.BUILDING) returns all buildings
+### Requirement: Save includes player_id
+Map save JSON SHALL include `player_id` field in each entity entry. Load SHALL restore entity with correct player assignment. Existing maps without `player_id` default to Player 0.
 
-# Existing method (used for preview/placement)
-func get_entity_data(entity_id: String) -> EntityData:
-    # Returns EntityData for given entity ID
+#### Scenario: Save with player_id
+- **WHEN** map is saved with entities for Player 1
+- **THEN** JSON contains `"player_id": 1` in entity entries
 
-func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
-    # Creates entity instance with optional overrides
-```
+#### Scenario: Load with player_id
+- **WHEN** map JSON has `"player_id": 1` on an entity
+- **THEN** entity is created with `player_id == 1`
 
-### MapEditor (via EntityPlacer sub-script)
+#### Scenario: Backward compatibility
+- **WHEN** map JSON has no `player_id` field on an entity
+- **THEN** entity defaults to `player_id == 0`
 
-```gdscript
-# Tool enum
-enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE, PLACE_ENTITY }
+### Requirement: Occupied cell check
+Placement SHALL be rejected if the target cell is already in `_painted_entities`. This prevents stacking entities on the same cell.
 
-# EntityPlacer methods
-func _on_entity_selected(entity_id: String) -> void
-func _on_player_changed(player_id: int) -> void
-func _place_entity_on_cell(cell: Vector2i) -> void
-func _update_preview() -> void
-func _update_preview_position() -> void
-func _remove_preview() -> void
-func handle_input(event: InputEvent) -> void
-func handle_tree_input(event: InputEvent) -> void
+#### Scenario: Cell occupied
+- **WHEN** `_painted_entities` has entry for cell (5, 3)
+- **THEN** placing another entity at (5, 3) is rejected
 
-# MapEditor position helpers
-func _cell_world_pos(cell: Vector2i) -> Vector3
-func _cell_origin_world_pos(origin: Vector2i, footprint: Vector2i) -> Vector3
-```
-
-### MapLoader
-
-```gdscript
-# Extended to read player_id
-func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
-    # Reads "player_id" from JSON entities, defaults to 0 if missing
-```
-
-## UI Components
-
-### EntityBrowser
-
-- **Location**: Left sidebar panel (always visible)
-- **Size**: 250px wide, 500px minimum height
-- **Components**:
-  - CategoryTabs (TabBar) — Buildings, Infantry, Vehicles, Aircraft, Naval
-  - OwnerDropdown (OptionButton) — Player 0, Player 1
-  - SearchBar (LineEdit) — real-time filtering
-  - EntityList (ItemList) — single-click to toggle placement
-
-### Toolbar Integration
-
-- **No dedicated "Place Entity" button** — entity selection via browser panel
-- **Existing tools**: Save, Load, Paint Height, Paint Resource, Place Tree, Erase
-- **Controls**: Strength slider, Radius spinbox, Grid toggle checkbox, Height label
-
-## Testing Strategy
-
-### Unit Tests
-
-1. EntityBrowser populates list from EntityFactory
-2. Search filtering returns correct results
-3. Player selection emits correct signal
-4. Entity selection emits correct entity_id
-
-### Integration Tests
-
-1. Place entity creates node in scene tree
-2. Placed entity stored with player_id
-3. Save includes player_id in JSON
-4. Load restores entity with correct player_id
-5. Cannot place entity on occupied cell
-6. Multiple entities can be placed
-7. Preview ghost follows cursor
-8. Right-click cancels placement mode
-9. Foundation-aware positioning for multi-cell buildings
-
-### Manual Testing
-
-1. Open MapEditor scene
-2. Select Player 1 from Owner dropdown
-3. Select Construction Yard from Buildings list
-4. Verify preview ghost follows cursor
-5. Click map to place entity
-6. Verify entity appears with correct player assignment
-7. Right-click to cancel, verify placement mode exits
-8. Save and reload map
-9. Verify entity persists with player assignment
-
-## Dependencies
-
-- PlayerManager (#77) for player data
-- EntityFactory for entity creation
-- MapLoader for save/load integration
-- TerrainSystem for cell height data
-
-## Future Enhancements
-
-1. Entity rotation (facing) control
-2. Entity property editing (health, mission)
-3. Spawn point markers
-4. Undo/redo for entity placement
-5. Minimap entity rendering
+#### Scenario: Cell free
+- **WHEN** `_painted_entities` has no entry for cell (5, 3)
+- **THEN** placing an entity at (5, 3) succeeds
