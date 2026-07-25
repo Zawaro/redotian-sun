@@ -271,8 +271,7 @@ func _update_hovered_cell() -> void:
     if terrain_y > 0.01:
         var t := (terrain_y - ray_origin.y) / ray_direction.y
         hit_pos = ray_origin + ray_direction * t
-    var grid_half: float = TerrainSystem.get_grid_half_size()
-    var cell := CellUtil.world_to_cell(hit_pos + Vector3(grid_half, 0, grid_half))
+    var cell := CellUtil.world_to_cell(hit_pos, TerrainSystem.grid_cells)
     if cell != _hovered_cell and not TerrainSystem.get_cell(cell).is_empty():
         _hovered_cell = cell
         _grid.update()
@@ -280,8 +279,7 @@ func _update_hovered_cell() -> void:
 
 
 func _cell_world_pos(cell: Vector2i) -> Vector3:
-    var grid_half: float = TerrainSystem.get_grid_half_size()
-    var pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
+    var pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
     var cell_data: Dictionary = TerrainSystem.get_cell(cell)
     if not cell_data.is_empty():
         var h: int = cell_data.get("max_height", cell_data.get("height", 0))
@@ -290,9 +288,7 @@ func _cell_world_pos(cell: Vector2i) -> Vector3:
 
 
 func _cell_origin_world_pos(origin: Vector2i, footprint: Vector2i) -> Vector3:
-    var grid_half: float = TerrainSystem.get_grid_half_size()
-    var center_x := (origin.x + footprint.x * 0.5) * CellUtil.CELL_SIZE - grid_half
-    var center_z := (origin.y + footprint.y * 0.5) * CellUtil.CELL_SIZE - grid_half
+    var pos := CellUtil.cell_origin_to_world(origin, footprint, TerrainSystem.grid_cells)
     var max_h := 0
     for dx in footprint.x:
         for dz in footprint.y:
@@ -302,7 +298,8 @@ func _cell_origin_world_pos(origin: Vector2i, footprint: Vector2i) -> Vector3:
                 var h: int = cell_data.get("max_height", cell_data.get("height", 0))
                 if h > max_h:
                     max_h = h
-    return Vector3(center_x, float(max_h) * TerrainSystem.HEIGHT_STEP, center_z)
+    pos.y = float(max_h) * TerrainSystem.HEIGHT_STEP
+    return pos
 
 
 func get_hovered_cell() -> Vector2i:

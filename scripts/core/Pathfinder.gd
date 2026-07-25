@@ -1,8 +1,15 @@
 class_name Pathfinder
 
 
-static func cell_to_world_with_height(cell: Vector2i) -> Vector3:
+static func cell_to_world_with_height(cell: Vector2i, grid_cells: int = 0) -> Vector3:
     var height := get_terrain_height(cell)
+    if grid_cells > 0:
+        var grid_half: float = float(grid_cells) * CellUtil.CELL_SIZE * 0.5
+        return Vector3(
+            (cell.x + 0.5) * CellUtil.CELL_SIZE - grid_half,
+            height,
+            (cell.y + 0.5) * CellUtil.CELL_SIZE - grid_half
+        )
     return Vector3((cell.x + 0.5) * CellUtil.CELL_SIZE, height, (cell.y + 0.5) * CellUtil.CELL_SIZE)
 
 
@@ -13,16 +20,21 @@ static func get_terrain_height(cell: Vector2i) -> float:
     var ts: Node = tree.root.get_node_or_null("TerrainSystem")
     if not ts:
         return 0.0
-    var grid_half: float = float(ts.grid_cells) * CellUtil.CELL_SIZE * 0.5
-    var world_pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0.0, grid_half)
+    var world_pos := CellUtil.cell_to_world(cell, ts.grid_cells)
     return ts.get_height_at_world(world_pos)
 
 
 static func find_path(
     start_world: Vector3, end_world: Vector3, blocked_cells: Dictionary = {}
 ) -> PackedVector3Array:
-    var start_cell := CellUtil.world_to_cell(start_world)
-    var end_cell := CellUtil.world_to_cell(end_world)
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    var grid_cells: int = 32
+    if tree:
+        var ts: Node = tree.root.get_node_or_null("TerrainSystem")
+        if ts:
+            grid_cells = ts.grid_cells
+    var start_cell := CellUtil.world_to_cell(start_world, grid_cells)
+    var end_cell := CellUtil.world_to_cell(end_world, grid_cells)
 
     if start_cell == end_cell:
         return PackedVector3Array()
@@ -71,7 +83,7 @@ static func find_path(
         iter += 1
 
         if current == end_cell:
-            return _reconstruct_path(came_from, current, start_cell)
+            return _reconstruct_path(came_from, current, start_cell, grid_cells)
 
         var h := CellUtil.heuristic(current, end_cell)
         if h < best_dist:
@@ -82,7 +94,7 @@ static func find_path(
             stagnant += 1
 
         if stagnant > STAGNANT_LIMIT or iter > MAX_ITER:
-            return _path_or_fallback(came_from, start_cell, best_cell)
+            return _path_or_fallback(came_from, start_cell, best_cell, grid_cells)
 
         var current_height := get_terrain_height(current)
 
@@ -106,11 +118,12 @@ static func find_path(
                     _heap_push(open_heap, neighbor, nf)
                     open_lookup[nkey] = true
 
-    return _path_or_fallback(came_from, start_cell, best_cell)
+    return _path_or_fallback(came_from, start_cell, best_cell, grid_cells)
 
 
 static func _reconstruct_path(
-    came_from: Dictionary, current: Vector2i, start: Vector2i
+    came_from: Dictionary, current: Vector2i, start: Vector2i,
+    grid_cells: int = 0
 ) -> PackedVector3Array:
     var path_cells: Array[Vector2i] = [current]
     var key: int = CellUtil.cell_key(current)
@@ -124,16 +137,17 @@ static func _reconstruct_path(
 
     var result := PackedVector3Array()
     for cell in path_cells:
-        result.append(CellUtil.cell_to_world(cell))
+        result.append(CellUtil.cell_to_world(cell, grid_cells))
     return result
 
 
 static func _path_or_fallback(
-    came_from: Dictionary, start: Vector2i, best: Vector2i
+    came_from: Dictionary, start: Vector2i, best: Vector2i,
+    grid_cells: int = 0
 ) -> PackedVector3Array:
     if best == start:
         return PackedVector3Array()
-    return _reconstruct_path(came_from, best, start)
+    return _reconstruct_path(came_from, best, start, grid_cells)
 
 
 static func _heap_push(heap: Array, cell: Vector2i, f: float) -> void:

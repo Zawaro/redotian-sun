@@ -28,7 +28,10 @@ var immediate_visible_mesh: ImmediateMesh
 func _ready():
     create_bounds_nodes()
     create_bounds_edges()
-    TerrainSystem.grid_initialized.connect(create_bounds_edges)
+    if not Engine.is_editor_hint():
+        var ts = get_node_or_null("/root/TerrainSystem")
+        if ts:
+            ts.grid_initialized.connect(create_bounds_edges)
 
 
 func _process(_delta):
@@ -117,8 +120,13 @@ func create_bounds_nodes():
 
 func create_bounds_edges():
     # Both diamonds computed from actual grid
-    var half_grid: float = float(TerrainSystem.grid_cells) * CellUtil.CELL_SIZE / 2.0
-    var half_visible: float = float(TerrainSystem.grid_cells - 4) * CellUtil.CELL_SIZE / 2.0
+    var grid_cells: int = 32
+    if not Engine.is_editor_hint():
+        var ts = get_node_or_null("/root/TerrainSystem")
+        if ts:
+            grid_cells = ts.grid_cells
+    var half_grid: float = float(grid_cells) * CellUtil.CELL_SIZE / 2.0
+    var half_visible: float = float(grid_cells - 4) * CellUtil.CELL_SIZE / 2.0
 
     # Recreate meshes with fresh instances (this clears old data)
     immediate_map_mesh = ImmediateMesh.new()

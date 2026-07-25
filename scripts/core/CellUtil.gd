@@ -5,11 +5,24 @@ const SQRT2: float = 1.41421356237
 const CELL_KEY_OFFSET: int = 512
 
 
-static func world_to_cell(world_pos: Vector3) -> Vector2i:
+static func world_to_cell(world_pos: Vector3, grid_cells: int = 0) -> Vector2i:
+    if grid_cells > 0:
+        var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+        return Vector2i(
+            floori((world_pos.x + grid_half) / CELL_SIZE),
+            floori((world_pos.z + grid_half) / CELL_SIZE)
+        )
     return Vector2i(floori(world_pos.x / CELL_SIZE), floori(world_pos.z / CELL_SIZE))
 
 
-static func cell_to_world(cell: Vector2i) -> Vector3:
+static func cell_to_world(cell: Vector2i, grid_cells: int = 0) -> Vector3:
+    if grid_cells > 0:
+        var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+        return Vector3(
+            (cell.x + 0.5) * CELL_SIZE - grid_half,
+            0.0,
+            (cell.y + 0.5) * CELL_SIZE - grid_half
+        )
     return Vector3((cell.x + 0.5) * CELL_SIZE, 0.0, (cell.y + 0.5) * CELL_SIZE)
 
 
@@ -27,10 +40,13 @@ static func heuristic(a: Vector2i, b: Vector2i) -> float:
     return max(dx, dy) + (SQRT2 - 1.0) * min(dx, dy)
 
 
-static func cell_origin_to_world(origin: Vector2i, footprint: Vector2i) -> Vector3:
-    var center_x := (origin.x + footprint.x * 0.5) * CELL_SIZE
-    var center_z := (origin.y + footprint.y * 0.5) * CELL_SIZE
-    return Vector3(center_x, 0.0, center_z)
+static func cell_origin_to_world(
+    origin: Vector2i, footprint: Vector2i, grid_cells: int = 0
+) -> Vector3:
+    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5 if grid_cells > 0 else 0.0
+    var cx := (origin.x + footprint.x * 0.5) * CELL_SIZE - grid_half
+    var cz := (origin.y + footprint.y * 0.5) * CELL_SIZE - grid_half
+    return Vector3(cx, 0.0, cz)
 
 
 static func get_max_height(origin: Vector2i, footprint: Vector2i, get_height: Callable) -> float:

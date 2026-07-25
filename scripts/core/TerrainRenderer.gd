@@ -112,8 +112,7 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
         return
     _active_counts[mesh_name] = idx + 1
     multimesh.visible_instance_count = idx + 1
-    var grid_half: float = TerrainSystem.get_grid_half_size()
-    var world_pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
+    var world_pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
     var height: int = data.get("height", 0)
     world_pos.y = height * TerrainSystem.HEIGHT_STEP
     var rotation: float = data.get("rotation", 0.0)

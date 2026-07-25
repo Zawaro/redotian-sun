@@ -159,16 +159,12 @@ func get_cell_corner_heights(cell: Vector2i) -> Array[float]:
 
 
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
-    var grid_half: float = get_grid_half_size()
-    var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
-    var cell := CellUtil.world_to_cell(adjusted)
+    var cell := CellUtil.world_to_cell(world_pos, grid_cells)
     return get_cell(cell)
 
 
 func get_height_at_world(world_pos: Vector3) -> float:
-    var grid_half: float = get_grid_half_size()
-    var adjusted := Vector3(world_pos.x + grid_half, world_pos.y, world_pos.z + grid_half)
-    var cell := CellUtil.world_to_cell(adjusted)
+    var cell := CellUtil.world_to_cell(world_pos, grid_cells)
     var data := get_cell(cell)
     if data.is_empty():
         return 0.0
@@ -176,7 +172,7 @@ func get_height_at_world(world_pos: Vector3) -> float:
 
 
 func get_height_at_world_smooth(world_pos: Vector3) -> float:
-    var grid_half: float = get_grid_half_size()
+    var grid_half: float = float(grid_cells) * CellUtil.CELL_SIZE * 0.5
     var vx: float = (world_pos.x + grid_half) / CellUtil.CELL_SIZE
     var vz: float = (world_pos.z + grid_half) / CellUtil.CELL_SIZE
     var x0 := floori(vx)
@@ -195,7 +191,7 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
 
 
 func get_normal_at_world(world_pos: Vector3) -> Vector3:
-    var grid_half: float = get_grid_half_size()
+    var grid_half: float = float(grid_cells) * CellUtil.CELL_SIZE * 0.5
     var vx: float = (world_pos.x + grid_half) / CellUtil.CELL_SIZE
     var vz: float = (world_pos.z + grid_half) / CellUtil.CELL_SIZE
     var x0 := floori(vx)
@@ -507,7 +503,3 @@ func _rotate_dir_cw(dir: String) -> String:
         "west":
             return "north"
     return "north"
-
-
-func get_grid_half_size() -> float:
-    return float(grid_cells) * CellUtil.CELL_SIZE * 0.5

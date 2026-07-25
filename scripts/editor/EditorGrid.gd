@@ -102,8 +102,7 @@ func _update_cell_highlight() -> void:
         return
     _cell_highlight.visible = true
     var mesh := ImmediateMesh.new()
-    var grid_half: float = TerrainSystem.get_grid_half_size()
-    var world_pos := CellUtil.cell_to_world(editor._hovered_cell) - Vector3(grid_half, 0, grid_half)
+    var world_pos := CellUtil.cell_to_world(editor._hovered_cell, TerrainSystem.grid_cells)
     var height: int = cell_data.get("max_height", cell_data.get("height", 0))
     world_pos.y = float(height) * TerrainSystem.HEIGHT_STEP + 0.02
     var half: float = CellUtil.CELL_SIZE * 0.475
@@ -181,9 +180,9 @@ func _update_height_label() -> void:
     var cell: Vector2i = editor._hovered_cell
     var cell_data: Dictionary = TerrainSystem.get_cell(cell)
     var h: int = cell_data.get("height", 0)
-    var grid_half: float = TerrainSystem.get_grid_half_size()
-    var wx: float = float(cell.x) * CellUtil.CELL_SIZE - grid_half + CellUtil.CELL_SIZE * 0.5
-    var wz: float = float(cell.y) * CellUtil.CELL_SIZE - grid_half + CellUtil.CELL_SIZE * 0.5
+    var cell_world := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
+    var wx: float = cell_world.x
+    var wz: float = cell_world.z
     var wy: float = float(h) * TerrainSystem.HEIGHT_STEP
     _height_label.text = (
         "Cell: (%d,%d) | Pos: (%.1f, %.1f, %.1f) | H: %d" % [cell.x, cell.y, wx, wy, wz, h]
