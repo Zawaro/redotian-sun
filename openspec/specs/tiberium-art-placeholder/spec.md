@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Tiberium pod placeholder uses 3-stage seeded cube clusters
-TiberiumComponent SHALL display 3 visual stages of procedurally generated cube clusters, seeded per-cell for unique placement.
+ResourceComponent SHALL display 3 visual stages of procedurally generated cube clusters, seeded per-cell for unique placement.
 
 #### Scenario: Stage 0 — low amount
 - **WHEN** `amount / max_amount <= 0.33`
@@ -24,7 +24,7 @@ TiberiumComponent SHALL display 3 visual stages of procedurally generated cube c
 - **THEN** their cube positions differ (seeded by cell position)
 
 ### Requirement: Tiberium pod self-destructs on depletion
-TiberiumComponent SHALL destroy its parent entity via `queue_free()` when `amount <= 0` after a `collect()` call.
+ResourceComponent SHALL destroy its parent entity via `queue_free()` when `amount <= 0` after a `collect()` call.
 
 #### Scenario: Depleted pod
 - **WHEN** `collect()` reduces `amount` to 0
