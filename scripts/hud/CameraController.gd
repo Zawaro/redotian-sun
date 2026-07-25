@@ -12,6 +12,10 @@ var border_panning_threshold: float = 7.0
 # Move camera with middle mouse press in isometric viewport where camera is rotated 45 degrees
 func _process(_delta):
     if not Engine.is_editor_hint():
+        # Skip all camera input when mouse is over UI panels
+        if UIUtil.is_mouse_over_sidebar() or UIUtil.is_mouse_over_debug_menu():
+            return
+
         # Frame-rate independent movement speed
         var axis_speed := 20.0
         var forward := Vector3(1, 0, 1)
@@ -27,16 +31,17 @@ func _process(_delta):
             slide_map_around(_delta)
 
         # Keyboard controls (WASD for camera pan) — skip when Ctrl held (deploy hotkey)
+        # Raw modifier — not remappable, blocks camera during deploy hotkey (Ctrl+D)
         if not Input.is_key_pressed(KEY_CTRL):
-            if Input.is_key_pressed(KEY_W):
+            if Input.is_action_pressed("camera_up"):
                 self.global_position -= forward * axis_speed * _delta
-            if Input.is_key_pressed(KEY_S):
+            if Input.is_action_pressed("camera_down"):
                 self.global_position += forward * axis_speed * _delta
-            if Input.is_key_pressed(KEY_A):
+            if Input.is_action_pressed("camera_left"):
                 self.global_position -= (
                     forward.rotated(Vector3(0, 1, 0), deg_to_rad(90)) * axis_speed * _delta
                 )
-            if Input.is_key_pressed(KEY_D):
+            if Input.is_action_pressed("camera_right"):
                 self.global_position += (
                     forward.rotated(Vector3(0, 1, 0), deg_to_rad(90)) * axis_speed * _delta
                 )
@@ -67,6 +72,8 @@ func slide_map_around(_delta):
 
 
 func handle_border_panning(_delta: float, axis_speed: float, forward: Vector3):
+    if not InputSettings.edge_scroll_enabled:
+        return
     var viewport_rect = get_viewport().get_visible_rect()
 
     # Get mouse position relative to viewport

@@ -59,7 +59,7 @@ func _process(_delta):
         _skip_release = true
         return
 
-    var sidebar := _find_sidebar()
+    var sidebar := UIUtil.find_sidebar()
     if sidebar and sidebar.get("_debug_place_mode"):
         return
 
@@ -71,15 +71,25 @@ func _process(_delta):
     # Deploy hotkey (Ctrl+D)
     if Input.is_action_just_pressed("deploy"):
         if selection_manager:
-            selection_manager.request_deploy()
+            for sc in selection_manager.selected_entities:
+                if not is_instance_valid(sc):
+                    continue
+                var entity := sc.get_parent() as Node3D
+                if not is_instance_valid(entity):
+                    continue
+                var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
+                if deploy and deploy.can_deploy():
+                    deploy.execute_deploy(entity)
         return
 
     # Skip input handling when hovering UI — but still update cursor below.
     var hovered := get_viewport().gui_get_hovered_control()
-    var over_sidebar := _is_over_sidebar()
-    var over_debug := hovered and _is_inside_debug_menu(hovered)
+    var over_sidebar := UIUtil.is_mouse_over_sidebar()
+    var over_debug := hovered and UIUtil.is_inside_node(hovered, "DebugMenu")
 
-    if not over_sidebar and not over_debug and not (hovered and _is_inside_build_menu(hovered)):
+    var over_build := hovered and UIUtil.is_inside_node(hovered, "Sidebar")
+
+    if not over_sidebar and not over_debug and not over_build:
         var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
 
         # Left mouse button just pressed — start drag tracking.
@@ -183,72 +193,69 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
     var query := PhysicsRayQueryParameters3D.create(from, from + dir * raycast_distance)
     query.collide_with_areas = true
 
+    var modifiers := _build_modifiers(shift_pressed)
+
     # Pass 1: layer 16 — SelectComponent (units, buildings).
     query.collision_mask = 1 << 15
     var result := space_state.intersect_ray(query)
     if result.has("collider"):
         var collider := result.collider as Node
-        # Sell/Repair mode — handle building action
-        var sidebar := _find_sidebar()
-        if sidebar:
-            var entity := _find_entity_parent(collider)
-            if entity and entity.get_node_or_null("FoundationComponent"):
-                if sidebar.is_sell_mode():
-                    var bm := get_node("/root/BuildingManager") as BuildingManager
-                    if bm:
-                        bm.sell_building(entity)
-                    sidebar.exit_action_mode()
-                    return
-                elif sidebar.is_repair_mode():
-                    var bm := get_node("/root/BuildingManager") as BuildingManager
-                    if bm:
-                        bm.repair_building(entity)
-                    sidebar.exit_action_mode()
-                    return
-        if not shift_pressed and _try_interact(collider):
-            return
+        var target := _find_entity_parent(collider)
+        var target_cell := Vector2i.ZERO
+        var target_pos := Vector3.ZERO
+        if target:
+            target_cell = CellUtil.world_to_cell(target.global_position)
+            target_pos = target.global_position
+        else:
+            target_pos = _get_ground_position_at_mouse()
+        # Check if entity is already selected
         var select_comp := _find_select_component(collider)
-        if select_comp and selection_manager:
-            # If entity is already selected and deployable, deploy on click
-            var already_selected := selection_manager.is_entity_selected(select_comp)
-            if already_selected:
-                var entity := _find_entity_parent(collider)
-                if entity:
-                    var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
-                    if deploy and deploy.can_deploy():
-                        deploy.execute_deploy(entity)
-                    else:
-                        selection_manager.select_entity(select_comp, shift_pressed)
-                else:
-                    selection_manager.select_entity(select_comp, shift_pressed)
-            else:
-                selection_manager.select_entity(select_comp, shift_pressed)
+        var already_selected := (
+            select_comp and selection_manager and selection_manager.is_entity_selected(select_comp)
+        )
+        # If not selected, select it first (always, including enemies for viewing)
+        if select_comp and selection_manager and not already_selected:
+            selection_manager.select_entity(select_comp, shift_pressed)
+            return
+        # If already selected or no select component, try order system
+        var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
+        if not orders.is_empty():
+            for order in orders:
+                order.execute.call()
+            return
         return
 
     # Pass 2: layer 17 — interact hitboxes (tiberium, dock).
     query.collision_mask = 1 << 16
     result = space_state.intersect_ray(query)
     if result.has("collider"):
-        if _try_interact(result.collider as Node):
-            return
+        var collider := result.collider as Node
+        var target := _find_entity_parent(collider)
+        if target:
+            var target_cell := CellUtil.world_to_cell(target.global_position)
+            var orders := OrderSystem.get_orders(
+                target, target_cell, target.global_position, modifiers
+            )
+            if not orders.is_empty():
+                for order in orders:
+                    order.execute.call()
+                return
 
-    # No entity — movement command.
-    var ground_pos := _get_ground_position_at_mouse()
-    var has_selection := selection_manager and not selection_manager.selected_entities.is_empty()
-    if ground_pos != Vector3.INF and has_selection:
-        selection_manager.request_move(ground_pos)
+    # No entity — deselect and issue movement command.
+    if selection_manager and not selection_manager.selected_entities.is_empty():
+        var ground_pos := _get_ground_position_at_mouse()
+        if ground_pos != Vector3.INF:
+            var orders := OrderSystem.get_orders(null, Vector2i.ZERO, ground_pos, modifiers)
+            for order in orders:
+                order.execute.call()
 
 
-## Try harvest/dock interaction on an entity. Returns true if interaction issued.
-func _try_interact(collider: Node) -> bool:
-    var entity := _find_entity_parent(collider)
-    if not entity or not selection_manager or selection_manager.selected_entities.is_empty():
-        return false
-    if entity.get_node_or_null("ResourceComponent"):
-        return selection_manager.request_harvest(entity)
-    if entity.get_node_or_null("DockHostComponent"):
-        return selection_manager.request_dock(entity)
-    return false
+func _build_modifiers(shift_pressed: bool) -> Dictionary:
+    return {
+        OrderResult.MOD_FORCE_ATTACK: Input.is_key_pressed(KEY_CTRL),
+        OrderResult.MOD_FORCE_MOVE: Input.is_key_pressed(KEY_ALT),
+        OrderResult.MOD_QUEUED: shift_pressed,
+    }
 
 
 ## Box-select: select entities whose projection falls inside the drag rectangle.
@@ -257,6 +264,13 @@ func _select_entities_2d_projected(rect: Rect2):
     for entity in get_tree().get_nodes_in_group("drag_selectable"):
         var select_component := entity.get_node_or_null("SelectComponent") as SelectComponent
         if not select_component:
+            continue
+
+        # Skip enemy entities — only own units can be drag-selected
+        var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+        var is_enemy := stats and stats.player_id >= 0
+        is_enemy = is_enemy and stats.player_id != PlayerManager.get_local_player_id()
+        if is_enemy:
             continue
 
         if rect.has_point(camera.unproject_position(select_component.global_position)):
@@ -366,60 +380,14 @@ func _get_ground_position_at_mouse() -> Vector3:
     return Vector3.INF
 
 
-func _is_inside_build_menu(node: Node) -> bool:
-    while is_instance_valid(node):
-        if node.name == "Sidebar":
-            return true
-        node = node.get_parent()
-    return false
-
-
-func _is_inside_debug_menu(node: Node) -> bool:
-    while is_instance_valid(node):
-        if node.name == "DebugMenu":
-            return true
-        node = node.get_parent()
-    return false
-
-
-func _find_sidebar() -> Node:
-    var root := get_tree().current_scene
-    if not root:
-        return null
-    return _find_sidebar_recursive(root)
-
-
-func _find_sidebar_recursive(node: Node) -> Node:
-    if node.name == "Sidebar" and node is Control:
-        return node
-    for child in node.get_children():
-        var result := _find_sidebar_recursive(child)
-        if result:
-            return result
-    return null
-
-
-func _is_over_sidebar() -> bool:
-    var sidebar := _find_sidebar()
-    return sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position())
-
-
-func _is_over_debug_menu() -> bool:
-    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
-    if not debug_menu or not debug_menu._is_open:
-        return false
-    return debug_menu.content.get_global_rect().has_point(get_viewport().get_mouse_position())
-
-
 func _update_cursor() -> void:
     var cursor_type: CursorState.Type
 
     # Sidebar hover always shows system cursor
-    var sidebar := _find_sidebar()
-    if sidebar and sidebar.get_global_rect().has_point(get_viewport().get_mouse_position()):
+    if UIUtil.is_mouse_over_sidebar():
         cursor_type = CursorState.Type.DEFAULT
     # Debug menu hover always shows system cursor
-    elif _is_over_debug_menu():
+    elif UIUtil.is_mouse_over_debug_menu():
         cursor_type = CursorState.Type.DEFAULT
     elif mouse_dragging and active_rect.size.x >= MOUSE_DRAG_THRESHOLD:
         cursor_type = CursorState.Type.SELECT
@@ -429,62 +397,37 @@ func _update_cursor() -> void:
         if joystick != CursorState.Type.DEFAULT:
             cursor_type = joystick
         # Edge scroll cursor
-        elif _resolve_scroll_cursor() != CursorState.Type.DEFAULT:
-            cursor_type = _resolve_scroll_cursor()
-        # Sell mode — always show SELL or SELL_BLOCKED
-        elif sidebar and sidebar.is_sell_mode():
-            if _hovered_entity and _hovered_entity.get_node_or_null("FoundationComponent"):
-                cursor_type = CursorState.Type.SELL
+        var scroll := _resolve_scroll_cursor()
+        if scroll != CursorState.Type.DEFAULT:
+            cursor_type = scroll
+        # Hovering an entity with no selection — show select cursor
+        elif _hovered_entity and selection_manager.selected_entities.is_empty():
+            var sc := _hovered_entity.get_node_or_null("SelectComponent") as SelectComponent
+            if sc and sc.is_selectable:
+                cursor_type = CursorState.Type.SELECT
             else:
-                cursor_type = CursorState.Type.SELL_BLOCKED
-        # Repair mode — always show REPAIR or REPAIR_BLOCKED
-        elif sidebar and sidebar.is_repair_mode():
-            if _hovered_entity and _hovered_entity.get_node_or_null("FoundationComponent"):
-                cursor_type = CursorState.Type.REPAIR
-            else:
-                cursor_type = CursorState.Type.REPAIR_BLOCKED
+                cursor_type = CursorState.Type.DEFAULT
         else:
-            cursor_type = _resolve_cursor_for_selection()
+            # Delegate to OrderSystem for cursor resolution
+            var target := _hovered_entity
+            var target_cell := Vector2i.ZERO
+            var target_pos := Vector3.ZERO
+            if is_instance_valid(target):
+                target_cell = CellUtil.world_to_cell(target.global_position)
+                target_pos = target.global_position
+            else:
+                target = null
+                target_pos = _get_ground_position_at_mouse()
+            var modifiers := _build_modifiers(false)
+            cursor_type = OrderSystem.get_cursor(target, target_cell, target_pos, modifiers)
 
     _apply_cursor(cursor_type)
 
 
-func _resolve_cursor_for_selection() -> CursorState.Type:
-    if not selection_manager or selection_manager.selected_entities.is_empty():
-        return _resolve_scroll_cursor()
-
-    var target := _hovered_entity
-    var target_cell := Vector2i.ZERO
-    if target:
-        target_cell = CellUtil.world_to_cell(target.global_position)
-
-    var best_cursor: CursorState.Type = CursorState.Type.DEFAULT
-    var best_priority: int = -1
-
-    for select_comp in selection_manager.selected_entities:
-        if not is_instance_valid(select_comp):
-            continue
-        if not selection_manager._is_local_entity(select_comp):
-            continue
-        var entity := select_comp.get_parent() as Node3D
-        if not entity:
-            continue
-        for component in entity.get_children():
-            if component.has_method("get_cursor_for_target"):
-                if not is_instance_valid(target):
-                    target = null
-                var cursor: CursorState.Type = component.get_cursor_for_target(target, target_cell)
-                var priority: int = CursorState.get_priority(cursor)
-                if priority > best_priority:
-                    best_priority = priority
-                    best_cursor = cursor
-
-    if best_cursor != CursorState.Type.DEFAULT:
-        return best_cursor
-    return CursorState.Type.DEFAULT
-
-
 func _resolve_scroll_cursor() -> CursorState.Type:
+    if not InputSettings.edge_scroll_enabled:
+        return CursorState.Type.DEFAULT
+
     var mouse_pos := get_viewport().get_mouse_position()
     var viewport_size := get_viewport().get_visible_rect().size
     var margin := 20.0
