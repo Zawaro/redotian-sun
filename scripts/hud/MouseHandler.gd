@@ -400,13 +400,6 @@ func _update_cursor() -> void:
         var scroll := _resolve_scroll_cursor()
         if scroll != CursorState.Type.DEFAULT:
             cursor_type = scroll
-        # Hovering an entity with no selection — show select cursor
-        elif _hovered_entity and selection_manager.selected_entities.is_empty():
-            var sc := _hovered_entity.get_node_or_null("SelectComponent") as SelectComponent
-            if sc and sc.is_selectable:
-                cursor_type = CursorState.Type.SELECT
-            else:
-                cursor_type = CursorState.Type.DEFAULT
         else:
             # Delegate to OrderSystem for cursor resolution
             var target := _hovered_entity
@@ -419,7 +412,16 @@ func _update_cursor() -> void:
                 target = null
                 target_pos = _get_ground_position_at_mouse()
             var modifiers := _build_modifiers(false)
-            cursor_type = OrderSystem.get_cursor(target, target_cell, target_pos, modifiers)
+            var order_cursor := OrderSystem.get_cursor(target, target_cell, target_pos, modifiers)
+            # OpenRA pattern: SELECT only when selection is empty + hovering selectable entity
+            var no_selection := selection_manager.selected_entities.is_empty()
+            if order_cursor == CursorState.Type.DEFAULT and no_selection:
+                if target and target.is_in_group("selectable"):
+                    cursor_type = CursorState.Type.SELECT
+                else:
+                    cursor_type = CursorState.Type.DEFAULT
+            else:
+                cursor_type = order_cursor
 
     _apply_cursor(cursor_type)
 
