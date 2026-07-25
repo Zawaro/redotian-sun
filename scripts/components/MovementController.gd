@@ -5,6 +5,7 @@ signal pathfinding_failed
 
 enum State { IDLE, ROTATING, MOVING, WAIT }
 
+@export_group("Movement")
 @export var move_speed: float = 8.0
 @export var cell_radius: float = 1.0
 @export var rotation_speed: float = 180.0

@@ -5,6 +5,7 @@ class_name ExitComponent extends Node
 ## Uses building.to_global() for world positioning, same as DockHostComponent.
 
 ## Local-space offset where unit appears inside building.
+@export_group("Exit")
 @export var spawn_offset: Vector3 = Vector3.ZERO
 ## Local-space offset where unit exits to (e.g., south side of building).
 @export var exit_offset: Vector3 = Vector3.ZERO

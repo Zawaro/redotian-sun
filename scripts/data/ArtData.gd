@@ -4,9 +4,11 @@ class_name ArtData extends Resource
 ## and rendering properties. Referenced by EntityData.art_data.
 
 ## Identity
+@export_group("Identity")
 @export var id: String = ""
 
 ## Model
+@export_group("Model")
 ## Whether this entity uses a voxel model (true) or a polygonal mesh (false).
 # ponytail: schema-first, no consumer yet
 @export var is_voxel: bool = false
@@ -24,12 +26,14 @@ class_name ArtData extends Resource
 @export var buildup_scene: String = ""
 
 ## Dimensions
+@export_group("Dimensions")
 ## Footprint in cells (width × depth) — must match EntityData.foundation.
 @export var foundation: Vector2i = Vector2i(1, 1)
 ## Visual height in world units — affects bounding box and selection overlay.
 @export var height: float = 1.0
 
 ## Turret
+@export_group("Turret")
 ## Horizontal offset in voxels from the entity origin to the turret pivot point.
 # ponytail: schema-first, no consumer yet
 @export var turret_offset: float = 0.0
@@ -39,6 +43,7 @@ class_name ArtData extends Resource
 
 ## Fire offsets — muzzle positions in voxels (Front-Length-Height) relative to entity origin.
 ## Front = forward distance, Length = lateral offset, Height = vertical offset.
+@export_group("Fire Offsets")
 # ponytail: schema-first, no consumer yet
 @export var primary_fire_offset: Vector3 = Vector3.ZERO
 # ponytail: schema-first, no consumer yet
@@ -51,6 +56,7 @@ class_name ArtData extends Resource
 @export var secondary_barrel_length: float = 0.0
 
 ## Animations
+@export_group("Animations")
 ## Active animation tracks played on this entity (e.g., idle, walk, fire).
 @export var active_anims: Array[ActiveAnimData] = []
 ## Infantry sequence name (e.g., "E1Sequence") — references [SequenceName] in art.ini
@@ -65,6 +71,7 @@ class_name ArtData extends Resource
 @export var fire_up: int = 0
 
 ## Infantry/vehicle walk/firing frames
+@export_group("Walk/Fire Frames")
 ## Number of walk animation frames (used for voxel frame interpolation).
 # ponytail: schema-first, no consumer yet
 @export var walk_frames: int = 0
@@ -76,6 +83,7 @@ class_name ArtData extends Resource
 @export var visible_load: bool = false
 
 ## Building animations
+@export_group("Building Animations")
 ## Name of the buildup animation played during construction.
 # ponytail: schema-first, no consumer yet
 @export var buildup_name: String = ""
@@ -111,6 +119,7 @@ class_name ArtData extends Resource
 @export var pre_production_anim: String = ""
 
 ## Additional active animation tracks (beyond the first).
+@export_group("Additional Animations")
 # ponytail: schema-first, no consumer yet
 @export var active_anim_two: String = ""
 # ponytail: schema-first, no consumer yet
@@ -119,6 +128,7 @@ class_name ArtData extends Resource
 @export var active_anim_four: String = ""
 
 ## Power-up animations (played when building is powered on).
+@export_group("Power-Up Animations")
 # ponytail: schema-first, no consumer yet
 @export var power_up1_anim: String = ""
 # ponytail: schema-first, no consumer yet
@@ -141,6 +151,7 @@ class_name ArtData extends Resource
 @export var power_up3_sort: bool = false
 
 ## Special animations
+@export_group("Special Animations")
 # ponytail: schema-first, no consumer yet
 @export var special_anim: String = ""
 ## Name of the charge-up animation (e.g., Obelisk charging).
@@ -148,6 +159,7 @@ class_name ArtData extends Resource
 @export var charge_anim: String = ""
 
 ## Building damage visuals
+@export_group("Building Damage Visuals")
 ## Whether silo shows damage stages (visual change at low health).
 # ponytail: schema-first, no consumer yet
 @export var silo_damage: bool = false
@@ -159,21 +171,25 @@ class_name ArtData extends Resource
 @export var damage_levels: int = 0
 
 ## SAM site
+@export_group("SAM Site")
 ## Midpoint offset for projectile launch tracking.
 # ponytail: schema-first, no consumer yet
 @export var mid_point: Vector3 = Vector3.ZERO
 
 ## Gate
+@export_group("Gate")
 ## Number of gate open/close stages.
 # ponytail: schema-first, no consumer yet
 @export var gate_stages: int = 0
 
 ## Overlay
+@export_group("Overlay")
 ## Path to the overlay texture (e.g., rubble, sandbags).
 # ponytail: schema-first, no consumer yet
 @export var overlay_texture_path: String = ""
 
 ## Rendering
+@export_group("Rendering")
 ## Whether UV coordinates are normalized (0–1 range instead of pixel coords).
 # ponytail: schema-first, no consumer yet
 @export var normalized: bool = false
@@ -185,6 +201,7 @@ class_name ArtData extends Resource
 @export var shadow_index: int = 0
 
 ## Theater
+@export_group("Theater")
 ## Whether this entity uses theater-specific art (e.g., snow/sand terrain variants).
 # ponytail: schema-first, no consumer yet
 @export var new_theater: bool = false
@@ -199,6 +216,7 @@ class_name ArtData extends Resource
 @export var terrain_palette: bool = false
 
 ## Placeholder — colored box shown when no model is loaded.
+@export_group("Placeholder")
 ## Size in world units (Vector3.ZERO = no placeholder rendered).
 @export var placeholder_size: Vector3 = Vector3.ZERO
 ## 2D outline size for the selection overlay (Vector2.ZERO = use default).

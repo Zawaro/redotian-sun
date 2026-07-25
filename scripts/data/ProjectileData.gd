@@ -5,11 +5,13 @@ class_name ProjectileData extends Resource
 ## Referenced by WeaponData.projectile as a string ID.
 
 ## Identity
+@export_group("Identity")
 @export var id: String = ""
 ## Display name for UI (e.g., "Invisible", "Cannon Shell", "Heat Seeker").
 @export var display_name: String = ""
 
 ## Trajectory — controls how the projectile travels from source to target.
+@export_group("Trajectory")
 # ponytail: schema-first, no consumer yet
 ## No visible model (hitscan-like, instant hit feel).
 @export var is_invisible: bool = false
@@ -30,6 +32,7 @@ class_name ProjectileData extends Resource
 @export var is_bouncy: bool = false
 
 ## Targeting — which unit categories this projectile can lock onto.
+@export_group("Targeting")
 # ponytail: schema-first, no consumer yet
 ## Can acquire and hit air units.
 @export var targets_air: bool = false
@@ -44,6 +47,7 @@ class_name ProjectileData extends Resource
 @export var is_guided: bool = false
 
 ## Behavior — physical properties during flight.
+@export_group("Behavior")
 ## Rotation speed in degrees/sec for homing projectiles. 0 = no homing rotation.
 # ponytail: schema-first, no consumer yet
 @export var homing_turn_rate: int = 0
@@ -58,6 +62,7 @@ class_name ProjectileData extends Resource
 @export var speed_override: float = 0.0
 
 ## Visuals — appearance during flight.
+@export_group("Visuals")
 # ponytail: schema-first, no consumer yet
 @export var casts_shadow: bool = false  ## Renders a shadow on the ground below the projectile.
 ## Graphic or animation name for the projectile model (e.g., "120MM", "DRAGON").

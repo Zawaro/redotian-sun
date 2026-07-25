@@ -1,6 +1,7 @@
 class_name DockHostComponent extends Node
 
 ## Local offset from the building's top-left cell to the dock cell.
+@export_group("Dock Host")
 @export var dock_position: Vector3 = Vector3.ZERO
 ## Rotation in degrees the docker entity snaps to when docking (e.g. -90 for west-facing).
 @export var dock_rotation: float = 0.0

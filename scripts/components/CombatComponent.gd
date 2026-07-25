@@ -13,6 +13,7 @@ class_name CombatComponent extends Node3D
 # - Use ArtData fields: primary_fire_offset, barrel_length, turret_offset, sequence,
 #   walk_frames, firing_frames, buildup_name, door_anim, production_anim, etc.
 
+@export_group("Combat")
 @export var weapons: Array[WeaponData] = []
 @export var elite_weapons: Array[WeaponData] = []
 @export var turret: bool = false

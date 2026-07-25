@@ -1,5 +1,6 @@
 extends SubViewportContainer
 
+@export_group("Minimap")
 @export var minimap_size: Vector2i = Vector2i(200, 200)
 @export var terrain_color: Color = Color(0.3, 0.6, 0.3)
 @export var slope_color: Color = Color(0.5, 0.4, 0.3)

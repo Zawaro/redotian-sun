@@ -1,9 +1,11 @@
 class_name MapConfig extends Node
 
+@export_group("Players")
 @export var players: Array = []
 
 
 class PlayerConfig:
+    @export_group("Player Config")
     @export var player_id: int = 0
     @export var display_name: String = ""
     @export var faction_id: String = ""

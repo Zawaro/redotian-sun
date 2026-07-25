@@ -4,6 +4,7 @@ signal cargo_changed(current: float, capacity: int, type_id: String)
 signal passenger_changed(current: int, max_passengers: int)
 
 ## Number of infantry passengers this unit can carry.
+@export_group("Transport")
 @export var passengers: int = 0
 ## Dock type ID this unit docks with (e.g. "GDI_REFINERY").
 @export var dock: String = ""

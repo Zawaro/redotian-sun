@@ -1,11 +1,13 @@
 class_name GlobalRules extends Resource
 
 ## Veterancy
+@export_group("Veterancy")
 @export var veteran_ratio: float = 10.0
 @export var veteran_cap: int = 2
 @export var initial_veteran: bool = false
 
 ## Veterancy multipliers per level
+@export_group("Veterancy Multipliers")
 @export var veteran_combat: float = 0.25
 @export var veteran_speed: float = 0.30
 @export var veteran_sight: float = 0.0
@@ -13,6 +15,7 @@ class_name GlobalRules extends Resource
 @export var veteran_rof: float = 0.20
 
 ## Repair and refit
+@export_group("Repair and Refit")
 @export var refund_percent: float = 0.5
 @export var reload_rate: float = 0.5
 @export var repair_percent: float = 0.2
@@ -23,6 +26,7 @@ class_name GlobalRules extends Resource
 @export var infantry_repair_step: int = 1
 
 ## Income and production
+@export_group("Income and Production")
 @export var build_speed: float = 0.8
 @export var buildup_time: float = 0.06
 ## Minutes between crystal timer ticks (randomized ±60s).
@@ -40,6 +44,7 @@ class_name GlobalRules extends Resource
 @export var weed_capacity: int = 56
 
 ## Tiberium growth
+@export_group("Tiberium Growth")
 ## Minutes between tree timer ticks (randomized ±60s).
 @export var tree_growth_rate: float = 3.0
 ## Radius (cells) around tree where new resource crystals spawn (e.g. 3 = 7x7 area).
@@ -54,6 +59,7 @@ class_name GlobalRules extends Resource
 @export var spread_max: int = 3
 
 ## Computer and movement controls
+@export_group("Computer and Movement Controls")
 @export var base_bias: int = 2
 @export var base_defense_delay: float = 0.25
 @export var close_enough: float = 2.25
@@ -63,6 +69,7 @@ class_name GlobalRules extends Resource
 @export var flight_level: int = 600
 
 ## Hover vehicle characteristics
+@export_group("Hover Vehicle Characteristics")
 @export var hover_height: int = 120
 @export var hover_dampen: float = 0.4
 @export var hover_bob: float = 0.04
@@ -71,16 +78,19 @@ class_name GlobalRules extends Resource
 @export var hover_brake: float = 0.03
 
 ## Production and power effects
+@export_group("Production and Power Effects")
 @export var multiple_factory: float = 0.5
 @export var min_production_speed: float = 0.5
 
 ## Movement coefficients
+@export_group("Movement Coefficients")
 @export var tracked_uphill: float = 0.5
 @export var tracked_downhill: float = 1.1
 @export var wheeled_uphill: float = 0.5
 @export var wheeled_downhill: float = 1.2
 
 ## Armor types (customizable dictionary)
+@export_group("Armor Types")
 @export var armor_types: Dictionary = {
     "none": {"modifier": 1.0},
     "wood": {"modifier": 0.7},
@@ -91,9 +101,11 @@ class_name GlobalRules extends Resource
 
 ## Resource type definitions — maps resource ID to ResourceType.
 ## Each holds value, grow_rate, spread_amount, spread_max, color.
+@export_group("Resource Types")
 @export var resource_types: Dictionary = {}
 
 ## Misc
+@export_group("Misc")
 @export var fog_of_war: bool = false
 @export var visceroids: bool = false
 @export var meteorites: bool = false

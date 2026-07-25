@@ -1,5 +1,6 @@
 class_name ResourceType extends Resource
 
+@export_group("Resource Type")
 ## Unique identifier for this resource type (e.g. "tiberium_green", "vein").
 @export var id: String = ""
 ## Human-readable name shown in UI tooltips.

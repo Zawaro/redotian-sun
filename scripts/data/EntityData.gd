@@ -4,6 +4,7 @@ class_name EntityData extends Resource
 enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDGE }
 
 ## Identity
+@export_group("Identity")
 @export var id: String = ""
 ## Display name shown in UI (e.g., "Minigunner", "Harvester").
 @export var display_name: String = ""
@@ -13,6 +14,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var legacy_id: String = ""
 
 ## Core stats
+@export_group("Core Stats")
 ## Maximum hit points. Entity is destroyed when health reaches 0.
 @export var strength: int = 0
 ## Health percentage (0–100) at which this entity spawns. -1 = use full strength.
@@ -35,6 +37,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var death_explosion_ids: PackedStringArray = []
 
 ## Combat
+@export_group("Combat")
 ## Weapons this entity uses when attacking.
 @export var weapons: Array[WeaponData] = []
 ## Weapons used when this unit is elite (promoted). Empty = use normal weapons.
@@ -47,6 +50,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var threat_posed: int = 0
 
 ## Movement
+@export_group("Movement")
 ## Movement speed in cells per tick. 0 = immobile.
 @export var speed: float = 0.0
 ## Movement zone — which terrain types this entity can traverse (e.g., "foot", "track", "float").
@@ -63,6 +67,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var weight: float = 1.0
 
 ## Vehicle behavior
+@export_group("Vehicle Behavior")
 ## Unit cannot fire while moving.
 # ponytail: schema-first, no consumer yet
 @export var no_moving_fire: bool = false
@@ -89,6 +94,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var target_laser: bool = false
 
 ## Foundation
+@export_group("Foundation")
 ## Footprint in cells (width × depth) — determines placement grid and collision.
 @export var foundation: Vector2i = Vector2i(1, 1)
 ## Visual height in world units — affects bounding box and selection overlay.
@@ -99,6 +105,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var hitbox_size: Vector3 = Vector3.ZERO
 
 ## Aircraft behavior
+@export_group("Aircraft Behavior")
 ## Altitude at which this aircraft flies (in world units).
 # ponytail: schema-first, no consumer yet
 @export var flight_level: float = 0.0
@@ -110,6 +117,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var carryall: bool = false
 
 ## Dock — building-side configuration for the dock system.
+@export_group("Dock")
 ## Local offset from the building's top-left cell to the dock cell.
 @export var dock_position: Vector3 = Vector3.ZERO
 ## Rotation in degrees the docker entity snaps to when docking (e.g. -90 for west-facing).
@@ -120,12 +128,14 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var accepted_resource_categories: PackedStringArray = []
 
 ## Power
+@export_group("Power")
 ## Power output in watts (positive = generating, negative = consuming).
 @export var power: int = 0
 ## Whether this building requires power to function (shutdown when low power).
 @export var powered: bool = false
 
 ## Radar
+@export_group("Radar")
 ## Whether this building provides radar/minimap functionality.
 @export var radar: bool = false
 ## Whether this building has a sensor array (detects cloaked units).
@@ -157,6 +167,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var helipad: bool = false
 
 ## Factory — which production queue this entity belongs to (used for queue routing).
+@export_group("Factory")
 ## Set on entities that ARE produced (e.g. buildings → "BuildingType").
 @export var buildable_queue: String = ""
 ## Production type — what this building produces (used to find the producing building).
@@ -166,6 +177,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var free_unit: String = ""
 
 ## Exit — where units spawn and exit from this building.
+@export_group("Exit")
 ## Local-space offset where unit appears inside building (Vector3.ZERO = no exit).
 @export var spawn_offset: Vector3 = Vector3.ZERO
 ## Local-space offset where unit exits to (e.g., Vector3(0, 0, 2) = south side).
@@ -178,6 +190,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var has_rally_point: bool = false
 
 ## Transport — unit-side cargo and docking configuration.
+@export_group("Transport")
 ## Number of infantry passengers this unit can carry.
 @export var passengers: int = 0
 ## Dock type ID this unit docks with (e.g. "GDI_REFINERY").
@@ -190,6 +203,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var pip_scale: String = ""
 
 ## Resource entity — configuration for harvestable resource entities.
+@export_group("Resource Entity")
 ## Category string (e.g. "tiberium", "spice"). Empty = not a resource entity.
 @export var resource_category: String = ""
 ## ResourceType ID for this crystal (e.g. "tiberium_green", "tiberium_blue").
@@ -198,6 +212,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var resource_regrowth_rate: float = -1.0
 
 ## Resource tree spawner — configuration for entities that spawn resource crystals.
+@export_group("Resource Tree Spawner")
 ## Entity ID of the crystal to spawn (e.g. "TIBERIUM_RIPARIUS").
 @export var spawned_entity_id: String = ""
 ## Spawn radius in cells around this entity.
@@ -210,6 +225,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var max_spawn_strength: float = 1.0
 
 ## Special abilities
+@export_group("Special Abilities")
 ## Can cloak (become invisible until attacking).
 @export var cloakable: bool = false
 ## Regenerates health slowly over time.
@@ -232,6 +248,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var capturable: bool = false
 
 ## Building adjacent cell requirement (number of cells the building must be placed next to).
+@export_group("Building Properties")
 @export var adjacent: int = 0
 ## Whether the building is crewed (affects survival on destruction).
 @export var crewed: bool = false
@@ -242,6 +259,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var toggle_power: bool = false
 
 ## Build menu
+@export_group("Build Menu")
 ## Whether this entity appears in the build sidebar.
 @export var buildable: bool = false
 ## Production time in game seconds (scales with Engine.time_scale).
@@ -251,12 +269,14 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var build_limit: int = 0
 
 ## Prerequisites
+@export_group("Prerequisites")
 ## Entity IDs that must exist before this entity can be built (any-of).
 @export var prerequisite: PackedStringArray = []
 ## Entity IDs that must ALL exist before this entity can be built (all-of).
 @export var prerequisite_necessary: PackedStringArray = []
 
 ## Deploy — vehicle↔building transformation configuration.
+@export_group("Deploy")
 ## Entity id to create when this entity deploys (e.g., "GDI_CONSTRUCTION_YARD" for MCV).
 @export var deploys_into: String = ""
 ## Entity id to create when this entity undeploys (e.g., "GDI_MCV" for ConYard).
@@ -267,6 +287,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var undeploy_rotation: float = 0.0
 
 ## Art reference
+@export_group("Art")
 @export var art_data: ArtData = null
 
 ## TS BuildSpeed factor — must match GlobalRules.build_speed.

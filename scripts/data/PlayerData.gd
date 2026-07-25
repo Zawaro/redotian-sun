@@ -1,5 +1,6 @@
 class_name PlayerData extends Resource
 
+@export_group("Player")
 @export var player_id: int = 0
 @export var credits: int = 0
 @export var faction_id: String = ""
