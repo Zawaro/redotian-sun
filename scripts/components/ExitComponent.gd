@@ -141,4 +141,6 @@ func _is_cell_available(cell: Vector2i) -> bool:
     var key := CellUtil.cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
         return false
+    if SpatialHash.instance.is_bib_cell(cell):
+        return false
     return true

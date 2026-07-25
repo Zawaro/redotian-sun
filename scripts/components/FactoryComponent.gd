@@ -70,9 +70,48 @@ func on_unit_produced(entity_data: EntityData, owner_player_id: int) -> void:
         if not exit.exit_completed.is_connected(_on_exit_completed):
             exit.exit_completed.connect(_on_exit_completed)
         exit.on_unit_produced(unit)
+    else:
+        # No ExitComponent — find nearest free cell (exclude bib cells)
+        var building_cell := CellUtil.world_to_cell(building.global_position)
+        var free_cell := _find_free_near(building_cell)
+        var free_pos := CellUtil.cell_to_world(free_cell)
+        unit.global_position = free_pos
+        push_warning(
+            (
+                "[FactoryComponent] No ExitComponent on %s — spawned at nearest free cell"
+                % building.name
+            )
+        )
 
     exit_in_progress.emit()
 
 
 func _on_exit_completed() -> void:
     is_busy = false
+
+
+func _find_free_near(cell: Vector2i) -> Vector2i:
+    if _is_cell_available(cell):
+        return cell
+    for radius in range(1, 6):
+        for dx in range(-radius, radius + 1):
+            for dz in range(-radius, radius + 1):
+                if abs(dx) != radius and abs(dz) != radius:
+                    continue
+                var candidate := cell + Vector2i(dx, dz)
+                if _is_cell_available(candidate):
+                    return candidate
+    return cell
+
+
+func _is_cell_available(cell: Vector2i) -> bool:
+    if SpatialHash.instance.is_cell_blocked(cell):
+        return false
+    if SpatialHash.instance.is_cell_full_for_infantry(cell):
+        return false
+    var key := CellUtil.cell_key(cell)
+    if SpatialHash.instance.get_building_cells().has(key):
+        return false
+    if SpatialHash.instance.is_bib_cell(cell):
+        return false
+    return true
