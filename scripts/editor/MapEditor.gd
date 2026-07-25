@@ -25,6 +25,7 @@ var _entity_properties: Node
 func _ready() -> void:
     if Engine.is_editor_hint():
         return
+    set_meta("is_map_editor", true)
     TerrainSystem.init_grid(ceili(map_size.x * sqrt(2)))
     _setup_camera()
     _setup_grid()
