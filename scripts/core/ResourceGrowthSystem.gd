@@ -69,8 +69,8 @@ func _get_rules() -> GlobalRules:
 
 func _find_bounds_system() -> void:
     var gc: int = TerrainSystem.grid_cells
-    _map_half_diag = int(float(gc) * CellUtil.SQRT2)
-    _play_area_half_diag = int(float(gc - 4) * CellUtil.SQRT2)
+    _map_half_diag = gc / 2
+    _play_area_half_diag = (gc - 4) / 2
 
 
 func _rebuild_cache() -> void:

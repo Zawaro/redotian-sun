@@ -259,8 +259,8 @@ func _find_buildings_parent() -> void:
 
 func _find_bounds_system() -> void:
     var gc: int = TerrainSystem.grid_cells
-    _map_half_diag = int(float(gc) * CellUtil.SQRT2)
-    _play_area_half_diag = int(float(gc - 4) * CellUtil.SQRT2)
+    _map_half_diag = gc / 2
+    _play_area_half_diag = (gc - 4) / 2
 
 
 func _is_in_bounds(cell: Vector2i) -> bool:
