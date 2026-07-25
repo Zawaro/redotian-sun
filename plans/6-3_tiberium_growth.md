@@ -2,7 +2,7 @@
 
 ## Summary
 
-New `TiberiumGrowthSystem` autoload with two independent timers (tree + crystal), batched entity processing, and distance/spread limits to prevent cascading. MapEditor is guarded to never trigger growth.
+New `ResourceGrowthSystem` autoload with two independent timers (tree + crystal), batched entity processing, and distance/spread limits to prevent cascading. MapEditor is guarded to never trigger growth.
 
 ## Design Decisions (from grill-me session)
 
@@ -84,8 +84,8 @@ Note: `growth_rate = 5.0` already exists and is reused for crystal timer interva
 
 | # | File | Action | Purpose |
 |---|------|--------|---------|
-| 1 | `scripts/core/TiberiumGrowthSystem.gd` | **CREATE** | New autoload — two timers, batched processing |
-| 2 | `project.godot` | MODIFY | Register `TiberiumGrowthSystem` autoload |
+| 1 | `scripts/core/ResourceGrowthSystem.gd` | **CREATE** | New autoload — two timers, batched processing |
+| 2 | `project.godot` | MODIFY | Register `ResourceGrowthSystem` autoload |
 | 3 | `scripts/components/TiberiumTreeComponent.gd` | MODIFY | Add `configure()`, remove `_spawn_crystals`/`_spawn_crystal_at` |
 | 4 | `scripts/components/TiberiumComponent.gd` | MODIFY | Add `spread_count: int = 0` tracking field |
 | 5 | `scripts/data/GlobalRules.gd` | MODIFY | Add 7 new growth-related fields |
@@ -94,7 +94,7 @@ Note: `growth_rate = 5.0` already exists and is reused for crystal timer interva
 
 ## MapEditor guard
 
-In `TiberiumGrowthSystem._physics_process()`:
+In `ResourceGrowthSystem._physics_process()`:
 ```gdscript
 func _physics_process(delta: float) -> void:
     if Engine.is_editor_hint():

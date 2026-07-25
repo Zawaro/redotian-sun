@@ -1,12 +1,12 @@
 ## ADDED Requirements
 
 ### Requirement: ExitComponent defines exit point for units leaving buildings
-The system SHALL provide an ExitComponent that defines where units spawn and exit from a building. ExitComponent SHALL specify `exit_cell_offset` (Vector2i), `spawn_cell_offset` (Vector2i), and `exit_facing` (int, degrees).
+The system SHALL provide an ExitComponent that defines where units spawn and exit from a building. ExitComponent SHALL specify `exit_offset: Vector3` (local-space offset from building origin for exit position), `spawn_offset: Vector3` (local-space offset for spawn position), and `exit_facing: int` (degrees).
 
 #### Scenario: Unit exits from war factory
 - **WHEN** a vehicle is produced at a war factory with ExitComponent configured
-- **THEN** the vehicle SHALL spawn at `spawn_cell_offset` relative to the building's top-left cell
-- **THEN** the vehicle SHALL be positioned at `exit_cell_offset` after exit
+- **THEN** the vehicle SHALL spawn at `spawn_offset` in the building's local space, transformed to world coordinates
+- **THEN** the vehicle SHALL be positioned at `exit_offset` in the building's local space after exit
 - **THEN** the vehicle SHALL face `exit_facing` degrees
 
 #### Scenario: Building without ExitComponent spawns unit at free cell
@@ -14,12 +14,12 @@ The system SHALL provide an ExitComponent that defines where units spawn and exi
 - **THEN** the unit SHALL spawn at the nearest free cell adjacent to the building
 - **THEN** a warning SHALL be logged
 
-### Requirement: ExitComponent positions unit using world coordinates
-The system SHALL calculate the exit position using the building's top-left cell plus `exit_cell_offset` multiplied by cell size. The unit SHALL be placed at the exact world position, not snapped to cell center.
+### Requirement: ExitComponent positions unit using local-space offsets
+The system SHALL calculate the exit position by transforming `exit_offset` from the building's local space to world coordinates via `building.to_global(exit_offset)`. The unit SHALL be placed at the exact world position, not snapped to cell center.
 
 #### Scenario: Sub-cell precision for helipad exit
-- **WHEN** a helipad has ExitComponent with exit_cell_offset = Vector2i(1, 1) on a 2x2 building
-- **THEN** the aircraft SHALL be positioned at the center of the building (1.5 cells from top-left)
+- **WHEN** a helipad has ExitComponent with exit_offset = Vector3(2, 0, 2) (local-space offset)
+- **THEN** the aircraft SHALL be positioned at the building's local offset transformed to world space
 - **THEN** the aircraft SHALL NOT be snapped to the nearest cell center
 
 ### Requirement: ExitComponent emits unit_spawned signal
@@ -30,22 +30,21 @@ ExitComponent SHALL emit `unit_spawned(unit: Node3D)` after positioning the unit
 - **THEN** ExitComponent SHALL emit `unit_spawned(unit)`
 - **THEN** ArtComponent SHALL play the `door_anim` sequence from ArtData
 
-### Requirement: RallyPointComponent manages post-exit path
-The system SHALL provide a RallyPointComponent that defines a path of waypoints units follow after exiting. RallyPointComponent SHALL store `rally_path: Array[Vector2i]`.
+### Requirement: RallyPointComponent manages post-exit destination
+The system SHALL provide a RallyPointComponent that defines a single destination cell units move to after exiting. RallyPointComponent SHALL store `rally_point: Vector2i`.
 
-#### Scenario: Unit follows rally path after exit
-- **WHEN** a unit exits from a building with RallyPointComponent and rally_path has 2+ waypoints
-- **THEN** the unit SHALL move to each waypoint in sequence
-- **THEN** the unit SHALL stop at the final waypoint
+#### Scenario: Unit moves to rally point after exit
+- **WHEN** a unit exits from a building with RallyPointComponent and a rally point is set
+- **THEN** the unit SHALL move to the rally point cell
 
 #### Scenario: Rally point set by player
 - **WHEN** player Alt + Left Clicks on terrain while a building with RallyPointComponent is selected
-- **THEN** RallyPointComponent SHALL update `rally_path` to the clicked cell
-- **THEN** RallyPointComponent SHALL emit `rally_point_changed(path)`
+- **THEN** RallyPointComponent SHALL update `rally_point` to the clicked cell
+- **THEN** RallyPointComponent SHALL emit `rally_point_changed(cell)`
 
 #### Scenario: Rally point cleared
 - **WHEN** player clears the rally point
-- **THEN** RallyPointComponent SHALL reset `rally_path` to empty array
+- **THEN** RallyPointComponent SHALL reset `rally_point` to `Vector2i(-1, -1)` (sentinel for unset)
 - **THEN** units SHALL exit to nearest free cell instead
 
 ### Requirement: RallyPointComponent toggled via EntityData

@@ -106,10 +106,23 @@ func squaref(v: float) -> float: return v * v
 ### Command Input Flow (Phase 1)
 | Player Action | Result |
 |---------------|--------|
-| Left-click on entity | Selects that single unit (existing behavior preserved) |
-| Left-click on empty ground | Ground raycast → move target found + units selected → `SelectionManager.request_move(pos)` → all selected MovementControllers receive the command simultaneously, each moves at its own speed |
-| Left-click on empty ground with no units selected | Ground raycast hits terrain but selection is empty — no action taken (silent) |
-| Right-click anywhere | Always calls `selection_manager.deselect_all()` regardless of what's under cursor. No movement logic runs from right-click in Phase 1. |
+| Left-click on entity | OrderSystem resolves component orders (attack, harvest, deploy, etc.); if no order matches and entity is local, selects it |
+| Left-click on empty ground | OrderSystem.get_orders(null, ...) → UnitOrderGenerator returns group move OrderResult → execute callback calls SelectionManager.request_move(pos) with formation logic |
+| Left-click on empty ground with no units selected | No action taken (silent) |
+| Right-click anywhere | Always calls `selection_manager.deselect_all()` regardless of what's under cursor. No movement logic runs from right-click. |
+
+### Order Resolution Flow
+```
+MouseHandler._handle_left_click_normal()
+  → _build_modifiers(shift_pressed)
+  → OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
+    → UnitOrderGenerator.get_orders()
+      → if target == null (terrain): return [OrderResult(execute = sm.request_move(pos))]
+      → if target != null: return OrderResolver.resolve_all(selected_entities, target, ...)
+        → per entity: iterate components with get_order_for_target()
+        → return Array[OrderResult] — one per matching entity
+  → for each order: order.execute.call()
+```
 
 ### Formation Management (Phase 3+)
 - Calculate formation offsets relative to leader unit.

@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: DeployComponent bidirectional configuration
-The system SHALL provide a `DeployComponent` node class that configures both deploy (vehicle→building) and undeploy (building→vehicle) transformations. The component SHALL include `deploys_into: String` (target entity id for deploy), `undeploys_into: String` (target entity id for undeploy), `deploy_time: float` (seconds, 0=instant), `deploy_rotation: float` (degrees), `undeploy_rotation: float` (degrees), `deploy_cell: Vector2i` (local offset for spawn point, default [0,0]), and `transfer_health_ratio: bool` (default true).
+The system SHALL provide a `DeployComponent` node class that configures both deploy (vehicle→building) and undeploy (building→vehicle) transformations. The component SHALL include `deploys_into: String` (target entity id for deploy), `undeploys_into: String` (target entity id for undeploy), `deploy_rotation: float` (degrees), `undeploy_rotation: float` (degrees), and `transfer_health_ratio: bool` (default true). Deploy timing is rotation-based — the entity rotates to `deploy_rotation` before transforming, with no fixed time delay.
 
 #### Scenario: MCV DeployComponent
-- **WHEN** a DeployComponent is configured with `deploys_into = "GACNST"`, `undeploys_into = ""`, `deploy_rotation = 0.0`, `deploy_cell = Vector2i(0,0)`
+- **WHEN** a DeployComponent is configured with `deploys_into = "GACNST"`, `undeploys_into = ""`, `deploy_rotation = 0.0`
 - **THEN** the component configures the entity for deploy-only transformation to "GACNST"
 
 #### Scenario: ConYard DeployComponent
-- **WHEN** a DeployComponent is configured with `deploys_into = ""`, `undeploys_into = "MCV"`, `undeploy_rotation = 0.0`, `deploy_cell = Vector2i(0,0)`
+- **WHEN** a DeployComponent is configured with `deploys_into = ""`, `undeploys_into = "MCV"`, `undeploy_rotation = 0.0`
 - **THEN** the component configures the entity for undeploy-only transformation to "MCV"
 
 ### Requirement: Deploy via Ctrl+D hotkey
@@ -59,7 +59,7 @@ The system SHALL trigger building undeploy when the player left-clicks on ground
 - **AND** building cells are unregistered from SpatialHash
 - **AND** PrerequisiteSystem.unregister_building() is called
 - **AND** building is removed from the world
-- **AND** vehicle entity is created at `deploy_cell` offset with `undeploy_rotation` applied
+- **AND** vehicle entity is created at the building's origin cell with `undeploy_rotation` applied
 - **AND** health is transferred by ratio
 - **AND** owner is preserved
 - **AND** vehicle moves to the clicked ground position
@@ -74,7 +74,7 @@ The system SHALL trigger building undeploy when the player left-clicks on ground
 - **WHEN** player selects 3 buildings with DeployComponent and left-clicks on ground
 - **AND** all 3 have `undeploys_into` set
 - **THEN** all 3 buildings undeploy simultaneously
-- **AND** 3 vehicle entities are created at their respective `deploy_cell` offsets
+- **AND** 3 vehicle entities are created at their respective building origin cells
 - **AND** each vehicle moves to the clicked ground position
 
 #### Scenario: Building without DeployComponent

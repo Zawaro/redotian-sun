@@ -35,17 +35,16 @@ The camera and selection system forms the foundation of RTS gameplay, enabling p
 scenes/ui/
 ├── CameraRoot.tscn (Node3D)
 │   ├── MainCamera (Camera3D + CameraController.gd)
-scenes/maps/
-└── MapBase01.tscn (Node3D)
-    └── SelectionManager (Node + SelectionManager.gd @tool)
-    └── MouseHandler.gd (@tool)
+├── MouseHandler.tscn (Control + MouseHandler.gd)
+scripts/core/
+└── SelectionManager.gd (autoload singleton)
 scripts/components/
 └── SelectComponent.gd
 ```
 
 ### Key Scripts
 
-#### CameraController.gd (scripts/ui/CameraController.gd)
+#### CameraController.gd (scripts/hud/CameraController.gd)
 - Orthographic projection with adjustable FOV/ortho size
 - Input handling for pan, zoom, rotate operations
 - Smooth interpolation using linear interpolation (lerp) or damping
@@ -68,36 +67,32 @@ scripts/components/
 - Event emission via signals for UI updates when selection changes
 - Hover preview support without selection
 
-#### MouseHandler.gd (scripts/ui/MouseHandler.gd, @tool enabled)
-- Input handling for mouse clicks and drag operations
+#### MouseHandler.gd (scripts/hud/MouseHandler.gd)
+- Input handling via `_process()` polling (not `_input()` — Control nodes under Node3D don't receive `_input()` without focus)
 - Raycasting from screen positions to world coordinates
-- Box selection visualization (semi-transparent quad mesh at ground level Y=0)
-- Delegate state changes to SelectionManager singleton
+- Box selection visualization (ReferenceRect)
+- Delegates cursor/order resolution to OrderSystem autoload
 
 ### Raycasting & Selection Logic
 
 #### MouseHandler.gd - Box Selection Flow:
 ```gdscript
-func _input(event):
-    if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-        if event.pressed:
-            # Start drag: record position, create box visual
-            is_dragging = true
-            drag_start_position = get_viewport().get_mouse_position()
-            create_drag_box()
-        
-        else:
-            # End drag: determine click vs drag
-            var end_pos = get_viewport().get_mouse_position()
-            if (end_pos - drag_start_position).length() < 5.0:
-                # Single click: select unit at raycast position
-                handle_single_click(drag_start_position)
-            else:
-                # Drag selection: box select all entities in range
-                var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
-                selection_manager.select_in_box(drag_start_position, end_pos - drag_start_position, shift_pressed)
-            
-            remove_drag_box()
+func _process(_delta):
+    # Polling pattern — works for Control nodes under Node3D
+    if Input.is_action_just_pressed("select_entity"):
+        mouse_dragging = true
+        drag_start_position = get_viewport().get_mouse_position()
+    
+    if Input.is_action_just_released("select_entity"):
+        var threshold_exceeded = selection_rect.size.x >= MOUSE_DRAG_THRESHOLD
+        if mouse_dragging and threshold_exceeded:
+            _select_entities_2d_projected(active_rect)
+        elif selection_manager:
+            _handle_single_click(mouse_pos, shift_pressed)
+        mouse_dragging = false
+    
+    # Cursor delegates to OrderSystem
+    _update_cursor()
 ```
 
 #### SelectionManager.gd - Box Selection Logic:
