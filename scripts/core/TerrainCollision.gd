@@ -50,8 +50,7 @@ func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh) -> void:
     var collision_shape_node := CollisionShape3D.new()
     collision_shape_node.shape = mesh.create_trimesh_shape()
     static_body.add_child(collision_shape_node)
-    var grid_half: float = TerrainSystem.get_grid_half_size()
-    var world_pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
+    var world_pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
     var height: int = data.get("height", 0)
     world_pos.y = height * TerrainSystem.HEIGHT_STEP
     var rotation: float = data.get("rotation", 0.0)

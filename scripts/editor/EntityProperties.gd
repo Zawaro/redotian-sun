@@ -97,11 +97,9 @@ func _build_position_fields() -> void:
     section.add_theme_font_size_override("font_size", 13)
     _vbox.add_child(section)
 
-    var grid_half: float = TerrainSystem.get_grid_half_size()
     var world_pos: Vector3 = node.global_position
-    var cell_x: int = int((world_pos.x + grid_half) / CellUtil.CELL_SIZE)
-    var cell_y: int = int((world_pos.z + grid_half) / CellUtil.CELL_SIZE)
-    _add_read_only_row("Cell", "(%d, %d)" % [cell_x, cell_y])
+    var cell_coords := CellUtil.world_to_cell(world_pos, TerrainSystem.grid_cells)
+    _add_read_only_row("Cell", "(%d, %d)" % [cell_coords.x, cell_coords.y])
     _add_read_only_row("World", "(%.1f, %.1f, %.1f)" % [world_pos.x, world_pos.y, world_pos.z])
     _add_separator()
 

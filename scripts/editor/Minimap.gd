@@ -82,8 +82,7 @@ func _update_visualization() -> void:
         elif terrain_type == "water":
             color = water_color
         terrain_material.albedo_color = color
-        var grid_half: float = TerrainSystem.get_grid_half_size()
-        var world_pos := CellUtil.cell_to_world(cell) - Vector3(grid_half, 0, grid_half)
+        var world_pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
         var half_size := CellUtil.CELL_SIZE * 0.5
         var y: float = float(height) * TerrainSystem.HEIGHT_STEP + 0.1
         mesh.surface_add_vertex(Vector3(world_pos.x - half_size, y, world_pos.z - half_size))
