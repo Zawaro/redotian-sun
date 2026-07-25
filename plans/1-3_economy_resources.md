@@ -433,7 +433,7 @@ func get_subtypes(category_id: String) -> Array[String]
 
 ### EntityData additions
 ```gdscript
-# For ResourceTree (identified by spawned_entity_id != "")
+# For ResourceTree (identified by resource_category == "tiberium_tree")
 @export var spawned_entity_id: String = ""
 @export var radius_cells: int = 0
 @export var node_count: int = 0
