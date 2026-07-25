@@ -87,8 +87,8 @@ class_name GlobalRules extends Resource
 @export var wheeled_uphill: float = 0.5
 @export var wheeled_downhill: float = 1.2
 
-## Armor types (customizable dictionary)
 @export_group("Armor Types")
+## Armor types (customizable dictionary)
 @export var armor_types: Dictionary = {
     "none": {"modifier": 1.0},
     "wood": {"modifier": 0.7},
@@ -97,9 +97,9 @@ class_name GlobalRules extends Resource
     "concrete": {"modifier": 0.3},
 }
 
+@export_group("Resource Types")
 ## Resource type definitions — maps resource ID to ResourceType.
 ## Each holds value, grow_rate, spread_amount, spread_max, color.
-@export_group("Resource Types")
 @export var resource_types: Dictionary = {}
 
 ## Misc
