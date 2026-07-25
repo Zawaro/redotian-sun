@@ -1,11 +1,13 @@
 class_name WarheadData extends Resource
 
 ## Identity
+@export_group("Identity")
 @export var id: String = ""
 ## Display name for UI (e.g., "Small Arms", "High Explosive").
 @export var display_name: String = ""
 
 ## Damage
+@export_group("Damage")
 ## Multiplier applied to base weapon damage (1.0 = full damage, 0.5 = half).
 @export var damage_modifier: float = 1.0
 ## Splash radius in cells — area of effect around impact point.
@@ -16,6 +18,7 @@ class_name WarheadData extends Resource
 ## Armor effectiveness multipliers: [none, wood, light, heavy, concrete].
 ## Each value is a percentage (0.0–1.0) of base damage applied to that
 ## armor type. Example: SA = [1.0, 0.6, 0.4, 0.25, 0.1].
+@export_group("Armor Multipliers")
 @export var armor_damage_multipliers: PackedFloat32Array = PackedFloat32Array(
     [
         1.0,
@@ -27,6 +30,7 @@ class_name WarheadData extends Resource
 )
 
 ## Terrain/effect flags from rules.ini
+@export_group("Terrain and Effect Flags")
 @export var can_damage_walls: bool = false  ## Can damage walls
 @export var can_damage_wood: bool = false  ## Can damage wood/trees
 @export var can_damage_tiberium: bool = false  ## Can damage tiberium crystals
@@ -38,11 +42,13 @@ class_name WarheadData extends Resource
 ## Infantry death type — determines which death animation plays (1–5).
 ## 0 = no special death, 1 = small puff, 2 = medium explosion, 3 = gory,
 ## 4 = fire/burn, 5 = special (e.g., obelisk disintegration).
+@export_group("Infantry Death")
 @export var infantry_death_type: int = 0
 ## Damage multiplier against prone (crawling) infantry. 1.0 = full damage.
 @export var prone_damage_modifier: float = 1.0
 
 ## Visual effects
+@export_group("Visual Effects")
 ## Animation list played on the target when hit (e.g., "PIFF", "PFFT").
 @export var hit_animation: String = ""
 ## Whether this warhead deforms terrain on impact (craters, scorch marks).

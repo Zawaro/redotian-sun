@@ -5,6 +5,7 @@ class_name HarvestComponent extends Node
 enum State { IDLE, SEEK_NODE, HARVESTING, DELIVERING, HIBERNATE }
 
 ## Resource categories this harvester collects (e.g. ["tiberium"] for all tiberium types).
+@export_group("Harvest")
 @export var harvestable_types: PackedStringArray = ["tiberium"]
 ## Search radius in cells when looking for the nearest harvestable resource.
 @export var search_radius_cells: int = 20

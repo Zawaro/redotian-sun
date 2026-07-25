@@ -1,5 +1,6 @@
 class_name ResourceTreeComponent extends Node
 
+@export_group("Resource Tree")
 @export var spawned_entity_id: String = ""
 @export var radius_cells: int = 8
 @export var resource_type_id: String = "tiberium_green"

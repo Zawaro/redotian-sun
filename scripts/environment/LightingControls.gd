@@ -2,6 +2,7 @@ extends Node3D
 class_name LightingControls
 
 ## Sun settings — controls LightPivot rotation and DirectionalLight3D properties.
+@export_group("Sun")
 @export_range(0, 90) var sun_elevation: float = 36.0:
     set(value):
         sun_elevation = value
@@ -24,6 +25,7 @@ class_name LightingControls
         _apply_shadow()
 
 ## Environment settings — controls WorldEnvironment properties.
+@export_group("Environment")
 @export_range(0, 2) var ambient_light: float = 1.0:
     set(value):
         ambient_light = value

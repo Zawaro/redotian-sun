@@ -1,6 +1,7 @@
 # ponytail: thin data wrapper, grows when entity inspection UI or stat modifiers are needed
 class_name StatsComponent extends Node
 
+@export_group("Stats")
 @export var id: String = ""
 @export var display_name: String = ""
 @export var entity_type: int = 0

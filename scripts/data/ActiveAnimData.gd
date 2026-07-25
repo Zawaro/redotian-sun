@@ -1,5 +1,6 @@
 class_name ActiveAnimData extends Resource
 
+@export_group("Animation")
 @export var anim_name: String = ""
 @export var damaged_anim: String = ""
 @export var offset_x: float = 0.0

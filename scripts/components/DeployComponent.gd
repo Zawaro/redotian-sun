@@ -7,6 +7,7 @@ class_name DeployComponent extends Node
 enum DeployState { IDLE, ROTATING_DEPLOY, ROTATING_UNDEPLOY, TRANSFORMING }
 
 ## Entity id to create when deploying (e.g., "GDI_CONSTRUCTION_YARD" for MCV).
+@export_group("Deploy")
 @export var deploys_into: String = ""
 ## Entity id to create when undeploying (e.g., "GDI_MCV" for ConYard).
 @export var undeploys_into: String = ""

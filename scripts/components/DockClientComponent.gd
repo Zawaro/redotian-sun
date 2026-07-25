@@ -3,6 +3,7 @@ class_name DockClientComponent extends Node
 enum State { IDLE, MOVING, ROTATING, UNLOADING, QUEUED }
 
 ## Entity IDs this unit is allowed to dock with (e.g. ["GDI_REFINERY"]). Empty = any.
+@export_group("Dock Client")
 @export var can_dock_with: PackedStringArray = []
 ## Extra distance penalty squared added per queued docker when ranking dock hosts.
 @export var occupancy_penalty: float = 10.0

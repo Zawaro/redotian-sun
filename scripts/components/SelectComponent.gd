@@ -1,6 +1,7 @@
 @tool
 class_name SelectComponent extends Area3D
 
+@export_group("Selection")
 @export var health_component: HealthComponent
 @export var is_selectable: bool = true
 @export var is_drag_selectable: bool = true

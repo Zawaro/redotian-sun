@@ -1,6 +1,7 @@
 @tool
 class_name BoundsSystem extends Node3D
 
+@export_group("Map Bounds")
 @export var map_size: Vector2 = Vector2(512.0, 512.0):
     set = _set_map_size
 @export var visible_bounds_size: Vector2 = Vector2(512.0, 512.0):

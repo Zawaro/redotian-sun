@@ -1,5 +1,6 @@
 class_name SpecialAbilityComponent extends Node
 
+@export_group("Special Abilities")
 @export var cloakable: bool = false
 @export var self_healing: bool = false
 @export var c4: bool = false

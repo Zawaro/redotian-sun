@@ -1,6 +1,7 @@
 extends Node
 
 ## Pathfinding overlay
+@export_group("Debug")
 @export var enabled: bool = true
 
 ## Overlay toggles

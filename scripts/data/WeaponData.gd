@@ -1,11 +1,13 @@
 class_name WeaponData extends Resource
 
 ## Identity
+@export_group("Identity")
 @export var id: String = ""
 ## Display name for UI (e.g., "Minigun", "90mm Cannon").
 @export var display_name: String = ""
 
 ## Damage
+@export_group("Damage")
 @export var damage: int = 0
 ## Rate of fire — shots per minute (higher = faster). TS formula: ROF = 60 / seconds_between_shots.
 @export var rate_of_fire: float = 1.0
@@ -25,6 +27,7 @@ class_name WeaponData extends Resource
 @export var barrel_length: float = 0.0
 
 ## Targeting flags
+@export_group("Targeting Flags")
 @export var anti_air: bool = false
 @export var anti_ground: bool = true
 
@@ -53,6 +56,7 @@ class_name WeaponData extends Resource
 @export var ambient_damage: int = 0
 
 ## Special weapon types
+@export_group("Special Weapon Types")
 ## Fires a hitscan railgun beam (instant hit, no projectile travel).
 @export var is_railgun: bool = false
 ## Fires a continuous sonic wave (area damage in a line).
