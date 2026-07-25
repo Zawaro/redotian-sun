@@ -111,6 +111,10 @@ func request_move(target_position: Vector3) -> void:
             continue
         if not _is_local_entity(ent):
             continue
+        # Skip entities with DeployComponent — they handle undeploy via OrderResult
+        var deploy := parent.get_node_or_null("DeployComponent") as DeployComponent
+        if deploy and deploy.can_undeploy():
+            continue
         if is_instance_valid(parent):
             SpatialHash.instance.force_reserve(CellUtil.world_to_cell(parent.global_position))
 
@@ -150,28 +154,10 @@ func request_move(target_position: Vector3) -> void:
         if not _is_local_entity(ent):
             continue
 
-        # Check for deploy component on buildings — trigger undeploy instead of move
+        # Check for deploy component — undeploy handled by DeployComponent OrderResult
         var deploy := parent.get_node_or_null("DeployComponent") as DeployComponent
         if deploy and deploy.can_undeploy():
-            var deploy_stats := parent.get_node_or_null("StatsComponent") as StatsComponent
-            if deploy_stats and deploy_stats.entity_type == EntityData.EntityType.BUILDING:
-                var undeploy_offset := parent.global_position - center
-                var undeploy_cell_offset := Vector2i(
-                    roundi(undeploy_offset.x / CellUtil.CELL_SIZE),
-                    roundi(undeploy_offset.z / CellUtil.CELL_SIZE)
-                )
-                undeploy_cell_offset.x = clampi(undeploy_cell_offset.x, -2, 2)
-                undeploy_cell_offset.y = clampi(undeploy_cell_offset.y, -2, 2)
-                var undeploy_target := (
-                    target_position
-                    + Vector3(
-                        undeploy_cell_offset.x * CellUtil.CELL_SIZE,
-                        0,
-                        undeploy_cell_offset.y * CellUtil.CELL_SIZE
-                    )
-                )
-                deploy.execute_undeploy(parent, undeploy_target)
-                continue
+            continue
 
         var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
         if stats and stats.entity_type == EntityData.EntityType.INFANTRY:
@@ -219,48 +205,6 @@ func request_move(target_position: Vector3) -> void:
         _pending_moves.append([ent, target])
 
 
-func request_harvest(target: Node3D) -> bool:
-    var issued := false
-    for ent in selected_entities:
-        if not is_instance_valid(ent):
-            continue
-        var parent := ent.get_parent() as Node3D
-        if not is_instance_valid(parent) or _is_entity_transitioning(parent):
-            continue
-        if not _is_local_entity(ent):
-            continue
-        var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
-        if harvest:
-            harvest.set_target_node(target)
-            issued = true
-    return issued
-
-
-func request_dock(target: Node3D) -> bool:
-    var dock_comp := target.get_node_or_null("DockHostComponent") as DockHostComponent
-    if not dock_comp:
-        return false
-    var target_id := dock_comp.get_entity_id()
-    var issued := false
-    for ent in selected_entities:
-        if not is_instance_valid(ent):
-            continue
-        var parent := ent.get_parent() as Node3D
-        if not is_instance_valid(parent) or _is_entity_transitioning(parent):
-            continue
-        if not _is_local_entity(ent):
-            continue
-        var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
-        if not harvest:
-            continue
-        var transport := parent.get_node_or_null("TransportComponent") as TransportComponent
-        if transport and not transport.dock.is_empty() and transport.dock != target_id:
-            continue
-        harvest.set_target_refinery(target)
-        issued = true
-    return issued
-
-
 func _process(_delta: float) -> void:
     _synchronize_visual_selection()
     var batch: int = 8
@@ -277,8 +221,14 @@ func _synchronize_visual_selection() -> void:
         return
     for entity in tree.get_nodes_in_group("selectable"):
         var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
-        if select_comp and select_comp.is_selected and not selected_entities.has(select_comp):
+        if not select_comp:
+            continue
+        # Add entities that are visually selected but not in the list
+        if select_comp.is_selected and not selected_entities.has(select_comp):
             add_entity(select_comp)
+        # Remove entities that are not visually selected but are in the list
+        elif not select_comp.is_selected and selected_entities.has(select_comp):
+            remove_entity(select_comp)
 
 
 func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
@@ -330,26 +280,6 @@ func _is_local_entity(select_comp: SelectComponent) -> bool:
     if not stats:
         return true
     return stats.player_id < 0 or stats.player_id == PlayerManager.get_local_player_id()
-
-
-func request_deploy() -> void:
-    if selected_entities.is_empty():
-        return
-    for ent in selected_entities:
-        var parent := ent.get_parent() as Node3D
-        if not is_instance_valid(parent):
-            continue
-        if not _is_local_entity(ent):
-            continue
-        var deploy := parent.get_node_or_null("DeployComponent") as DeployComponent
-        if not deploy or not deploy.can_deploy():
-            continue
-        # Check if entity is idle (for vehicles with MovementController)
-        var mc := parent.get_node_or_null("MovementController") as MovementController
-        if mc and mc._state != MovementController.State.IDLE:
-            push_warning("[SelectionManager] Cannot deploy — entity is moving")
-            continue
-        deploy.execute_deploy(parent)
 
 
 func request_set_rally_point(target_position: Vector3) -> void:

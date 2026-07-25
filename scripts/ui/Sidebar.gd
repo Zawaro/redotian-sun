@@ -583,6 +583,10 @@ func _on_sell_pressed() -> void:
     _repair_mode = false
     sell_button.button_pressed = _sell_mode
     repair_button.button_pressed = false
+    if _sell_mode:
+        OrderSystem.set_generator(SellOrderGenerator.new())
+    else:
+        OrderSystem.cancel()
 
 
 func _on_repair_pressed() -> void:
@@ -590,6 +594,10 @@ func _on_repair_pressed() -> void:
     _sell_mode = false
     repair_button.button_pressed = _repair_mode
     sell_button.button_pressed = false
+    if _repair_mode:
+        OrderSystem.set_generator(RepairOrderGenerator.new())
+    else:
+        OrderSystem.cancel()
 
 
 func is_sell_mode() -> bool:
@@ -605,6 +613,7 @@ func exit_action_mode() -> void:
     _repair_mode = false
     sell_button.button_pressed = false
     repair_button.button_pressed = false
+    OrderSystem.cancel()
 
 
 func _add_ready_overlay(btn: Button) -> void:
