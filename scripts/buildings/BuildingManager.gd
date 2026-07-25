@@ -27,6 +27,7 @@ func _ready() -> void:
     _find_bounds_system()
     _create_preview()
     building_placed.connect(_on_building_placed)
+    TerrainSystem.grid_initialized.connect(_find_bounds_system)
 
 
 func _on_building_placed(_building: Node3D, entity_data: EntityData) -> void:
