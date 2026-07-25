@@ -39,7 +39,7 @@ Each order-capable component SHALL implement `get_order_for_target(target: Node3
 - **THEN** the returned OrderResult SHALL have `queued = true`
 
 ### Requirement: OrderResolver returns per-entity orders
-The `OrderResolver.resolve_all()` static method SHALL iterate all selected entities' components, collect one OrderResult per entity (the highest-priority from that entity's components), and return `Array[OrderResult]`. The `OrderResolver.resolve_single()` static method SHALL return only the single highest-priority OrderResult across all entities (used for cursor resolution).
+The `OrderResolver.resolve_all()` static method SHALL iterate all selected entities' components, collect one OrderResult per entity (the highest-priority from that entity's components), and return `Array[OrderResult]`. Priority convention: higher numeric value = higher priority (e.g., 20 > 10). The `OrderResolver.resolve_single()` static method SHALL return only the single highest-priority OrderResult across all entities (used for cursor resolution).
 
 #### Scenario: Mixed selection, all entities match
 - **WHEN** 3 tanks are selected and cursor is over an enemy
@@ -59,7 +59,7 @@ The `OrderResolver.resolve_all()` static method SHALL iterate all selected entit
 
 #### Scenario: Tie-breaking
 - **WHEN** two components return the same priority
-- **THEN** the one with the earlier entity index in selected_entities wins, then the earlier child index in scene tree order
+- **THEN** the one with the earlier entity index in selected_entities wins (entity order is deterministic based on selection order)
 
 ### Requirement: OrderResolver uses has_method check
 The OrderResolver SHALL use `has_method("get_order_for_target")` to detect targeter-capable components before calling the method.
@@ -103,6 +103,8 @@ The OrderResolver SHALL use `has_method("get_order_for_target")` to detect targe
 
 ### Requirement: SellOrderGenerator
 `SellOrderGenerator` SHALL extend OrderGenerator. It SHALL show SELL cursor on sellable buildings, SELL_BLOCKED elsewhere. A building is sellable if it has FoundationComponent, is not under construction, and has no active production queue. `get_orders()` SHALL return an OrderResult with a sell execute callback.
+
+> **Note:** Sell/repair order generation is building management functionality, not order resolution infrastructure. This requirement is included here for completeness but may be moved to a dedicated sell-repair spec in the future.
 
 #### Scenario: Sellable building under cursor
 - **WHEN** target has FoundationComponent, is fully constructed, and has no active production

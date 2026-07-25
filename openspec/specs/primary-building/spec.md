@@ -19,17 +19,21 @@ FactoryComponent SHALL have `is_primary: bool` field. Only one factory per queue
 - **THEN** barracks B `is_primary` SHALL be `false`
 
 ### Requirement: ProductionManager prefers primary factory
-ProductionManager SHALL prefer the primary factory when spawning units. If no primary is set, ProductionManager SHALL use the newest factory of matching type.
+ProductionManager SHALL prefer the primary factory when spawning units. If no primary is set, ProductionManager SHALL use the newest factory of matching type. If no factories of matching type exist, production SHALL not spawn (unit enters ready-to-spawn retry state).
 
 #### Scenario: Primary factory selected for spawn
 - **WHEN** player has 2 barracks, barracks A is primary
-- **WHEN** infantry production completes
+- **AND** infantry production completes
 - **THEN** ProductionManager SHALL select barracks A for unit spawn
 
 #### Scenario: No primary set, newest factory used
 - **WHEN** player has 2 barracks, neither is primary
-- **WHEN** infantry production completes
+- **AND** infantry production completes
 - **THEN** ProductionManager SHALL select the newest barracks (highest ActorID equivalent)
+
+#### Scenario: No matching factory
+- **WHEN** player has no barracks and infantry production completes
+- **THEN** unit enters ready-to-spawn retry state (no factory to spawn from)
 
 ### Requirement: Primary building toggle queries same-type factories
 FactoryComponent.set_primary() SHALL query all nodes in `"factories"` group with matching `produces` type and `player_id`, then clear their `is_primary` flag.

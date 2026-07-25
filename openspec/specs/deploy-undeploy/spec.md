@@ -4,8 +4,12 @@
 DeployComponent SHALL implement `get_order_for_target()`. When target is the same entity (self) and `can_deploy()` is true, it SHALL return DEPLOY cursor, priority 15, and execute callback that calls `execute_deploy(parent)`. When target is null and `can_undeploy()` is true, it SHALL return MOVE cursor and execute callback that calls `execute_undeploy(parent, target_pos)`. The undeploy execute callback SHALL compute its own cell offset from the selection center at execution time, not at resolution time. Otherwise returns null.
 
 #### Scenario: Click self to deploy
-- **WHEN** an MCV is selected and cursor is over itself
+- **WHEN** an MCV with DeployComponent is selected and cursor is over itself
 - **THEN** cursor SHALL be DEPLOY and clicking SHALL deploy the MCV
+
+#### Scenario: Click self without DeployComponent
+- **WHEN** a unit without DeployComponent is selected and cursor is over itself
+- **THEN** get_order_for_target() SHALL return null (no deploy capability)
 
 #### Scenario: Click ground to undeploy
 - **WHEN** a deployed building is selected and cursor is over terrain

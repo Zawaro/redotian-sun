@@ -58,6 +58,8 @@ FactoryComponent SHALL NOT have `free_unit` field or `can_produce()` method. The
 ### Requirement: ProductionManager signals FactoryComponent
 ProductionManager SHALL call `FactoryComponent.on_unit_produced()` when production completes. ProductionManager SHALL listen to `exit_in_progress` signal to find next free factory.
 
+> **Note:** This requirement describes ProductionManager's queue management behavior, not FactoryComponent's interface. It is included here for completeness but may be moved to the production-manager spec in the future.
+
 #### Scenario: Production completes
 - **WHEN** ProductionManager._complete_item() finishes for a unit
 - **THEN** ProductionManager SHALL call FactoryComponent.on_unit_produced(entity_data, player_id)
