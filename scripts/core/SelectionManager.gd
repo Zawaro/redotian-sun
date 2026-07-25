@@ -308,7 +308,8 @@ func _find_infantry_cell(target_position: Vector3, occupancy: Dictionary) -> Vec
         4,
         func(cell: Vector2i) -> bool:
             var key := CellUtil.cell_key(cell)
-            if occupancy.get(key, 0) >= 3:
+            var total: int = SpatialHash.instance.get_infantry_count(cell) + occupancy.get(key, 0)
+            if total >= 3:
                 return true
             if SpatialHash.instance.is_cell_blocked(cell):
                 return true
