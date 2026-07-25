@@ -12,10 +12,6 @@ var border_panning_threshold: float = 7.0
 # Move camera with middle mouse press in isometric viewport where camera is rotated 45 degrees
 func _process(_delta):
     if not Engine.is_editor_hint():
-        # Skip all camera input when mouse is over UI panels
-        if UIUtil.is_mouse_over_sidebar() or UIUtil.is_mouse_over_debug_menu():
-            return
-
         # Frame-rate independent movement speed
         var axis_speed := 20.0
         var forward := Vector3(1, 0, 1)
