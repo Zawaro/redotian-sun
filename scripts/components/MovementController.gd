@@ -103,6 +103,7 @@ func stop() -> void:
 func _finish_stop() -> void:
     _waypoints = PackedVector3Array()
     _spline_t = 0.0
+    _has_sub_slot = false
     _state = State.IDLE
     SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
     if debug_show_path:
@@ -315,6 +316,7 @@ func _handle_moving_movement(delta: float) -> void:
             _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
                 _parent.global_position
             )
+            _has_sub_slot = false
             _state = State.IDLE
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
@@ -365,6 +367,7 @@ func _handle_wait() -> void:
         _parent.global_position = _parent.global_position.lerp(cell_center, 0.3)
         if _parent.global_position.distance_to(cell_center) < 0.05:
             _parent.global_position = cell_center
+            _has_sub_slot = false
             _state = State.IDLE
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
