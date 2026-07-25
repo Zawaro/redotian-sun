@@ -60,6 +60,38 @@ func validate(data: EntityData) -> PackedStringArray:
 func get_cursor_for_target(target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
     if not target or weapons.is_empty():
         return CursorState.Type.DEFAULT
-    if target.is_in_group("enemy"):
-        return CursorState.Type.ATTACK
+    var stats := target.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and stats.player_id >= 0:
+        if PlayerManager.is_enemy(stats.player_id, PlayerManager.get_local_player_id()):
+            return CursorState.Type.ATTACK
     return CursorState.Type.DEFAULT
+
+
+func get_order_for_target(
+    target: Node3D,
+    _target_cell: Vector2i,
+    target_pos: Vector3,
+    modifiers: Dictionary,
+) -> OrderResult:
+    if not target or weapons.is_empty():
+        return null
+    var force_attack: bool = modifiers.get(OrderResult.MOD_FORCE_ATTACK, false)
+    var stats := target.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and stats.player_id >= 0:
+        var local_id := PlayerManager.get_local_player_id()
+        var is_enemy := PlayerManager.is_enemy(stats.player_id, local_id)
+        if is_enemy or force_attack:
+            var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+            return OrderResult.new(
+                CursorState.Type.ATTACK,
+                30,
+                target,
+                target_pos,
+                queued,
+                func(): _attack(target),
+            )
+    return null
+
+
+func _attack(_target: Node3D) -> void:
+    pass

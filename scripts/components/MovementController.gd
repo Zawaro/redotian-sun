@@ -486,3 +486,22 @@ func _snap_to_terrain() -> void:
 
 func get_cursor_for_target(_target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
     return CursorState.Type.MOVE
+
+
+func get_order_for_target(
+    target: Node3D,
+    _target_cell: Vector2i,
+    target_pos: Vector3,
+    modifiers: Dictionary,
+) -> OrderResult:
+    if target:
+        return null
+    var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+    return OrderResult.new(
+        CursorState.Type.MOVE,
+        5,
+        null,
+        target_pos,
+        queued,
+        func(): set_target_position(target_pos),
+    )
