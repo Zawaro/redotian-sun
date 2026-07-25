@@ -30,7 +30,7 @@ New `ResourceGrowthSystem` autoload with two independent timers (tree + crystal)
 **Behavior per tick:**
 1. Iterate all entities in "entities" group that have `TiberiumTreeComponent`
 2. For each tree in current batch:
-   - Pick random cell within `radius_cells`
+   - Iterate all cells within `radius_cells` (circular area)
    - Query `SpatialHash.get_entries(cell)` — if cell has tiberium → grow it (increase amount toward max)
    - If cell is empty → spawn new crystal via `EntityFactory.create_entity("TIB", {overrides})`
    - Track spawned count per tree (max = `node_count`)
