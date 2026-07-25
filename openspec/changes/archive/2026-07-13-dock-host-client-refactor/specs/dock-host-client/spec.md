@@ -1,3 +1,5 @@
+> **Note:** This spec is superseded by the [07-15 cleanup spec](../../2026-07-15-dock-host-client-cleanup/specs/dock-host-client/spec.md). The bounded queue (`max_queue_length=3`) described here is no longer the current behavior — the queue is now unbounded.
+
 ## ADDED Requirements
 
 ### Requirement: DockHostComponent
