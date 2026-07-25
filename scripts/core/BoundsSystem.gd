@@ -75,8 +75,12 @@ func _set_visible_bounds_color(value: Color) -> void:
 
 
 func clamp_camera_position():
-    var GODOT_CELL_SCALE = 2.0
-    var half_map = map_size.x * GODOT_CELL_SCALE / 2.0
+    var grid_cells: int = 32
+    if not Engine.is_editor_hint():
+        var ts = get_node_or_null("/root/TerrainSystem")
+        if ts:
+            grid_cells = ts.grid_cells
+    var half_map: float = float(grid_cells) * CellUtil.CELL_SIZE / 2.0
 
     if not camera_pivot:
         return
@@ -94,12 +98,13 @@ func clamp_camera_position():
 
 
 func get_bounds_rect() -> Rect2:
-    var GODOT_CELL_SCALE = 2.0
-    var half_map_x = map_size.x * GODOT_CELL_SCALE / 2.0
-    var half_map_y = map_size.y * GODOT_CELL_SCALE / 2.0
-    return Rect2(
-        -half_map_x, -half_map_y, map_size.x * GODOT_CELL_SCALE, map_size.y * GODOT_CELL_SCALE
-    )
+    var grid_cells: int = 32
+    if not Engine.is_editor_hint():
+        var ts = get_node_or_null("/root/TerrainSystem")
+        if ts:
+            grid_cells = ts.grid_cells
+    var half: float = float(grid_cells) * CellUtil.CELL_SIZE / 2.0
+    return Rect2(-half, -half, half * 2.0, half * 2.0)
 
 
 func create_bounds_nodes():

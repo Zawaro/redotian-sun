@@ -68,16 +68,9 @@ func _get_rules() -> GlobalRules:
 
 
 func _find_bounds_system() -> void:
-    var tree := get_tree()
-    if not tree:
-        return
-    var root := tree.current_scene
-    if not root:
-        return
-    var bs := root.get_node_or_null("BoundsSystem")
-    if bs and bs is BoundsSystem:
-        _map_half_diag = int(bs.map_size.x * CellUtil.SQRT2 / 2.0)
-        _play_area_half_diag = int(bs.visible_bounds_size.x * CellUtil.SQRT2 / 2.0)
+    var gc: int = TerrainSystem.grid_cells
+    _map_half_diag = int(float(gc) * CellUtil.SQRT2)
+    _play_area_half_diag = int(float(gc - 4) * CellUtil.SQRT2)
 
 
 func _rebuild_cache() -> void:
