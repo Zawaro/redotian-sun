@@ -133,6 +133,8 @@ static func _ensure_loaded() -> void:
         return
     for cursor_type in _TYPE_TO_PATH:
         var path: String = _TYPE_TO_PATH[cursor_type]
+        if path.is_empty():
+            continue
         var tex := load(path) as Texture2D
         if tex:
             _texture_cache[cursor_type] = tex
