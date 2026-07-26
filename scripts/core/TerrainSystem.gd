@@ -5,11 +5,11 @@ signal grid_initialized
 
 const HEIGHT_STEP: float = 0.815
 const MAX_HEIGHT: int = 10
-const DEFAULT_GRID_CELLS: int = 32
+const DEFAULT_GRID_CELLS: Vector2i = Vector2i(64, 64)
 
-var grid_cells: int = DEFAULT_GRID_CELLS:
+var grid_cells: Vector2i = DEFAULT_GRID_CELLS:
     set(value):
-        grid_cells = maxi(value, 1)
+        grid_cells = Vector2i(maxi(value.x, 1), maxi(value.y, 1))
         _init_vertex_grid()
 
 var _vertex_grid: Array = []
@@ -22,17 +22,19 @@ func _init() -> void:
     _init_vertex_grid()
 
 
-func init_grid(cells: int) -> void:
-    grid_cells = cells  # setter calls _init_vertex_grid()
+func init_grid(cells_x: int, cells_z: int) -> void:
+    grid_cells = Vector2i(cells_x, cells_z)  # setter calls _init_vertex_grid()
+    grid_initialized.emit()
 
 
 func _init_vertex_grid() -> void:
-    var v_count := grid_cells + 1
+    var v_count_x := grid_cells.x + 1
+    var v_count_z := grid_cells.y + 1
     _vertex_grid = []
-    _vertex_grid.resize(v_count)
-    for vx in v_count:
+    _vertex_grid.resize(v_count_x)
+    for vx in v_count_x:
         var row: Array[int] = []
-        row.resize(v_count)
+        row.resize(v_count_z)
         _vertex_grid[vx] = row
 
 
@@ -51,13 +53,13 @@ func clear() -> void:
 
 
 func get_vertex(vx: int, vz: int) -> int:
-    if vx < 0 or vx > grid_cells or vz < 0 or vz > grid_cells:
+    if vx < 0 or vx > grid_cells.x or vz < 0 or vz > grid_cells.y:
         return 0
     return _vertex_grid[vx][vz]
 
 
 func set_vertex(vx: int, vz: int, height: int) -> void:
-    if vx < 0 or vx > grid_cells or vz < 0 or vz > grid_cells:
+    if vx < 0 or vx > grid_cells.x or vz < 0 or vz > grid_cells.y:
         return
     _vertex_grid[vx][vz] = clampi(height, 0, MAX_HEIGHT)
     _cascade_from_vertices([Vector2i(vx, vz)])
@@ -75,7 +77,7 @@ func _set_vertex_no_cascade(vx: int, vz: int, height: int) -> void:
 func raise_cell(cell: Vector2i) -> void:
     var cx := cell.x
     var cz := cell.y
-    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+    if cx < 0 or cx >= grid_cells.x or cz < 0 or cz >= grid_cells.y:
         return
     var h_min := MAX_HEIGHT
     for vx in [cx, cx + 1]:
@@ -94,7 +96,7 @@ func raise_cell(cell: Vector2i) -> void:
 func lower_cell(cell: Vector2i) -> void:
     var cx := cell.x
     var cz := cell.y
-    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+    if cx < 0 or cx >= grid_cells.x or cz < 0 or cz >= grid_cells.y:
         return
     var h_max := 0
     for vx in [cx, cx + 1]:
@@ -121,10 +123,11 @@ func get_cell(cell: Vector2i) -> Dictionary:
 
 
 func get_cell_type(cell: Vector2i) -> String:
-    var offset := grid_cells >> 1
-    var cx := cell.x + offset
-    var cz := cell.y + offset
-    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+    var offset_x := grid_cells.x >> 1
+    var offset_z := grid_cells.y >> 1
+    var cx := cell.x + offset_x
+    var cz := cell.y + offset_z
+    if cx < 0 or cx >= grid_cells.x or cz < 0 or cz >= grid_cells.y:
         return ""
     var key := CellUtil.cell_key_str(Vector2i(cx, cz))
     var data: Dictionary = _cells.get(key, {})
@@ -132,10 +135,11 @@ func get_cell_type(cell: Vector2i) -> String:
 
 
 func get_cell_max_height(cell: Vector2i) -> float:
-    var offset := grid_cells >> 1
-    var cx := cell.x + offset
-    var cz := cell.y + offset
-    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+    var offset_x := grid_cells.x >> 1
+    var offset_z := grid_cells.y >> 1
+    var cx := cell.x + offset_x
+    var cz := cell.y + offset_z
+    if cx < 0 or cx >= grid_cells.x or cz < 0 or cz >= grid_cells.y:
         return 0.0
     var v00: int = _vertex_grid[cx][cz]
     var v10: int = _vertex_grid[cx + 1][cz]
@@ -146,10 +150,11 @@ func get_cell_max_height(cell: Vector2i) -> float:
 
 
 func get_cell_corner_heights(cell: Vector2i) -> Array[float]:
-    var offset := grid_cells >> 1
-    var cx := cell.x + offset
-    var cz := cell.y + offset
-    if cx < 0 or cx >= grid_cells or cz < 0 or cz >= grid_cells:
+    var offset_x := grid_cells.x >> 1
+    var offset_z := grid_cells.y >> 1
+    var cx := cell.x + offset_x
+    var cz := cell.y + offset_z
+    if cx < 0 or cx >= grid_cells.x or cz < 0 or cz >= grid_cells.y:
         return [0.0, 0.0, 0.0, 0.0]
     var h_nw: float = float(_vertex_grid[cx][cz]) * HEIGHT_STEP
     var h_ne: float = float(_vertex_grid[cx + 1][cz]) * HEIGHT_STEP
@@ -172,9 +177,10 @@ func get_height_at_world(world_pos: Vector3) -> float:
 
 
 func get_height_at_world_smooth(world_pos: Vector3) -> float:
-    var grid_half: float = float(grid_cells) * CellUtil.CELL_SIZE * 0.5
-    var vx: float = (world_pos.x + grid_half) / CellUtil.CELL_SIZE
-    var vz: float = (world_pos.z + grid_half) / CellUtil.CELL_SIZE
+    var grid_half_x: float = float(grid_cells.x) * CellUtil.CELL_SIZE * 0.5
+    var grid_half_z: float = float(grid_cells.y) * CellUtil.CELL_SIZE * 0.5
+    var vx: float = (world_pos.x + grid_half_x) / CellUtil.CELL_SIZE
+    var vz: float = (world_pos.z + grid_half_z) / CellUtil.CELL_SIZE
     var x0 := floori(vx)
     var x1 := x0 + 1
     var z0 := floori(vz)
@@ -191,9 +197,10 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
 
 
 func get_normal_at_world(world_pos: Vector3) -> Vector3:
-    var grid_half: float = float(grid_cells) * CellUtil.CELL_SIZE * 0.5
-    var vx: float = (world_pos.x + grid_half) / CellUtil.CELL_SIZE
-    var vz: float = (world_pos.z + grid_half) / CellUtil.CELL_SIZE
+    var grid_half_x: float = float(grid_cells.x) * CellUtil.CELL_SIZE * 0.5
+    var grid_half_z: float = float(grid_cells.y) * CellUtil.CELL_SIZE * 0.5
+    var vx: float = (world_pos.x + grid_half_x) / CellUtil.CELL_SIZE
+    var vz: float = (world_pos.z + grid_half_z) / CellUtil.CELL_SIZE
     var x0 := floori(vx)
     var x1 := x0 + 1
     var z0 := floori(vz)
@@ -249,7 +256,7 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
             if visited.has(nkey):
                 continue
             visited[nkey] = true
-            if nbr.x < 0 or nbr.x > grid_cells or nbr.y < 0 or nbr.y > grid_cells:
+            if nbr.x < 0 or nbr.x > grid_cells.x or nbr.y < 0 or nbr.y > grid_cells.y:
                 continue
 
             var nbr_h: int = _vertex_grid[nbr.x][nbr.y]
@@ -283,10 +290,10 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
 
 func _add_cells_for_vertex(vx: int, vz: int, cells: Dictionary) -> void:
     for cx in [vx - 1, vx]:
-        if cx < 0 or cx >= grid_cells:
+        if cx < 0 or cx >= grid_cells.x:
             continue
         for cz in [vz - 1, vz]:
-            if cz < 0 or cz >= grid_cells:
+            if cz < 0 or cz >= grid_cells.y:
                 continue
             cells[CellUtil.cell_key_str(Vector2i(cx, cz))] = true
 
@@ -393,16 +400,17 @@ func _edge_to_dir(a: int, b: int) -> String:
 
 func export_to_json(path: String, extra_data: Dictionary = {}) -> void:
     var vertices: Dictionary = {}
-    var v_count := grid_cells + 1
-    for vx in v_count:
-        for vz in v_count:
+    var v_count_x := grid_cells.x + 1
+    var v_count_z := grid_cells.y + 1
+    for vx in v_count_x:
+        for vz in v_count_z:
             var h: int = _vertex_grid[vx][vz]
             if h != 0:
                 vertices[CellUtil.cell_key_str(Vector2i(vx, vz))] = h
 
     var data: Dictionary = {
-        "version": 3,
-        "grid_cells": grid_cells,
+        "version": 4,
+        "grid_cells": [grid_cells.x, grid_cells.y],
         "vertices": vertices,
         "cells": _cells.duplicate(),
     }
@@ -431,8 +439,13 @@ func import_from_json(path: String) -> void:
     if data == null or not data is Dictionary:
         return
 
-    var json_grid_cells: int = int(data.get("grid_cells", grid_cells))
-    init_grid(json_grid_cells)
+    var json_grid_cells: Variant = data.get("grid_cells", [grid_cells.x, grid_cells.y])
+    if json_grid_cells is Array:
+        var arr: Array = json_grid_cells
+        init_grid(int(arr[0]), int(arr[1]))
+    else:
+        var single: int = int(json_grid_cells)
+        init_grid(single, single)
 
     var vertices: Dictionary = data.get("vertices", {})
     for vkey in vertices:
@@ -440,16 +453,17 @@ func import_from_json(path: String) -> void:
         if parts.size() == 2:
             var vx := int(parts[0])
             var vz := int(parts[1])
-            if vx >= 0 and vx <= grid_cells and vz >= 0 and vz <= grid_cells:
+            if vx >= 0 and vx <= grid_cells.x and vz >= 0 and vz <= grid_cells.y:
                 _vertex_grid[vx][vz] = clampi(vertices[vkey], 0, MAX_HEIGHT)
 
-    var center: float = float(grid_cells) * 0.5
-    for cx in grid_cells:
-        for cz in grid_cells:
+    var center_x: float = float(grid_cells.x) * 0.5
+    var center_z: float = float(grid_cells.y) * 0.5
+    for cx in grid_cells.x:
+        for cz in grid_cells.y:
             var cell_x: float = float(cx) + 0.5
             var cell_z: float = float(cz) + 0.5
-            if center > 0.0:
-                if absf(cell_x - center) / center + absf(cell_z - center) / center >= 1.0:
+            if center_x > 0.0 and center_z > 0.0:
+                if absf(cell_x - center_x) / center_x + absf(cell_z - center_z) / center_z >= 1.0:
                     continue
             var key := CellUtil.cell_key_str(Vector2i(cx, cz))
             _cells[key] = _compute_cell_from_vertices(Vector2i(cx, cz))

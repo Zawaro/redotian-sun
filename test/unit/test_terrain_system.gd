@@ -12,15 +12,15 @@ func test_init_grid_sets_grid_cells():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(16)
-    var got: int = _ts.grid_cells
-    _ts.init_grid(32)  # restore
-    if got == 16:
+    _ts.init_grid(16, 16)
+    var got: Vector2i = _ts.grid_cells
+    _ts.init_grid(32, 32)  # restore
+    if got == Vector2i(16, 16):
         _test_passed += 1
-        print("    PASS: init_grid sets grid_cells to 16")
+        print("    PASS: init_grid sets grid_cells to (16, 16)")
     else:
         _test_failed += 1
-        print("    FAIL: expected grid_cells=16, got %d" % got)
+        print("    FAIL: expected grid_cells=(16, 16), got %s" % str(got))
 
 
 func test_init_grid_resets_vertex_data():
@@ -28,10 +28,10 @@ func test_init_grid_resets_vertex_data():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     _ts.set_vertex(5, 5, 7)
     var before: int = _ts.get_vertex(5, 5)
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     var after: int = _ts.get_vertex(5, 5)
     if before == 7 and after == 0:
         _test_passed += 1
@@ -46,7 +46,7 @@ func test_set_cell_stores_data():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     var cell := Vector2i(2, 3)
     _ts.compute_and_emit_cell(cell)
     _ts.raise_cell(cell)
@@ -65,7 +65,7 @@ func test_get_cell_empty_for_unset():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     var data: Dictionary = _ts.get_cell(Vector2i(99, 99))
     if data.is_empty():
         _test_passed += 1
@@ -80,7 +80,7 @@ func test_raise_edge_does_not_create_phantom_cells():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(8)
+    _ts.init_grid(8, 8)
     _ts.clear()
     var corner := Vector2i(7, 7)
     _ts.compute_and_emit_cell(corner)
@@ -108,7 +108,7 @@ func test_clear_empties_cells():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     var cell := Vector2i(5, 5)
     _ts.compute_and_emit_cell(cell)
     _ts.raise_cell(cell)

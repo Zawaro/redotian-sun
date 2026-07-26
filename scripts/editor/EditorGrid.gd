@@ -51,31 +51,34 @@ func _draw_grid() -> void:
     mesh.surface_begin(Mesh.PRIMITIVE_LINES, material)
 
     var cell_size := CellUtil.CELL_SIZE
-    var cells := TerrainSystem.grid_cells
-    var center_world: float = float(cells) * 0.5 * cell_size
-    var half_extent: float = center_world
+    var cells_x: int = TerrainSystem.grid_cells.x
+    var cells_z: int = TerrainSystem.grid_cells.y
+    var half_w: float = float(cells_x) * 0.5 * cell_size
+    var half_h: float = float(cells_z) * 0.5 * cell_size
 
-    for i in range(cells + 1):
-        var world_x: float = float(i) * cell_size - center_world
+    for i in range(cells_x + 1):
+        var world_x: float = float(i) * cell_size - half_w
         var abs_x: float = absf(world_x)
-        var z_limit: float = half_extent * (1.0 - abs_x / half_extent) if half_extent > 0.0 else 0.0
+        var ratio_x: float = abs_x / half_w if half_w > 0.0 else 0.0
+        var z_limit: float = half_h * (1.0 - ratio_x)
         if z_limit > 0.0:
             mesh.surface_add_vertex(Vector3(world_x, 0.01, -z_limit))
             mesh.surface_add_vertex(Vector3(world_x, 0.01, z_limit))
 
-    for j in range(cells + 1):
-        var world_z: float = float(j) * cell_size - center_world
+    for j in range(cells_z + 1):
+        var world_z: float = float(j) * cell_size - half_h
         var abs_z: float = absf(world_z)
-        var x_limit: float = half_extent * (1.0 - abs_z / half_extent) if half_extent > 0.0 else 0.0
+        var ratio_z: float = abs_z / half_h if half_h > 0.0 else 0.0
+        var x_limit: float = half_w * (1.0 - ratio_z)
         if x_limit > 0.0:
             mesh.surface_add_vertex(Vector3(-x_limit, 0.01, world_z))
             mesh.surface_add_vertex(Vector3(x_limit, 0.01, world_z))
 
-    if half_extent > 0.0:
-        var tip_left := Vector3(-half_extent, 0.01, 0.0)
-        var tip_top := Vector3(0.0, 0.01, -half_extent)
-        var tip_right := Vector3(half_extent, 0.01, 0.0)
-        var tip_bottom := Vector3(0.0, 0.01, half_extent)
+    if half_w > 0.0 and half_h > 0.0:
+        var tip_left := Vector3(-half_w, 0.01, 0.0)
+        var tip_top := Vector3(0.0, 0.01, -half_h)
+        var tip_right := Vector3(half_w, 0.01, 0.0)
+        var tip_bottom := Vector3(0.0, 0.01, half_h)
         mesh.surface_add_vertex(tip_left)
         mesh.surface_add_vertex(tip_top)
         mesh.surface_add_vertex(tip_top)

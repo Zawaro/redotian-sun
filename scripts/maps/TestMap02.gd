@@ -16,7 +16,7 @@ func _load_terrain() -> void:
 
 func _create_test_terrain() -> void:
     # Build a 6x6 plateau centered on the map, raised to height 2
-    var half := floori(TerrainSystem.grid_cells * 0.5)
+    var half := floori(TerrainSystem.grid_cells.y * 0.5)
     for x in range(half - 3, half + 3):
         for z in range(half - 3, half + 3):
             TerrainSystem.raise_cell(Vector2i(x, z))

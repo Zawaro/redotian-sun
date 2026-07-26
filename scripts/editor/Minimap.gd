@@ -9,7 +9,10 @@ extends SubViewportContainer
 var _sub_viewport: SubViewport
 var _camera: Camera3D
 var _terrain_mesh: MeshInstance3D
+var _viewport_rect_mesh: MeshInstance3D
 var _needs_rebuild: bool = false
+var _game_camera: Camera3D = null
+var _game_camera_pivot: Node3D = null
 
 
 func _ready() -> void:
@@ -17,13 +20,22 @@ func _ready() -> void:
     _setup_viewport()
     _setup_camera()
     _setup_terrain_visualization()
+    _setup_viewport_rect()
     TerrainSystem.cell_changed.connect(_on_cell_changed)
+    TerrainSystem.grid_initialized.connect(_on_grid_initialized)
 
 
 func _process(_delta: float) -> void:
     if _needs_rebuild:
         _needs_rebuild = false
         _update_visualization()
+    _update_camera_size()
+    _update_viewport_rect()
+
+
+func set_game_camera(cam: Camera3D, pivot: Node3D) -> void:
+    _game_camera = cam
+    _game_camera_pivot = pivot
 
 
 func _setup_container() -> void:
@@ -49,8 +61,13 @@ func _setup_camera() -> void:
     _camera.projection = Camera3D.PROJECTION_ORTHOGONAL
     _camera.rotation_degrees = Vector3(-90, 45, 0)
     _camera.position = Vector3(0, 100, 0)
-    _camera.size = 50.0
+    _update_camera_size()
     _sub_viewport.add_child(_camera)
+
+
+func _update_camera_size() -> void:
+    var grid_half: float = float(TerrainSystem.grid_cells.x) * CellUtil.CELL_SIZE * 0.5
+    _camera.size = grid_half
 
 
 func _setup_terrain_visualization() -> void:
@@ -58,6 +75,27 @@ func _setup_terrain_visualization() -> void:
     _terrain_mesh.name = "TerrainVisualization"
     _sub_viewport.add_child(_terrain_mesh)
     _update_visualization()
+
+
+func _setup_viewport_rect() -> void:
+    _viewport_rect_mesh = MeshInstance3D.new()
+    _viewport_rect_mesh.name = "ViewportRect"
+    var mat := ORMMaterial3D.new()
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    mat.albedo_color = Color.WHITE
+    mat.no_depth_test = true
+    mat.render_priority = 10
+    _viewport_rect_mesh.material_override = mat
+    _sub_viewport.add_child(_viewport_rect_mesh)
+    _update_viewport_rect()
+
+
+func _is_in_diamond(world_pos: Vector3) -> bool:
+    var half_x: float = float(TerrainSystem.grid_cells.x) * 0.5 * CellUtil.CELL_SIZE
+    var half_z: float = float(TerrainSystem.grid_cells.y) * 0.5 * CellUtil.CELL_SIZE
+    if half_x <= 0.0 or half_z <= 0.0:
+        return false
+    return absf(world_pos.x) / half_x + absf(world_pos.z) / half_z < 1.0
 
 
 func _update_visualization() -> void:
@@ -73,6 +111,9 @@ func _update_visualization() -> void:
         if parts.size() != 2:
             continue
         var cell := Vector2i(int(parts[0]), int(parts[1]))
+        var world_pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
+        if not _is_in_diamond(world_pos):
+            continue
         var data: Dictionary = cells[key]
         var height: int = data.get("height", 0)
         var terrain_type: String = data.get("type", "clear")
@@ -82,7 +123,6 @@ func _update_visualization() -> void:
         elif terrain_type == "water":
             color = water_color
         terrain_material.albedo_color = color
-        var world_pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
         var half_size := CellUtil.CELL_SIZE * 0.5
         var y: float = float(height) * TerrainSystem.HEIGHT_STEP + 0.1
         mesh.surface_add_vertex(Vector3(world_pos.x - half_size, y, world_pos.z - half_size))
@@ -95,7 +135,36 @@ func _update_visualization() -> void:
     _terrain_mesh.mesh = mesh
 
 
+func _update_viewport_rect() -> void:
+    var y: float = 10.0
+    var half_size: float = 10.0
+    var center := Vector3.ZERO
+    if _game_camera_pivot:
+        center = _game_camera_pivot.global_position
+    if _game_camera:
+        half_size = _game_camera.size
+    var mesh := ImmediateMesh.new()
+    var mat := ORMMaterial3D.new()
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    mat.albedo_color = Color.WHITE
+    mat.no_depth_test = true
+    mat.render_priority = 10
+    mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, mat)
+    mesh.surface_add_vertex(Vector3(center.x - half_size, y, center.z - half_size))
+    mesh.surface_add_vertex(Vector3(center.x + half_size, y, center.z - half_size))
+    mesh.surface_add_vertex(Vector3(center.x + half_size, y, center.z + half_size))
+    mesh.surface_add_vertex(Vector3(center.x - half_size, y, center.z + half_size))
+    mesh.surface_add_vertex(Vector3(center.x - half_size, y, center.z - half_size))
+    mesh.surface_end()
+    _viewport_rect_mesh.mesh = mesh
+
+
 func _on_cell_changed(_cell_key: String, _cell_data: Dictionary) -> void:
+    _needs_rebuild = true
+
+
+func _on_grid_initialized() -> void:
+    _update_camera_size()
     _needs_rebuild = true
 
 

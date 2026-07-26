@@ -12,7 +12,3 @@ visible = false
 
 [node name="TerrainRenderer" type="Node" parent="." index="8"]
 script = ExtResource("3_terrain")
-
-[node name="BoundsSystem" parent="." index="9"]
-map_size = Vector2(32, 32)
-visible_bounds_size = Vector2(28, 28)

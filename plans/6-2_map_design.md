@@ -76,6 +76,15 @@ func save_map(path):
     file.store_string(json_data)
 ```
 
+### Map Editor Toolbar
+The MapEditor toolbar provides:
+- **Save/Load** — JSON map format (v4 with `map_size`/`visible_bounds_size`)
+- **New Map** — dialog to set map dimensions, reinitializes grid (default 128×128)
+- **Offset SpinBox fields** — X Offset and Z Offset (cell units) for live editing of visible bounds
+- **Tool buttons** — Paint Height, Paint Resource, Place Tree, Erase
+- **Strength/Radius** controls for painting tools
+- **Grid toggle** and height label
+
 ### Mission Manager Logic
 - Load mission configuration from resource files
 - Track player progress across campaign sequence

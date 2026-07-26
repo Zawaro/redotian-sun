@@ -31,7 +31,7 @@ The debug panel SHALL be approximately 400px wide, full viewport height, with a 
 - **THEN** all expanded sections are visible simultaneously, stacked vertically
 
 ### Requirement: Debug overlays
-The system SHALL provide 6 toggleable debug overlays, each controlled by a checkbox in the Overlays section of the debug panel. Overlays SHALL redraw every frame when enabled and clean up their visuals when disabled.
+The system SHALL provide 7 toggleable debug overlays, each controlled by a checkbox in the Overlays section of the debug panel. Overlays SHALL redraw every frame when enabled and clean up their visuals when disabled.
 
 #### Scenario: Pathfinding overlay
 - **WHEN** the "Pathfinding lines" checkbox is enabled
@@ -56,6 +56,10 @@ The system SHALL provide 6 toggleable debug overlays, each controlled by a check
 #### Scenario: Occupied cells overlay
 - **WHEN** the "Occupied cells" checkbox is enabled
 - **THEN** colored outlines are drawn for occupied cells: green for building cells, red for blocked cells (idle units)
+
+#### Scenario: Map bounds overlay
+- **WHEN** the "Map Bounds" checkbox is enabled
+- **THEN** `BoundsSystem.show_bounds` becomes true and both outer (red) and visible (blue) bounds meshes become visible, rendering in x-ray mode through terrain
 
 #### Scenario: Overlay cleanup on disable
 - **WHEN** user disables an overlay

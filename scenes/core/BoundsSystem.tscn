@@ -4,8 +4,6 @@
 
 [node name="BoundsSystem" type="Node3D"]
 script = ExtResource("1_tbca4")
-map_size = Vector2(1280, 1280)
-visible_bounds_size = Vector2(120, 120)
 
 [node name="MapSize" type="MeshInstance3D" parent="."]
 

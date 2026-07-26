@@ -17,17 +17,13 @@ var building_types: Array[EntityData] = []
 var _preview: Node3D = null
 var _building_preview: Node3D = null
 var _buildings_parent: Node3D = null
-var _map_half_diag: int = 640
-var _play_area_half_diag: int = 256
 
 
 func _ready() -> void:
     _load_building_types()
     _find_buildings_parent()
-    _find_bounds_system()
     _create_preview()
     building_placed.connect(_on_building_placed)
-    TerrainSystem.grid_initialized.connect(_find_bounds_system)
 
 
 func _on_building_placed(_building: Node3D, entity_data: EntityData) -> void:
@@ -258,22 +254,12 @@ func _find_buildings_parent() -> void:
         _buildings_parent.owner = root
 
 
-func _find_bounds_system() -> void:
-    var gc: int = TerrainSystem.grid_cells
-    _map_half_diag = int(gc / 2.0) - 1
-    _play_area_half_diag = int((gc - 4) / 2.0) - 1
-
-
 func _is_in_bounds(cell: Vector2i) -> bool:
-    var cx := absf(float(cell.x) + 0.5)
-    var cz := absf(float(cell.y) + 0.5)
-    return cx + cz <= float(_map_half_diag)
+    return BoundsSystem.is_in_map_bounds(cell)
 
 
 func _is_in_play_area(cell: Vector2i) -> bool:
-    var cx := absf(float(cell.x) + 0.5)
-    var cz := absf(float(cell.y) + 0.5)
-    return cx + cz <= float(_play_area_half_diag)
+    return BoundsSystem.is_in_play_area_with_margin(cell)
 
 
 func _get_buildings_parent() -> Node3D:

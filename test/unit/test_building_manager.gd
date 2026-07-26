@@ -8,12 +8,13 @@ var _test_failed := 0
 
 
 func _setup_2x2_terrain(origin: Vector2i) -> void:
-    TerrainSystem.init_grid(32)
-    var offset := TerrainSystem.grid_cells >> 1
+    TerrainSystem.init_grid(64, 64)
+    var offset_x := TerrainSystem.grid_cells.x >> 1
+    var offset_z := TerrainSystem.grid_cells.y >> 1
     for dx in 2:
         for dz in 2:
             var cell := origin + Vector2i(dx, dz)
-            var key := "%d,%d" % [cell.x + offset, cell.y + offset]
+            var key := "%d,%d" % [cell.x + offset_x, cell.y + offset_z]
             TerrainSystem._cells[key] = {
                 "height": 0, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0
             }

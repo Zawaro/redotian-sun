@@ -84,6 +84,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Occupied cells"
 
+[node name="CBMapBounds" type="CheckBox" parent="Content/Panel/Margin/VBox/OverlaysContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Map Bounds"
+
 [node name="LightingHeader" type="Button" parent="Content/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
