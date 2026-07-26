@@ -67,11 +67,14 @@ func test_pathfinder_avoids_building_cells():
     var end_world := Vector3(14.0, 0.0, 14.0)
     var path: PackedVector3Array = Pathfinder.find_path(start_world, end_world, blocked)
     var avoids_building := true
+    var bad_cell := Vector2i.ZERO
+    var gc := TerrainSystem.grid_cells
     for waypoint in path:
-        var cell := CellUtil.world_to_cell(waypoint)
+        var cell := CellUtil.world_to_cell(waypoint, gc)
         var key := CellUtil.cell_key(cell)
         if blocked.has(key):
             avoids_building = false
+            bad_cell = cell
             break
     SpatialHash.instance._building_cells.clear()
     if avoids_building:
@@ -79,7 +82,12 @@ func test_pathfinder_avoids_building_cells():
         print("    PASS: pathfinder avoids building cells")
     else:
         _test_failed += 1
-        print("    FAIL: path includes building cell")
+        print(
+            (
+                "    FAIL: path includes building cell %s, path=%s, blocked=%s"
+                % [bad_cell, path, blocked.keys()]
+            )
+        )
 
 
 func test_foundation_component_does_not_register_cells_on_ready():
