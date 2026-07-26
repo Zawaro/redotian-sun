@@ -1,14 +1,17 @@
 class_name Pathfinder
 
 
-static func cell_to_world_with_height(cell: Vector2i, grid_cells: int = 0) -> Vector3:
+static func cell_to_world_with_height(
+    cell: Vector2i, grid_cells: Vector2i = Vector2i.ZERO
+) -> Vector3:
     var height := get_terrain_height(cell)
-    if grid_cells > 0:
-        var grid_half: float = float(grid_cells) * CellUtil.CELL_SIZE * 0.5
+    if grid_cells.x > 0 and grid_cells.y > 0:
+        var grid_half_x: float = float(grid_cells.x) * CellUtil.CELL_SIZE * 0.5
+        var grid_half_z: float = float(grid_cells.y) * CellUtil.CELL_SIZE * 0.5
         return Vector3(
-            (cell.x + 0.5) * CellUtil.CELL_SIZE - grid_half,
+            (cell.x + 0.5) * CellUtil.CELL_SIZE - grid_half_x,
             height,
-            (cell.y + 0.5) * CellUtil.CELL_SIZE - grid_half
+            (cell.y + 0.5) * CellUtil.CELL_SIZE - grid_half_z
         )
     return Vector3((cell.x + 0.5) * CellUtil.CELL_SIZE, height, (cell.y + 0.5) * CellUtil.CELL_SIZE)
 
@@ -28,7 +31,7 @@ static func find_path(
     start_world: Vector3, end_world: Vector3, blocked_cells: Dictionary = {}
 ) -> PackedVector3Array:
     var tree: SceneTree = Engine.get_main_loop() as SceneTree
-    var grid_cells: int = 32
+    var grid_cells: Vector2i = Vector2i(32, 32)
     if tree:
         var ts: Node = tree.root.get_node_or_null("TerrainSystem")
         if ts:
@@ -122,7 +125,7 @@ static func find_path(
 
 
 static func _reconstruct_path(
-    came_from: Dictionary, current: Vector2i, start: Vector2i, grid_cells: int = 0
+    came_from: Dictionary, current: Vector2i, start: Vector2i, grid_cells: Vector2i = Vector2i.ZERO
 ) -> PackedVector3Array:
     var path_cells: Array[Vector2i] = [current]
     var key: int = CellUtil.cell_key(current)
@@ -141,7 +144,7 @@ static func _reconstruct_path(
 
 
 static func _path_or_fallback(
-    came_from: Dictionary, start: Vector2i, best: Vector2i, grid_cells: int = 0
+    came_from: Dictionary, start: Vector2i, best: Vector2i, grid_cells: Vector2i = Vector2i.ZERO
 ) -> PackedVector3Array:
     if best == start:
         return PackedVector3Array()

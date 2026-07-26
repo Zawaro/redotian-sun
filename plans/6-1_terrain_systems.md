@@ -121,6 +121,16 @@ func get_terrain_modifier(position):
 - Depletion tracking per match instance
 - Rich nodes have higher harvest yield and slower depletion
 
+### 5. Bounds System (Autoload Singleton)
+- Diamond-shaped bounds mesh rendered via `BoundsSystem.gd` (`ImmediateMesh`), registered as autoload singleton
+- **Outer bounds** (red): visual boundary, 1 cell margin inward from grid edge
+- **Visible bounds** (blue): play area boundary, configurable offset from outer bounds (default 10 cells x, 8 cells z)
+- Both meshes sample terrain height at cell centers along diamond edges (`get_height_at_world_smooth()`), producing multi-vertex meshes that follow terrain contours
+- Single source of truth for gameplay bounds: `is_in_map_bounds()`, `is_in_play_area()` used by `BuildingManager` and `ResourceGrowthSystem`
+- Camera clamping follows visible bounds (not outer bounds)
+- API returns cell units; visual mesh converts to world units for rendering
+- `@tool` script with `Engine.is_editor_hint()` guards for Redot IDE compatibility
+
 ## Integration Points
 - Connect to pathfinding system for movement cost calculation
 - Link with base building for build placement validation

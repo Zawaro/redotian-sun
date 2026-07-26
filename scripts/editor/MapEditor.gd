@@ -3,12 +3,12 @@ extends Node3D
 
 enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE, PLACE_ENTITY }
 
-@export var map_size: Vector2 = Vector2(64.0, 64.0)
-@export var visible_bounds_size: Vector2 = Vector2(54.0, 54.0)
+@export var map_size: Vector2 = Vector2(128.0, 128.0)
 @export var show_grid: bool = true
 
 var _hovered_cell: Vector2i = Vector2i(-999, -999)
 var _camera: Camera3D
+var _camera_pivot: Node3D
 var _height_painter: Node
 var _tool_buttons: Dictionary = {}
 var _active_tool: int = Tool.NONE
@@ -20,13 +20,14 @@ var _resource_painter: Node
 var _save_load: Node
 var _entity_selector: Node
 var _entity_properties: Node
+var _settings_popup: PopupMenu
 
 
 func _ready() -> void:
     if Engine.is_editor_hint():
         return
     set_meta("is_map_editor", true)
-    TerrainSystem.init_grid(ceili(map_size.x * sqrt(2)))
+    TerrainSystem.init_grid(ceili(map_size.x) * 2, ceili(map_size.y) * 2)
     _setup_camera()
     _setup_grid()
     _setup_height_painter()
@@ -85,12 +86,8 @@ func _setup_camera() -> void:
     var camera_instance := camera_scene.instantiate()
     add_child(camera_instance)
     _camera = camera_instance.get_node("Camera3D")
-    var bounds := BoundsSystem.new()
-    bounds.name = "BoundsSystem"
-    bounds.map_size = map_size
-    bounds.visible_bounds_size = visible_bounds_size
-    add_child(bounds)
-    camera_instance.bounds_system = bounds
+    _camera_pivot = camera_instance
+    BoundsSystem.show_bounds = true
 
 
 func _setup_grid() -> void:
@@ -109,17 +106,20 @@ func _setup_height_painter() -> void:
 
 
 func _prefill_terrain() -> void:
-    var cells := TerrainSystem.grid_cells
-    var center_world: float = float(cells) * 0.5 * CellUtil.CELL_SIZE
-    var half_extent: float = center_world
-    for x in range(cells):
-        for z in range(cells):
+    var cells_x: int = TerrainSystem.grid_cells.x
+    var cells_z: int = TerrainSystem.grid_cells.y
+    var center_x: float = float(cells_x) * 0.5 * CellUtil.CELL_SIZE
+    var center_z: float = float(cells_z) * 0.5 * CellUtil.CELL_SIZE
+    var half_extent_x: float = center_x
+    var half_extent_z: float = center_z
+    for x in range(cells_x):
+        for z in range(cells_z):
             var cell := Vector2i(x, z)
-            var world_center := (
-                CellUtil.cell_to_world(cell) - Vector3(center_world, 0, center_world)
-            )
-            if half_extent > 0.0:
-                if absf(world_center.x) / half_extent + absf(world_center.z) / half_extent >= 1.0:
+            var world_center := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
+            if half_extent_x > 0.0 and half_extent_z > 0.0:
+                var rx: float = absf(world_center.x) / half_extent_x
+                var rz: float = absf(world_center.z) / half_extent_z
+                if rx + rz >= 1.0:
                     continue
             if TerrainSystem.get_cell(cell).is_empty():
                 TerrainSystem.compute_and_emit_cell(cell)
@@ -141,14 +141,25 @@ func _setup_ui() -> void:
     add_child(_save_load)
     _save_load.setup(ui)
 
-    var save_btn := Button.new()
-    save_btn.text = "Save"
-    save_btn.pressed.connect(_save_load.on_save_pressed)
-    tool_bar.add_child(save_btn)
-    var load_btn := Button.new()
-    load_btn.text = "Load"
-    load_btn.pressed.connect(_save_load.on_load_pressed)
-    tool_bar.add_child(load_btn)
+    # File menu
+    var file_menu_btn := MenuButton.new()
+    file_menu_btn.text = "File"
+    var file_popup: PopupMenu = file_menu_btn.get_popup()
+    file_popup.add_item("New", 0)
+    file_popup.add_item("Load", 1)
+    file_popup.add_item("Save", 2)
+    file_popup.id_pressed.connect(_on_file_menu_pressed)
+    tool_bar.add_child(file_menu_btn)
+
+    # Settings menu
+    var settings_menu_btn := MenuButton.new()
+    settings_menu_btn.text = "Settings"
+    _settings_popup = settings_menu_btn.get_popup()
+    _settings_popup.add_item("Map Settings", 0)
+    _settings_popup.add_check_item("Show Grid", 1)
+    _settings_popup.set_item_checked(1, false)
+    _settings_popup.id_pressed.connect(_on_settings_menu_pressed)
+    tool_bar.add_child(settings_menu_btn)
 
     var sep1 := VSeparator.new()
     tool_bar.add_child(sep1)
@@ -204,16 +215,13 @@ func _setup_ui() -> void:
     var sep3 := VSeparator.new()
     tool_bar.add_child(sep3)
 
-    var grid_cb := CheckBox.new()
-    grid_cb.text = "Grid"
-    grid_cb.button_pressed = true
-    grid_cb.toggled.connect(func(pressed: bool) -> void: _grid.set_grid_visible(pressed))
-    tool_bar.add_child(grid_cb)
-
     var h_label := Label.new()
     h_label.text = "Height: 0"
     _grid._height_label = h_label
     tool_bar.add_child(h_label)
+
+    # Grid defaults to off
+    _grid.set_grid_visible(false)
 
     var minimap_script = load("res://scripts/editor/Minimap.gd")
     if minimap_script:
@@ -221,6 +229,7 @@ func _setup_ui() -> void:
         minimap.name = "Minimap"
         minimap.position = Vector2(get_viewport().size.x - 210, 10)
         ui.add_child(minimap)
+        minimap.set_game_camera(_camera, _camera_pivot)
 
     _entity_placer = preload("res://scripts/editor/EntityPlacer.gd").new()
     _entity_placer.name = "EntityPlacer"
@@ -240,6 +249,287 @@ func _setup_ui() -> void:
     _entity_properties.position = Vector2(get_viewport().size.x - 230, 220)
     ui.add_child(_entity_properties)
     _entity_properties.setup(_entity_selector)
+
+
+func _on_file_menu_pressed(id: int) -> void:
+    match id:
+        0:
+            _show_new_map_dialog()
+        1:
+            _save_load.on_load_pressed()
+        2:
+            _save_load.on_save_pressed()
+
+
+func _on_settings_menu_pressed(id: int) -> void:
+    match id:
+        0:
+            _show_map_settings_dialog()
+        1:
+            var checked: bool = _settings_popup.is_item_checked(1)
+            _settings_popup.set_item_checked(1, not checked)
+            _grid.set_grid_visible(not checked)
+
+
+# ========================================
+# New Map Dialog
+# ========================================
+
+
+func _show_new_map_dialog() -> void:
+    var dialog := PopupPanel.new()
+    dialog.name = "NewMapDialog"
+    dialog.title = "New Map"
+    dialog.size = Vector2i(400, 520)
+
+    var vbox := VBoxContainer.new()
+    vbox.add_theme_constant_override("separation", 8)
+    dialog.add_child(vbox)
+
+    var name_label := Label.new()
+    name_label.text = "Map Name:"
+    vbox.add_child(name_label)
+    var name_edit := LineEdit.new()
+    name_edit.text = "Untitled"
+    name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(name_edit)
+
+    var width_label := Label.new()
+    width_label.text = "Width (X):"
+    vbox.add_child(width_label)
+    var width_spin := SpinBox.new()
+    width_spin.min_value = 50.0
+    width_spin.max_value = 512.0
+    width_spin.step = 2.0
+    width_spin.value = 64.0
+    width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(width_spin)
+
+    var height_label := Label.new()
+    height_label.text = "Height (Z):"
+    vbox.add_child(height_label)
+    var height_spin := SpinBox.new()
+    height_spin.min_value = 50.0
+    height_spin.max_value = 512.0
+    height_spin.step = 2.0
+    height_spin.value = 64.0
+    height_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(height_spin)
+
+    var start_h_label := Label.new()
+    start_h_label.text = "Starting Height:"
+    vbox.add_child(start_h_label)
+    var start_h_spin := SpinBox.new()
+    start_h_spin.min_value = 0.0
+    start_h_spin.max_value = 12.0
+    start_h_spin.step = 4.0
+    start_h_spin.value = 0.0
+    start_h_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(start_h_spin)
+
+    var players_label := Label.new()
+    players_label.text = "Player Count:"
+    vbox.add_child(players_label)
+    var players_spin := SpinBox.new()
+    players_spin.min_value = 2.0
+    players_spin.max_value = 8.0
+    players_spin.step = 1.0
+    players_spin.value = 2.0
+    players_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(players_spin)
+
+    var offset_x_label := Label.new()
+    offset_x_label.text = "Visible Offset X:"
+    vbox.add_child(offset_x_label)
+    var offset_x_spin := SpinBox.new()
+    offset_x_spin.min_value = 0.0
+    offset_x_spin.max_value = 200.0
+    offset_x_spin.step = 1.0
+    offset_x_spin.value = 10.0
+    offset_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(offset_x_spin)
+
+    var offset_z_label := Label.new()
+    offset_z_label.text = "Visible Offset Z:"
+    vbox.add_child(offset_z_label)
+    var offset_z_spin := SpinBox.new()
+    offset_z_spin.min_value = 0.0
+    offset_z_spin.max_value = 200.0
+    offset_z_spin.step = 1.0
+    offset_z_spin.value = 8.0
+    offset_z_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(offset_z_spin)
+
+    var bounds_label := Label.new()
+    vbox.add_child(bounds_label)
+
+    var update_bounds := func() -> void:
+        var w: int = int(width_spin.value)
+        var h: int = int(height_spin.value)
+        var ox: int = int(offset_x_spin.value)
+        var oz: int = int(offset_z_spin.value)
+        bounds_label.text = "Visible Bounds: %d × %d" % [w - 1 - ox, h - 1 - oz]
+
+    width_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    height_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    offset_x_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    offset_z_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    update_bounds.call()
+
+    var btn_row := HBoxContainer.new()
+    btn_row.alignment = BoxContainer.ALIGNMENT_END
+    btn_row.add_theme_constant_override("separation", 8)
+    vbox.add_child(btn_row)
+
+    var cancel_btn := Button.new()
+    cancel_btn.text = "Cancel"
+    cancel_btn.pressed.connect(func() -> void: dialog.queue_free())
+    btn_row.add_child(cancel_btn)
+
+    var create_btn := Button.new()
+    create_btn.text = "Create"
+    create_btn.pressed.connect(
+        func() -> void:
+            var w: int = int(width_spin.value)
+            var h: int = int(height_spin.value)
+            var start_h: int = int(start_h_spin.value)
+            var players: int = int(players_spin.value)
+            var ox: int = int(offset_x_spin.value)
+            var oz: int = int(offset_z_spin.value)
+            _apply_new_map(w, h, start_h, players, ox, oz)
+            dialog.queue_free()
+    )
+    btn_row.add_child(create_btn)
+
+    get_node("EditorUI").add_child(dialog)
+    dialog.popup_centered(Vector2i(400, 520))
+
+
+func _apply_new_map(
+    width: int,
+    height: int,
+    _start_height: int,
+    _player_count: int,
+    offset_x: int = 10,
+    offset_z: int = 8
+) -> void:
+    TerrainSystem.clear()
+    TerrainSystem.init_grid(width * 2, height * 2)
+    BoundsSystem.visible_offset_x = offset_x
+    BoundsSystem.visible_offset_z = offset_z
+    _prefill_terrain()
+    _grid._draw_grid()
+
+
+# ========================================
+# Map Settings Dialog
+# ========================================
+
+
+func _show_map_settings_dialog() -> void:
+    var dialog := PopupPanel.new()
+    dialog.name = "MapSettingsDialog"
+    dialog.title = "Map Settings"
+    dialog.size = Vector2i(400, 480)
+
+    var vbox := VBoxContainer.new()
+    vbox.add_theme_constant_override("separation", 8)
+    dialog.add_child(vbox)
+
+    var width_label := Label.new()
+    width_label.text = "Width (X):"
+    vbox.add_child(width_label)
+    var width_spin := SpinBox.new()
+    width_spin.min_value = 50.0
+    width_spin.max_value = 512.0
+    width_spin.step = 2.0
+    width_spin.value = float(TerrainSystem.grid_cells.x / 2)
+    width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(width_spin)
+
+    var height_label := Label.new()
+    height_label.text = "Height (Z):"
+    vbox.add_child(height_label)
+    var height_spin := SpinBox.new()
+    height_spin.min_value = 50.0
+    height_spin.max_value = 512.0
+    height_spin.step = 2.0
+    height_spin.value = float(TerrainSystem.grid_cells.y / 2)
+    height_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(height_spin)
+
+    var offset_x_label := Label.new()
+    offset_x_label.text = "Visible Offset X:"
+    vbox.add_child(offset_x_label)
+    var offset_x_spin := SpinBox.new()
+    offset_x_spin.min_value = 0.0
+    offset_x_spin.max_value = 200.0
+    offset_x_spin.step = 1.0
+    offset_x_spin.value = float(BoundsSystem.visible_offset_x)
+    offset_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(offset_x_spin)
+
+    var offset_z_label := Label.new()
+    offset_z_label.text = "Visible Offset Z:"
+    vbox.add_child(offset_z_label)
+    var offset_z_spin := SpinBox.new()
+    offset_z_spin.min_value = 0.0
+    offset_z_spin.max_value = 200.0
+    offset_z_spin.step = 1.0
+    offset_z_spin.value = float(BoundsSystem.visible_offset_z)
+    offset_z_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(offset_z_spin)
+
+    var bounds_label := Label.new()
+    vbox.add_child(bounds_label)
+
+    var update_bounds := func() -> void:
+        var w: int = int(width_spin.value)
+        var h: int = int(height_spin.value)
+        var ox: int = int(offset_x_spin.value)
+        var oz: int = int(offset_z_spin.value)
+        bounds_label.text = "Visible Bounds: %d × %d" % [w - 1 - ox, h - 1 - oz]
+
+    width_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    height_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    offset_x_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    offset_z_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    update_bounds.call()
+
+    var btn_row := HBoxContainer.new()
+    btn_row.alignment = BoxContainer.ALIGNMENT_END
+    btn_row.add_theme_constant_override("separation", 8)
+    vbox.add_child(btn_row)
+
+    var cancel_btn := Button.new()
+    cancel_btn.text = "Cancel"
+    cancel_btn.pressed.connect(func() -> void: dialog.queue_free())
+    btn_row.add_child(cancel_btn)
+
+    var apply_btn := Button.new()
+    apply_btn.text = "Apply"
+    apply_btn.pressed.connect(
+        func() -> void:
+            var w: int = int(width_spin.value)
+            var h: int = int(height_spin.value)
+            var ox: int = int(offset_x_spin.value)
+            var oz: int = int(offset_z_spin.value)
+            _apply_map_settings(w, h, ox, oz)
+            dialog.queue_free()
+    )
+    btn_row.add_child(apply_btn)
+
+    get_node("EditorUI").add_child(dialog)
+    dialog.popup_centered(Vector2i(400, 480))
+
+
+func _apply_map_settings(width: int, height: int, offset_x: int = 10, offset_z: int = 8) -> void:
+    TerrainSystem.clear()
+    TerrainSystem.init_grid(width * 2, height * 2)
+    BoundsSystem.visible_offset_x = offset_x
+    BoundsSystem.visible_offset_z = offset_z
+    _prefill_terrain()
+    _grid._draw_grid()
 
 
 func _on_tool_toggled(btn: Button, tool_id: int) -> void:

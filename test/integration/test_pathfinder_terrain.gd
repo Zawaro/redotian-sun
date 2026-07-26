@@ -12,7 +12,7 @@ func test_get_terrain_height_returns_float():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     _ts.raise_cell(Vector2i(5, 5))
     var height: float = Pathfinder.get_terrain_height(Vector2i(5, 5))
     _ts.clear()
@@ -30,7 +30,7 @@ func test_find_path_returns_array():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     var start := Vector3(1.0, 0.0, 1.0)
     var end := Vector3(5.0, 0.0, 5.0)
     var path: PackedVector3Array = Pathfinder.find_path(start, end)
@@ -48,7 +48,7 @@ func test_find_path_empty_for_same_cell():
         _test_failed += 1
         print("    FAIL: TerrainSystem not injected")
         return
-    _ts.init_grid(32)
+    _ts.init_grid(32, 32)
     var pos := Vector3(3.0, 0.0, 3.0)
     var path: PackedVector3Array = Pathfinder.find_path(pos, pos)
     _ts.clear()

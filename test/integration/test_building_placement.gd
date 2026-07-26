@@ -13,7 +13,7 @@ func test_place_building_registers_cells():
         print("    FAIL: BuildingManager not injected")
         return
     SpatialHash.instance._building_cells.clear()
-    TerrainSystem.init_grid(32)
+    TerrainSystem.init_grid(64, 64)
     var building_type := EntityData.new()
     building_type.id = "test_building"
     building_type.foundation = Vector2i(2, 2)
@@ -21,11 +21,12 @@ func test_place_building_registers_cells():
     building_type.strength = 100
     building_type.owner = ["GDI"]
     var origin := Vector2i(5, 5)
-    var offset := TerrainSystem.grid_cells >> 1
+    var offset_x := TerrainSystem.grid_cells.x >> 1
+    var offset_z := TerrainSystem.grid_cells.y >> 1
     for dx in 2:
         for dz in 2:
             var cell := origin + Vector2i(dx, dz)
-            var key := "%d,%d" % [cell.x + offset, cell.y + offset]
+            var key := "%d,%d" % [cell.x + offset_x, cell.y + offset_z]
             TerrainSystem._cells[key] = {
                 "height": 0, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0
             }
@@ -59,7 +60,7 @@ func test_pathfinder_avoids_building_cells():
         print("    FAIL: BuildingManager not injected")
         return
     SpatialHash.instance._building_cells.clear()
-    TerrainSystem.init_grid(32)
+    TerrainSystem.init_grid(64, 64)
     var cells: Array[Vector2i] = [Vector2i(5, 5), Vector2i(6, 5), Vector2i(5, 6), Vector2i(6, 6)]
     SpatialHash.instance.register_building_cells(cells)
     var blocked := SpatialHash.instance.get_blocked_cells()
@@ -92,7 +93,7 @@ func test_pathfinder_avoids_building_cells():
 
 func test_foundation_component_does_not_register_cells_on_ready():
     SpatialHash.instance._building_cells.clear()
-    TerrainSystem.init_grid(32)
+    TerrainSystem.init_grid(64, 64)
     var entity := Node3D.new()
     entity.name = "TestBuilding"
     var fc := FoundationComponent.new()

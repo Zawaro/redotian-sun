@@ -30,6 +30,7 @@ var _selection_overlay: CanvasLayer = null
 @onready var cb_health_bars: CheckBox = %CBHealthBars
 @onready var cb_entity_ids: CheckBox = %CBEntityIds
 @onready var cb_occupied_cells: CheckBox = %CBOccupiedCells
+@onready var cb_map_bounds: CheckBox = %CBMapBounds
 
 ## Cheat checkboxes
 @onready var cb_no_prereqs: CheckBox = %CBNoPrereqs
@@ -76,6 +77,7 @@ func _ready() -> void:
     cb_health_bars.toggled.connect(_on_health_bars_toggled)
     cb_entity_ids.toggled.connect(_on_entity_ids_toggled)
     cb_occupied_cells.toggled.connect(_on_occupied_cells_toggled)
+    cb_map_bounds.toggled.connect(_on_map_bounds_toggled)
 
     # Connect cheat checkboxes
     cb_no_prereqs.toggled.connect(_on_no_prereqs_toggled)
@@ -180,6 +182,10 @@ func _on_entity_ids_toggled(pressed: bool) -> void:
 
 func _on_occupied_cells_toggled(pressed: bool) -> void:
     DebugVisualizer.show_occupied_cells = pressed
+
+
+func _on_map_bounds_toggled(pressed: bool) -> void:
+    BoundsSystem.show_bounds = pressed
 
 
 # --- Action buttons ---

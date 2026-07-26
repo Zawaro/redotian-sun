@@ -482,9 +482,9 @@ func _resolve_scroll_cursor() -> CursorState.Type:
 
 
 func _is_scroll_blocked(direction: Vector2i) -> bool:
-    if not camera_controller or not camera_controller.bounds_system:
+    if not camera_controller:
         return true
-    var bounds_rect := camera_controller.bounds_system.get_bounds_rect()
+    var bounds_rect := BoundsSystem.get_bounds_rect()
     var cam_pos := camera_controller.global_position
 
     var rotated_pos := cam_pos.rotated(Vector3(0, 1, 0), -deg_to_rad(45))

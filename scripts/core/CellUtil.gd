@@ -5,21 +5,23 @@ const SQRT2: float = 1.41421356237
 const CELL_KEY_OFFSET: int = 512
 
 
-static func world_to_cell(world_pos: Vector3, grid_cells: int = 0) -> Vector2i:
-    if grid_cells > 0:
-        var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+static func world_to_cell(world_pos: Vector3, grid_cells: Vector2i = Vector2i.ZERO) -> Vector2i:
+    if grid_cells.x > 0 and grid_cells.y > 0:
+        var grid_half_x: float = float(grid_cells.x) * CELL_SIZE * 0.5
+        var grid_half_z: float = float(grid_cells.y) * CELL_SIZE * 0.5
         return Vector2i(
-            floori((world_pos.x + grid_half) / CELL_SIZE),
-            floori((world_pos.z + grid_half) / CELL_SIZE)
+            floori((world_pos.x + grid_half_x) / CELL_SIZE),
+            floori((world_pos.z + grid_half_z) / CELL_SIZE)
         )
     return Vector2i(floori(world_pos.x / CELL_SIZE), floori(world_pos.z / CELL_SIZE))
 
 
-static func cell_to_world(cell: Vector2i, grid_cells: int = 0) -> Vector3:
-    if grid_cells > 0:
-        var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
+static func cell_to_world(cell: Vector2i, grid_cells: Vector2i = Vector2i.ZERO) -> Vector3:
+    if grid_cells.x > 0 and grid_cells.y > 0:
+        var grid_half_x: float = float(grid_cells.x) * CELL_SIZE * 0.5
+        var grid_half_z: float = float(grid_cells.y) * CELL_SIZE * 0.5
         return Vector3(
-            (cell.x + 0.5) * CELL_SIZE - grid_half, 0.0, (cell.y + 0.5) * CELL_SIZE - grid_half
+            (cell.x + 0.5) * CELL_SIZE - grid_half_x, 0.0, (cell.y + 0.5) * CELL_SIZE - grid_half_z
         )
     return Vector3((cell.x + 0.5) * CELL_SIZE, 0.0, (cell.y + 0.5) * CELL_SIZE)
 
@@ -39,11 +41,12 @@ static func heuristic(a: Vector2i, b: Vector2i) -> float:
 
 
 static func cell_origin_to_world(
-    origin: Vector2i, footprint: Vector2i, grid_cells: int = 0
+    origin: Vector2i, footprint: Vector2i, grid_cells: Vector2i = Vector2i.ZERO
 ) -> Vector3:
-    var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5 if grid_cells > 0 else 0.0
-    var cx := (origin.x + footprint.x * 0.5) * CELL_SIZE - grid_half
-    var cz := (origin.y + footprint.y * 0.5) * CELL_SIZE - grid_half
+    var grid_half_x: float = float(grid_cells.x) * CELL_SIZE * 0.5 if grid_cells.x > 0 else 0.0
+    var grid_half_z: float = float(grid_cells.y) * CELL_SIZE * 0.5 if grid_cells.y > 0 else 0.0
+    var cx := (origin.x + footprint.x * 0.5) * CELL_SIZE - grid_half_x
+    var cz := (origin.y + footprint.y * 0.5) * CELL_SIZE - grid_half_z
     return Vector3(cx, 0.0, cz)
 
 

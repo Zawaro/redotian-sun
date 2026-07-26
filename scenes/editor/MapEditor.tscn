@@ -8,8 +8,7 @@
 
 [node name="MapEditor" type="Node3D"]
 script = ExtResource("1_map")
-map_size = Vector2(32, 32)
-visible_bounds_size = Vector2(26, 26)
+map_size = Vector2(64, 64)
 
 [node name="LightPivot" parent="." instance=ExtResource("3_sun")]
 

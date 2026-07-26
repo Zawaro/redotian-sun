@@ -1,7 +1,6 @@
 @tool
 class_name CameraController extends Node3D
 
-@export var bounds_system: BoundsSystem
 @export var camera_size: float = 20
 var fixed_toggle_point = Vector2(0, 0)
 var is_panning = false
@@ -45,11 +44,6 @@ func _process(_delta):
         # Handle border panning (only when middle mouse not pressed)
         if not Input.is_action_pressed("move_map"):
             handle_border_panning(_delta, axis_speed, forward)
-
-        # Apply clamping once after all movements
-        if bounds_system:
-            var bounds_rect = bounds_system.get_bounds_rect()
-            _safe_clamp(bounds_rect)
 
 
 func slide_map_around(_delta):
@@ -99,25 +93,3 @@ func handle_border_panning(_delta: float, axis_speed: float, forward: Vector3):
         self.global_position -= forward * axis_speed * _delta
     elif dist_bottom < border_panning_threshold:
         self.global_position += forward * axis_speed * _delta
-
-
-func _safe_clamp(bounds_rect: Rect2):
-    var half_width = bounds_rect.size.x / 2.0
-    var half_height = bounds_rect.size.y / 2.0
-
-    # Transform position to rotated coordinate space (45 degrees)
-    var rotated_pos = global_position.rotated(Vector3(0, 1, 0), -deg_to_rad(45))
-
-    # Clamp X and Z in the rotated space
-    if rotated_pos.x > half_width:
-        rotated_pos.x = half_width
-    elif rotated_pos.x < -half_width:
-        rotated_pos.x = -half_width
-
-    if rotated_pos.z > half_height:
-        rotated_pos.z = half_height
-    elif rotated_pos.z < -half_height:
-        rotated_pos.z = -half_height
-
-    # Transform back to world space
-    global_position = rotated_pos.rotated(Vector3(0, 1, 0), deg_to_rad(45))

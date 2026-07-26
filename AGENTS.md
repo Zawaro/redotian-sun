@@ -123,6 +123,16 @@ Children emit signals; parents connect and react. Children never call parent met
 - `assert()` is stripped in release builds — never use for runtime checks
 - `is_instance_valid(node)` instead of `node != null` after potential free
 
+### Editor Modes — Two Different Things
+
+There are two distinct "editor" concepts in this codebase:
+
+1. **Redot IDE** — the game development editor (the application you edit scenes in). Check with `Engine.is_editor_hint()`. Returns `true` when a `@tool` script runs inside the IDE's viewport. Used to guard runtime-only calls (e.g., `get_tree()`, autoload access) that fail in the IDE context.
+
+2. **In-game Map Editor** — the runtime level design tool (a scene the player can open). Check with `get_meta("is_map_editor")` on the MapEditor node (set in `_ready()`). Used to skip gameplay logic (e.g., free unit spawning, resource growth) when editing maps.
+
+Do not conflate these. `Engine.is_editor_hint()` does NOT mean "we're in the map editor."
+
 ### Signal Syntax
 
 Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
