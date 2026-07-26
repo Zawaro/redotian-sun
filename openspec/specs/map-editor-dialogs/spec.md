@@ -5,15 +5,15 @@ The editor SHALL display a New Map dialog when "New" is selected from the File m
 
 #### Scenario: Dialog fields and defaults
 - **WHEN** the New Map dialog opens
-- **THEN** it shows: Map Name (LineEdit, "Untitled"), Width (SpinBox, 64, min 50, max 512, step 2), Height (SpinBox, 64, min 50, max 512, step 2), Starting Height (SpinBox, 0, min 0, max 15, step 4), Player Count (SpinBox, 2, min 2, max 8), Visible Bounds (read-only Label, "54 × 56"), Confirm button, Cancel button
+- **THEN** it shows: Map Name (LineEdit, "Untitled"), Width (SpinBox, 64, min 50, max 512, step 2), Height (SpinBox, 64, min 50, max 512, step 2), Starting Height (SpinBox, 0, min 0, max 15, step 4), Player Count (SpinBox, 2, min 2, max 8), Visible Bounds (read-only Label, "53 × 55"), Confirm button, Cancel button
 
 #### Scenario: Visible bounds auto-update on size change
 - **WHEN** the user changes Width to 100
-- **THEN** the Visible Bounds label updates to "90 × 56" (100-10=90, 64-8=56)
+- **THEN** the Visible Bounds label updates to "89 × 55" (100-1-10=89, 64-1-8=55)
 
 #### Scenario: Visible bounds auto-update on height change
 - **WHEN** the user changes Height to 100
-- **THEN** the Visible Bounds label updates to "54 × 92" (64-10=54, 100-8=92)
+- **THEN** the Visible Bounds label updates to "53 × 91" (64-1-10=53, 100-1-8=91)
 
 #### Scenario: Confirm creates new map
 - **WHEN** the user clicks Confirm with Width=80, Height=60
@@ -28,11 +28,11 @@ The editor SHALL display a Map Settings dialog when "Map Settings" is selected f
 
 #### Scenario: Dialog pre-populated with current values
 - **WHEN** the Map Settings dialog opens on a 80×60 map
-- **THEN** Width shows 80, Height shows 60, Starting Height shows current value, Player Count shows current value, Visible Bounds shows "70 × 52"
+- **THEN** Width shows 80, Height shows 60, Starting Height shows current value, Player Count shows current value, Visible Bounds shows "69 × 51"
 
 #### Scenario: Visible bounds auto-update on size change
 - **WHEN** the user changes Width to 100 in the Map Settings dialog
-- **THEN** the Visible Bounds label updates to "90 × 52" (100-10=90, 60-8=52)
+- **THEN** the Visible Bounds label updates to "89 × 51" (100-1-10=89, 60-1-8=51)
 
 #### Scenario: Confirm applies changes
 - **WHEN** the user changes Width to 100 and clicks Confirm
