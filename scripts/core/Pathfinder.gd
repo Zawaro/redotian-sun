@@ -122,8 +122,7 @@ static func find_path(
 
 
 static func _reconstruct_path(
-    came_from: Dictionary, current: Vector2i, start: Vector2i,
-    grid_cells: int = 0
+    came_from: Dictionary, current: Vector2i, start: Vector2i, grid_cells: int = 0
 ) -> PackedVector3Array:
     var path_cells: Array[Vector2i] = [current]
     var key: int = CellUtil.cell_key(current)
@@ -142,8 +141,7 @@ static func _reconstruct_path(
 
 
 static func _path_or_fallback(
-    came_from: Dictionary, start: Vector2i, best: Vector2i,
-    grid_cells: int = 0
+    came_from: Dictionary, start: Vector2i, best: Vector2i, grid_cells: int = 0
 ) -> PackedVector3Array:
     if best == start:
         return PackedVector3Array()

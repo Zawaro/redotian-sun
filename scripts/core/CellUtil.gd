@@ -19,9 +19,7 @@ static func cell_to_world(cell: Vector2i, grid_cells: int = 0) -> Vector3:
     if grid_cells > 0:
         var grid_half: float = float(grid_cells) * CELL_SIZE * 0.5
         return Vector3(
-            (cell.x + 0.5) * CELL_SIZE - grid_half,
-            0.0,
-            (cell.y + 0.5) * CELL_SIZE - grid_half
+            (cell.x + 0.5) * CELL_SIZE - grid_half, 0.0, (cell.y + 0.5) * CELL_SIZE - grid_half
         )
     return Vector3((cell.x + 0.5) * CELL_SIZE, 0.0, (cell.y + 0.5) * CELL_SIZE)
 

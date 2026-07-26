@@ -53,9 +53,7 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
             var parts := cell_str.split(",")
             if parts.size() == 2:
                 var cell := Vector2i(parts[0].to_int(), parts[1].to_int())
-                var world_pos: Vector3 = (
-                    CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
-                )
+                var world_pos: Vector3 = CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
                 var cell_data: Dictionary = TerrainSystem.get_cell(cell)
                 if not cell_data.is_empty():
                     var h: int = cell_data.get("max_height", cell_data.get("height", 0))

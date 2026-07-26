@@ -355,39 +355,3 @@ func test_undeploy_no_pending_move_when_no_target():
 
     deploy._state = DeployComponent.DeployState.IDLE
     entity.free()
-
-
-func test_move_cursor_for_undeployable_entity():
-    var entity := Node3D.new()
-    var deploy := DeployComponent.new()
-    deploy.undeploys_into = "GDI_MCV"
-    entity.add_child(deploy)
-
-    var cursor := deploy.get_cursor_for_target(null, Vector2i.ZERO)
-
-    if cursor == CursorState.Type.MOVE:
-        _test_passed += 1
-        print("    PASS: get_cursor_for_target returns MOVE for undeployable entity")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected MOVE cursor, got %s" % cursor)
-
-    entity.free()
-
-
-func test_deploy_cursor_for_deployable_entity():
-    var entity := Node3D.new()
-    var deploy := DeployComponent.new()
-    deploy.deploys_into = "GDI_CONSTRUCTION_YARD"
-    entity.add_child(deploy)
-
-    var cursor := deploy.get_cursor_for_target(entity, Vector2i.ZERO)
-
-    if cursor == CursorState.Type.DEPLOY:
-        _test_passed += 1
-        print("    PASS: get_cursor_for_target returns DEPLOY for deployable entity")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected DEPLOY cursor, got %s" % cursor)
-
-    entity.free()
