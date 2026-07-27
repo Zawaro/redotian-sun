@@ -25,14 +25,16 @@ func _init() -> void:
 func _ready() -> void:
     if Engine.is_editor_hint():
         return
-    if _configured:
-        return
-    if art_data and not art_data.model_path.is_empty():
-        _load_model()
-        if not art_data.active_anims.is_empty():
-            _setup_animation_player()
-    else:
-        _add_placeholder()
+    if not _configured:
+        if art_data and not art_data.model_path.is_empty():
+            _load_model()
+            if not art_data.active_anims.is_empty():
+                _setup_animation_player()
+        else:
+            _add_placeholder()
+    # Node3D re-enables _process on tree entry (overriding _init), so gate it here:
+    # only poll while a threaded load is actually in flight (_process clears it on completion).
+    set_process(not _loading_path.is_empty())
 
 
 func configure(data: EntityData) -> void:
@@ -103,7 +105,9 @@ func _finalize_model(scene: PackedScene) -> void:
             var mat := StandardMaterial3D.new()
             mat.albedo_texture = tex
             _apply_material(instance, mat)
-    model_loaded.emit()
+    # Deferred so a consumer connecting right after configure() (cache-hit path) still
+    # receives it; the async path is already post-connection but stays uniform this way.
+    model_loaded.emit.call_deferred()
 
 
 func _apply_material(node: Node, mat: StandardMaterial3D) -> void:
