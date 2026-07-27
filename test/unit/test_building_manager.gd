@@ -169,3 +169,24 @@ func test_adjacency_accepted_near_friendly() -> void:
     TestHelper.assert_true(
         result == true, "adjacency accepted near a friendly building: expected true, got false"
     )
+
+
+func test_adjacency_ignores_building_without_stats() -> void:
+    if _bm == null:
+        TestHelper.fail("BuildingManager not injected")
+        return
+    var building_type := _make_2x2_building()
+    building_type.adjacent = 1
+    # Building has no StatsComponent → must NOT count as a friendly neighbor
+    var node := Node3D.new()
+    var saved: Array = _bm._buildings.duplicate()
+    _bm._buildings.clear()
+    _bm._buildings.append(
+        {"node": node, "type": building_type, "origin": Vector2i(3, 3), "cells": [Vector2i(3, 3)]}
+    )
+    var result: bool = _bm._is_adjacency_satisfied(building_type, Vector2i(4, 3))
+    _bm._buildings.assign(saved)
+    node.free()
+    TestHelper.assert_true(
+        result == false, "adjacency ignores stats-less building: expected false, got true"
+    )
