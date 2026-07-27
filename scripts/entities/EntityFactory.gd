@@ -390,7 +390,12 @@ func _wire_components(entity: Node3D) -> void:
 
 
 func _configure_components(entity: Node3D, data: EntityData) -> void:
+    # Validate then configure each component independently, so a warning (or bad
+    # data) on one component does not stop the others from being configured.
     for child in entity.get_children():
+        if child.has_method("validate"):
+            for warning in child.validate(data):
+                push_warning("EntityFactory: %s" % warning)
         if child.has_method("configure"):
             child.configure(data)
 
