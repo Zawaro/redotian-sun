@@ -426,7 +426,7 @@ func test_clear_queue_skips_dead_clients():
 # --- _process promotes from queue ---
 
 
-func test_process_promotes_from_queue_after_ticks():
+func test_process_promotes_from_queue_after_seconds():
     var host := _make_dock_host(2)
     var dock_entity := Node3D.new()
     dock_entity.name = "TestRefinery"
@@ -443,11 +443,11 @@ func test_process_promotes_from_queue_after_ticks():
     host.queue.append(docker_a)
     host.queue.append(docker_b)
 
-    # First tick — counter increments but hasn't reached dock_wait_ticks
+    # First tick — counter increments but hasn't reached dock_wait_seconds
     host._process(0.1)
     if host.current_docker == null and host.queue.size() == 2:
         _test_passed += 1
-        print("    PASS: _process waits for dock_wait_ticks before promoting")
+        print("    PASS: _process waits for dock_wait_seconds before promoting")
     else:
         _test_failed += 1
         print(
@@ -457,11 +457,11 @@ func test_process_promotes_from_queue_after_ticks():
             )
         )
 
-    # Second tick — counter reaches dock_wait_ticks, promotes first
+    # Second tick — counter reaches dock_wait_seconds, promotes first
     host._process(0.1)
     if host.current_docker == docker_a and host.queue.size() == 1:
         _test_passed += 1
-        print("    PASS: _process promotes first queued client after ticks")
+        print("    PASS: _process promotes first queued client after seconds")
     else:
         _test_failed += 1
         print(
@@ -495,7 +495,7 @@ func test_process_does_not_pop_queue_when_current_active():
     host.current_docker = current
     host.queue.append(queued)
 
-    # Tick past dock_wait_ticks — should NOT pop because current is active
+    # Tick past dock_wait_seconds — should NOT pop because current is active
     host._process(0.1)
     host._process(0.1)
 
