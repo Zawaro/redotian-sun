@@ -27,8 +27,10 @@ func configure(data: EntityData) -> void:
 
 
 func validate(data: EntityData) -> PackedStringArray:
-    # No special ability is implemented yet — log a TODO for each enabled flag.
+    # No active special ability is implemented yet — log a TODO for each enabled flag.
     # grep "TODO:" to find the full list of pending abilities.
+    # `capturable` is excluded: it is a passive "can be captured" target flag, not an
+    # unimplemented active ability, so it must not emit a TODO warning.
     var todos: PackedStringArray = []
     var flags := {
         "cloakable": data.cloakable,
@@ -40,7 +42,6 @@ func validate(data: EntityData) -> PackedStringArray:
         "thief": data.thief,
         "immune_to_resource_damage": data.immune_to_resource_damage,
         "immune_to_veins": data.immune_to_veins,
-        "capturable": data.capturable,
     }
     for ability in flags:
         if flags[ability]:

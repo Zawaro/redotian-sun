@@ -395,7 +395,8 @@ func _configure_components(entity: Node3D, data: EntityData) -> void:
     for child in entity.get_children():
         if child.has_method("validate"):
             for warning in child.validate(data):
-                push_warning("EntityFactory: %s" % warning)
+                # Messages already self-identify (e.g. "FactoryComponent: ...").
+                push_warning(warning)
         if child.has_method("configure"):
             child.configure(data)
 

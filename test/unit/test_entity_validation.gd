@@ -6,6 +6,9 @@ extends Node
 var _test_passed := 0
 var _test_failed := 0
 
+# Injected by test runner (see run_tests.gd:_inject_autoloads) — reaches /root/EntityFactory.
+var _em: Node = null
+
 
 func _data(overrides: Dictionary = {}) -> EntityData:
     var data := EntityData.new()
@@ -134,3 +137,60 @@ func test_combat_empty_weapons_warns():
     var errors := c.validate(_data({"weapons": []}))
     _check(_contains(errors, "no weapons"), "CombatComponent warns on empty weapons")
     c.free()
+
+
+func test_combat_invalid_weapon_forwarded():
+    # Per-weapon WeaponData.validate() forwarding branch: a default (empty-id) weapon
+    # is invalid and its error must surface through CombatComponent.
+    var c := CombatComponent.new()
+    var data := _data()
+    data.weapons = [WeaponData.new()]
+    var errors := c.validate(data)
+    _check(_contains(errors, "id is empty"), "CombatComponent forwards WeaponData.validate errors")
+    c.free()
+
+
+# --- StatsComponent ---
+
+
+func test_stats_empty_id_warns():
+    var s := StatsComponent.new()
+    var errors := s.validate(_data({"id": ""}))
+    _check(_contains(errors, "id is empty"), "StatsComponent warns on empty id")
+    s.free()
+
+
+func test_stats_valid_id_ok():
+    var s := StatsComponent.new()
+    var errors := s.validate(_data())
+    _check(errors.is_empty(), "StatsComponent silent on non-empty id")
+    s.free()
+
+
+# --- EntityFactory validation isolation (one warns, others still configure) ---
+
+
+func test_factory_isolates_component_warning():
+    var ef: Node = _em.get_node_or_null("/root/EntityFactory") if _em else null
+    if ef == null:
+        _check(false, "EntityFactory autoload available")
+        return
+    # cloakable -> SpecialAbilityComponent emits a TODO warning; every other
+    # component must still configure regardless.
+    var data := _data({"id": "iso_test", "strength": 100, "owner": ["GDI"], "cloakable": true})
+    ef._entity_cache["iso_test"] = data
+    var entity: Node = ef.create_entity("iso_test")
+    _check(entity != null, "factory creates entity despite a component warning")
+    if entity != null:
+        var stats := entity.get_node_or_null("StatsComponent")
+        _check(
+            stats != null and stats.id == "iso_test",
+            "non-warning component (StatsComponent) still configured"
+        )
+        var special := entity.get_node_or_null("SpecialAbilityComponent")
+        _check(
+            special != null and special.cloakable,
+            "warning component (SpecialAbilityComponent) still configured"
+        )
+        entity.free()
+    ef._entity_cache.erase("iso_test")
