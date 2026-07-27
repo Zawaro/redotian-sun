@@ -18,6 +18,7 @@ The following components SHALL validate:
   known queue types (`BuildingType`, `InfantryType`, `VehicleType`,
   `AircraftType`).
 - **TransportComponent**: warns when `harvester == true` but `dock` is empty.
+- **StatsComponent**: warns when `id` is empty.
 
 `PowerComponent` and `ArtComponent` are data-only / already graceful and SHALL
 NOT define `validate()`.
@@ -45,6 +46,10 @@ NOT define `validate()`.
 #### Scenario: TransportComponent without dock for harvester
 - **WHEN** `TransportComponent.validate()` runs against EntityData `id = "E1"` with `harvester = true`, `dock = ""`
 - **THEN** it returns a message about the missing dock for `'E1'`
+
+#### Scenario: StatsComponent with empty id
+- **WHEN** `StatsComponent.validate()` runs against EntityData with `id = ""`
+- **THEN** it returns a message containing `"id is empty"`
 
 ### Requirement: Graceful degradation
 When validation fails, the entity SHALL still be created with whatever valid data
