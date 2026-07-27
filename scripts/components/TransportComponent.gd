@@ -29,6 +29,13 @@ func configure(data: EntityData) -> void:
     pip_scale = data.pip_scale
 
 
+func validate(data: EntityData) -> PackedStringArray:
+    var errors: PackedStringArray = []
+    if data.harvester and data.dock.is_empty():
+        errors.append("TransportComponent: '%s' is a harvester but has no dock" % data.id)
+    return errors
+
+
 func can_carry() -> bool:
     return passengers > 0
 
