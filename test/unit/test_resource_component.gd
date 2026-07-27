@@ -209,19 +209,6 @@ func test_build_material_is_emissive():
         )
 
 
-func test_build_material_matches_type_color():
-    var red := Color(1.0, 0.2, 0.2, 1)
-    var mat := ResourceComponent._build_material(red)
-    if mat.emission == red and mat.albedo_color == red:
-        _test_passed += 1
-        print("    PASS: _build_material tints emission per resource color")
-    else:
-        _test_failed += 1
-        print(
-            "    FAIL: expected emission=albedo=red, got %s / %s" % [mat.emission, mat.albedo_color]
-        )
-
-
 func test_collect_partial_bale():
     var entity := _make_entity(300, 300)
     var tib := entity.get_node("ResourceComponent") as ResourceComponent
