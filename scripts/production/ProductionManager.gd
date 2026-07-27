@@ -236,6 +236,10 @@ func _complete_item(key: String, index: int) -> void:
             em.deduct(player_id, remaining, "prod:%s" % entity_data.id)
             item.deducted += remaining
 
+    # Capture what was paid before the count/reset block clears item.deducted,
+    # so a cancelled ready building refunds the actual cost paid (not 0).
+    var paid := item.deducted
+
     # Decrement count
     if item.count > 1:
         item.count -= 1
@@ -247,7 +251,7 @@ func _complete_item(key: String, index: int) -> void:
 
     # Buildings go to ready-to-place state; units spawn immediately
     if entity_data.entity_type == EntityData.EntityType.BUILDING:
-        _add_ready_to_place(player_id, entity_data, item.deducted)
+        _add_ready_to_place(player_id, entity_data, paid)
         _waiting_for_placement[key] = true
     else:
         _spawn_unit(entity_data, player_id)

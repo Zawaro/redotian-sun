@@ -50,7 +50,7 @@ static func is_inside_node(node: Node, ancestor_name: String) -> bool:
 
 ## Finds the Sidebar Control node in the current scene tree, caching the result.
 static func find_sidebar() -> Node:
-    if is_instance_valid(_cached_sidebar):
+    if is_instance_valid(_cached_sidebar) and _cached_sidebar.is_inside_tree():
         return _cached_sidebar
     var tree := Engine.get_main_loop() as SceneTree
     if not tree or not tree.current_scene:
