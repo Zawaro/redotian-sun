@@ -2,7 +2,8 @@ extends Node
 
 # ArtComponent unit tests — model cache, async-load guards, and model_loaded signal.
 # Async completion is polled in _process(), which the headless runner does not step,
-# so these tests exercise the synchronous cache-hit and guard paths.
+# and model_loaded is emitted deferred, so these tests exercise the synchronous
+# mesh-present guarantee and the request/gating setup rather than signal delivery.
 
 const ART_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/ArtComponent.gd")
 
@@ -55,7 +56,30 @@ func test_cache_hit_instantiates_synchronously():
 
     var has_child := comp.get_child_count() > 0
     TestHelper.assert_true(has_child, "cache hit adds the model as a child synchronously")
-    TestHelper.assert_true(_signal_fired, "cache hit emits model_loaded")
+    TestHelper.assert_true(
+        not _signal_fired, "cache hit defers model_loaded until after configure() returns"
+    )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+
+    ArtComponent._model_cache.erase(path)
+    entity.free()
+
+
+func test_cache_miss_starts_threaded_load():
+    # Valid, uncached model: configure() must issue a threaded request and enable polling.
+    # Completion can't be polled headless, so we only assert the request started.
+    var path := "res://assets/models/gdi_conyard01.glb"
+    ArtComponent._model_cache.erase(path)
+    TestHelper.assert_true(ResourceLoader.exists(path), "test model resource exists")
+
+    var entity := Node3D.new()
+    var comp := _make_component(entity)
+    comp.configure(_make_data(path))
+
+    TestHelper.assert_true(comp._loading_path == path, "cache miss issues a threaded load request")
+    TestHelper.assert_true(comp.is_processing(), "cache miss enables _process polling")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
