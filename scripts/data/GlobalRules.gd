@@ -1,5 +1,9 @@
 class_name GlobalRules extends Resource
 
+## Terrain grade (rise/run) at which a locomotor's uphill/downhill coefficient
+## reaches full effect. 1.0 == 45°.
+const SLOPE_MAX_GRADE: float = 1.0
+
 ## Veterancy
 @export_group("Veterancy")
 @export var veteran_ratio: float = 10.0
@@ -115,6 +119,64 @@ class_name GlobalRules extends Resource
 func get_armor_modifier(armor_type: String) -> float:
     if armor_types.has(armor_type):
         return armor_types[armor_type].get("modifier", 1.0)
+    return 1.0
+
+
+func _clamp_veteran(level: int) -> int:
+    return clampi(level, 0, veteran_cap)
+
+
+## Combat damage multiplier for a veteran level (1.0 = no bonus).
+func veteran_combat_multiplier(level: int) -> float:
+    return 1.0 + _clamp_veteran(level) * veteran_combat
+
+
+## Movement speed multiplier for a veteran level (1.0 = no bonus).
+func veteran_speed_multiplier(level: int) -> float:
+    return 1.0 + _clamp_veteran(level) * veteran_speed
+
+
+## Damage-taken multiplier for a veteran level (< 1.0 = damage reduction).
+func veteran_armor_multiplier(level: int) -> float:
+    return 1.0 - _clamp_veteran(level) * veteran_armor
+
+
+## Final damage after the target's armor modifier and veteran armor reduction.
+## Any positive base damage deals at least 1.
+func compute_final_damage(base_damage: int, armor_type: String, veteran_level: int) -> int:
+    if base_damage <= 0:
+        return 0
+    var scaled: float = (
+        base_damage * get_armor_modifier(armor_type) * veteran_armor_multiplier(veteran_level)
+    )
+    return maxi(1, roundi(scaled))
+
+
+## Production speed multiplier for owning `factory_count` factories of a type.
+func production_speed_multiplier(factory_count: int) -> float:
+    return 1.0 + maxi(0, factory_count - 1) * multiple_factory
+
+
+## Speed coefficient for a locomotor on a terrain grade (rise/run).
+## Positive grade = uphill (slower), negative = downhill. Returns 1.0 when flat
+## or when the locomotor is not a ground vehicle (Track/Wheel).
+func movement_slope_coefficient(locomotor: String, grade: float) -> float:
+    var uphill: float
+    var downhill: float
+    match locomotor:
+        "Track":
+            uphill = tracked_uphill
+            downhill = tracked_downhill
+        "Wheel":
+            uphill = wheeled_uphill
+            downhill = wheeled_downhill
+        _:
+            return 1.0
+    var t: float = clampf(absf(grade) / SLOPE_MAX_GRADE, 0.0, 1.0)
+    if grade > 0.0:
+        return lerpf(1.0, uphill, t)
+    if grade < 0.0:
+        return lerpf(1.0, downhill, t)
     return 1.0
 
 

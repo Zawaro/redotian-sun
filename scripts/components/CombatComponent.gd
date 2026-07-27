@@ -41,6 +41,21 @@ func get_weapon_count() -> int:
     return weapons.size()
 
 
+## Weapon base damage scaled by this entity's veteran level. Used by the
+## firing pipeline once weapons deal damage.
+func get_effective_damage(weapon: WeaponData) -> int:
+    if not weapon:
+        return 0
+    var rules: GlobalRules = null
+    if EntityFactory and EntityFactory.has_method("get_global_rules"):
+        rules = EntityFactory.get_global_rules()
+    if not rules:
+        return weapon.damage
+    var stats := get_parent().get_node_or_null("StatsComponent") as StatsComponent
+    var level := stats.veteran_level if stats else 0
+    return roundi(weapon.damage * rules.veteran_combat_multiplier(level))
+
+
 func cycle_weapon() -> void:
     if not weapons.is_empty():
         _current_weapon_index = (_current_weapon_index + 1) % weapons.size()

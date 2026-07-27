@@ -632,8 +632,14 @@ func repair_building(building_node: Node3D) -> bool:
     if health and health is HealthComponent:
         if health.current_health >= entity_data.strength:
             return false
-        # Heal by repair_step
-        var heal_amount: int = mini(8, entity_data.strength - health.current_health)
+        # Heal by repair_step (from GlobalRules; fall back to 8)
+        var repair_step := 8
+        var ef := get_node_or_null("/root/EntityFactory")
+        if ef and ef.has_method("get_global_rules"):
+            var rules := ef.get_global_rules() as GlobalRules
+            if rules:
+                repair_step = rules.repair_step
+        var heal_amount: int = mini(repair_step, entity_data.strength - health.current_health)
         health.heal(heal_amount)
     building_repaired.emit(building_node, entity_data)
     return true

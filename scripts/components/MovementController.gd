@@ -33,6 +33,7 @@ var _rotation_yaw: float = 0.0
 
 var _is_infantry: bool = false
 var _crusher: bool = false
+var _rules: GlobalRules
 var _player_id: int = -1
 var _assigned_slot: int = -1
 var _sub_slot_position: Vector3 = Vector3.ZERO
@@ -40,16 +41,25 @@ var _has_sub_slot: bool = false
 var _last_position: Vector3 = Vector3.ZERO
 
 
+func configure(data: EntityData) -> void:
+    locomotor = data.locomotor
+    movement_zone = data.movement_zone
+
+
 func _ready() -> void:
     _parent = get_parent() as Node3D
     _resolve_rotation_target()
     _speed_jitter = randf_range(0.95, 1.0)
     _wait_threshold = 10.0 + randf_range(0.0, 15.0)
+    if EntityFactory and EntityFactory.has_method("get_global_rules"):
+        _rules = EntityFactory.get_global_rules()
     var stats := _parent.get_node_or_null("StatsComponent") as StatsComponent
     if stats:
         _is_infantry = stats.entity_type == EntityData.EntityType.INFANTRY
         _crusher = stats.crusher
         _player_id = stats.player_id
+        if _rules:
+            move_speed *= _rules.veteran_speed_multiplier(stats.veteran_level)
 
 
 func _num_segments() -> int:
@@ -302,7 +312,15 @@ func _handle_moving_movement(delta: float) -> void:
     if is_instance_valid(_rotation_target):
         _apply_facing(Vector3(final_direction.x, 0.0, final_direction.z).normalized())
 
-    var step := final_direction * move_speed * _speed_jitter * speed_factor * delta
+    var slope_coeff := 1.0
+    if _rules and not _is_infantry:
+        var ahead := parent_pos + spline_dir * CellUtil.CELL_SIZE
+        var grade := (
+            (TerrainSystem.get_height_at_world_smooth(ahead) - parent_pos.y) / CellUtil.CELL_SIZE
+        )
+        slope_coeff = _rules.movement_slope_coefficient(locomotor, grade)
+
+    var step := final_direction * move_speed * _speed_jitter * speed_factor * slope_coeff * delta
     _spline_t += step.length() / seg_length
 
     if _spline_t >= float(_num_segments()):

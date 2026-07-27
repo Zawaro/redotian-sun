@@ -183,7 +183,12 @@ func _process(delta: float) -> void:
             continue
 
         var speed := _get_production_speed(key)
-        var build_time: float = item.entity_data.get_build_time()
+        var rules := _get_rules()
+        var build_time: float = (
+            item.entity_data.get_build_time(rules.build_speed)
+            if rules
+            else item.entity_data.get_build_time()
+        )
         if build_time <= 0.0:
             _complete_item(key, active)
             continue
@@ -313,10 +318,20 @@ func _find_exit_cell(factory: Node3D) -> Vector2i:
     )
 
 
+func _get_rules() -> GlobalRules:
+    var ef := get_node_or_null("/root/EntityFactory")
+    if ef and ef.has_method("get_global_rules"):
+        return ef.get_global_rules() as GlobalRules
+    return null
+
+
 func _get_production_speed(queue_key: String) -> float:
     var player_id := int(queue_key.get_slice(":", 0))
     var factory_type := queue_key.get_slice(":", 1)
     var result := _find_factories(player_id, factory_type)
+    var rules := _get_rules()
+    if rules:
+        return rules.production_speed_multiplier(result.count)
     return 1.0 + (result.count - 1) * 0.25
 
 

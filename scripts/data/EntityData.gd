@@ -298,12 +298,13 @@ const BUILD_SPEED: float = 0.8
 
 
 ## Returns effective build time in seconds. Uses explicit build_time if set,
-## otherwise calculates from cost using TS formula.
-func get_build_time() -> float:
+## otherwise calculates from cost. `build_speed` defaults to the local constant;
+## ProductionManager passes GlobalRules.build_speed so the resource wins at runtime.
+func get_build_time(build_speed: float = BUILD_SPEED) -> float:
     if build_time > 0.0:
         return build_time
     # TS formula: (cost / 1000) * BuildSpeed * 60
-    return cost * BUILD_SPEED * 60.0 / 1000.0
+    return cost * build_speed * 60.0 / 1000.0
 
 
 func validate() -> PackedStringArray:

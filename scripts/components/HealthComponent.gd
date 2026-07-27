@@ -13,6 +13,19 @@ signal health_zero
         if old_health != current_health:
             health_changed.emit(current_health, old_health)
 
+var _rules: GlobalRules
+var _stats: StatsComponent
+var _resolved: bool = false
+
+
+func _resolve_refs() -> void:
+    _resolved = true
+    if EntityFactory and EntityFactory.has_method("get_global_rules"):
+        _rules = EntityFactory.get_global_rules()
+    var parent := get_parent()
+    if parent:
+        _stats = parent.get_node_or_null("StatsComponent") as StatsComponent
+
 
 func configure(data: EntityData) -> void:
     if data.strength > 0:
@@ -23,8 +36,15 @@ func configure(data: EntityData) -> void:
 func take_damage(damage: int, damage_type: String = "") -> void:
     if damage <= 0:
         return
-    current_health -= damage
-    damage_taken.emit(damage, damage_type)
+    if not _resolved:
+        _resolve_refs()
+    var final_damage := damage
+    if _rules:
+        var armor := _stats.armor if _stats else "none"
+        var veteran := _stats.veteran_level if _stats else 0
+        final_damage = _rules.compute_final_damage(damage, armor, veteran)
+    current_health -= final_damage
+    damage_taken.emit(final_damage, damage_type)
     if current_health <= 0:
         health_zero.emit()
 
