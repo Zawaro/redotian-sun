@@ -28,7 +28,7 @@ Integer counters increment once per tick regardless of tick duration, so they me
 
 **Rename `dock_wait_ticks: int` to `dock_wait_seconds: float`.** The property's unit changes from frames to seconds, so keeping the old name would be misleading. No packed scene or resource sets this property (verified by grep), so the rename has no scene-migration cost. Alternative considered: keep the name and reinterpret it as seconds — rejected because a property named `_ticks` holding seconds is a future foot-gun.
 
-**Derive the new seconds thresholds from the old frame counts at 60 FPS** (e.g. `10 frames → 10/60 s`, `15 → 15/60`, `25 → 25/60`). Expressed as `x / 60.0` constants so the origin stays legible and the values remain easy to retune. The exact durations are cosmetic debounce/scatter delays, not gameplay-critical, but preserving them avoids behavioural drift.
+**Derive the new seconds thresholds from the old frame counts at 60 FPS** (e.g. `10 frames → 10/60 s`, `15 → 15/60`, `25 → 25/60`). The movement delays are expressed as `x / 60.0` constants so the origin stays legible and the values remain easy to retune. `dock_wait_seconds` is the exception: its default is a rounded, tuned `0.2` (≈12 frames at 60 FPS) rather than the exact `10/60 ≈ 0.167`, matching the value shipped in `DockHostComponent`. The exact durations are cosmetic debounce/scatter delays, not gameplay-critical, but preserving them avoids behavioural drift.
 
 **`_handle_wait` gains a `delta` parameter** so it can accumulate time; it is only called from the `State.WAIT` branch of `_physics_process`, which already has `delta`.
 
