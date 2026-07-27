@@ -82,6 +82,18 @@ func _center_camera_on_diamond() -> void:
     camera_pivot.global_position = Vector3(0.0, camera_pivot.global_position.y, 0.0)
 
 
+## Restore visible-bounds insets from loaded map data (JSON v4), with a v3 fallback.
+func apply_saved_bounds(data: Dictionary) -> void:
+    var vbs: Variant = data.get("visible_bounds_size")
+    if vbs is Array and vbs.size() == 2:
+        visible_offset_x = maxi((grid_cells.x - int(vbs[0])) / 2, 0)
+        visible_offset_z = maxi((grid_cells.y - int(vbs[1])) / 2, 0)
+        return
+    # v3 fallback: no persisted bounds — use the standard default insets.
+    visible_offset_x = 10
+    visible_offset_z = 8
+
+
 # ========================================
 # Setters
 # ========================================
