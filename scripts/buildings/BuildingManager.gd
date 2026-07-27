@@ -390,6 +390,15 @@ func _create_building_preview() -> void:
         _building_preview.set_meta("_preview", true)
         _set_node_transparency(_building_preview, 0.33)
         _preview.add_child(_building_preview)
+        # The model may load asynchronously; re-apply transparency once it arrives.
+        var art := _building_preview.get_node_or_null("ArtComponent") as ArtComponent
+        if art:
+            art.model_loaded.connect(_on_preview_model_loaded)
+
+
+func _on_preview_model_loaded() -> void:
+    if is_instance_valid(_building_preview):
+        _set_node_transparency(_building_preview, 0.33)
 
 
 func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:

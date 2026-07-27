@@ -1,11 +1,25 @@
 @tool
 class_name ArtComponent extends Node3D
 
+## Emitted once the model mesh has been added as a child — for both the
+## cache-hit path and a completed background load.
+signal model_loaded
+
+## Process-wide cache of loaded model scenes (model_path -> PackedScene),
+## shared across every ArtComponent so each model is read from disk at most once.
+static var _model_cache: Dictionary = {}
+
 @export var art_data: ArtData = null
 
 var _animation_player: AnimationPlayer
 var _foundation: Vector2i = Vector2i(1, 1)
 var _configured: bool = false
+var _loading_path: String = ""
+
+
+func _init() -> void:
+    # Only poll while a background load is in flight (see _load_model / _process).
+    set_process(false)
 
 
 func _ready() -> void:
@@ -40,13 +54,46 @@ func configure(data: EntityData) -> void:
 func _load_model() -> void:
     if art_data == null or art_data.model_path.is_empty():
         return
-    if not ResourceLoader.exists(art_data.model_path):
-        push_warning("ArtComponent: model not found: %s" % art_data.model_path)
+    var path := art_data.model_path
+    var cached := _model_cache.get(path) as PackedScene
+    if cached != null:
+        _finalize_model(cached)
         return
-    var scene := load(art_data.model_path) as PackedScene
+    if not ResourceLoader.exists(path):
+        push_warning("ArtComponent: model not found: %s" % path)
+        return
+    # Load off the main thread; completion is polled in _process().
+    var err := ResourceLoader.load_threaded_request(path)
+    if err != OK:
+        push_warning("ArtComponent: failed to request model: %s" % path)
+        return
+    _loading_path = path
+    set_process(true)
+
+
+func _process(_delta: float) -> void:
+    if Engine.is_editor_hint() or _loading_path.is_empty():
+        return
+    var status := ResourceLoader.load_threaded_get_status(_loading_path)
+    if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+        return
+    var path := _loading_path
+    _loading_path = ""
+    set_process(false)
+    if status != ResourceLoader.THREAD_LOAD_LOADED:
+        push_warning("ArtComponent: failed to load model: %s" % path)
+        return
+    var scene := ResourceLoader.load_threaded_get(path) as PackedScene
     if scene == null:
-        push_warning("ArtComponent: failed to load model: %s" % art_data.model_path)
+        push_warning("ArtComponent: loaded resource is not a PackedScene: %s" % path)
         return
+    _model_cache[path] = scene
+    if not is_instance_valid(self):
+        return
+    _finalize_model(scene)
+
+
+func _finalize_model(scene: PackedScene) -> void:
     var instance := scene.instantiate()
     add_child(instance)
     instance.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else owner
@@ -56,6 +103,7 @@ func _load_model() -> void:
             var mat := StandardMaterial3D.new()
             mat.albedo_texture = tex
             _apply_material(instance, mat)
+    model_loaded.emit()
 
 
 func _apply_material(node: Node, mat: StandardMaterial3D) -> void:
