@@ -240,6 +240,30 @@ func lower_cell(cell: Vector2i) -> void:
         _cascade_from_vertices(origins)
 
 
+## Level a footprint region to its maximum height. `origin_cell` and `size` are
+## in centered cell coordinates (same space as get_cell_max_height). Sets every
+## vertex bounding the footprint to the region's max level; the existing cascade
+## then re-slopes the surrounding ring to keep single-step transitions.
+# ponytail: set_vertex cascades per call; placement is a rare user event, so the
+# repeated cascade cost is fine. Batch cascade only if profiling flags it.
+func flatten_footprint(origin_cell: Vector2i, size: Vector2i) -> void:
+    if size.x <= 0 or size.y <= 0:
+        return
+    var offset_x := grid_cells.x >> 1
+    var offset_z := grid_cells.y >> 1
+    var vx0 := origin_cell.x + offset_x
+    var vz0 := origin_cell.y + offset_z
+    var vx1 := vx0 + size.x
+    var vz1 := vz0 + size.y
+    var target := 0
+    for vx in range(vx0, vx1 + 1):
+        for vz in range(vz0, vz1 + 1):
+            target = maxi(target, get_vertex(vx, vz))
+    for vx in range(vx0, vx1 + 1):
+        for vz in range(vz0, vz1 + 1):
+            set_vertex(vx, vz, target)
+
+
 # ========================================
 # Cell Queries (from cache)
 # ========================================
