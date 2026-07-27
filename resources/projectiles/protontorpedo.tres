@@ -23,5 +23,5 @@ sub_projectile_count = 0
 speed_override = 0.0
 casts_shadow = false
 graphic_name = ""
-rotates_to_face = true
+rotates_to_face = false
 tint_color = Color(1, 1, 1, 1)
