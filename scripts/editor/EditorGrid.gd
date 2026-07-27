@@ -50,43 +50,31 @@ func _draw_grid() -> void:
     material.albedo_color = Color(1, 1, 1, 0.3)
     mesh.surface_begin(Mesh.PRIMITIVE_LINES, material)
 
-    var cell_size := CellUtil.CELL_SIZE
-    var cells_x: int = TerrainSystem.grid_cells.x
-    var cells_z: int = TerrainSystem.grid_cells.y
-    var half_w: float = float(cells_x) * 0.5 * cell_size
-    var half_h: float = float(cells_z) * 0.5 * cell_size
+    var cs: float = CellUtil.CELL_SIZE
+    var wx: float = float(TerrainSystem.grid_cells.x)
+    var hz: float = float(TerrainSystem.grid_cells.y)
+    var w_cs: float = wx * cs
+    var w2h_cs: float = (wx + hz * 2.0) * cs
 
-    for i in range(cells_x + 1):
-        var world_x: float = float(i) * cell_size - half_w
-        var abs_x: float = absf(world_x)
-        var ratio_x: float = abs_x / half_w if half_w > 0.0 else 0.0
-        var z_limit: float = half_h * (1.0 - ratio_x)
-        if z_limit > 0.0:
-            mesh.surface_add_vertex(Vector3(world_x, 0.01, -z_limit))
-            mesh.surface_add_vertex(Vector3(world_x, 0.01, z_limit))
+    # Diamond is computed in cell-space*cs then translated by +cs into the world
+    # frame, matching CellUtil's 1-cell origin shift so lines land on tile edges.
+    # Vertical lines (x = i * cs, clipped to diamond z-bounds)
+    for i in range(int(wx + hz) + 1):
+        var x: float = float(i) * cs
+        var z_min: float = absf(x - w_cs)
+        var z_max: float = minf(x + w_cs, w2h_cs - x)
+        if z_min < z_max:
+            mesh.surface_add_vertex(Vector3(x + cs, 0.01, z_min + cs))
+            mesh.surface_add_vertex(Vector3(x + cs, 0.01, z_max + cs))
 
-    for j in range(cells_z + 1):
-        var world_z: float = float(j) * cell_size - half_h
-        var abs_z: float = absf(world_z)
-        var ratio_z: float = abs_z / half_h if half_h > 0.0 else 0.0
-        var x_limit: float = half_w * (1.0 - ratio_z)
-        if x_limit > 0.0:
-            mesh.surface_add_vertex(Vector3(-x_limit, 0.01, world_z))
-            mesh.surface_add_vertex(Vector3(x_limit, 0.01, world_z))
-
-    if half_w > 0.0 and half_h > 0.0:
-        var tip_left := Vector3(-half_w, 0.01, 0.0)
-        var tip_top := Vector3(0.0, 0.01, -half_h)
-        var tip_right := Vector3(half_w, 0.01, 0.0)
-        var tip_bottom := Vector3(0.0, 0.01, half_h)
-        mesh.surface_add_vertex(tip_left)
-        mesh.surface_add_vertex(tip_top)
-        mesh.surface_add_vertex(tip_top)
-        mesh.surface_add_vertex(tip_right)
-        mesh.surface_add_vertex(tip_right)
-        mesh.surface_add_vertex(tip_bottom)
-        mesh.surface_add_vertex(tip_bottom)
-        mesh.surface_add_vertex(tip_left)
+    # Horizontal lines (z = j * cs, clipped to diamond x-bounds)
+    for j in range(int(wx + hz) + 1):
+        var z: float = float(j) * cs
+        var x_min: float = absf(z - w_cs)
+        var x_max: float = minf(z + w_cs, w2h_cs - z)
+        if x_min < x_max:
+            mesh.surface_add_vertex(Vector3(x_min + cs, 0.01, z + cs))
+            mesh.surface_add_vertex(Vector3(x_max + cs, 0.01, z + cs))
 
     mesh.surface_end()
     _grid_overlay.mesh = mesh
@@ -105,7 +93,7 @@ func _update_cell_highlight() -> void:
         return
     _cell_highlight.visible = true
     var mesh := ImmediateMesh.new()
-    var world_pos := CellUtil.cell_to_world(editor._hovered_cell, TerrainSystem.grid_cells)
+    var world_pos := CellUtil.cell_to_world(editor._hovered_cell)
     var height: int = cell_data.get("max_height", cell_data.get("height", 0))
     world_pos.y = float(height) * TerrainSystem.HEIGHT_STEP + 0.02
     var half: float = CellUtil.CELL_SIZE * 0.475
@@ -183,7 +171,7 @@ func _update_height_label() -> void:
     var cell: Vector2i = editor._hovered_cell
     var cell_data: Dictionary = TerrainSystem.get_cell(cell)
     var h: int = cell_data.get("height", 0)
-    var cell_world := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
+    var cell_world := CellUtil.cell_to_world(cell)
     var wx: float = cell_world.x
     var wz: float = cell_world.z
     var wy: float = float(h) * TerrainSystem.HEIGHT_STEP

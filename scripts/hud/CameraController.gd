@@ -9,7 +9,7 @@ var border_panning_threshold: float = 7.0
 
 
 # Move camera with middle mouse press in isometric viewport where camera is rotated 45 degrees
-func _process(_delta):
+func _process(_delta: float) -> void:
     if not Engine.is_editor_hint():
         # Frame-rate independent movement speed
         var axis_speed := 20.0
@@ -45,8 +45,10 @@ func _process(_delta):
         if not Input.is_action_pressed("move_map"):
             handle_border_panning(_delta, axis_speed, forward)
 
+        _constrain_to_map_bounds()
 
-func slide_map_around(_delta):
+
+func slide_map_around(_delta: float) -> void:
     var current_mouse_pos = get_viewport().get_mouse_position()
     var rel = current_mouse_pos - fixed_toggle_point
     # Halve the horizontal (left/right) movement speed by reducing X contribution
@@ -61,7 +63,7 @@ func slide_map_around(_delta):
     )
 
 
-func handle_border_panning(_delta: float, axis_speed: float, forward: Vector3):
+func handle_border_panning(_delta: float, axis_speed: float, forward: Vector3) -> void:
     if not InputSettings.edge_scroll_enabled:
         return
     var viewport_rect = get_viewport().get_visible_rect()
@@ -93,3 +95,11 @@ func handle_border_panning(_delta: float, axis_speed: float, forward: Vector3):
         self.global_position -= forward * axis_speed * _delta
     elif dist_bottom < border_panning_threshold:
         self.global_position += forward * axis_speed * _delta
+
+
+func _constrain_to_map_bounds() -> void:
+    var scene: Node = get_tree().current_scene
+    if is_instance_valid(scene) and scene.has_meta("is_map_editor"):
+        global_position = BoundsSystem.clamp_to_map_diamond(global_position)
+        return
+    global_position = BoundsSystem.clamp_to_visible_diamond(global_position)
