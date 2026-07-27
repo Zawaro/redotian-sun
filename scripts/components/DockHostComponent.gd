@@ -7,10 +7,9 @@ class_name DockHostComponent extends Node
 @export var dock_rotation: float = 0.0
 ## Accepted dock type IDs (e.g. ["harvest"]). Empty = accepts all types.
 @export var dock_types: PackedStringArray = []
-## Frames to wait before promoting the next queued docker after the first.
-## ponytail: frame-based, so the delay scales with FPS. Convert _wait_counter
-## to seconds (delta accumulator) if frame-rate independence matters.
-@export var dock_wait_ticks: int = 10
+## Seconds to wait before promoting the next queued docker after the first.
+## Delta-accumulated, so it stays frame-rate independent and scales with game speed.
+@export var dock_wait_seconds: float = 0.2
 ## Seconds a docked client has to finish the dock sequence before eviction.
 ## The client resets this on arrival and again when unloading begins, so this
 ## mainly bounds the approach — raise it above the worst-case travel time.
@@ -20,8 +19,8 @@ var queue: Array[Node] = []
 var current_docker: Node = null
 var _entity_data: EntityData = null
 var _dock_cell: Vector2i = Vector2i.ZERO
-## Ticks until next promotion. 0 = promote on next _process tick.
-var _wait_counter: int = 0
+## Seconds accumulated toward the next promotion. Resets to 0 after promoting.
+var _wait_seconds: float = 0.0
 ## Seconds since the current docker was docked. Resets on each new docker.
 var _stale_timer: float = 0.0
 ## True when the old docker has undocked but the dock cell may still be occupied.
@@ -135,7 +134,7 @@ func request_dock(docker: Node) -> bool:
     if docker in queue:
         return false
     queue.append(docker)
-    _wait_counter = 0
+    _wait_seconds = 0.0
     return false
 
 
@@ -160,9 +159,9 @@ func _process(delta: float) -> void:
         return
     if current_docker != null:
         return
-    _wait_counter += 1
-    if _wait_counter >= dock_wait_ticks:
-        _wait_counter = 0
+    _wait_seconds += delta
+    if _wait_seconds >= dock_wait_seconds:
+        _wait_seconds = 0.0
         # Find first valid client, discard dead entries.
         var docker: Node = null
         while not queue.is_empty():
@@ -206,7 +205,7 @@ func _clear_queue(_reason: String = "") -> void:
         # on_dock_cancelled() cleans state without emitting signals — safe during teardown.
         if is_instance_valid(docker) and docker.has_method("on_dock_cancelled"):
             docker.on_dock_cancelled()
-    _wait_counter = 0
+    _wait_seconds = 0.0
 
 
 ## Reset the stale timer — called when unloading begins so the timeout
