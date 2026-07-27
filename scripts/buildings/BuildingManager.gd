@@ -99,41 +99,47 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
     if debug_menu and debug_menu.place_anywhere:
         return _is_in_bounds(origin_cell)
 
-    var result: bool = true
-
+    # Bounds and play area — BuildingManager-only knowledge
     for dx in building_type.foundation.x:
         for dz in building_type.foundation.y:
             var cell := origin_cell + Vector2i(dx, dz)
-
             if not _is_in_bounds(cell):
-                result = false
-                break
-
+                return false
             if not _is_in_play_area(cell):
-                result = false
-                break
+                return false
 
-            if not _is_cell_free(cell):
-                result = false
-                break
+    # Cell availability + terrain height variation — canonical footprint check
+    if not FoundationComponent.footprint_buildable(building_type.foundation, origin_cell):
+        return false
 
-        if not result:
-            break
+    # Adjacency requirement (EntityData.adjacent) — needs the building registry
+    if not _is_adjacency_satisfied(building_type, origin_cell):
+        return false
 
-    if result:
-        var min_h := INF
-        var max_h := -INF
-        for dx in building_type.foundation.x:
-            for dz in building_type.foundation.y:
-                var cell := origin_cell + Vector2i(dx, dz)
-                var h := TerrainSystem.get_cell_max_height(cell)
-                min_h = minf(min_h, h)
-                max_h = maxf(max_h, h)
+    return true
 
-        if min_h != INF and (max_h - min_h) > TerrainSystem.HEIGHT_STEP:
-            result = false
 
-    return result
+## Buildings with `adjacent > 0` must be placed within `adjacent` cells (Chebyshev
+## distance) of an existing friendly building. `adjacent <= 0` = no requirement.
+func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -> bool:
+    var required := building_type.adjacent
+    if required <= 0:
+        return true
+    var pid := PlayerManager.get_local_player_id()
+    var footprint := FoundationComponent.footprint_cells(building_type.foundation, origin_cell)
+    for entry in _buildings:
+        var node := entry.get("node") as Node3D
+        if not is_instance_valid(node):
+            continue
+        var stats := node.get_node_or_null("StatsComponent") as StatsComponent
+        if stats and stats.player_id != pid:
+            continue
+        var cells: Array = entry.get("cells", []) as Array
+        for bc in cells:
+            for fc in footprint:
+                if maxi(abs(fc.x - bc.x), abs(fc.y - bc.y)) <= required:
+                    return true
+    return false
 
 
 func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
@@ -169,12 +175,9 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     building.position = world_pos
     _get_buildings_parent().add_child(building)
 
-    var cells: Array[Vector2i] = []
-    for dx in building_type.foundation.x:
-        for dz in building_type.foundation.y:
-            var offset := Vector2i(dx, dz)
-            if not building_type.bib_cells.has(offset):
-                cells.append(origin_cell + offset)
+    var cells := FoundationComponent.occupied_cells(
+        building_type.foundation, building_type.bib_cells, origin_cell
+    )
     SpatialHash.instance.register_building_cells(cells)
 
     if not building_type.bib_cells.is_empty():
@@ -183,6 +186,9 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
             var bib := fc.get_bib_cells(origin_cell)
             if not bib.is_empty():
                 SpatialHash.instance.register_bib_cells(bib)
+
+    # Level the terrain under the footprint after placement
+    TerrainSystem.flatten_footprint(origin_cell, building_type.foundation)
 
     (
         _buildings
@@ -226,23 +232,7 @@ func _get_max_height(origin: Vector2i, footprint: Vector2i) -> float:
 
 
 func _is_cell_free(cell: Vector2i) -> bool:
-    var key := CellUtil.cell_key(cell)
-    if SpatialHash.instance.get_building_cells().has(key):
-        return false
-    if SpatialHash.instance.is_cell_blocked(cell):
-        return false
-    if SpatialHash.instance.is_any_entity_on_cell(cell):
-        return false
-    if SpatialHash.instance.is_bib_cell(cell):
-        return false
-    if _has_resource_on_cell(cell):
-        return false
-    var cell_type := TerrainSystem.get_cell_type(cell)
-    return cell_type == "" or cell_type == "clear"
-
-
-func _has_resource_on_cell(cell: Vector2i) -> bool:
-    return SpatialHash.instance.has_resource_cell(cell) if SpatialHash.instance else false
+    return FoundationComponent.is_cell_buildable(cell)
 
 
 func _find_buildings_parent() -> void:

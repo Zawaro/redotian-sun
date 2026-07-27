@@ -148,3 +148,25 @@ func test_clear_empties_cells():
             ),
         )
     )
+
+
+func test_flatten_footprint_levels_to_max():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _ts.init_grid(64, 64)
+    var origin := Vector2i(5, 5)
+    var size := Vector2i(2, 2)
+    var offset_x := _ts.grid_cells.x >> 1
+    var offset_z := _ts.grid_cells.y >> 1
+    _ts.set_vertex(5 + offset_x, 5 + offset_z, 2)
+    _ts.flatten_footprint(origin, size)
+    var all_two := true
+    for vx in range(5 + offset_x, 5 + offset_x + size.x + 1):
+        for vz in range(5 + offset_z, 5 + offset_z + size.y + 1):
+            if _ts.get_vertex(vx, vz) != 2:
+                all_two = false
+    _ts.init_grid(64, 64)
+    TestHelper.assert_true(
+        all_two, "flatten_footprint levels footprint vertices to max: not all levelled to 2"
+    )
