@@ -705,3 +705,115 @@ func test_queue_key_different_players():
             "different players have different keys: player 0 and 1 have same key",
         )
     )
+
+
+# --- build-mode unblock is scoped to the exiting player ---
+
+
+func test_build_mode_unblock_scoped_to_player():
+    var pm := _get_pm()
+    if pm == null:
+        TestHelper.fail("ProductionManager not available")
+        return
+    pm._waiting_for_placement["200:InfantryType"] = true
+    pm._waiting_for_placement["201:InfantryType"] = true
+    pm._on_build_mode_changed(false, 200)
+    var this_player: bool = pm._waiting_for_placement["200:InfantryType"] == false
+    var other_player: bool = pm._waiting_for_placement["201:InfantryType"] == true
+    pm._waiting_for_placement.erase("200:InfantryType")
+    pm._waiting_for_placement.erase("201:InfantryType")
+    (
+        TestHelper
+        . assert_true(
+            this_player and other_player,
+            "build-mode exit must unblock only the exiting player",
+        )
+    )
+
+
+# --- ready-to-place tracks and refunds the deducted amount ---
+
+
+func test_get_ready_buildings_returns_entity_data():
+    var pm := _get_pm()
+    if pm == null:
+        TestHelper.fail("ProductionManager not available")
+        return
+    var data := _make_infantry("test_ready_shape", 100)
+    data.entity_type = EntityData.EntityType.BUILDING
+    pm._add_ready_to_place(PID, data, 100.0)
+    var ready: Array = pm.get_ready_buildings(PID)
+    var ok: bool = ready.size() == 1 and (ready[0] as EntityData).id == "test_ready_shape"
+    pm._ready_to_place.erase(PID)
+    (
+        TestHelper
+        . assert_true(
+            ok,
+            "get_ready_buildings must return the placed EntityData entry",
+        )
+    )
+
+
+func test_cancel_ready_building_refunds_tracked_amount():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    var data := _make_infantry("test_ready_refund", 500)
+    data.entity_type = EntityData.EntityType.BUILDING
+    data.buildable_queue = "BuildingType"
+    # Only 320 was actually deducted before completion.
+    pm._add_ready_to_place(PID, data, 320.0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_ready_building(PID, "test_ready_refund")
+    var balance_after: int = _em.get_balance(PID)
+    (
+        TestHelper
+        . assert_true(
+            balance_after == balance_before + 320,
+            "cancel ready building must refund the tracked deducted amount",
+        )
+    )
+
+
+# --- fallback exit cell returns null when nothing free is found ---
+
+
+func test_find_exit_cell_null_when_none_distinct():
+    var pm := _get_pm()
+    if pm == null:
+        TestHelper.fail("ProductionManager not available")
+        return
+    if SpatialHash.instance == null:
+        TestHelper.fail("SpatialHash.instance unavailable in headless")
+        return
+    var factory := Node3D.new()
+    factory.position = Vector3.ZERO
+    # With no distinct free cell resolvable, the fallback returns null rather
+    # than the factory's own cell.
+    var result: Variant = pm._find_exit_cell(factory)
+    factory.free()
+    (
+        TestHelper
+        . assert_true(
+            result == null,
+            "_find_exit_cell must return null instead of the center cell",
+        )
+    )
+
+
+# --- get_build_time derives from the build-speed factor ---
+
+
+func test_get_build_time_from_build_speed():
+    var data := _make_infantry("test_build_time", 1000)
+    data.build_time = 0.0
+    var t: float = data.get_build_time()
+    # cost(1000) * 0.8 * 60 / 1000 = 48.0
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(t, 48.0),
+            "get_build_time must compute from the default build-speed factor",
+        )
+    )

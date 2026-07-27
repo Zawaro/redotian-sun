@@ -293,8 +293,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export_group("Art")
 @export var art_data: ArtData = null
 
-## TS BuildSpeed factor — must match GlobalRules.build_speed.
-const BUILD_SPEED: float = 0.8
+## Default build-speed factor when GlobalRules is unavailable (e.g. isolated tests).
+const DEFAULT_BUILD_SPEED: float = 0.8
 
 ## Movement zones compatible with each locomotor type. Zone is metadata (TS
 ## pathfinding domain class); passability is driven by the locomotor alone.
@@ -343,14 +343,19 @@ static func is_movement_zone_compatible(locomotor_id: String, zone: String) -> b
 
 
 ## Returns effective build time in seconds. Uses explicit build_time if set,
-## otherwise calculates from cost using TS formula. When a GlobalRules build_speed
-## is provided it overrides the constant fallback.
+## otherwise calculates from cost using TS formula. An explicit build_speed
+## overrides the game-wide factor from GlobalRules (falling back to
+## DEFAULT_BUILD_SPEED when rules are unavailable).
 func get_build_time(build_speed: float = -1.0) -> float:
     if build_time > 0.0:
         return build_time
-    var factor := BUILD_SPEED if build_speed < 0.0 else build_speed
+    if build_speed < 0.0:
+        build_speed = DEFAULT_BUILD_SPEED
+        var rules := EntityFactory.get_global_rules() as GlobalRules
+        if rules:
+            build_speed = rules.build_speed
     # TS formula: (cost / 1000) * BuildSpeed * 60
-    return cost * factor * 60.0 / 1000.0
+    return cost * build_speed * 60.0 / 1000.0
 
 
 func validate() -> PackedStringArray:
