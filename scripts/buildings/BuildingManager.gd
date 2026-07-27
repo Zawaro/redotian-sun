@@ -132,7 +132,7 @@ func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -
         if not is_instance_valid(node):
             continue
         var stats := node.get_node_or_null("StatsComponent") as StatsComponent
-        if stats and stats.player_id != pid:
+        if not stats or stats.player_id != pid:
             continue
         var cells: Array = entry.get("cells", []) as Array
         for bc in cells:
