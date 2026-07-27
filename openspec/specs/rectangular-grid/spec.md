@@ -9,7 +9,7 @@ TerrainSystem SHALL store grid dimensions as `Vector2i grid_cells` where `.x` is
 
 #### Scenario: Default grid is square
 - **WHEN** TerrainSystem initializes without calling `init_grid`
-- **THEN** `grid_cells` equals `Vector2i(64, 64)`
+- **THEN** `grid_cells` equals `Vector2i(50, 50)`
 
 ### Requirement: CellUtil accepts Vector2i grid dimensions
 `CellUtil.world_to_cell`, `cell_to_world`, and `cell_origin_to_world` SHALL accept `grid_cells: Vector2i` and use `.x` for the x-axis and `.y` for the z-axis independently.
@@ -23,37 +23,41 @@ TerrainSystem SHALL store grid dimensions as `Vector2i grid_cells` where `.x` is
 - **THEN** the returned world position is `Vector3(0.0, 0.0, 0.0)` (center of grid)
 
 ### Requirement: BoundsSystem uses rectangular diamond
-BoundsSystem SHALL draw and check a rectangular diamond (rhombus) with separate half-extents for x and z axes. The diamond check formula SHALL be `abs(cx)/half_x + abs(cz)/half_z <= 1.0`.
+BoundsSystem SHALL draw and check a rectangular diamond (rhombus) inscribed in a (W+H)*CELL_SIZE square. The diamond vertices SHALL be at world positions:
+- Top: (W*CS, 0)
+- Left: (0, W*CS)
+- Right: ((W+H)*CS, H*CS)
+- Bottom: (H*CS, (W+H)*CS)
 
-#### Scenario: Map bounds check with rectangular diamond
-- **WHEN** `grid_cells = Vector2i(50, 80)` and `is_in_map_bounds(Vector2i(20, 0))` is called
-- **THEN** the check computes `abs(20.5)/24.0 + abs(0.5)/39.0 = 0.854 + 0.013 = 0.867 <= 1.0` and returns `true`
+#### Scenario: Diamond mesh vertices for 32×24 map
+- **WHEN** `_compute_diamond_vertices(Vector2i(32, 24))` is called with `CELL_SIZE = 2.0`
+- **THEN** the 4 vertices are `(64, 0, 0)`, `(112, 0, 48)`, `(48, 0, 112)`, `(0, 0, 64)`
 
-#### Scenario: Out of bounds with rectangular diamond
-- **WHEN** `grid_cells = Vector2i(50, 80)` and `is_in_map_bounds(Vector2i(24, 0))` is called
-- **THEN** the check computes `abs(24.5)/24.0 + abs(0.5)/39.0 = 1.021 + 0.013 = 1.034 > 1.0` and returns `false`
+#### Scenario: Diamond bounds check — cell inside
+- **WHEN** `is_in_map_bounds(Vector2i(31, 0))` is called on a 32×24 grid
+- **THEN** the check computes `cx=32, cz=1` and verifies `cx+cz=33>=32`, `cx-cz=31<=32`, `cx+cz=33<=80`, `cx-cz=31>=-32` and returns `true`
 
-#### Scenario: Diamond mesh uses separate extents
-- **WHEN** `_draw_diamond_mesh` is called with `half_diag = Vector2(24.0, 39.0)`
-- **THEN** the 4 corners are `(0, 0, -39.0)`, `(24.0, 0, 0)`, `(0, 0, 39.0)`, `(-24.0, 0, 0)`
+#### Scenario: Diamond bounds check — cell outside
+- **WHEN** `is_in_map_bounds(Vector2i(0, 0))` is called on a 32×24 grid
+- **THEN** the check computes `cx=1, cz=1` and `cx+cz=2<32` and returns `false`
 
 ### Requirement: EditorGrid draws rectangular diamond
-EditorGrid SHALL draw grid lines for a rectangular diamond using separate cell counts for x and z axes.
+EditorGrid SHALL draw grid lines clipped to the diamond boundary. Vertical lines SHALL iterate `range(W+H+1)` and horizontal lines SHALL iterate `range(W+H+1)`. Clipping formulas SHALL use `|x - W*CS|` and `min(x + W*CS, (W+2H)*CS - x)` for vertical lines.
 
-#### Scenario: Vertical lines use x-axis count
-- **WHEN** `grid_cells = Vector2i(50, 80)`
-- **THEN** the vertical line loop iterates `range(51)` (cells_x + 1)
+#### Scenario: Vertical lines use diamond clipping
+- **WHEN** `grid_cells = Vector2i(32, 24)` and `CELL_SIZE = 2.0`
+- **THEN** the vertical line loop iterates `range(57)` (32+24+1) and at x=64 the z-range is `[0, 96]`
 
-#### Scenario: Horizontal lines use z-axis count
-- **WHEN** `grid_cells = Vector2i(50, 80)`
-- **THEN** the horizontal line loop iterates `range(81)` (cells_z + 1)
+#### Scenario: Horizontal lines use diamond clipping
+- **WHEN** `grid_cells = Vector2i(32, 24)` and `CELL_SIZE = 2.0`
+- **THEN** the horizontal line loop iterates `range(57)` (32+24+1) and at z=48 the x-range is `[16, 112]`
 
 ### Requirement: Pathfinder uses Vector2i grid dimensions
 Pathfinder.find_path SHALL accept `grid_cells: Vector2i` for path reconstruction and coordinate conversion.
 
 #### Scenario: Path reconstruction with rectangular grid
 - **WHEN** `find_path` is called with a rectangular map
-- **THEN** waypoints are converted using `CellUtil.cell_to_world(cell, grid_cells)` with the correct Vector2i value
+- **THEN** waypoints are converted using `CellUtil.cell_to_world(cell, grid_cells)` which applies the `(cell+1)*CELL_SIZE` formula
 
 ### Requirement: JSON export uses array format
 TerrainSystem.export_to_json SHALL write `grid_cells` as a two-element array `[x, z]`.
