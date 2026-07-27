@@ -11,6 +11,13 @@ func configure(data: EntityData) -> void:
     bib_cells = data.bib_cells
 
 
+func validate(data: EntityData) -> PackedStringArray:
+    var errors: PackedStringArray = []
+    if data.foundation == Vector2i(0, 0):
+        errors.append("FoundationComponent: '%s' has zero foundation" % data.id)
+    return errors
+
+
 func get_cell_count() -> int:
     return foundation.x * foundation.y
 

@@ -180,6 +180,13 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
         DebugVisualizer.draw_path(get_path(), _parent.global_position, _waypoints, 0)
 
 
+func validate(data: EntityData) -> PackedStringArray:
+    var errors: PackedStringArray = []
+    if data.speed <= 0.0:
+        errors.append("MovementController: '%s' has speed <= 0" % data.id)
+    return errors
+
+
 func _resolve_rotation_target() -> void:
     if not rotation_target_path.is_empty():
         var resolved := get_node(rotation_target_path) as Node3D
