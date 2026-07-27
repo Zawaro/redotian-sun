@@ -17,6 +17,13 @@ enum State { IDLE, ROTATING, MOVING, WAIT }
 
 const REPULSION_STRENGTH: float = 0.1
 
+## Timing thresholds in seconds, derived from the frame counts they replaced at 60 FPS.
+## Delta-accumulated, so they stay frame-rate independent and scale with game speed.
+const REPAIR_INTERVAL: float = 10.0 / 60.0
+const WAIT_SCATTER_SECONDS: float = 15.0 / 60.0
+const WAIT_MIN_SECONDS: float = 10.0 / 60.0
+const WAIT_MAX_SECONDS: float = 25.0 / 60.0
+
 static var _scattered_this_frame: Dictionary = {}
 static var _last_physics_frame: int = -1
 
@@ -25,9 +32,9 @@ var _waypoints: PackedVector3Array = PackedVector3Array()
 var _spline_t: float = 0.0
 var _rotation_target: Node3D
 var _parent: Node3D
-var _wait_frames: int = 0
-var _wait_threshold: float = 60.0
-var _repair_frames: int = 0
+var _wait_time: float = 0.0
+var _wait_threshold: float = 1.0
+var _repair_time: float = 0.0
 var _speed_jitter: float = 1.0
 var _rotation_yaw: float = 0.0
 
@@ -44,7 +51,7 @@ func _ready() -> void:
     _parent = get_parent() as Node3D
     _resolve_rotation_target()
     _speed_jitter = randf_range(0.95, 1.0)
-    _wait_threshold = 10.0 + randf_range(0.0, 15.0)
+    _wait_threshold = randf_range(WAIT_MIN_SECONDS, WAIT_MAX_SECONDS)
     var stats := _parent.get_node_or_null("StatsComponent") as StatsComponent
     if stats:
         _is_infantry = stats.entity_type == EntityData.EntityType.INFANTRY
@@ -162,8 +169,8 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
 
     _waypoints = full_path
     _spline_t = 0.0
-    _wait_frames = 0
-    _repair_frames = 0
+    _wait_time = 0.0
+    _repair_time = 0.0
     _last_position = _parent.global_position
     if is_instance_valid(_rotation_target):
         _rotation_yaw = _rotation_target.global_rotation.y
@@ -205,7 +212,7 @@ func _physics_process(delta: float) -> void:
         State.MOVING:
             _handle_moving_movement(delta)
         State.WAIT:
-            _handle_wait()
+            _handle_wait(delta)
         State.IDLE:
             _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
                 _parent.global_position
@@ -245,9 +252,9 @@ func _handle_moving_movement(delta: float) -> void:
         seg_length = 0.01
 
     if seg + 1 < _waypoints.size() - 1:
-        _repair_frames += 1
-        if _repair_frames >= 10:
-            _repair_frames = 0
+        _repair_time += delta
+        if _repair_time >= REPAIR_INTERVAL:
+            _repair_time = 0.0
             var next_cell := CellUtil.world_to_cell(_waypoints[seg + 1])
             if _is_cell_occupied_by_idle(next_cell):
                 set_target_position(_waypoints[_waypoints.size() - 1])
@@ -348,14 +355,15 @@ func _handle_moving_movement(delta: float) -> void:
     _last_position = _parent.global_position
 
 
-func _handle_wait() -> void:
-    _wait_frames += 1
+func _handle_wait(delta: float) -> void:
+    _wait_time += delta
 
-    if _wait_frames == 15:
+    # Fire the mid-wait scatter once, on the tick that crosses the threshold.
+    if _wait_time >= WAIT_SCATTER_SECONDS and _wait_time - delta < WAIT_SCATTER_SECONDS:
         _scatter_blockers()
 
-    if _wait_frames > _wait_threshold:
-        _wait_frames = 0
+    if _wait_time > _wait_threshold:
+        _wait_time = 0.0
         _scatter_blockers()
         var target_cell := CellUtil.world_to_cell(_waypoints[_waypoints.size() - 1])
         var free_cell := _find_nearest_free_cell(target_cell)

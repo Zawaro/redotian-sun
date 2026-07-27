@@ -17,13 +17,14 @@ func _make_client(dock_id: String = "GDI_REFINERY") -> DockClientComponent:
     return c
 
 
-func _make_host(dock_wait: int = 10, stale: float = 5.0) -> Node3D:
+func _make_host(wait_steps: int = 10, stale: float = 5.0) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestRefinery"
     var host := DockHostComponent.new()
     host.name = "DockHostComponent"
     host.dock_types = ["harvest"]
-    host.dock_wait_ticks = dock_wait
+    # Tests step _process(0.1); map the step count to a matching seconds threshold.
+    host.dock_wait_seconds = wait_steps * 0.1
     host.stale_timeout = stale
     entity.add_child(host)
     return entity
@@ -382,8 +383,8 @@ func test_process_promotes_after_wait_ticks():
     host_comp.current_docker = null
     host_comp._awaiting_vacate = false
 
-    # Set counter just below threshold, then tick once
-    host_comp._wait_counter = 99
+    # Push the accumulator well past the threshold, then tick once
+    host_comp._wait_seconds = 99.0
     host_comp._process(0.1)
 
     if host_comp.current_docker == _get_client(h):
@@ -393,10 +394,10 @@ func test_process_promotes_after_wait_ticks():
         _test_failed += 1
         print(
             (
-                "    FAIL: current=%s wait=%d queue=%d awaiting=%s"
+                "    FAIL: current=%s wait=%s queue=%d awaiting=%s"
                 % [
                     host_comp.current_docker,
-                    host_comp._wait_counter,
+                    host_comp._wait_seconds,
                     host_comp.queue.size(),
                     host_comp._awaiting_vacate,
                 ]

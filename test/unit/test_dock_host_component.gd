@@ -8,10 +8,11 @@ var _timeout_signal_emitted := false
 var _timeout_signal_docker: Node = null
 
 
-func _make_dock_host(wait_ticks: int = 10, stale_timeout: float = 5.0) -> DockHostComponent:
+func _make_dock_host(wait_steps: int = 10, stale_timeout: float = 5.0) -> DockHostComponent:
     var host := DockHostComponent.new()
     host.name = "DockHostComponent"
-    host.dock_wait_ticks = wait_ticks
+    # Each test steps _process(0.1); map the step count to a matching seconds threshold.
+    host.dock_wait_seconds = wait_steps * 0.1
     host.dock_types = ["harvest"]
     host.stale_timeout = stale_timeout
     return host
@@ -584,9 +585,43 @@ func test_process_waits_full_ticks_before_promoting():
     host._process(0.1)
     if host.current_docker == docker:
         _test_passed += 1
-        print("    PASS: _process waits full dock_wait_ticks before promoting")
+        print("    PASS: _process waits full dock_wait_seconds before promoting")
     else:
         _test_failed += 1
         print("    FAIL: not promoted after 3 ticks")
 
     docker.queue_free()
+
+
+func test_process_promotion_scales_with_delta():
+    # Promotion depends on accumulated seconds, not on the number of _process calls.
+    var host := _make_dock_host(2)  # dock_wait_seconds == 0.2
+    var dock_entity := Node3D.new()
+    dock_entity.name = "TestRefinery"
+    dock_entity.add_child(host)
+
+    # Many tiny deltas that stay below the threshold must not promote.
+    var slow_docker := Node.new()
+    slow_docker.name = "SlowDocker"
+    add_child(slow_docker)
+    host.current_docker = null
+    host.queue.append(slow_docker)
+    for i in range(3):
+        host._process(0.05)  # 3 * 0.05 = 0.15 < 0.2
+    if host.current_docker == null:
+        _test_passed += 1
+        print("    PASS: sub-threshold deltas do not promote (frame count irrelevant)")
+    else:
+        _test_failed += 1
+        print("    FAIL: promoted before dock_wait_seconds elapsed")
+
+    # A single delta at/above the threshold promotes on that tick.
+    host._process(0.2)
+    if host.current_docker == slow_docker:
+        _test_passed += 1
+        print("    PASS: one delta >= dock_wait_seconds promotes (scales with game speed)")
+    else:
+        _test_failed += 1
+        print("    FAIL: not promoted after delta reached dock_wait_seconds")
+
+    slow_docker.queue_free()
