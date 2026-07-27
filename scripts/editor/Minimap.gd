@@ -60,14 +60,17 @@ func _setup_camera() -> void:
     _camera.name = "MinimapCamera"
     _camera.projection = Camera3D.PROJECTION_ORTHOGONAL
     _camera.rotation_degrees = Vector3(-90, 45, 0)
-    _camera.position = Vector3(0, 100, 0)
+    var cells := TerrainSystem.grid_cells
+    var total: float = float(cells.x + cells.y) * CellUtil.CELL_SIZE
+    _camera.position = Vector3(total * 0.5, 100, total * 0.5)
     _update_camera_size()
     _sub_viewport.add_child(_camera)
 
 
 func _update_camera_size() -> void:
-    var grid_half: float = float(TerrainSystem.grid_cells.x) * CellUtil.CELL_SIZE * 0.5
-    _camera.size = grid_half
+    var cells := TerrainSystem.grid_cells
+    var total: float = float(cells.x + cells.y) * CellUtil.CELL_SIZE
+    _camera.size = total
 
 
 func _setup_terrain_visualization() -> void:
@@ -91,11 +94,8 @@ func _setup_viewport_rect() -> void:
 
 
 func _is_in_diamond(world_pos: Vector3) -> bool:
-    var half_x: float = float(TerrainSystem.grid_cells.x) * 0.5 * CellUtil.CELL_SIZE
-    var half_z: float = float(TerrainSystem.grid_cells.y) * 0.5 * CellUtil.CELL_SIZE
-    if half_x <= 0.0 or half_z <= 0.0:
-        return false
-    return absf(world_pos.x) / half_x + absf(world_pos.z) / half_z < 1.0
+    var cell := CellUtil.world_to_cell(world_pos)
+    return CellUtil.is_in_diamond(cell, TerrainSystem.grid_cells)
 
 
 func _update_visualization() -> void:
@@ -111,7 +111,7 @@ func _update_visualization() -> void:
         if parts.size() != 2:
             continue
         var cell := Vector2i(int(parts[0]), int(parts[1]))
-        var world_pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
+        var world_pos := CellUtil.cell_to_world(cell)
         if not _is_in_diamond(world_pos):
             continue
         var data: Dictionary = cells[key]
@@ -150,11 +150,13 @@ func _update_viewport_rect() -> void:
     mat.no_depth_test = true
     mat.render_priority = 10
     mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, mat)
-    mesh.surface_add_vertex(Vector3(center.x - half_size, y, center.z - half_size))
-    mesh.surface_add_vertex(Vector3(center.x + half_size, y, center.z - half_size))
-    mesh.surface_add_vertex(Vector3(center.x + half_size, y, center.z + half_size))
-    mesh.surface_add_vertex(Vector3(center.x - half_size, y, center.z + half_size))
-    mesh.surface_add_vertex(Vector3(center.x - half_size, y, center.z - half_size))
+    # Rotated 45° so it reads as an axis-aligned square under the 45°-yawed camera.
+    var d: float = half_size * CellUtil.SQRT2
+    mesh.surface_add_vertex(Vector3(center.x, y, center.z - d))
+    mesh.surface_add_vertex(Vector3(center.x + d, y, center.z))
+    mesh.surface_add_vertex(Vector3(center.x, y, center.z + d))
+    mesh.surface_add_vertex(Vector3(center.x - d, y, center.z))
+    mesh.surface_add_vertex(Vector3(center.x, y, center.z - d))
     mesh.surface_end()
     _viewport_rect_mesh.mesh = mesh
 

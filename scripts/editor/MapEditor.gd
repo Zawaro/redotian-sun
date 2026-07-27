@@ -3,7 +3,7 @@ extends Node3D
 
 enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE, PLACE_ENTITY }
 
-@export var map_size: Vector2 = Vector2(128.0, 128.0)
+@export var map_size: Vector2 = Vector2(50.0, 50.0)
 @export var show_grid: bool = true
 
 var _hovered_cell: Vector2i = Vector2i(-999, -999)
@@ -27,8 +27,10 @@ func _ready() -> void:
     if Engine.is_editor_hint():
         return
     set_meta("is_map_editor", true)
-    TerrainSystem.init_grid(ceili(map_size.x) * 2, ceili(map_size.y) * 2)
     _setup_camera()
+    TerrainSystem.init_grid(ceili(map_size.x), ceili(map_size.y))
+    BoundsSystem.camera_pivot = _camera_pivot
+    BoundsSystem._center_camera_on_diamond()
     _setup_grid()
     _setup_height_painter()
     _height_painter.height_changed.connect(_on_height_changed)
@@ -106,21 +108,14 @@ func _setup_height_painter() -> void:
 
 
 func _prefill_terrain() -> void:
-    var cells_x: int = TerrainSystem.grid_cells.x
-    var cells_z: int = TerrainSystem.grid_cells.y
-    var center_x: float = float(cells_x) * 0.5 * CellUtil.CELL_SIZE
-    var center_z: float = float(cells_z) * 0.5 * CellUtil.CELL_SIZE
-    var half_extent_x: float = center_x
-    var half_extent_z: float = center_z
+    var extent: Vector2i = CellUtil.get_diamond_extent(TerrainSystem.grid_cells)
+    var cells_x: int = extent.x
+    var cells_z: int = extent.y
     for x in range(cells_x):
         for z in range(cells_z):
             var cell := Vector2i(x, z)
-            var world_center := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
-            if half_extent_x > 0.0 and half_extent_z > 0.0:
-                var rx: float = absf(world_center.x) / half_extent_x
-                var rz: float = absf(world_center.z) / half_extent_z
-                if rx + rz >= 1.0:
-                    continue
+            if not CellUtil.is_in_diamond(cell, TerrainSystem.grid_cells):
+                continue
             if TerrainSystem.get_cell(cell).is_empty():
                 TerrainSystem.compute_and_emit_cell(cell)
 
@@ -300,8 +295,8 @@ func _show_new_map_dialog() -> void:
     var width_spin := SpinBox.new()
     width_spin.min_value = 50.0
     width_spin.max_value = 512.0
-    width_spin.step = 2.0
-    width_spin.value = 64.0
+    width_spin.step = 1.0
+    width_spin.value = 50.0
     width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(width_spin)
 
@@ -311,8 +306,8 @@ func _show_new_map_dialog() -> void:
     var height_spin := SpinBox.new()
     height_spin.min_value = 50.0
     height_spin.max_value = 512.0
-    height_spin.step = 2.0
-    height_spin.value = 64.0
+    height_spin.step = 1.0
+    height_spin.value = 50.0
     height_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(height_spin)
 
@@ -339,24 +334,24 @@ func _show_new_map_dialog() -> void:
     vbox.add_child(players_spin)
 
     var offset_x_label := Label.new()
-    offset_x_label.text = "Visible Offset X:"
+    offset_x_label.text = "Visible Bounds Width:"
     vbox.add_child(offset_x_label)
     var offset_x_spin := SpinBox.new()
     offset_x_spin.min_value = 0.0
-    offset_x_spin.max_value = 200.0
+    offset_x_spin.max_value = 512.0
     offset_x_spin.step = 1.0
-    offset_x_spin.value = 10.0
+    offset_x_spin.value = width_spin.value - 10.0
     offset_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(offset_x_spin)
 
     var offset_z_label := Label.new()
-    offset_z_label.text = "Visible Offset Z:"
+    offset_z_label.text = "Visible Bounds Height:"
     vbox.add_child(offset_z_label)
     var offset_z_spin := SpinBox.new()
     offset_z_spin.min_value = 0.0
-    offset_z_spin.max_value = 200.0
+    offset_z_spin.max_value = 512.0
     offset_z_spin.step = 1.0
-    offset_z_spin.value = 8.0
+    offset_z_spin.value = height_spin.value - 8.0
     offset_z_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(offset_z_spin)
 
@@ -368,10 +363,18 @@ func _show_new_map_dialog() -> void:
         var h: int = int(height_spin.value)
         var ox: int = int(offset_x_spin.value)
         var oz: int = int(offset_z_spin.value)
-        bounds_label.text = "Visible Bounds: %d × %d" % [w - 1 - ox, h - 1 - oz]
+        bounds_label.text = "Visible Bounds: %d × %d" % [ox, oz]
 
-    width_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
-    height_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    width_spin.value_changed.connect(
+        func(_v: float) -> void:
+            offset_x_spin.value = width_spin.value - 10.0
+            update_bounds.call()
+    )
+    height_spin.value_changed.connect(
+        func(_v: float) -> void:
+            offset_z_spin.value = height_spin.value - 8.0
+            update_bounds.call()
+    )
     offset_x_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
     offset_z_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
     update_bounds.call()
@@ -410,13 +413,12 @@ func _apply_new_map(
     height: int,
     _start_height: int,
     _player_count: int,
-    offset_x: int = 10,
-    offset_z: int = 8
+    offset_x: int = 0,
+    offset_z: int = 0
 ) -> void:
     TerrainSystem.clear()
-    TerrainSystem.init_grid(width * 2, height * 2)
-    BoundsSystem.visible_offset_x = offset_x
-    BoundsSystem.visible_offset_z = offset_z
+    TerrainSystem.init_grid(width, height)
+    BoundsSystem.set_visible_bounds_size(Vector2i(offset_x, offset_z))
     _prefill_terrain()
     _grid._draw_grid()
 
@@ -442,8 +444,8 @@ func _show_map_settings_dialog() -> void:
     var width_spin := SpinBox.new()
     width_spin.min_value = 50.0
     width_spin.max_value = 512.0
-    width_spin.step = 2.0
-    width_spin.value = float(TerrainSystem.grid_cells.x / 2)
+    width_spin.step = 1.0
+    width_spin.value = float(TerrainSystem.grid_cells.x)
     width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(width_spin)
 
@@ -453,30 +455,30 @@ func _show_map_settings_dialog() -> void:
     var height_spin := SpinBox.new()
     height_spin.min_value = 50.0
     height_spin.max_value = 512.0
-    height_spin.step = 2.0
-    height_spin.value = float(TerrainSystem.grid_cells.y / 2)
+    height_spin.step = 1.0
+    height_spin.value = float(TerrainSystem.grid_cells.y)
     height_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(height_spin)
 
     var offset_x_label := Label.new()
-    offset_x_label.text = "Visible Offset X:"
+    offset_x_label.text = "Visible Bounds Width:"
     vbox.add_child(offset_x_label)
     var offset_x_spin := SpinBox.new()
     offset_x_spin.min_value = 0.0
-    offset_x_spin.max_value = 200.0
+    offset_x_spin.max_value = 512.0
     offset_x_spin.step = 1.0
-    offset_x_spin.value = float(BoundsSystem.visible_offset_x)
+    offset_x_spin.value = float(BoundsSystem.visible_bounds_size.x)
     offset_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(offset_x_spin)
 
     var offset_z_label := Label.new()
-    offset_z_label.text = "Visible Offset Z:"
+    offset_z_label.text = "Visible Bounds Height:"
     vbox.add_child(offset_z_label)
     var offset_z_spin := SpinBox.new()
     offset_z_spin.min_value = 0.0
-    offset_z_spin.max_value = 200.0
+    offset_z_spin.max_value = 512.0
     offset_z_spin.step = 1.0
-    offset_z_spin.value = float(BoundsSystem.visible_offset_z)
+    offset_z_spin.value = float(BoundsSystem.visible_bounds_size.y)
     offset_z_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(offset_z_spin)
 
@@ -488,10 +490,18 @@ func _show_map_settings_dialog() -> void:
         var h: int = int(height_spin.value)
         var ox: int = int(offset_x_spin.value)
         var oz: int = int(offset_z_spin.value)
-        bounds_label.text = "Visible Bounds: %d × %d" % [w - 1 - ox, h - 1 - oz]
+        bounds_label.text = "Visible Bounds: %d × %d" % [ox, oz]
 
-    width_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
-    height_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    width_spin.value_changed.connect(
+        func(_v: float) -> void:
+            offset_x_spin.value = width_spin.value - 10.0
+            update_bounds.call()
+    )
+    height_spin.value_changed.connect(
+        func(_v: float) -> void:
+            offset_z_spin.value = height_spin.value - 8.0
+            update_bounds.call()
+    )
     offset_x_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
     offset_z_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
     update_bounds.call()
@@ -523,11 +533,10 @@ func _show_map_settings_dialog() -> void:
     dialog.popup_centered(Vector2i(400, 480))
 
 
-func _apply_map_settings(width: int, height: int, offset_x: int = 10, offset_z: int = 8) -> void:
+func _apply_map_settings(width: int, height: int, offset_x: int = 0, offset_z: int = 0) -> void:
     TerrainSystem.clear()
-    TerrainSystem.init_grid(width * 2, height * 2)
-    BoundsSystem.visible_offset_x = offset_x
-    BoundsSystem.visible_offset_z = offset_z
+    TerrainSystem.init_grid(width, height)
+    BoundsSystem.set_visible_bounds_size(Vector2i(offset_x, offset_z))
     _prefill_terrain()
     _grid._draw_grid()
 
@@ -561,7 +570,7 @@ func _update_hovered_cell() -> void:
     if terrain_y > 0.01:
         var t := (terrain_y - ray_origin.y) / ray_direction.y
         hit_pos = ray_origin + ray_direction * t
-    var cell := CellUtil.world_to_cell(hit_pos, TerrainSystem.grid_cells)
+    var cell := CellUtil.world_to_cell(hit_pos)
     if cell != _hovered_cell and not TerrainSystem.get_cell(cell).is_empty():
         _hovered_cell = cell
         _grid.update()
@@ -569,7 +578,7 @@ func _update_hovered_cell() -> void:
 
 
 func _cell_world_pos(cell: Vector2i) -> Vector3:
-    var pos := CellUtil.cell_to_world(cell, TerrainSystem.grid_cells)
+    var pos := CellUtil.cell_to_world(cell)
     var cell_data: Dictionary = TerrainSystem.get_cell(cell)
     if not cell_data.is_empty():
         var h: int = cell_data.get("max_height", cell_data.get("height", 0))
@@ -578,7 +587,7 @@ func _cell_world_pos(cell: Vector2i) -> Vector3:
 
 
 func _cell_origin_world_pos(origin: Vector2i, footprint: Vector2i) -> Vector3:
-    var pos := CellUtil.cell_origin_to_world(origin, footprint, TerrainSystem.grid_cells)
+    var pos := CellUtil.cell_origin_to_world(origin, footprint)
     var max_h := 0
     for dx in footprint.x:
         for dz in footprint.y:

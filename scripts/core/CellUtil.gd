@@ -5,25 +5,14 @@ const SQRT2: float = 1.41421356237
 const CELL_KEY_OFFSET: int = 512
 
 
-static func world_to_cell(world_pos: Vector3, grid_cells: Vector2i = Vector2i.ZERO) -> Vector2i:
-    if grid_cells.x > 0 and grid_cells.y > 0:
-        var grid_half_x: float = float(grid_cells.x) * CELL_SIZE * 0.5
-        var grid_half_z: float = float(grid_cells.y) * CELL_SIZE * 0.5
-        return Vector2i(
-            floori((world_pos.x + grid_half_x) / CELL_SIZE),
-            floori((world_pos.z + grid_half_z) / CELL_SIZE)
-        )
-    return Vector2i(floori(world_pos.x / CELL_SIZE), floori(world_pos.z / CELL_SIZE))
+# Grid is shifted into the +XZ quadrant: cell c spans world [(c+1)*CS, (c+2)*CS],
+# so its center is at (c+1.5)*CS and world_to_cell subtracts the 1-cell origin shift.
+static func world_to_cell(world_pos: Vector3) -> Vector2i:
+    return Vector2i(floori(world_pos.x / CELL_SIZE) - 1, floori(world_pos.z / CELL_SIZE) - 1)
 
 
-static func cell_to_world(cell: Vector2i, grid_cells: Vector2i = Vector2i.ZERO) -> Vector3:
-    if grid_cells.x > 0 and grid_cells.y > 0:
-        var grid_half_x: float = float(grid_cells.x) * CELL_SIZE * 0.5
-        var grid_half_z: float = float(grid_cells.y) * CELL_SIZE * 0.5
-        return Vector3(
-            (cell.x + 0.5) * CELL_SIZE - grid_half_x, 0.0, (cell.y + 0.5) * CELL_SIZE - grid_half_z
-        )
-    return Vector3((cell.x + 0.5) * CELL_SIZE, 0.0, (cell.y + 0.5) * CELL_SIZE)
+static func cell_to_world(cell: Vector2i) -> Vector3:
+    return Vector3((cell.x + 1.5) * CELL_SIZE, 0.0, (cell.y + 1.5) * CELL_SIZE)
 
 
 static func cell_key(cell: Vector2i) -> int:
@@ -40,13 +29,10 @@ static func heuristic(a: Vector2i, b: Vector2i) -> float:
     return max(dx, dy) + (SQRT2 - 1.0) * min(dx, dy)
 
 
-static func cell_origin_to_world(
-    origin: Vector2i, footprint: Vector2i, grid_cells: Vector2i = Vector2i.ZERO
-) -> Vector3:
-    var grid_half_x: float = float(grid_cells.x) * CELL_SIZE * 0.5 if grid_cells.x > 0 else 0.0
-    var grid_half_z: float = float(grid_cells.y) * CELL_SIZE * 0.5 if grid_cells.y > 0 else 0.0
-    var cx := (origin.x + footprint.x * 0.5) * CELL_SIZE - grid_half_x
-    var cz := (origin.y + footprint.y * 0.5) * CELL_SIZE - grid_half_z
+static func cell_origin_to_world(origin: Vector2i, footprint: Vector2i) -> Vector3:
+    # Footprint center; +1 is the same origin shift cell_to_world applies.
+    var cx := (origin.x + footprint.x * 0.5 + 1.0) * CELL_SIZE
+    var cz := (origin.y + footprint.y * 0.5 + 1.0) * CELL_SIZE
     return Vector3(cx, 0.0, cz)
 
 
@@ -72,3 +58,29 @@ static func spiral_first_free(center: Vector2i, max_radius: int, is_occupied: Ca
                 if not is_occupied.call(cell):
                     return cell
     return center
+
+
+static func is_in_diamond(cell: Vector2i, grid_cells: Vector2i) -> bool:
+    var w: float = float(grid_cells.x)
+    var h: float = float(grid_cells.y)
+    if w <= 0.0 or h <= 0.0:
+        return false
+    var cx: float = float(cell.x) + 0.5
+    var cz: float = float(cell.y) + 0.5
+    # Diamond inscribed in (W+H)*CS square, tips at midpoints of square edges.
+    # Vertices: (W,0), (0,W), (W+H,H), (H,W+H) in cell coords.
+    # Edge constraints (derived from inward normals):
+    if cx + cz < w:
+        return false
+    if cx - cz > w:
+        return false
+    if cx + cz > w + h * 2.0:
+        return false
+    if cx - cz < -w:
+        return false
+    return true
+
+
+static func get_diamond_extent(grid_cells: Vector2i) -> Vector2i:
+    var extent: int = maxi(grid_cells.x + grid_cells.y, 1)
+    return Vector2i(extent, extent)
