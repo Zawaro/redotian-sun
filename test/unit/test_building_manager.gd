@@ -121,3 +121,68 @@ func test_can_place_rejects_moving_unit():
     else:
         _test_failed += 1
         print("    FAIL: expected false, got true")
+
+
+func test_adjacency_no_requirement_passes():
+    if _bm == null:
+        _test_failed += 1
+        print("    FAIL: BuildingManager not injected")
+        return
+    var building_type := _make_2x2_building()
+    building_type.adjacent = 0
+    var result: bool = _bm._is_adjacency_satisfied(building_type, Vector2i(5, 5))
+    if result == true:
+        _test_passed += 1
+        print("    PASS: adjacency no-op when adjacent <= 0")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected true, got false")
+
+
+func test_adjacency_rejected_without_neighbor():
+    if _bm == null:
+        _test_failed += 1
+        print("    FAIL: BuildingManager not injected")
+        return
+    var building_type := _make_2x2_building()
+    building_type.adjacent = 1
+    var saved: Array = _bm._buildings.duplicate()
+    _bm._buildings.clear()
+    var result: bool = _bm._is_adjacency_satisfied(building_type, Vector2i(5, 5))
+    _bm._buildings.assign(saved)
+    if result == false:
+        _test_passed += 1
+        print("    PASS: adjacency rejected with no friendly building")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected false, got true")
+
+
+func test_adjacency_accepted_near_friendly():
+    if _bm == null:
+        _test_failed += 1
+        print("    FAIL: BuildingManager not injected")
+        return
+    var building_type := _make_2x2_building()
+    building_type.adjacent = 1
+    var pid: int = PlayerManager.get_local_player_id()
+    var node := Node3D.new()
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = pid
+    node.add_child(stats)
+    var saved: Array = _bm._buildings.duplicate()
+    _bm._buildings.clear()
+    _bm._buildings.append(
+        {"node": node, "type": building_type, "origin": Vector2i(3, 3), "cells": [Vector2i(3, 3)]}
+    )
+    # Footprint at (4,3) includes cell (4,3), Chebyshev distance 1 from (3,3)
+    var result: bool = _bm._is_adjacency_satisfied(building_type, Vector2i(4, 3))
+    _bm._buildings.assign(saved)
+    node.free()
+    if result == true:
+        _test_passed += 1
+        print("    PASS: adjacency accepted near a friendly building")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected true, got false")
