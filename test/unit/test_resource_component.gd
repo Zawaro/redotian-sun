@@ -187,6 +187,41 @@ func test_full_health_is_one_bale():
     entity.free()
 
 
+func test_build_material_is_emissive():
+    var green := Color(0.2, 0.8, 0.2, 1)
+    var mat := ResourceComponent._build_material(green)
+    var ok := (
+        mat.emission_enabled
+        and mat.emission == green
+        and mat.albedo_color == green
+        and mat.emission_energy_multiplier >= 3.0
+    )
+    if ok:
+        _test_passed += 1
+        print("    PASS: _build_material emits resource color with bloom energy")
+    else:
+        _test_failed += 1
+        print(
+            (
+                "    FAIL: expected emissive green mat, got enabled=%s emission=%s energy=%f"
+                % [mat.emission_enabled, mat.emission, mat.emission_energy_multiplier]
+            )
+        )
+
+
+func test_build_material_matches_type_color():
+    var red := Color(1.0, 0.2, 0.2, 1)
+    var mat := ResourceComponent._build_material(red)
+    if mat.emission == red and mat.albedo_color == red:
+        _test_passed += 1
+        print("    PASS: _build_material tints emission per resource color")
+    else:
+        _test_failed += 1
+        print(
+            "    FAIL: expected emission=albedo=red, got %s / %s" % [mat.emission, mat.albedo_color]
+        )
+
+
 func test_collect_partial_bale():
     var entity := _make_entity(300, 300)
     var tib := entity.get_node("ResourceComponent") as ResourceComponent

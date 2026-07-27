@@ -8,7 +8,20 @@ class_name ResourceComponent extends Node
 var _cube_nodes: Array[Node3D] = []
 var _current_visual_stage: int = -1
 
+## Emission strength so the brightest color channel clears the world glow HDR
+## threshold (0.9) and blooms — e.g. green 0.8 * 3.0 = 2.4.
+const EMISSION_ENERGY := 3.0
+
 static var _mat_cache: Dictionary = {}
+
+
+static func _build_material(color: Color) -> StandardMaterial3D:
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = color
+    mat.emission_enabled = true
+    mat.emission = color
+    mat.emission_energy_multiplier = EMISSION_ENERGY
+    return mat
 
 
 func configure(data: EntityData) -> void:
@@ -79,11 +92,10 @@ func _ensure_visual_nodes() -> void:
             var y_offset := terrain_h - parent.global_position.y
             mi.position = Vector3(pos_x, y_offset + box.size.y * 0.5, pos_z)
             if not _mat_cache.has(resource_type_id):
-                var mat := StandardMaterial3D.new()
                 var rules := _get_global_rules()
                 var rt: ResourceType = rules.get_resource_type(resource_type_id) if rules else null
-                mat.albedo_color = rt.color if rt else Color(0.2, 0.8, 0.2)
-                _mat_cache[resource_type_id] = mat
+                var color := rt.color if rt else Color(0.2, 0.8, 0.2)
+                _mat_cache[resource_type_id] = _build_material(color)
             mi.material_override = _mat_cache[resource_type_id]
             container.add_child(mi)
 
