@@ -84,9 +84,8 @@ func test_get_target_position():
     var rally := _make_rally()
     rally.set_rally_point(Vector2i(2, 3))
     var pos: Vector3 = rally.get_target_position()
-    # CellUtil.cell_to_world: Vector3((cell.x + 0.5) * cs, 0.0, (cell.y + 0.5) * cs)
-    # cs = 2.0, so (2.5 * 2.0, 0.0, 3.5 * 2.0) = (5.0, 0.0, 7.0)
-    if pos.is_equal_approx(Vector3(5.0, 0.0, 7.0)):
+    # cell_to_world center: (cell.x + 1.5) * cs = 3.5 * 2.0 = 7.0, (cell.y + 1.5) * cs = 4.5 * 2.0 = 9.0
+    if pos.is_equal_approx(Vector3(7.0, 0.0, 9.0)):
         _test_passed += 1
         print("    PASS: get_target_position returns correct world pos")
     else:

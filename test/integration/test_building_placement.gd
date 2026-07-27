@@ -20,13 +20,11 @@ func test_place_building_registers_cells():
     building_type.entity_type = EntityData.EntityType.BUILDING
     building_type.strength = 100
     building_type.owner = ["GDI"]
-    var origin := Vector2i(5, 5)
-    var offset_x := TerrainSystem.grid_cells.x >> 1
-    var offset_z := TerrainSystem.grid_cells.y >> 1
+    var origin := Vector2i(32, 32)
     for dx in 2:
         for dz in 2:
             var cell := origin + Vector2i(dx, dz)
-            var key := "%d,%d" % [cell.x + offset_x, cell.y + offset_z]
+            var key := "%d,%d" % [cell.x, cell.y]
             TerrainSystem._cells[key] = {
                 "height": 0, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0
             }
@@ -39,10 +37,10 @@ func test_place_building_registers_cells():
         SpatialHash.instance.register_building_cells(cells)
     var blocked := SpatialHash.instance.get_blocked_cells()
     var sh := SpatialHash.instance
-    var has_55 := blocked.has(CellUtil.cell_key(Vector2i(5, 5)))
-    var has_65 := blocked.has(CellUtil.cell_key(Vector2i(6, 5)))
-    var has_56 := blocked.has(CellUtil.cell_key(Vector2i(5, 6)))
-    var has_66 := blocked.has(CellUtil.cell_key(Vector2i(6, 6)))
+    var has_55 := blocked.has(CellUtil.cell_key(Vector2i(32, 32)))
+    var has_65 := blocked.has(CellUtil.cell_key(Vector2i(33, 32)))
+    var has_56 := blocked.has(CellUtil.cell_key(Vector2i(32, 33)))
+    var has_66 := blocked.has(CellUtil.cell_key(Vector2i(33, 33)))
     SpatialHash.instance._building_cells.clear()
     if can_place and has_55 and has_65 and has_56 and has_66:
         _test_passed += 1
@@ -64,8 +62,8 @@ func test_pathfinder_avoids_building_cells():
     var cells: Array[Vector2i] = [Vector2i(5, 5), Vector2i(6, 5), Vector2i(5, 6), Vector2i(6, 6)]
     SpatialHash.instance.register_building_cells(cells)
     var blocked := SpatialHash.instance.get_blocked_cells()
-    var start_world := Vector3(2.0, 0.0, 2.0)
-    var end_world := Vector3(14.0, 0.0, 14.0)
+    var start_world := Vector3(4.0, 0.0, 4.0)
+    var end_world := Vector3(130.0, 0.0, 130.0)
     var path: PackedVector3Array = Pathfinder.find_path(start_world, end_world, blocked)
     var avoids_building := true
     var bad_cell := Vector2i.ZERO

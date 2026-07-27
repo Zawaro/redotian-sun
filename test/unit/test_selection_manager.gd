@@ -280,7 +280,7 @@ func test_find_infantry_cell_empty():
         return
     var occupancy: Dictionary = {}
     var target := Vector2i(10, 10)
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(20, 0, 20), occupancy)
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(22, 0, 22), occupancy)
     if result == target:
         _test_passed += 1
         print("    PASS: _find_infantry_cell returns target when empty")
@@ -298,7 +298,7 @@ func test_find_infantry_cell_at_capacity():
     var target := Vector2i(10, 10)
     var key: int = CellUtil.cell_key(target)
     occupancy[key] = 3
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(20, 0, 20), occupancy)
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(22, 0, 22), occupancy)
     if result != target:
         _test_passed += 1
         print("    PASS: _find_infantry_cell spirals when target is full")
