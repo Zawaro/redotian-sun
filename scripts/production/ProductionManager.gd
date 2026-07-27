@@ -50,11 +50,10 @@ func _on_node_added(node: Node) -> void:
         _connect_factory(node)
 
 
-func _on_build_mode_changed(is_active: bool) -> void:
+func _on_build_mode_changed(is_active: bool, player_id: int) -> void:
     if not is_active:
-        # Build mode exited (ESC or placement cancelled) — unblock all queues
-        for key in _waiting_for_placement:
-            _waiting_for_placement[key] = false
+        # Build mode exited (ESC or placement cancelled) — unblock only this player's queues
+        clear_waiting_for_placement(player_id)
 
 
 func start_production(player_id: int, entity_data: EntityData, count: int = 1) -> bool:
@@ -248,7 +247,7 @@ func _complete_item(key: String, index: int) -> void:
 
     # Buildings go to ready-to-place state; units spawn immediately
     if entity_data.entity_type == EntityData.EntityType.BUILDING:
-        _add_ready_to_place(player_id, entity_data)
+        _add_ready_to_place(player_id, entity_data, item.deducted)
         _waiting_for_placement[key] = true
     else:
         _spawn_unit(entity_data, player_id)
@@ -280,9 +279,16 @@ func _spawn_unit(entity_data: EntityData, player_id: int) -> void:
             return
         (factory_comp as FactoryComponent).on_unit_produced(entity_data, player_id)
     else:
-        # Fallback: spawn at exit cell
-        var spawn_cell := _find_exit_cell(result.factory)
-        var world_pos := CellUtil.cell_to_world(spawn_cell)
+        # Fallback: spawn at a free exit cell. If none exists, retry later rather
+        # than spawning the unit inside the factory footprint.
+        var spawn_cell: Variant = _find_exit_cell(result.factory)
+        if spawn_cell == null:
+            push_warning(
+                "ProductionManager: no free exit cell near factory for %s" % entity_data.id
+            )
+            _add_ready_to_spawn(entity_data, player_id, "")
+            return
+        var world_pos := CellUtil.cell_to_world(spawn_cell as Vector2i)
         EntityPlacer.place_entity(entity_data, world_pos, player_id, result.factory)
 
 
@@ -309,9 +315,13 @@ func _find_factories(player_id: int, factory_type: String) -> Dictionary:
     return {"factory": primary if primary else first_match, "count": maxi(count, 1)}
 
 
-func _find_exit_cell(factory: Node3D) -> Vector2i:
+## Returns a free cell near the factory to spawn a unit, or null if none is free
+## within the search radius. spiral_first_free returns the center cell when it
+## finds nothing free; the factory always occupies its own cell, so a returned
+## center unambiguously means "no free cell found."
+func _find_exit_cell(factory: Node3D) -> Variant:
     var cell := CellUtil.world_to_cell(factory.global_position)
-    return CellUtil.spiral_first_free(
+    var found := CellUtil.spiral_first_free(
         cell,
         5,
         func(candidate: Vector2i) -> bool:
@@ -325,6 +335,9 @@ func _find_exit_cell(factory: Node3D) -> Vector2i:
                 return true
             return false
     )
+    if found == cell:
+        return null
+    return found
 
 
 func _get_production_speed(queue_key: String) -> float:
@@ -365,14 +378,17 @@ func _queue_key(player_id: int, factory_type: String) -> String:
     return "%d:%s" % [player_id, factory_type]
 
 
-func _add_ready_to_place(player_id: int, entity_data: EntityData) -> void:
+func _add_ready_to_place(player_id: int, entity_data: EntityData, deducted: float) -> void:
     if not _ready_to_place.has(player_id):
         _ready_to_place[player_id] = []
-    (_ready_to_place[player_id] as Array).append(entity_data)
+    (_ready_to_place[player_id] as Array).append({"data": entity_data, "deducted": deducted})
 
 
 func get_ready_buildings(player_id: int) -> Array:
-    return _ready_to_place.get(player_id, [])
+    var out: Array = []
+    for entry in _ready_to_place.get(player_id, []):
+        out.append((entry as Dictionary)["data"])
+    return out
 
 
 func place_ready_building(player_id: int, entity_id: String) -> bool:
@@ -380,7 +396,7 @@ func place_ready_building(player_id: int, entity_id: String) -> bool:
         return false
     var list: Array = _ready_to_place[player_id]
     for i in range(list.size()):
-        var data: EntityData = list[i] as EntityData
+        var data: EntityData = (list[i] as Dictionary)["data"] as EntityData
         if data.id == entity_id:
             list.remove_at(i)
             if list.is_empty():
@@ -398,16 +414,17 @@ func cancel_ready_building(player_id: int, entity_id: String) -> bool:
         return false
     var list: Array = _ready_to_place[player_id]
     for i in range(list.size()):
-        var data: EntityData = list[i] as EntityData
+        var entry: Dictionary = list[i] as Dictionary
+        var data: EntityData = entry["data"] as EntityData
         if data.id == entity_id:
             list.remove_at(i)
             if list.is_empty():
                 _ready_to_place.erase(player_id)
-            # Refund the full cost — production already deducted it gradually,
-            # but the building was never placed, so refund entirely
+            # Refund exactly what was deducted for this building — production
+            # deducted gradually, but the building was never placed.
             var em := get_node("/root/EconomyManager") as EconomyManager
             if em:
-                em.add(player_id, data.cost, "cancel_ready:%s" % data.id)
+                em.add(player_id, int(entry["deducted"]), "cancel_ready:%s" % data.id)
             clear_waiting_for_placement(player_id)
             production_cancelled.emit("%d:%s" % [player_id, data.buildable_queue])
             return true

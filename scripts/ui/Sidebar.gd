@@ -40,6 +40,7 @@ var _flicker_tweens: Dictionary = {}  # button → Tween
 var _shader: ShaderMaterial = null
 var _sell_mode: bool = false
 var _repair_mode: bool = false
+var _grid_dirty: bool = false
 
 ## Debug "place anywhere" mode — direct entity placement bypassing production
 var _debug_place_mode: bool = false
@@ -127,13 +128,13 @@ func _switch_tab(tab_index: int) -> void:
     _scroll_offset = 0
     for i in range(tab_buttons.size()):
         tab_buttons[i].button_pressed = (i == tab_index)
-    _refresh_grid()
+    _queue_refresh()
 
 
 func _on_scroll_up() -> void:
     if _scroll_offset > 0:
         _scroll_offset -= GRID_COLS
-        _refresh_grid()
+        _queue_refresh()
 
 
 func _on_scroll_down() -> void:
@@ -141,7 +142,7 @@ func _on_scroll_down() -> void:
     var max_offset := maxi(0, entities.size() - GRID_ROWS * GRID_COLS)
     if _scroll_offset < max_offset:
         _scroll_offset += GRID_COLS
-        _refresh_grid()
+        _queue_refresh()
 
 
 func _get_current_entities() -> Array[EntityData]:
@@ -162,7 +163,17 @@ func _get_current_entities() -> Array[EntityData]:
     return result
 
 
+## Coalesce the many production/prerequisite signals into a single deferred
+## grid rebuild per frame instead of rebuilding on every trigger.
+func _queue_refresh() -> void:
+    if _grid_dirty:
+        return
+    _grid_dirty = true
+    _refresh_grid.call_deferred()
+
+
 func _refresh_grid() -> void:
+    _grid_dirty = false
     # Kill all flicker tweens
     for btn in _flicker_tweens:
         var tw: Tween = _flicker_tweens[btn]
@@ -543,7 +554,7 @@ func _on_credits_changed(player_id: int, new_balance: int, _reason: String) -> v
 
 
 func _on_prerequisites_changed(_player_id: int) -> void:
-    _refresh_grid()
+    _queue_refresh()
     _prewarm_available_models()
 
 
@@ -572,7 +583,7 @@ func _prewarm_available_models() -> void:
 
 
 func _on_production_started(_queue_key: String) -> void:
-    _refresh_grid()
+    _queue_refresh()
 
 
 func _on_production_progress(queue_key: String, progress: float) -> void:
@@ -595,15 +606,15 @@ func _on_production_progress(queue_key: String, progress: float) -> void:
 
 
 func _on_production_completed(_queue_key: String, _entity_data: EntityData) -> void:
-    _refresh_grid()
+    _queue_refresh()
 
 
 func _on_production_cancelled(_queue_key: String) -> void:
-    _refresh_grid()
+    _queue_refresh()
 
 
 func _on_production_paused(_queue_key: String) -> void:
-    _refresh_grid()
+    _queue_refresh()
 
 
 func _on_sell_pressed() -> void:
@@ -671,7 +682,7 @@ func _add_ready_overlay(btn: Button) -> void:
 
 func enter_debug_place_mode() -> void:
     _debug_place_mode = true
-    _refresh_grid()
+    _queue_refresh()
 
 
 func exit_debug_place_mode() -> void:

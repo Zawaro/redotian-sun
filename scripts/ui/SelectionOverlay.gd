@@ -7,7 +7,7 @@ const LINE_WIDTH := 1.0
 const MAX_CARGO_SLOTS := 10
 const MAX_PASSENGER_SLOTS := 5
 const PIP_GAP_RATIO := 0.002
-const SEGMENT_WIDTH_RATIO := 20.0
+const SEGMENT_PX_PER_UNIT := 20.0
 
 
 class DrawNode:
@@ -106,7 +106,7 @@ func _do_draw_health_bars(node: Node2D):
         var bar_height: float = e.rect.size.y * 0.053
         var bar_y: float = e.bracket_rect.position.y - bar_height - e.rect.size.y * 0.02
         var bar_width: float = e.rect.size.x
-        var num_segs: int = int(max(e.world_size.x * SEGMENT_WIDTH_RATIO, 1.0))
+        var num_segs: int = int(max(e.world_size.x * SEGMENT_PX_PER_UNIT, 1.0))
         var seg_width: float = bar_width / num_segs
         var health_width: float = bar_width * e.health_ratio
         var base_color: Color = e.health_color

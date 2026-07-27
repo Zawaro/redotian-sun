@@ -1,6 +1,6 @@
 extends Node
 
-signal build_mode_changed(is_active: bool)
+signal build_mode_changed(is_active: bool, player_id: int)
 signal building_placed(building: Node3D, entity_data: EntityData)
 signal building_sold(building: Node3D, entity_data: EntityData)
 signal building_repaired(building: Node3D, entity_data: EntityData)
@@ -78,7 +78,7 @@ func enter_build_mode(building_type: EntityData) -> void:
     _skip_input_frames = 1
     _create_building_preview()
     _show_preview(true)
-    build_mode_changed.emit(true)
+    build_mode_changed.emit(true, PlayerManager.get_local_player_id())
 
 
 func exit_build_mode() -> void:
@@ -90,7 +90,7 @@ func exit_build_mode() -> void:
     for child in _preview.get_children():
         child.queue_free()
     _building_preview = null
-    build_mode_changed.emit(false)
+    build_mode_changed.emit(false, PlayerManager.get_local_player_id())
 
 
 func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
