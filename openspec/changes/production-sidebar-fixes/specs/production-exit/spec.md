@@ -12,7 +12,6 @@ The system SHALL provide an ExitComponent that defines where units spawn and exi
 #### Scenario: Building without ExitComponent spawns unit at free cell
 - **WHEN** a unit is produced at a building without ExitComponent and a free adjacent cell exists
 - **THEN** the unit SHALL spawn at the nearest free cell adjacent to the building
-- **THEN** a warning SHALL be logged
 
 #### Scenario: No free cell available near building
 - **WHEN** a unit is produced at a building without ExitComponent and no free cell exists within the search radius

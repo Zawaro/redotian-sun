@@ -776,6 +776,39 @@ func test_cancel_ready_building_refunds_tracked_amount():
     )
 
 
+func test_cancel_stacked_ready_building_refunds_paid():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    var data := _make_infantry("test_stacked_ready", 100)
+    data.entity_type = EntityData.EntityType.BUILDING
+    data.buildable_queue = "BuildingType"
+    var key: String = pm.get_queue_key(PID, "BuildingType")
+    # Queue a stacked building (count > 1) that has been fully paid for.
+    var item := ProductionQueue.new(data, 2)
+    item.deducted = 100.0
+    pm._queues[key] = [item]
+    pm._active_index[key] = 0
+    # Completing one item resets item.deducted for the next in the stack; the
+    # ready building must still track the amount actually paid (100, not 0).
+    pm._complete_item(key, 0)
+    var balance_before: int = _em.get_balance(PID)
+    pm.cancel_ready_building(PID, "test_stacked_ready")
+    var balance_after: int = _em.get_balance(PID)
+    var refund := balance_after - balance_before
+    (
+        TestHelper
+        . assert_true(
+            refund == 100,
+            "cancel stacked ready building must refund the paid amount",
+        )
+    )
+    _cleanup_queue(pm, key)
+    pm._ready_to_place.erase(PID)
+    pm.clear_waiting_for_placement(PID)
+
+
 # --- fallback exit cell returns null when nothing free is found ---
 
 
