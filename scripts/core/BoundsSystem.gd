@@ -86,6 +86,8 @@ func _center_camera_on_diamond() -> void:
 func apply_saved_bounds(data: Dictionary) -> void:
     var vbs: Variant = data.get("visible_bounds_size")
     if vbs is Array and vbs.size() == 2:
+        # Lossless round-trip is guaranteed only for app-authored (even) sizes; a
+        # hand-authored odd visible_bounds_size may re-quantize by 1 cell here.
         visible_offset_x = maxi((grid_cells.x - int(vbs[0])) / 2, 0)
         visible_offset_z = maxi((grid_cells.y - int(vbs[1])) / 2, 0)
         return

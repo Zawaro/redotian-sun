@@ -653,6 +653,8 @@ func export_to_json(path: String, extra_data: Dictionary = {}) -> void:
     var data: Dictionary = {
         "version": 4,
         "grid_cells": [grid_cells.x, grid_cells.y],
+        # map_size is write-only, self-describing metadata; on load the dimensions are
+        # restored from the authoritative grid_cells, so this key is never read back.
         "map_size": [grid_cells.x, grid_cells.y],
         "vertices": vertices,
         "cells": _cells.duplicate(),
