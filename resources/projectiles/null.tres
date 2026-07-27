@@ -18,6 +18,7 @@ has_proximity_fuse = false
 is_guided = false
 is_ranged = false
 homing_turn_rate = 0
+; sentinel: effectively never arms (Null projectile never really detonates)
 arm_delay = 9999999
 sub_projectile_count = 0
 speed_override = 0.0
