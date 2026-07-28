@@ -83,3 +83,21 @@ Pathfinder SHALL use a binary min-heap for the open set to achieve O(log n) inse
 #### Scenario: Multi-waypoint path reconstruction
 - **WHEN** a path goes start → A → B → goal
 - **THEN** the output is `[A_world, B_world, goal_world]` (start excluded)
+
+### Requirement: Pathfinder cell-to-world-with-height
+`Pathfinder.cell_to_world_with_height(cell)` SHALL return the centered
+world-space cell position from `CellUtil.cell_to_world()` with the terrain
+height assigned to Y.
+
+#### Scenario: Path endpoint near world origin
+- **WHEN** `cell_to_world_with_height(Vector2i(50, 50))` is called on a 50×50 grid
+- **THEN** the returned position is near `Vector3(0, height, 0)`
+
+### Requirement: Pathfinder uses centered coordinates
+`Pathfinder.find_path()` SHALL convert world positions to cells with centered
+`CellUtil.world_to_cell()` and convert path cells back with centered
+`CellUtil.cell_to_world()`.
+
+#### Scenario: Path waypoints span centered world coordinates
+- **WHEN** `find_path(start_world, end_world)` crosses world origin
+- **THEN** the returned waypoints can contain both negative and positive XZ coordinates

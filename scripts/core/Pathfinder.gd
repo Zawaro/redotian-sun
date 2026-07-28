@@ -3,7 +3,9 @@ class_name Pathfinder
 
 static func cell_to_world_with_height(cell: Vector2i) -> Vector3:
     var height := get_terrain_height(cell)
-    return Vector3((cell.x + 1.5) * CellUtil.CELL_SIZE, height, (cell.y + 1.5) * CellUtil.CELL_SIZE)
+    var pos := CellUtil.cell_to_world(cell)
+    pos.y = height
+    return pos
 
 
 static func get_terrain_height(cell: Vector2i) -> float:

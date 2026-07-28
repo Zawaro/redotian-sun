@@ -51,7 +51,8 @@ func test_deploy_component_configure():
         print("    PASS: DeployComponent.configure sets deploys_into")
     else:
         _test_failed += 1
-        print("    FAIL: Expected deploys_into='GACNST', got '%s'" % deploy.deploys_into)
+        var msg := "Expected deploys_into='GDI_CONSTRUCTION_YARD'"
+        print("    FAIL: %s, got '%s'" % [msg, deploy.deploys_into])
 
     entity.free()
 

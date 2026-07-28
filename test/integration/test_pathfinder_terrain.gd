@@ -16,7 +16,6 @@ func test_get_terrain_height_returns_float():
     _ts.raise_cell(Vector2i(5, 5))
     var height: float = Pathfinder.get_terrain_height(Vector2i(5, 5))
     _ts.clear()
-    # height is always float from get_terrain_height, just verify it's a valid number
     if not is_nan(height) and not is_inf(height):
         _test_passed += 1
         print("    PASS: get_terrain_height returns valid float: %f" % height)

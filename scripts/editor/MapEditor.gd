@@ -120,6 +120,12 @@ func _prefill_terrain() -> void:
                 TerrainSystem.compute_and_emit_cell(cell)
 
 
+func _clear_terrain_renderer() -> void:
+    var renderer := get_node_or_null("TerrainRenderer")
+    if renderer and renderer.has_method("clear_all"):
+        renderer.clear_all()
+
+
 func _setup_ui() -> void:
     var ui := CanvasLayer.new()
     ui.name = "EditorUI"
@@ -293,7 +299,7 @@ func _show_new_map_dialog() -> void:
     width_label.text = "Width (X):"
     vbox.add_child(width_label)
     var width_spin := SpinBox.new()
-    width_spin.min_value = 50.0
+    width_spin.min_value = 20.0
     width_spin.max_value = 512.0
     width_spin.step = 1.0
     width_spin.value = 50.0
@@ -304,7 +310,7 @@ func _show_new_map_dialog() -> void:
     height_label.text = "Height (Z):"
     vbox.add_child(height_label)
     var height_spin := SpinBox.new()
-    height_spin.min_value = 50.0
+    height_spin.min_value = 20.0
     height_spin.max_value = 512.0
     height_spin.step = 1.0
     height_spin.value = 50.0
@@ -416,6 +422,7 @@ func _apply_new_map(
     offset_x: int = 0,
     offset_z: int = 0
 ) -> void:
+    _clear_terrain_renderer()
     TerrainSystem.clear()
     TerrainSystem.init_grid(width, height)
     BoundsSystem.set_visible_bounds_size(Vector2i(offset_x, offset_z))
@@ -442,7 +449,7 @@ func _show_map_settings_dialog() -> void:
     width_label.text = "Width (X):"
     vbox.add_child(width_label)
     var width_spin := SpinBox.new()
-    width_spin.min_value = 50.0
+    width_spin.min_value = 20.0
     width_spin.max_value = 512.0
     width_spin.step = 1.0
     width_spin.value = float(TerrainSystem.grid_cells.x)
@@ -453,7 +460,7 @@ func _show_map_settings_dialog() -> void:
     height_label.text = "Height (Z):"
     vbox.add_child(height_label)
     var height_spin := SpinBox.new()
-    height_spin.min_value = 50.0
+    height_spin.min_value = 20.0
     height_spin.max_value = 512.0
     height_spin.step = 1.0
     height_spin.value = float(TerrainSystem.grid_cells.y)
@@ -534,6 +541,7 @@ func _show_map_settings_dialog() -> void:
 
 
 func _apply_map_settings(width: int, height: int, offset_x: int = 0, offset_z: int = 0) -> void:
+    _clear_terrain_renderer()
     TerrainSystem.clear()
     TerrainSystem.init_grid(width, height)
     BoundsSystem.set_visible_bounds_size(Vector2i(offset_x, offset_z))

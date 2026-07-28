@@ -91,6 +91,32 @@ Test files use `TestHelper` class (`test/test_helper.gd`) with static assertions
 
 The runner auto-injects autoloads as shorthand vars: `_ts` (TerrainSystem), `_sh` (SpatialHash), `_sm` (SelectionManager), `_bm` (BuildingManager), `_em` (EconomyManager), `_pm` (PlayerManager).
 
+### Test Design — Behavior, Not Implementation
+
+Tests MUST validate requirements and real gameplay behavior, not reproduce the current
+implementation.
+
+- Derive expected results independently from specifications, geometry, or known real-world
+  examples. Do not copy the production formula into the test.
+- A regression test MUST fail on the broken implementation for the intended reason before the
+  production fix is applied.
+- Do not change expected values merely to match current output. Change them only when the
+  documented requirement changes.
+- Prevent vacuous passes: assert that paths are non-empty, fixtures are inside the playable map,
+  entities are in the scene tree, and the tested branch was actually reached.
+- For rejection tests, first prove the same setup succeeds without the rejected condition, then
+  introduce that condition and verify rejection.
+- Prefer observable consumer behavior over private implementation details: terrain lookup,
+  placement, generated mesh geometry, docking destination, pathfinding result, serialization, and
+  similar outcomes.
+- Mathematical systems require both:
+  - known examples with independently calculated answers;
+  - invariant/property tests across square, rectangular, odd/even, and boundary cases.
+- Include positive, negative, boundary, and regression cases. One happy-path assertion is
+  insufficient for coordinate or geometry changes.
+- Never weaken or delete a failing test solely to make broken production code pass. If a test is
+  wrong, document which requirement made it wrong.
+
 ### Linting
 
 ```bash

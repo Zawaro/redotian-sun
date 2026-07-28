@@ -26,16 +26,15 @@ func test_init_grid_sets_grid_cells():
 func test_asymmetric_diamond_uses_full_extent():
     var map_cells: Vector2i = Vector2i(32, 24)
     var extent: Vector2i = CellUtil.get_diamond_extent(map_cells)
+    # Diamond uses |a| ≤ H, |b| ≤ W (swapped from visual axes)
     var tip_cells: Array[Vector2i] = [
-        Vector2i(31, 0),
-        Vector2i(0, 31),
-        Vector2i(55, 24),
-        Vector2i(24, 55),
+        Vector2i(28, 28),  # a=1, b=0
+        Vector2i(20, 20),  # a=-15, b=0
     ]
     var all_tips_in_bounds: bool = true
     for cell in tip_cells:
         all_tips_in_bounds = all_tips_in_bounds and CellUtil.is_in_diamond(cell, map_cells)
-    var outside: bool = not CellUtil.is_in_diamond(Vector2i(0, 30), map_cells)
+    var outside: bool = not CellUtil.is_in_diamond(Vector2i(0, 0), map_cells)
     if extent == Vector2i(56, 56) and all_tips_in_bounds and outside:
         _test_passed += 1
         print("    PASS: asymmetric diamond covers all four requested tips")

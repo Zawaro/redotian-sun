@@ -179,8 +179,9 @@ func get_height_at_world(world_pos: Vector3) -> float:
 
 
 func get_height_at_world_smooth(world_pos: Vector3) -> float:
-    var vx: float = world_pos.x / CellUtil.CELL_SIZE - 1.0
-    var vz: float = world_pos.z / CellUtil.CELL_SIZE - 1.0
+    var center: float = float(grid_cells.x + grid_cells.y) * 0.5
+    var vx: float = world_pos.x / CellUtil.CELL_SIZE + center
+    var vz: float = world_pos.z / CellUtil.CELL_SIZE + center
     var x0 := floori(vx)
     var x1 := x0 + 1
     var z0 := floori(vz)
@@ -197,8 +198,9 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
 
 
 func get_normal_at_world(world_pos: Vector3) -> Vector3:
-    var vx: float = world_pos.x / CellUtil.CELL_SIZE - 1.0
-    var vz: float = world_pos.z / CellUtil.CELL_SIZE - 1.0
+    var center: float = float(grid_cells.x + grid_cells.y) * 0.5
+    var vx: float = world_pos.x / CellUtil.CELL_SIZE + center
+    var vz: float = world_pos.z / CellUtil.CELL_SIZE + center
     var x0 := floori(vx)
     var x1 := x0 + 1
     var z0 := floori(vz)

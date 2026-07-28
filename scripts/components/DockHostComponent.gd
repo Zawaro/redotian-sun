@@ -67,17 +67,17 @@ func _get_foundation() -> Vector2i:
 
 
 func _compute_dock_cell() -> void:
-    var entity := get_parent() as Node3D
+    _dock_cell = CellUtil.world_to_cell(get_dock_world_position())
+
+
+func get_dock_world_position() -> Vector3:
+    var entity: Node3D = get_parent() as Node3D
     if not entity:
-        return
-    var cs := CellUtil.CELL_SIZE
-    var found := _get_foundation()
-    var origin_cell := Vector2i(
-        floori((entity.global_position.x - found.x * 0.5 * cs) / cs),
-        floori((entity.global_position.z - found.y * 0.5 * cs) / cs)
-    )
-    var top_left := CellUtil.cell_to_world(origin_cell)
-    _dock_cell = CellUtil.world_to_cell(top_left + entity.global_transform.basis * dock_position)
+        return Vector3.ZERO
+    var foundation: Vector2i = _get_foundation()
+    var origin_cell: Vector2i = CellUtil.world_to_cell_origin(entity.global_position, foundation)
+    var origin_world: Vector3 = CellUtil.cell_to_world(origin_cell)
+    return origin_world + entity.global_transform.basis * dock_position
 
 
 func is_cell_available(cell: Vector2i) -> bool:

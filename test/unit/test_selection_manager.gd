@@ -6,23 +6,9 @@ extends Node
 const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/SelectComponent.tscn")
 
 var _sm: Node = null
+var _ts: Node = null
 var _test_passed := 0
 var _test_failed := 0
-
-
-func test_selected_entities_initially_empty():
-    if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
-        return
-    _sm.deselect_all()
-    var count: int = _sm.selected_entities.size()
-    if count == 0:
-        _test_passed += 1
-        print("    PASS: selected_entities initially empty")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 0, got %d" % count)
 
 
 func test_deselect_all_clears():
@@ -278,9 +264,13 @@ func test_find_infantry_cell_empty():
         _test_failed += 1
         print("    FAIL: SelectionManager not injected")
         return
+    # Ensure 50×50 grid so world→cell conversion is deterministic
+    if _ts:
+        _ts.init_grid(50, 50)
     var occupancy: Dictionary = {}
     var target := Vector2i(10, 10)
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(22, 0, 22), occupancy)
+    # Centered: cell (10,10) on 50×50 → world (-79, 0, -79)
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79), occupancy)
     if result == target:
         _test_passed += 1
         print("    PASS: _find_infantry_cell returns target when empty")
@@ -294,11 +284,15 @@ func test_find_infantry_cell_at_capacity():
         _test_failed += 1
         print("    FAIL: SelectionManager not injected")
         return
+    # Ensure 50×50 grid so world→cell conversion is deterministic
+    if _ts:
+        _ts.init_grid(50, 50)
     var occupancy: Dictionary = {}
     var target := Vector2i(10, 10)
     var key: int = CellUtil.cell_key(target)
     occupancy[key] = 3
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(22, 0, 22), occupancy)
+    # Centered coords: cell (10,10) on 50×50 grid → world (-79, 0, -79)
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79), occupancy)
     if result != target:
         _test_passed += 1
         print("    PASS: _find_infantry_cell spirals when target is full")

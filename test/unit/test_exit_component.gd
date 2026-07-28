@@ -2,8 +2,6 @@ extends Node
 
 # ExitComponent tests — positioning, facing, signal emission, free cell search
 
-const ExitComponentScript = preload("res://scripts/components/ExitComponent.gd")
-
 var _test_passed := 0
 var _test_failed := 0
 var _unit_spawned_received := false
@@ -154,19 +152,3 @@ func test_find_free_near_returns_input_when_available():
         _test_failed += 1
         print("    FAIL: _find_free_near changed an available cell")
     remove_child(exit)
-
-
-# --- Run all tests ---
-
-
-func run_tests():
-    print("  ExitComponent tests:")
-    test_exit_offset()
-    test_spawn_offset()
-    test_exit_facing()
-    test_exit_delay()
-    test_signal_emitted()
-    test_configure_from_entity_data()
-    test_is_cell_available_clear()
-    test_find_free_near_returns_input_when_available()
-    print("  Results: %d passed, %d failed" % [_test_passed, _test_failed])

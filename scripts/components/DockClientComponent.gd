@@ -153,16 +153,7 @@ func _move_to_dock(host: Node3D) -> void:
     if not dock or not _mc:
         dock_slot_failed.emit()
         return
-    var cs := CellUtil.CELL_SIZE
-    var found := dock._get_foundation()
-    var origin_cell := Vector2i(
-        floori((host.global_position.x - found.x * 0.5 * cs) / cs),
-        floori((host.global_position.z - found.y * 0.5 * cs) / cs)
-    )
-    var top_left_world := CellUtil.cell_to_world(origin_cell)
-    var dock_offset := dock.dock_position
-    var basis := host.global_transform.basis
-    var target_pos := top_left_world + basis * dock_offset
+    var target_pos: Vector3 = dock.get_dock_world_position()
     _mc.set_target_position(target_pos)
 
 

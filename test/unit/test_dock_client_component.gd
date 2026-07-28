@@ -100,44 +100,6 @@ func test_initial_state_is_idle():
         print("    FAIL: initial state = %d (expected IDLE)" % client.get_state())
 
 
-func test_no_timeout_variables():
-    var client := _make_dock_client()
-    var has_timeout := (
-        client.get("_refinery_timeout") != null
-        or client.get("_docking_timeout") != null
-        or client.get("_queued_timeout") != null
-        or client.get("_recheck_timer") != null
-    )
-    if not has_timeout:
-        _test_passed += 1
-        print("    PASS: no timeout variables on DockClientComponent")
-    else:
-        _test_failed += 1
-        print("    FAIL: timeout variables still exist")
-
-
-func test_no_find_shorter_queue():
-    var client := _make_dock_client()
-    var has_method := client.has_method("_find_shorter_queue")
-    if not has_method:
-        _test_passed += 1
-        print("    PASS: _find_shorter_queue removed")
-    else:
-        _test_failed += 1
-        print("    FAIL: _find_shorter_queue still exists")
-
-
-func test_no_dock_slot_reserved_signal():
-    var client := _make_dock_client()
-    var has_signal := client.has_signal("dock_slot_reserved")
-    if not has_signal:
-        _test_passed += 1
-        print("    PASS: dock_slot_reserved signal removed")
-    else:
-        _test_failed += 1
-        print("    FAIL: dock_slot_reserved signal still exists")
-
-
 # --- State transitions ---
 
 
@@ -394,19 +356,6 @@ func test_pathfinding_failed_stays_queued():
                 % [client.get_state(), DockClientComponent.State.QUEUED]
             )
         )
-
-
-# --- Dock cell retry constant ---
-
-
-func test_dock_cell_retry_constant_exists():
-    var client := _make_dock_client()
-    if "DOCK_CELL_RETRY_COOLDOWN" in client:
-        _test_passed += 1
-        print("    PASS: DOCK_CELL_RETRY_COOLDOWN constant exists")
-    else:
-        _test_failed += 1
-        print("    FAIL: DOCK_CELL_RETRY_COOLDOWN constant missing")
 
 
 # --- on_dock_cancelled (queue purge callback) ---

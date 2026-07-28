@@ -60,9 +60,7 @@ func _setup_camera() -> void:
     _camera.name = "MinimapCamera"
     _camera.projection = Camera3D.PROJECTION_ORTHOGONAL
     _camera.rotation_degrees = Vector3(-90, 45, 0)
-    var cells := TerrainSystem.grid_cells
-    var total: float = float(cells.x + cells.y) * CellUtil.CELL_SIZE
-    _camera.position = Vector3(total * 0.5, 100, total * 0.5)
+    _camera.position = Vector3(0.0, 100.0, 0.0)
     _update_camera_size()
     _sub_viewport.add_child(_camera)
 

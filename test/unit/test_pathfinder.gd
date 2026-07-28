@@ -6,47 +6,52 @@ extends Node
 var _test_passed := 0
 var _test_failed := 0
 
+const GC := Vector2i(50, 50)
+
 
 func test_world_to_cell_origin():
-    var got: Vector2i = CellUtil.world_to_cell(Vector3.ZERO)
-    var expected: Vector2i = Vector2i(-1, -1)
+    # Default grid 50×50, center=(W+H)/2=50. world (0,0,0) → cell (50, 50)
+    var got: Vector2i = CellUtil.world_to_cell(Vector3.ZERO, GC)
+    var expected: Vector2i = Vector2i(50, 50)
     if got == expected:
         _test_passed += 1
-        print("    PASS: Vector3.ZERO → cell (-1,-1) (outside grid)")
+        print("    PASS: Vector3.ZERO → cell (50,50) (diamond center)")
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
 
 
 func test_world_to_cell_positive():
-    var got: Vector2i = CellUtil.world_to_cell(Vector3(5.0, 0.0, 5.0))
-    var expected: Vector2i = Vector2i(1, 1)
+    # Default grid 50×50, center=(W+H)/2=50. world (5,0,5) → cell (52, 52)
+    var got: Vector2i = CellUtil.world_to_cell(Vector3(5.0, 0.0, 5.0), GC)
+    var expected: Vector2i = Vector2i(52, 52)
     if got == expected:
         _test_passed += 1
-        print("    PASS: Vector3(5,0,5) → cell (1,1)")
+        print("    PASS: Vector3(5,0,5) → cell (52,52)")
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
 
 
 func test_world_to_cell_negative():
-    var got: Vector2i = CellUtil.world_to_cell(Vector3(-3.0, 0.0, -3.0))
-    var expected: Vector2i = Vector2i(-3, -3)
+    # Default grid 50×50, center=(W+H)/2=50. world (-3,0,-3) → cell (48, 48)
+    var got: Vector2i = CellUtil.world_to_cell(Vector3(-3.0, 0.0, -3.0), GC)
+    var expected: Vector2i = Vector2i(48, 48)
     if got == expected:
         _test_passed += 1
-        print("    PASS: Vector3(-3,0,-3) → cell (-3,-3)")
+        print("    PASS: Vector3(-3,0,-3) → cell (48,48)")
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
 
 
 func test_cell_to_world_origin():
-    var got: Vector3 = CellUtil.cell_to_world(Vector2i(0, 0))
-    # Cell (0,0) spans world [2,4]; center is the midpoint (3,0,3).
-    var expected: Vector3 = Vector3(3.0, 0.0, 3.0)
+    # Default grid 50×50, center=(W+H)/2=50. cell (0,0) → world (-99, 0, -99)
+    var got: Vector3 = CellUtil.cell_to_world(Vector2i(0, 0), GC)
+    var expected: Vector3 = Vector3(-99.0, 0.0, -99.0)
     if got == expected:
         _test_passed += 1
-        print("    PASS: Cell (0,0) → world (3,0,3)")
+        print("    PASS: Cell (0,0) → world (-99,0,-99)")
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [expected, got])
@@ -54,8 +59,8 @@ func test_cell_to_world_origin():
 
 func test_cell_to_world_roundtrip():
     var cell: Vector2i = Vector2i(5, 3)
-    var world: Vector3 = CellUtil.cell_to_world(cell)
-    var back: Vector2i = CellUtil.world_to_cell(world)
+    var world: Vector3 = CellUtil.cell_to_world(cell, GC)
+    var back: Vector2i = CellUtil.world_to_cell(world, GC)
     if back == cell:
         _test_passed += 1
         print("    PASS: cell→world→cell roundtrip")
