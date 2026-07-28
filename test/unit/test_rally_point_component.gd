@@ -84,24 +84,10 @@ func test_get_target_position():
     var rally := _make_rally()
     rally.set_rally_point(Vector2i(2, 3))
     var pos: Vector3 = rally.get_target_position()
-    # cell_to_world: (cell.x+1.5)*cs = 3.5*2.0 = 7.0,
-    # (cell.y+1.5)*cs = 4.5*2.0 = 9.0
-    if pos.is_equal_approx(Vector3(7.0, 0.0, 9.0)):
+    var expected: Vector3 = CellUtil.cell_to_world(Vector2i(2, 3))
+    if pos.is_equal_approx(expected):
         _test_passed += 1
         print("    PASS: get_target_position returns correct world pos")
     else:
         _test_failed += 1
-        print("    FAIL: get_target_position returned %s" % pos)
-
-
-# --- Run all tests ---
-
-
-func run_tests():
-    print("  RallyPointComponent tests:")
-    test_set_rally_point()
-    test_clear_rally_point()
-    test_has_rally_point()
-    test_signal_emitted()
-    test_get_target_position()
-    print("  Results: %d passed, %d failed" % [_test_passed, _test_failed])
+        print("    FAIL: get_target_position returned %s, expected %s" % [pos, expected])

@@ -12,52 +12,97 @@ TerrainSystem SHALL store grid dimensions as `Vector2i grid_cells` where `.x` is
 - **THEN** `grid_cells` equals `Vector2i(50, 50)`
 
 ### Requirement: CellUtil accepts Vector2i grid dimensions
-`CellUtil.world_to_cell`, `cell_to_world`, and `cell_origin_to_world` SHALL accept `grid_cells: Vector2i` and use `.x` for the x-axis and `.y` for the z-axis independently.
+`CellUtil.world_to_cell`, `cell_to_world`, and `cell_origin_to_world` SHALL accept `grid_cells: Vector2i`. Because the cell-coordinate square has extent `W+H` on both axes, conversions SHALL use the common center offset `(W+H)/2`.
 
 #### Scenario: World to cell conversion with rectangular grid
 - **WHEN** `world_to_cell(Vector3(0, 0, 0), Vector2i(50, 80))` is called
-- **THEN** the returned cell x is `floori((0 + 50 * 2.0 * 0.5) / 2.0) = 25` and cell y is `floori((0 + 80 * 2.0 * 0.5) / 2.0) = 40`
+- **THEN** the returned cell is `Vector2i(65,65)`
 
 #### Scenario: Cell to world conversion with rectangular grid
-- **WHEN** `cell_to_world(Vector2i(25, 40), Vector2i(50, 80))` is called
-- **THEN** the returned world position is `Vector3(0.0, 0.0, 0.0)` (center of grid)
+- **WHEN** `cell_to_world(Vector2i(65, 65), Vector2i(50, 80))` is called
+- **THEN** the returned world position is `Vector3(1.0, 0.0, 1.0)` because the origin lies between four cell centers
 
 ### Requirement: BoundsSystem uses rectangular diamond
-BoundsSystem SHALL draw and check a rectangular diamond (rhombus) inscribed in a (W+H)*CELL_SIZE square. The diamond vertices SHALL be at world positions:
-- Top: (W*CS, 0)
-- Left: (0, W*CS)
-- Right: ((W+H)*CS, H*CS)
-- Bottom: (H*CS, (W+H)*CS)
+BoundsSystem SHALL draw and check a 45° rotated rectangle with 90° corners aligned to the half-open owned-cell raster. The raster center is `Vector3(-CS/2, 0, 0)`, while the gameplay and camera origin remains `Vector3.ZERO`. The diamond vertices for effective dimensions W×H use:
+- `long = (W + H) / 2 * CS` — vertex component on the long axis
+- `small = (H - W) / 2 * CS` — signed vertex component
+- `offset_x = -CS/2` — half-cell raster alignment
 
-#### Scenario: Diamond mesh vertices for 32×24 map
-- **WHEN** `_compute_diamond_vertices(Vector2i(32, 24))` is called with `CELL_SIZE = 2.0`
-- **THEN** the 4 vertices are `(64, 0, 0)`, `(112, 0, 48)`, `(48, 0, 112)`, `(0, 0, 64)`
+Vertices (world XZ): N=(-small+offset_x, -long), E=(long+offset_x, small), S=(small+offset_x, long), W=(-long+offset_x, -small).
+
+South SHALL equal `-North + 2*offset` and West SHALL equal
+`-East + 2*offset`, where `offset = Vector3(offset_x, 0, 0)`. Adjacent edge
+vectors SHALL have equal-magnitude X/Z components and a zero dot product,
+guaranteeing 45° edges and 90° corners.
+
+#### Scenario: Diamond mesh vertices for 24×20 map (W > H)
+- **WHEN** `_compute_diamond_vertices(Vector2i(24, 20))` is called with `CELL_SIZE = 2.0`
+- **THEN** the 4 vertices are `N(3, 0, -44)`, `E(43, 0, -4)`, `S(-5, 0, 44)`, `W(-45, 0, 4)`
+
+#### Scenario: Diamond mesh vertices for 50×50 map (W = H)
+- **WHEN** `_compute_diamond_vertices(Vector2i(50, 50))` is called with `CELL_SIZE = 2.0`
+- **THEN** the 4 vertices are `N(-1, 0, -100)`, `E(99, 0, 0)`, `S(-1, 0, 100)`, `W(-101, 0, 0)`
+
+#### Scenario: Opposite quadrants mirror for every parity
+- **WHEN** vertices are computed for 50×50, 51×50, 50×51, and 51×51 maps
+- **THEN** opposite vertices mirror around `Vector3(-CS/2, 0, 0)`
+- **AND** adjacent edges remain at 45° with 90° corners
 
 #### Scenario: Diamond bounds check — cell inside
-- **WHEN** `is_in_map_bounds(Vector2i(31, 0))` is called on a 32×24 grid
-- **THEN** the check computes `cx=32, cz=1` and verifies `cx+cz=33>=32`, `cx-cz=31<=32`, `cx+cz=33<=80`, `cx-cz=31>=-32` and returns `true`
+- **WHEN** `is_in_map_bounds(Vector2i(23, 1))` is called on a 24×20 grid
+- **THEN** the half-open check passes and returns `true`
 
 #### Scenario: Diamond bounds check — cell outside
-- **WHEN** `is_in_map_bounds(Vector2i(0, 0))` is called on a 32×24 grid
-- **THEN** the check computes `cx=1, cz=1` and `cx+cz=2<32` and returns `false`
+- **WHEN** `is_in_map_bounds(Vector2i(0, 0))` is called on a 24×20 grid
+- **THEN** `sum=1 < W=24` and returns `false`
+
+### Requirement: Red map bounds
+The red map bounds diamond SHALL use effective dimensions
+`(W - 0.5, H - 0.5)`, placing the line through the centers of the outer
+owned-cell edges.
+
+#### Scenario: Red bounds for 24×20 map
+- **WHEN** red bounds are computed for a 24×20 map with `CELL_SIZE = 2.0`
+- **THEN** the effective dimensions are `(23.5, 19.5)` and the vertices are `N(3, 0, -43)`, `E(42, 0, -4)`, `S(-5, 0, 43)`, `W(-44, 0, 4)`
+
+### Requirement: Blue visible bounds
+The blue visible bounds diamond SHALL use effective dimensions
+`(W - visible_offset_x - 0.5, H - visible_offset_z - 0.5)`. Default visible
+offsets SHALL be `Vector2i(5, 4)`.
+
+#### Scenario: Blue bounds for 24×20 map
+- **WHEN** blue bounds are computed with default offsets
+- **THEN** the effective dimensions are `(18.5, 15.5)` and the vertices are `N(2, 0, -34)`, `E(33, 0, -3)`, `S(-4, 0, 34)`, `W(-35, 0, 3)`
+
+### Requirement: BoundsSystem clamp uses centered constraints
+BoundsSystem SHALL clamp gameplay and camera points around world origin using
+`a = ux + uz ∈ [-H, H]` and `b = ux - uz ∈ [-W, W]`.
+
+#### Scenario: Point at origin stays at origin
+- **WHEN** `clamp_to_map_diamond(Vector3.ZERO)` is called
+- **THEN** the result is `Vector3.ZERO`
+
+### Requirement: Camera and minimap center on world origin
+The gameplay camera pivot and minimap camera SHALL center on world origin. The
+minimap camera SHALL use orthographic size `(W+H) * CELL_SIZE`.
+
+#### Scenario: Rectangular map camera center
+- **WHEN** a rectangular map is initialized
+- **THEN** the gameplay camera pivot XZ and minimap camera XZ are both zero
 
 ### Requirement: EditorGrid draws rectangular diamond
-EditorGrid SHALL draw grid lines clipped to the diamond boundary. Vertical lines SHALL iterate `range(W+H+1)` and horizontal lines SHALL iterate `range(W+H+1)`. Clipping formulas SHALL use `|x - W*CS|` and `min(x + W*CS, (W+2H)*CS - x)` for vertical lines.
+EditorGrid SHALL draw grid lines clipped to the diamond boundary. Vertical lines SHALL iterate `range(W+H+1)` and horizontal lines SHALL iterate `range(W+H+1)`. Clipping SHALL use the diamond containment check: for each line position, compute `a` and `b` from the cell coordinate and check against the diamond bounds.
 
-#### Scenario: Vertical lines use diamond clipping
-- **WHEN** `grid_cells = Vector2i(32, 24)` and `CELL_SIZE = 2.0`
-- **THEN** the vertical line loop iterates `range(57)` (32+24+1) and at x=64 the z-range is `[0, 96]`
-
-#### Scenario: Horizontal lines use diamond clipping
-- **WHEN** `grid_cells = Vector2i(32, 24)` and `CELL_SIZE = 2.0`
-- **THEN** the horizontal line loop iterates `range(57)` (32+24+1) and at z=48 the x-range is `[16, 112]`
+#### Scenario: Grid lines iterate full diamond extent
+- **WHEN** `grid_cells = Vector2i(24, 20)` and `CELL_SIZE = 2.0`
+- **THEN** both vertical and horizontal line loops iterate `range(45)` (24+20+1)
 
 ### Requirement: Pathfinder uses Vector2i grid dimensions
-Pathfinder.find_path SHALL accept `grid_cells: Vector2i` for path reconstruction and coordinate conversion.
+Pathfinder.find_path SHALL accept `grid_cells: Vector2i` for path reconstruction and coordinate conversion. Path waypoints SHALL be converted using centered `CellUtil.cell_to_world(cell, grid_cells)`.
 
 #### Scenario: Path reconstruction with rectangular grid
 - **WHEN** `find_path` is called with a rectangular map
-- **THEN** waypoints are converted using `CellUtil.cell_to_world(cell, grid_cells)` which applies the `(cell+1)*CELL_SIZE` formula
+- **THEN** waypoints are converted using `CellUtil.cell_to_world(cell, grid_cells)` which applies the centered formula
 
 ### Requirement: JSON export uses array format
 TerrainSystem.export_to_json SHALL write `grid_cells` as a two-element array `[x, z]`.

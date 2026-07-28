@@ -2,6 +2,7 @@ extends Node
 
 # DockHostComponent tests — queue limits, wait timer, has_dock_type, stale eviction
 
+var _ts: Node = null
 var _test_passed := 0
 var _test_failed := 0
 var _timeout_signal_emitted := false
@@ -291,6 +292,68 @@ func test_find_wait_cell_excludes_bib_cells():
     else:
         _test_failed += 1
         print("    FAIL: find_wait_cell returned bib cell %s" % wait_cell)
+
+
+# --- Centered world placement ---
+
+
+func test_dock_position_uses_real_foundation_origin_on_rectangular_map() -> void:
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem is not available")
+        return
+
+    var grid_cells: Vector2i = Vector2i(51, 50)
+    _ts.clear()
+    _ts.init_grid(grid_cells.x, grid_cells.y)
+
+    var origin_cell: Vector2i = Vector2i(47, 49)
+    var footprint: Vector2i = Vector2i(3, 2)
+    var entity: Node3D = Node3D.new()
+    entity.name = "TestRefinery"
+
+    var foundation: FoundationComponent = FoundationComponent.new()
+    foundation.name = "FoundationComponent"
+    foundation.foundation = footprint
+    entity.add_child(foundation)
+
+    var host: DockHostComponent = _make_dock_host()
+    host.dock_position = Vector3(4.0, 0.0, -2.0)
+    entity.add_child(host)
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    tree.root.add_child(entity)
+    entity.global_position = CellUtil.cell_origin_to_world(origin_cell, footprint, grid_cells)
+    entity.rotation.y = PI * 0.5
+    host._compute_dock_cell()
+
+    var expected_world: Vector3 = (
+        CellUtil.cell_to_world(origin_cell, grid_cells)
+        + entity.global_transform.basis * host.dock_position
+    )
+    var expected_cell: Vector2i = CellUtil.world_to_cell(expected_world, grid_cells)
+    if (
+        host.get_dock_world_position().is_equal_approx(expected_world)
+        and host._dock_cell == expected_cell
+    ):
+        _test_passed += 1
+        print("    PASS: dock offset starts at the real foundation origin")
+    else:
+        _test_failed += 1
+        print(
+            (
+                "    FAIL: expected dock world/cell %s/%s, got %s/%s"
+                % [
+                    expected_world,
+                    expected_cell,
+                    host.get_dock_world_position(),
+                    host._dock_cell,
+                ]
+            )
+        )
+
+    entity.queue_free()
+    _ts.clear()
+    _ts.init_grid(50, 50)
 
 
 # --- Queue purge on host freed ---

@@ -65,7 +65,3 @@ func test_find_sidebar_returns_null_when_missing():
     else:
         _test_failed += 1
         print("    FAIL: expected null, got %s" % result)
-
-
-func get_result() -> Array[int]:
-    return [_test_passed, _test_failed]

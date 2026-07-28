@@ -24,20 +24,22 @@ func _on_insufficient_funds(player_id: int, cost: int, balance: int) -> void:
 
 func test_add_credits():
     if _em == null:
+        _test_failed += 1
         print("    FAIL: EconomyManager not injected")
         return
     var pid := 100
     _em.add(pid, 500, "harvest")
     var balance: int = _em.get_balance(pid)
-    if balance >= 500:
+    if balance == 500:
         print("    PASS: add_credits increases balance")
     else:
         _test_failed += 1
-        print("    FAIL: expected balance >= 500, got %d" % balance)
+        print("    FAIL: expected balance == 500, got %d" % balance)
 
 
 func test_deduct_success():
     if _em == null:
+        _test_failed += 1
         print("    FAIL: EconomyManager not injected")
         return
     var pid := 101
@@ -52,11 +54,11 @@ func test_deduct_success():
 
 func test_deduct_insufficient():
     if _em == null:
+        _test_failed += 1
         print("    FAIL: EconomyManager not injected")
         return
     var pid := 102
     _em.add(pid, 100, "test")
-    _last_insufficient = []
     var result: bool = _em.deduct(pid, 9999, "build")
     if not result:
         print("    PASS: deduct returns false when insufficient")
@@ -65,8 +67,26 @@ func test_deduct_insufficient():
         print("    FAIL: deduct returned true")
 
 
+func test_deduct_decreases_balance():
+    if _em == null:
+        _test_failed += 1
+        print("    FAIL: EconomyManager not injected")
+        return
+    var pid := 106
+    _em.add(pid, 500, "test")
+    _em.deduct(pid, 200, "build")
+    var balance: int = _em.get_balance(pid)
+    if balance == 300:
+        _test_passed += 1
+        print("    PASS: deduct decreases balance by cost")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected 300, got %d" % balance)
+
+
 func test_can_afford():
     if _em == null:
+        _test_failed += 1
         print("    FAIL: EconomyManager not injected")
         return
     var pid := 103
@@ -85,6 +105,7 @@ func test_can_afford():
 
 func test_multiple_players():
     if _em == null:
+        _test_failed += 1
         print("    FAIL: EconomyManager not injected")
         return
     var pid_a := 104

@@ -467,11 +467,12 @@ func _add_grid_and_indicators(
                     inst.position = Vector3(cw.x, 0, cw.z)
                     _preview.add_child(inst)
 
-            var h := TerrainSystem.get_cell_corner_heights(cell)
-            var cs := CellUtil.CELL_SIZE
-            var bx := x * cs
-            var bz := z * cs
-            var ht := thick * 0.5
+            var h: PackedFloat32Array = TerrainSystem.get_cell_corner_heights(cell)
+            var cs: float = CellUtil.CELL_SIZE
+            var cell_world: Vector3 = CellUtil.cell_to_world(cell)
+            var bx: float = cell_world.x - cs * 0.5
+            var bz: float = cell_world.z - cs * 0.5
+            var ht: float = thick * 0.5
 
             var t0 := Vector3(bx, h[0], bz - ht)
             var t1 := Vector3(bx + cs, h[1], bz - ht)

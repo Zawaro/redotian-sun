@@ -50,8 +50,7 @@ func _on_save_file_selected(path: String) -> void:
             if data.has(key):
                 entity_entry[key] = data[key]
         entities_array.append(entity_entry)
-    if not entities_array.is_empty():
-        TerrainSystem.export_to_json(path, {"entities": entities_array})
+    TerrainSystem.export_to_json(path, {"entities": entities_array})
 
 
 func _on_load_file_selected(path: String) -> void:

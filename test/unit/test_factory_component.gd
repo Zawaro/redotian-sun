@@ -98,17 +98,3 @@ func test_exit_completed_clears_busy():
     else:
         _test_failed += 1
         print("    FAIL: is_busy still true after exit_completed")
-
-
-# --- Run all tests ---
-
-
-func run_tests():
-    print("  FactoryComponent tests:")
-    test_produces_field()
-    test_is_primary_default_false()
-    test_set_primary_sets_is_primary()
-    test_set_primary_clears_siblings()
-    test_is_busy_default_false()
-    test_exit_completed_clears_busy()
-    print("  Results: %d passed, %d failed" % [_test_passed, _test_failed])

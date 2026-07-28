@@ -76,7 +76,3 @@ func test_get_key_text():
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
-
-
-func get_result() -> Array[int]:
-    return [_test_passed, _test_failed]

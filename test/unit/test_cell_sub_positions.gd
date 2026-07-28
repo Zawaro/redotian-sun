@@ -75,12 +75,14 @@ func test_get_sub_position():
     var cell := Vector2i(3, 4)
     var pos: Vector3 = CellSubPositions.get_sub_position(cell, 0)
     var cell_world: Vector3 = CellUtil.cell_to_world(cell)
-    if pos.distance_to(cell_world) < CellUtil.CELL_SIZE:
+    var radius: float = (CellUtil.CELL_SIZE * 0.5 - CellSubPositions.MARGIN) * 0.7
+    if pos.distance_to(cell_world) <= radius + 0.001:
         _test_passed += 1
-        print("    PASS: get_sub_position returns position near cell center")
+        print("    PASS: get_sub_position returns position within cell slot radius")
     else:
         _test_failed += 1
-        print("    FAIL: get_sub_position too far from cell")
+        var msg := "dist=%.2f, radius=%.2f" % [pos.distance_to(cell_world), radius]
+        print("    FAIL: get_sub_position too far from cell (%s)" % msg)
 
 
 func test_different_cells_different_positions():

@@ -54,27 +54,27 @@ func _draw_grid() -> void:
     var wx: float = float(TerrainSystem.grid_cells.x)
     var hz: float = float(TerrainSystem.grid_cells.y)
     var w_cs: float = wx * cs
-    var w2h_cs: float = (wx + hz * 2.0) * cs
+    var h_cs: float = hz * cs
+    var center_cs: float = (wx + hz) * 0.5 * cs
 
-    # Diamond is computed in cell-space*cs then translated by +cs into the world
-    # frame, matching CellUtil's 1-cell origin shift so lines land on tile edges.
-    # Vertical lines (x = i * cs, clipped to diamond z-bounds)
+    # Clip directly against the cell diamond:
+    # sum ∈ [-H-0.5, H-0.5] and diff ∈ [-W-0.5, W-0.5]
+    # which in world coords is x+z ∈ [-h_cs-cs/2, h_cs-cs/2] and x-z ∈ [-w_cs-cs/2, w_cs-cs/2].
     for i in range(int(wx + hz) + 1):
-        var x: float = float(i) * cs
-        var z_min: float = absf(x - w_cs)
-        var z_max: float = minf(x + w_cs, w2h_cs - x)
+        var x: float = float(i) * cs - center_cs
+        var z_min: float = maxf(-h_cs - cs * 0.5 - x, x - w_cs + cs * 0.5)
+        var z_max: float = minf(h_cs - cs * 0.5 - x, x + w_cs + cs * 0.5)
         if z_min < z_max:
-            mesh.surface_add_vertex(Vector3(x + cs, 0.01, z_min + cs))
-            mesh.surface_add_vertex(Vector3(x + cs, 0.01, z_max + cs))
+            mesh.surface_add_vertex(Vector3(x, 0.01, z_min))
+            mesh.surface_add_vertex(Vector3(x, 0.01, z_max))
 
-    # Horizontal lines (z = j * cs, clipped to diamond x-bounds)
     for j in range(int(wx + hz) + 1):
-        var z: float = float(j) * cs
-        var x_min: float = absf(z - w_cs)
-        var x_max: float = minf(z + w_cs, w2h_cs - z)
+        var z: float = float(j) * cs - center_cs
+        var x_min: float = maxf(-h_cs - cs * 0.5 - z, z - w_cs - cs * 0.5)
+        var x_max: float = minf(h_cs - cs * 0.5 - z, z + w_cs - cs * 0.5)
         if x_min < x_max:
-            mesh.surface_add_vertex(Vector3(x_min + cs, 0.01, z + cs))
-            mesh.surface_add_vertex(Vector3(x_max + cs, 0.01, z + cs))
+            mesh.surface_add_vertex(Vector3(x_min, 0.01, z))
+            mesh.surface_add_vertex(Vector3(x_max, 0.01, z))
 
     mesh.surface_end()
     _grid_overlay.mesh = mesh

@@ -29,11 +29,11 @@ func test_get_local_player_id():
     if not _guard():
         return
     var id: int = _pm.get_local_player_id()
-    if id >= 0:
-        print("    PASS: get_local_player_id returns valid ID")
+    if id == 0:
+        print("    PASS: get_local_player_id returns default 0")
         _test_passed += 1
     else:
-        print("    FAIL: get_local_player_id returned %d" % id)
+        print("    FAIL: get_local_player_id returned %d, expected 0" % id)
         _test_failed += 1
 
 
@@ -102,11 +102,11 @@ func test_get_all_players():
     _pm.get_player_data(30)
     _pm.get_player_data(31)
     var all = _pm.get_all_players()
-    if all.size() >= 2:
-        print("    PASS: get_all_players returns multiple players")
+    if all.size() == 4:
+        print("    PASS: get_all_players returns all 4 players (2 default + 2 created)")
         _test_passed += 1
     else:
-        print("    FAIL: get_all_players returned %d players" % all.size())
+        print("    FAIL: get_all_players returned %d players, expected 4" % all.size())
         _test_failed += 1
     _cleanup()
 
@@ -121,10 +121,10 @@ func test_get_players_by_team():
     var c = _pm.get_player_data(42)
     c.team_id = 6
     var team5 = _pm.get_players_by_team(5)
-    if team5.size() >= 2:
-        print("    PASS: get_players_by_team returns correct players")
+    if team5.size() == 2:
+        print("    PASS: get_players_by_team returns exactly 2 players for team 5")
         _test_passed += 1
     else:
-        print("    FAIL: get_players_by_team returned %d players" % team5.size())
+        print("    FAIL: get_players_by_team returned %d players, expected 2" % team5.size())
         _test_failed += 1
     _cleanup()
