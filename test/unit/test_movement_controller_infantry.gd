@@ -179,3 +179,17 @@ func test_order_queued_modifier():
     TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
 
     entity.queue_free()
+
+
+# --- is_moving() tests ---
+
+
+func test_is_moving_false_when_idle():
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    var entity := Node3D.new()
+    entity.add_child(mc)
+
+    TestHelper.assert_eq(mc.is_moving(), false, "idle state -> is_moving() = false")
+
+    entity.queue_free()
