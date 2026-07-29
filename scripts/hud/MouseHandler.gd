@@ -225,16 +225,31 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
         var already_selected := (
             select_comp and selection_manager and selection_manager.is_entity_selected(select_comp)
         )
-        # If not selected, select it first (always, including enemies for viewing)
-        if select_comp and selection_manager and not already_selected:
-            selection_manager.select_entity(select_comp, shift_pressed)
-            return
         # If already selected or no select component, try order system
-        var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
-        if not orders.is_empty():
-            for order in orders:
-                order.execute.call()
+        if already_selected or not select_comp:
+            var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
+            if not orders.is_empty():
+                for order in orders:
+                    order.execute.call()
+                return
             return
+        # Unselected entity while we have a selection — enemy? skip select, go to orders
+        if selection_manager and not selection_manager.selected_entities.is_empty():
+            var stats := target.get_node_or_null("StatsComponent") as StatsComponent
+            if stats and stats.player_id >= 0:
+                var local_id := PlayerManager.get_local_player_id()
+                if PlayerManager.is_enemy(stats.player_id, local_id):
+                    var orders := OrderSystem.get_orders(
+                        target, target_cell, target_pos, modifiers
+                    )
+                    if not orders.is_empty():
+                        for order in orders:
+                            order.execute.call()
+                        return
+                    return
+        # Friendly/neutral unselected — select it
+        if select_comp and selection_manager:
+            selection_manager.select_entity(select_comp, shift_pressed)
         return
 
     # Pass 2: layer 17 — interact hitboxes (tiberium, dock).
