@@ -242,11 +242,11 @@ End-to-end combat demo: deploy MCV → build base → train infantry → destroy
 2. ~~**MapEditor Entity Placement** (Issue #83)~~ ✅
 3. ~~**MCV Deploy** (Issue #80)~~ ✅
 4. ~~**Weapon Data** (Issue #23)~~ ✅
-5. **Prerequisite Chain** (Issue #81) — wire .tres files: Con Yard → Power Plant → Barracks → Infantry
-6. **Attack Command** (Issue #79) — right-click enemy → unit attacks
-7. **CombatComponent Firing** (Issue #28) — fire rate timer, range check, target acquisition
-8. **Projectile System** (Issue #78) + **ProjectileData Resource** (Issue #89) — Projectile node or hitscan for ranged weapons
-9. **HitboxComponent** (Issue #29) — already works, needs projectile to trigger it
+5. ~~**Prerequisite Chain** (Issue #81)~~ ✅
+6. ~~**Attack Command** (Issue #79)~~ ✅
+7. ~~**CombatComponent Firing** (Issue #28)~~ ✅ — hitscan MVP, fire rate timer, range check, target tracking, player-move-cancels-attack
+8. **Projectile System** (Issue #78) + **ProjectileData Resource** (Issue #89) — future upgrade from hitscan
+9. **HitboxComponent** (Issue #29) — future upgrade, needs projectile to trigger it
 10. **HealthComponent Death** (Issue #30) — health_zero → cleanup
 11. **Death Handler** (Issue #82) — remove destroyed buildings from game
 

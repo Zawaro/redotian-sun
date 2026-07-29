@@ -142,7 +142,7 @@ MouseHandler._handle_left_click_normal()
 |-------|----------|-------------|
 | **Phase 1 (current)** | Kinematic straight-line move via left-click, Y-axis rotation on XZ plane, radial repulsion steering between units, arrival detection, GroundPlane scene for raycast targets | Existing MouseHandler + SelectionManager infrastructure; no physics bodies needed |
 | **Phase 2** | Navmesh-based A* pathfinding (Redot `NavigationServer3D` or custom grid), waypoint array support in MovementController, downward terrain-following raycast for Y-axis correction at runtime, multi-waypoint movement with smooth interpolation | Requires navmesh generation pipeline; map scenes already have GroundPlane from Phase 1 |
-| **Phase 2b** | Attack orders (right-click on enemy units) — reuses MovementController's waypoint array but appends combat-enage waypoints after reaching target zone | Combat weapons system must exist first |
+| **Phase 2b** | Attack orders (left-click on enemy units) — reuses MovementController's waypoint array but appends combat-enage waypoints after reaching target zone | Combat weapons system must exist first |
 | **Phase 3+** | Formation management, command queuing UI with drag-drop, attack-move logic, patrol routes, gather/resource-return behavior | Requires navmesh integration + faction/roster systems to be in place |
 
 ## Future Enhancements (Post-Phase 1)
