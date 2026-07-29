@@ -377,3 +377,249 @@ func test_validate_no_weapons():
     _test_failed += TestHelper._failed
     TestHelper.reset()
     entity.free()
+
+
+# --- Firing logic tests ---
+
+
+func _make_target_with_health(player_id: int = 1, health: int = 100) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "TargetEntity"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    entity.add_child(stats)
+    var hc := HealthComponent.new()
+    hc.name = "HealthComponent"
+    hc.max_health = health
+    hc.current_health = health
+    entity.add_child(hc)
+    return entity
+
+
+func test_set_target_stores_reference():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1)
+    cc.set_target(target)
+    TestHelper.assert_eq(cc._target, target, "set_target stores reference")
+    TestHelper.assert_true(cc._attack_active, "set_target sets _attack_active")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_clear_target_clears_reference():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1)
+    cc.set_target(target)
+    cc.clear_target()
+    TestHelper.assert_eq(cc._target, null, "clear_target nulls reference")
+    TestHelper.assert_eq(cc._attack_active, false, "clear_target clears _attack_active")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_cooldown_blocks_fire():
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    add_child(target)
+    target.global_position = Vector3(0, 0, 0)
+    entity.global_position = Vector3(0, 0, 0)
+    cc.set_target(target)
+    cc._cooldowns[0] = 5.0
+    var old_health: int = target.get_node("HealthComponent").current_health
+    cc._physics_process(0.1)
+    var new_health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(new_health, old_health, "cooldown blocks fire — health unchanged")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    remove_child(target)
+    entity.free()
+    target.free()
+
+
+func test_fire_deals_damage_in_range():
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    add_child(target)
+    target.global_position = Vector3(0, 0, 0)
+    entity.global_position = Vector3(0, 0, 0)
+    cc.set_target(target)
+    cc._cooldowns[0] = 0.0
+    cc._physics_process(0.01)
+    var health: int = target.get_node("HealthComponent").current_health
+    var weapon := cc.get_current_weapon()
+    TestHelper.assert_eq(health, 100 - weapon.damage, "fire deals weapon.damage")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    remove_child(target)
+    entity.free()
+    target.free()
+
+
+func test_target_invalidated_no_crash():
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1)
+    add_child(target)
+    cc.set_target(target)
+    remove_child(target)
+    target.free()
+    cc._physics_process(0.1)
+    cc._physics_process(0.1)
+    TestHelper.assert_eq(cc._target, null, "invalid target cleared")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    entity.free()
+
+
+func test_target_death_clears_target():
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 10)
+    add_child(target)
+    target.global_position = Vector3(0, 0, 0)
+    entity.global_position = Vector3(0, 0, 0)
+    cc.set_target(target)
+    var weapon := cc.get_current_weapon()
+    target.get_node("HealthComponent").take_damage(weapon.damage)
+    TestHelper.assert_eq(cc._target, null, "dead target cleared via health_zero signal")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    remove_child(target)
+    entity.free()
+    target.free()
+
+
+func test_weapon_fired_signal_emits():
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    add_child(target)
+    target.global_position = Vector3(0, 0, 0)
+    entity.global_position = Vector3(0, 0, 0)
+    var signal_received := false
+    var signal_weapon: WeaponData = null
+    cc.weapon_fired.connect(
+        func(w: WeaponData, _t: Node3D): signal_received = true; signal_weapon = w
+    )
+    cc.set_target(target)
+    cc._cooldowns[0] = 0.0
+    cc._physics_process(0.01)
+    TestHelper.assert_true(signal_received, "weapon_fired signal emitted")
+    TestHelper.assert_eq(signal_weapon, cc.get_current_weapon(), "signal passes weapon data")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    remove_child(target)
+    entity.free()
+    target.free()
+
+
+# --- OrderResolver integration: selected units + enemy click ---
+
+
+func test_order_resolver_returns_attack_for_enemy_with_selection():
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var entity := _make_combat_entity(true, local_id)
+    add_child(entity)
+    var select_comp := SelectComponent.new()
+    select_comp.name = "SelectComponent"
+    entity.add_child(select_comp)
+    var sm := get_node_or_null("/root/SelectionManager")
+    if sm:
+        sm.add_entity(select_comp)
+    var target := _make_target(local_id + 1)
+    add_child(target)
+    var results := OrderResolver.resolve_all(
+        [select_comp], target, Vector2i.ZERO, target.global_position, {}
+    )
+    TestHelper.assert_true(results.size() > 0, "enemy target returns order")
+    var best: OrderResult = results[0]
+    TestHelper.assert_eq(best.cursor, CursorState.Type.ATTACK, "cursor -> ATTACK")
+    TestHelper.assert_true(best.execute.is_valid(), "execute callable valid")
+    if sm:
+        sm.deselect_all()
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    remove_child(target)
+    entity.free()
+    target.free()
+
+
+# --- Player move cancels attack ---
+
+
+func test_player_move_clears_attack_target():
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    add_child(target)
+    cc.set_target(target)
+    TestHelper.assert_eq(cc._target, target, "target set before move")
+    TestHelper.assert_true(cc._attack_active, "attack active before move")
+    mc.set_target_position(Vector3(100, 0, 100))
+    TestHelper.assert_eq(cc._target, null, "target cleared after player move")
+    TestHelper.assert_eq(cc._attack_active, false, "attack inactive after player move")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    remove_child(target)
+    entity.free()
+    target.free()
+
+
+func test_combat_move_preserves_attack_target():
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    add_child(target)
+    target.global_position = Vector3(0, 0, 0)
+    entity.global_position = Vector3(0, 0, 0)
+    cc.set_target(target)
+    cc._combat_move = true
+    mc.set_target_position(Vector3(100, 0, 100))
+    TestHelper.assert_eq(cc._target, target, "target preserved after combat move")
+    TestHelper.assert_true(cc._attack_active, "attack active after combat move")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    remove_child(entity)
+    remove_child(target)
+    entity.free()
+    target.free()

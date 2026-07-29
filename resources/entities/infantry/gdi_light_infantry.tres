@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://resources/art/infantry/gdi_light_infantry_art.tres" id="2_art"]
+[ext_resource type="Resource" path="res://resources/weapons/m1carbine.tres" id="3_weapon"]
 
 [resource]
 script = ExtResource("1_script")
@@ -25,3 +26,4 @@ buildable_queue = "InfantryType"
 build_time = 5.76
 prerequisite = PackedStringArray("GDI_BARRACKS")
 crushable = true
+weapons = [ExtResource("3_weapon")]

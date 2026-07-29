@@ -1,6 +1,7 @@
 class_name MovementController extends Node3D
 
 signal arrived(position: Vector3)
+signal movement_started
 signal pathfinding_failed
 
 enum State { IDLE, ROTATING, MOVING, WAIT }
@@ -61,6 +62,10 @@ func _ready() -> void:
 
 func _num_segments() -> int:
     return maxi(0, _waypoints.size() - 1)
+
+
+func is_moving() -> bool:
+    return _state != State.IDLE
 
 
 func stop() -> void:
@@ -129,6 +134,8 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
     ):
         printerr("[MovementController] Ignoring invalid target position: ", target)
         return
+
+    movement_started.emit()
 
     var target_cell := CellUtil.world_to_cell(target)
     if _is_cell_occupied_by_idle(target_cell):

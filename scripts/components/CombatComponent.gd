@@ -13,6 +13,8 @@ class_name CombatComponent extends Node3D
 # - Use ArtData fields: primary_fire_offset, barrel_length, turret_offset, sequence,
 #   walk_frames, firing_frames, buildup_name, door_anim, production_anim, etc.
 
+signal weapon_fired(weapon: WeaponData, target: Node3D)
+
 @export_group("Combat")
 @export var weapons: Array[WeaponData] = []
 @export var elite_weapons: Array[WeaponData] = []
@@ -21,6 +23,11 @@ class_name CombatComponent extends Node3D
 @export var threat_posed: int = 0
 
 var _current_weapon_index: int = 0
+var _target: Node3D = null
+var _cooldowns: Array = []
+var _attack_active: bool = false
+var _mc_connected: bool = false
+var _combat_move: bool = false
 
 
 func configure(data: EntityData) -> void:
@@ -29,6 +36,13 @@ func configure(data: EntityData) -> void:
     turret = data.turret
     turret_anim = data.turret_anim
     threat_posed = data.threat_posed
+    _init_cooldowns()
+
+
+func _init_cooldowns() -> void:
+    _cooldowns.resize(weapons.size())
+    for i in weapons.size():
+        _cooldowns[i] = 0.0
 
 
 func get_current_weapon() -> WeaponData:
@@ -44,6 +58,18 @@ func get_weapon_count() -> int:
 func cycle_weapon() -> void:
     if not weapons.is_empty():
         _current_weapon_index = (_current_weapon_index + 1) % weapons.size()
+
+
+func set_target(entity: Node3D) -> void:
+    _target = entity
+    _attack_active = true
+    _connect_mc_signal()
+    _connect_health_signal()
+
+
+func clear_target() -> void:
+    _target = null
+    _attack_active = false
 
 
 func validate(data: EntityData) -> PackedStringArray:
@@ -94,5 +120,98 @@ func get_order_for_target(
     return null
 
 
-func _attack(_target: Node3D) -> void:
+func _attack(target: Node3D) -> void:
+    set_target(target)
+
+
+func _physics_process(delta: float) -> void:
+    if Engine.is_editor_hint():
+        return
+    if not _attack_active or not _target:
+        return
+    if not is_instance_valid(_target):
+        clear_target()
+        return
+    if not _target.is_inside_tree():
+        clear_target()
+        return
+    var weapon := get_current_weapon()
+    if not weapon:
+        clear_target()
+        return
+    var weapon_idx := _current_weapon_index
+    if weapon_idx < _cooldowns.size():
+        _cooldowns[weapon_idx] = maxf(_cooldowns[weapon_idx] - delta, 0.0)
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    var distance := global_position.distance_to(_target.global_position)
+    if distance <= range_world:
+        if weapon_idx < _cooldowns.size() and _cooldowns[weapon_idx] <= 0.0:
+            _fire_weapon(weapon, _target)
+    else:
+        _move_toward_target()
+
+
+func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:
+    var health := target.get_node_or_null("HealthComponent") as HealthComponent
+    if health:
+        health.take_damage(weapon.damage, weapon.warhead)
+    _cooldowns[_current_weapon_index] = 60.0 / weapon.rate_of_fire
+    weapon_fired.emit(weapon, target)
+
+
+func _move_toward_target() -> void:
+    var entity := get_parent() as Node3D
+    if not entity:
+        return
+    var mc := entity.get_node_or_null("MovementController") as MovementController
+    if mc and not mc.is_moving():
+        var weapon := get_current_weapon()
+        if not weapon:
+            return
+        var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+        var to_target := _target.global_position - global_position
+        var distance := to_target.length()
+        if distance <= 0.01:
+            return
+        var angle := atan2(to_target.x, to_target.z)
+        var stop_pos := _target.global_position - Vector3(
+            sin(angle) * range_world, 0.0, cos(angle) * range_world
+        )
+        _combat_move = true
+        mc.set_target_position(stop_pos)
+
+
+func _connect_mc_signal() -> void:
+    if _mc_connected:
+        return
+    var entity := get_parent() as Node3D
+    if not entity:
+        return
+    var mc := entity.get_node_or_null("MovementController") as MovementController
+    if mc:
+        mc.arrived.connect(_on_movement_arrived)
+        mc.movement_started.connect(_on_movement_started)
+        _mc_connected = true
+
+
+func _connect_health_signal() -> void:
+    if not _target:
+        return
+    var hc := _target.get_node_or_null("HealthComponent") as HealthComponent
+    if hc and not hc.health_zero.is_connected(_on_target_health_zero):
+        hc.health_zero.connect(_on_target_health_zero)
+
+
+func _on_target_health_zero() -> void:
+    clear_target()
+
+
+func _on_movement_arrived(_position: Vector3) -> void:
     pass
+
+
+func _on_movement_started() -> void:
+    if _combat_move:
+        _combat_move = false
+        return
+    clear_target()
