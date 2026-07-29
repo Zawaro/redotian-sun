@@ -816,3 +816,99 @@ func test_stale_eviction_emits_dock_timeout():
 
     entity.queue_free()
     dock_entity.queue_free()
+
+
+# --- HarvestComponent.get_order_for_target tests ---
+
+
+func test_harvest_order_resource_target():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+
+    var resource_entity := Node3D.new()
+    resource_entity.name = "TiberiumNode"
+    var resource_comp := ResourceComponent.new()
+    resource_comp.name = "ResourceComponent"
+    resource_entity.add_child(resource_comp)
+    add_child(resource_entity)
+
+    var order := harvest.get_order_for_target(resource_entity, Vector2i.ZERO, Vector3.ZERO, {})
+
+    TestHelper.assert_true(order != null, "click resource -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.HARVEST, "cursor -> HARVEST")
+    TestHelper.assert_eq(order.priority, 20, "priority -> 20")
+
+    resource_entity.queue_free()
+    entity.queue_free()
+
+
+func test_harvest_order_refinery_target():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+
+    var order := harvest.get_order_for_target(dock_entity, Vector2i.ZERO, Vector3.ZERO, {})
+
+    TestHelper.assert_true(order != null, "click refinery -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.ENTER, "cursor -> ENTER")
+    TestHelper.assert_eq(order.priority, 15, "priority -> 15")
+
+    dock_entity.queue_free()
+    entity.queue_free()
+
+
+func test_harvest_order_null_target():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+
+    var order := harvest.get_order_for_target(null, Vector2i.ZERO, Vector3.ZERO, {})
+
+    TestHelper.assert_true(order == null, "null target -> null order")
+
+    entity.queue_free()
+
+
+func test_harvest_order_unrelated_target():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+
+    var unrelated := Node3D.new()
+    unrelated.name = "UnrelatedEntity"
+    add_child(unrelated)
+
+    var order := harvest.get_order_for_target(unrelated, Vector2i.ZERO, Vector3.ZERO, {})
+
+    TestHelper.assert_true(order == null, "unrelated target -> null order")
+
+    unrelated.queue_free()
+    entity.queue_free()
+
+
+func test_harvest_order_queued_modifier():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+
+    var resource_entity := Node3D.new()
+    resource_entity.name = "TiberiumNode"
+    var resource_comp := ResourceComponent.new()
+    resource_comp.name = "ResourceComponent"
+    resource_entity.add_child(resource_comp)
+    add_child(resource_entity)
+
+    var modifiers := {OrderResult.MOD_QUEUED: true}
+    var order := harvest.get_order_for_target(
+        resource_entity, Vector2i.ZERO, Vector3.ZERO, modifiers
+    )
+
+    TestHelper.assert_true(order != null, "queued modifier -> order not null")
+    TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
+
+    resource_entity.queue_free()
+    entity.queue_free()
