@@ -32,8 +32,6 @@ func get_cursor(
             )
             if result:
                 cursor = result.cursor
-            elif _is_enemy(target):
-                cursor = CursorState.Type.SELECT
             elif _is_already_selected(target, sm):
                 if target.get_node_or_null("MovementController"):
                     cursor = CursorState.Type.MOVE

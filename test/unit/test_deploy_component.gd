@@ -356,3 +356,113 @@ func test_undeploy_no_pending_move_when_no_target():
 
     deploy._state = DeployComponent.DeployState.IDLE
     entity.free()
+
+
+# --- get_order_for_target tests ---
+
+
+func test_order_self_with_can_deploy():
+    var entity := Node3D.new()
+    var deploy := DeployComponent.new()
+    deploy.name = "DeployComponent"
+    deploy.deploys_into = "GDI_CONSTRUCTION_YARD"
+    entity.add_child(deploy)
+    var order := deploy.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order != null, "click self with can_deploy -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.DEPLOY, "cursor -> DEPLOY")
+    TestHelper.assert_eq(order.priority, 15, "priority -> 15")
+    TestHelper.assert_true(order.execute.is_valid(), "has valid execute callable")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+
+
+func test_order_other_entity_returns_null():
+    var entity := Node3D.new()
+    var deploy := DeployComponent.new()
+    deploy.name = "DeployComponent"
+    deploy.deploys_into = "GDI_CONSTRUCTION_YARD"
+    entity.add_child(deploy)
+    var other := Node3D.new()
+    other.name = "Other"
+    var order := deploy.get_order_for_target(other, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "click other entity -> null")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    other.free()
+
+
+func test_order_no_target_can_undeploy():
+    var entity := Node3D.new()
+    var deploy := DeployComponent.new()
+    deploy.name = "DeployComponent"
+    deploy.undeploys_into = "GDI_MCV"
+    entity.add_child(deploy)
+    var order := deploy.get_order_for_target(null, Vector2i.ZERO, Vector3(5.0, 0.0, 10.0), {})
+    TestHelper.assert_true(order != null, "no target + can_undeploy -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.MOVE, "cursor -> MOVE")
+    TestHelper.assert_eq(order.priority, 5, "priority -> 5")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+
+
+func test_order_no_target_cannot_undeploy():
+    var entity := Node3D.new()
+    var deploy := DeployComponent.new()
+    deploy.name = "DeployComponent"
+    entity.add_child(deploy)
+    var order := deploy.get_order_for_target(null, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "no target + cannot undeploy -> null")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+
+
+func test_order_self_cannot_deploy():
+    var entity := Node3D.new()
+    var deploy := DeployComponent.new()
+    deploy.name = "DeployComponent"
+    entity.add_child(deploy)
+    var order := deploy.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "click self + cannot deploy -> null")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+
+
+func test_order_queued_modifier():
+    var entity := Node3D.new()
+    var deploy := DeployComponent.new()
+    deploy.name = "DeployComponent"
+    deploy.deploys_into = "GDI_CONSTRUCTION_YARD"
+    entity.add_child(deploy)
+    var modifiers := {OrderResult.MOD_QUEUED: true}
+    var order := deploy.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, modifiers)
+    TestHelper.assert_true(order != null, "queued modifier -> order not null")
+    TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+
+
+func test_order_undeploy_stores_target_pos():
+    var entity := Node3D.new()
+    var deploy := DeployComponent.new()
+    deploy.name = "DeployComponent"
+    deploy.undeploys_into = "GDI_MCV"
+    entity.add_child(deploy)
+    var pos := Vector3(15.0, 0.0, 25.0)
+    var order := deploy.get_order_for_target(null, Vector2i.ZERO, pos, {})
+    TestHelper.assert_eq(order.target_pos, pos, "order stores target_pos")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()

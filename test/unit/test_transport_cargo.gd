@@ -1,8 +1,8 @@
 extends Node
 
-# TransportComponent multi-type cargo tests
-# add_cargo, remove_cargo, get_cargo_total, get_cargo_value
-# Cargo amounts are now floats (bales).
+# TransportComponent tests — cargo, cursor resolution, and order generation
+
+const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/SelectComponent.tscn")
 
 var _test_passed := 0
 var _test_failed := 0
@@ -99,3 +99,265 @@ func test_get_cargo_value():
     else:
         _test_failed += 1
         print("    FAIL: get_cargo_value returned %d" % value)
+
+
+# --- get_cursor_for_target tests ---
+
+
+func test_cursor_loadable_unit_returns_enter():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    target.add_to_group("selectable")
+    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    target.add_child(target_sc)
+    var target_transport := TransportComponent.new()
+    target_transport.name = "TransportComponent"
+    target_transport.passengers = 2
+    target.add_child(target_transport)
+
+    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.ENTER, "loadable unit -> ENTER")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_cursor_no_passengers_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 0
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "no passengers -> DEFAULT")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_cursor_null_target_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var cursor := transport.get_cursor_for_target(null, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "null target -> DEFAULT")
+
+    entity.queue_free()
+
+
+func test_cursor_enemy_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "EnemyUnit"
+    target.add_to_group("enemy")
+    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    target.add_child(target_sc)
+
+    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "enemy -> DEFAULT")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_cursor_target_without_transport_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    target.add_to_group("selectable")
+    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    target.add_child(target_sc)
+
+    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
+    TestHelper.assert_eq(
+        cursor, CursorState.Type.DEFAULT, "target without TransportComponent -> DEFAULT"
+    )
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_cursor_target_zero_passengers_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    target.add_to_group("selectable")
+    var target_sc := SelectComponent.new()
+    target.add_child(target_sc)
+    var target_transport := TransportComponent.new()
+    target_transport.name = "TransportComponent"
+    target_transport.passengers = 0
+    target.add_child(target_transport)
+
+    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "target with 0 passengers -> DEFAULT")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_cursor_no_select_component_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+
+    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
+    TestHelper.assert_eq(
+        cursor, CursorState.Type.DEFAULT, "target without SelectComponent -> DEFAULT"
+    )
+
+    entity.queue_free()
+    target.queue_free()
+
+
+# --- get_order_for_target tests ---
+
+
+func test_order_loadable_unit_returns_enter():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    target.add_to_group("selectable")
+    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    target.add_child(target_sc)
+    var target_transport := TransportComponent.new()
+    target_transport.name = "TransportComponent"
+    target_transport.passengers = 2
+    target.add_child(target_transport)
+
+    var order := transport.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order != null, "loadable unit -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.ENTER, "cursor -> ENTER")
+    TestHelper.assert_eq(order.priority, 10, "priority -> 10")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_order_null_target_returns_null():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var order := transport.get_order_for_target(null, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "null target -> null order")
+
+    entity.queue_free()
+
+
+func test_order_no_passengers_returns_null():
+    var transport := _make_transport(28)
+    transport.passengers = 0
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    var order := transport.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "no passengers -> null order")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_order_enemy_returns_null():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "EnemyUnit"
+    target.add_to_group("enemy")
+    var order := transport.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "enemy -> null order")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_order_target_without_transport_returns_null():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    target.add_to_group("selectable")
+    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    target.add_child(target_sc)
+
+    var order := transport.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "target without TransportComponent -> null order")
+
+    entity.queue_free()
+    target.queue_free()
+
+
+func test_order_queued_modifier():
+    var transport := _make_transport(28)
+    transport.passengers = 1
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+
+    var target := Node3D.new()
+    target.name = "TargetUnit"
+    target.add_to_group("selectable")
+    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    target.add_child(target_sc)
+    var target_transport := TransportComponent.new()
+    target_transport.name = "TransportComponent"
+    target_transport.passengers = 2
+    target.add_child(target_transport)
+
+    var modifiers := {OrderResult.MOD_QUEUED: true}
+    var order := transport.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, modifiers)
+    TestHelper.assert_true(order != null, "queued modifier -> order not null")
+    TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
+
+    entity.queue_free()
+    target.queue_free()
