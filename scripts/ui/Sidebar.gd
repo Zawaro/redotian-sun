@@ -78,6 +78,7 @@ func _ready() -> void:
         pm.production_paused.connect(_on_production_paused)
 
     _switch_tab(0)
+    _prewarm_available_models()
 
 
 func _input(event: InputEvent) -> void:
@@ -541,6 +542,31 @@ func _on_credits_changed(player_id: int, new_balance: int, _reason: String) -> v
 
 func _on_prerequisites_changed(_player_id: int) -> void:
     _refresh_grid()
+    _prewarm_available_models()
+
+
+func _prewarm_available_models() -> void:
+    var paths: PackedStringArray = []
+    for entity_data in _get_current_entities():
+        if entity_data.art_data and not entity_data.art_data.model_path.is_empty():
+            var mp: String = entity_data.art_data.model_path
+            if not BatchLoader.is_loaded(mp) and mp not in paths:
+                paths.append(mp)
+        # Also pre-warm deploy/undeploy target models.
+        for target_id in [entity_data.deploys_into, entity_data.undeploys_into]:
+            if target_id.is_empty():
+                continue
+            var target_data := EntityFactory.get_entity_data(target_id)
+            if (
+                target_data
+                and target_data.art_data
+                and not target_data.art_data.model_path.is_empty()
+            ):
+                var tp: String = target_data.art_data.model_path
+                if not BatchLoader.is_loaded(tp) and tp not in paths:
+                    paths.append(tp)
+    if not paths.is_empty():
+        BatchLoader.preload_batch(paths)
 
 
 func _on_production_started(_queue_key: String) -> void:

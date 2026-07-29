@@ -26,8 +26,40 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
 
     TerrainSystem.import_from_json(path)
 
-    var result: Array[Dictionary] = []
     var entities: Array = json.get("entities", [])
+
+    # Pre-warm BatchLoader with all unique model paths before entity creation.
+    var model_paths: PackedStringArray = []
+    for entry in entities:
+        var entry_dict := entry as Dictionary
+        if entry_dict == null:
+            continue
+        var entity_id: String = entry_dict.get("id", "")
+        if entity_id.is_empty():
+            continue
+        var data := EntityFactory.get_entity_data(entity_id)
+        if data and data.art_data and not data.art_data.model_path.is_empty():
+            var mp: String = data.art_data.model_path
+            if mp not in model_paths:
+                model_paths.append(mp)
+        # Also pre-warm deploy/undeploy target models.
+        if data:
+            for target_id in [data.deploys_into, data.undeploys_into]:
+                if target_id.is_empty():
+                    continue
+                var target_data := EntityFactory.get_entity_data(target_id)
+                if (
+                    target_data
+                    and target_data.art_data
+                    and not target_data.art_data.model_path.is_empty()
+                ):
+                    var tp: String = target_data.art_data.model_path
+                    if tp not in model_paths:
+                        model_paths.append(tp)
+    if not model_paths.is_empty():
+        BatchLoader.preload_batch(model_paths)
+
+    var result: Array[Dictionary] = []
     for entry in entities:
         var entry_dict := entry as Dictionary
         if entry_dict == null:
