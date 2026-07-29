@@ -244,8 +244,7 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
                         for order in orders:
                             order.execute.call()
                         return
-                    return
-        # Friendly/neutral unselected — select it
+        # Friendly/neutral unselected, or enemy with no orders — select it
         if select_comp and selection_manager:
             selection_manager.select_entity(select_comp, shift_pressed)
         return

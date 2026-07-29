@@ -24,10 +24,12 @@ signal weapon_fired(weapon: WeaponData, target: Node3D)
 
 var _current_weapon_index: int = 0
 var _target: Node3D = null
-var _cooldowns: Array = []
+var _cooldowns: Array[float] = []
 var _attack_active: bool = false
 var _mc_connected: bool = false
 var _combat_move: bool = false
+var _connected_health_target: Node3D = null
+var _fire_count: int = 0
 
 
 func configure(data: EntityData) -> void:
@@ -68,6 +70,7 @@ func set_target(entity: Node3D) -> void:
 
 
 func clear_target() -> void:
+    _disconnect_health_signal()
     _target = null
     _attack_active = false
 
@@ -132,9 +135,6 @@ func _physics_process(delta: float) -> void:
     if not is_instance_valid(_target):
         clear_target()
         return
-    if not _target.is_inside_tree():
-        clear_target()
-        return
     var weapon := get_current_weapon()
     if not weapon:
         clear_target()
@@ -153,9 +153,12 @@ func _physics_process(delta: float) -> void:
 
 func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:
     var health := target.get_node_or_null("HealthComponent") as HealthComponent
-    if health:
-        health.take_damage(weapon.damage, weapon.warhead)
-    _cooldowns[_current_weapon_index] = 60.0 / weapon.rate_of_fire
+    if not health:
+        return
+    health.take_damage(weapon.damage, weapon.warhead)
+    _fire_count += 1
+    var rof: float = maxf(weapon.rate_of_fire, 0.001)
+    _cooldowns[_current_weapon_index] = 60.0 / rof
     weapon_fired.emit(weapon, target)
 
 
@@ -198,9 +201,23 @@ func _connect_mc_signal() -> void:
 func _connect_health_signal() -> void:
     if not _target:
         return
+    if _connected_health_target == _target:
+        return
+    _disconnect_health_signal()
+    _connected_health_target = _target
     var hc := _target.get_node_or_null("HealthComponent") as HealthComponent
-    if hc and not hc.health_zero.is_connected(_on_target_health_zero):
+    if hc:
         hc.health_zero.connect(_on_target_health_zero)
+
+
+func _disconnect_health_signal() -> void:
+    if not _connected_health_target or not is_instance_valid(_connected_health_target):
+        _connected_health_target = null
+        return
+    var hc := _connected_health_target.get_node_or_null("HealthComponent") as HealthComponent
+    if hc and hc.health_zero.is_connected(_on_target_health_zero):
+        hc.health_zero.disconnect(_on_target_health_zero)
+    _connected_health_target = null
 
 
 func _on_target_health_zero() -> void:
