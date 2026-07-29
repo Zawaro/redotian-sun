@@ -1,6 +1,6 @@
 extends Node3D
 
-@export var terrain_json_path: String = "res://assets/test_terrain.json"
+@export var terrain_json_path: String = "res://assets/test_map01.json"
 
 
 func _ready() -> void:

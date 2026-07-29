@@ -37,6 +37,15 @@ func _ready() -> void:
     TerrainSystem.cell_changed.connect(_on_terrain_cell_changed)
     _prefill_terrain()
     _setup_ui()
+    # Pre-warm BatchLoader with all entity models for the editor.
+    var all_model_paths: PackedStringArray = []
+    for data in EntityFactory._entity_cache.values():
+        if data.art_data and not data.art_data.model_path.is_empty():
+            var mp: String = data.art_data.model_path
+            if mp not in all_model_paths:
+                all_model_paths.append(mp)
+    if not all_model_paths.is_empty():
+        BatchLoader.preload_batch(all_model_paths)
 
 
 func _exit_tree() -> void:
@@ -365,8 +374,8 @@ func _show_new_map_dialog() -> void:
     vbox.add_child(bounds_label)
 
     var update_bounds := func() -> void:
-        var w: int = int(width_spin.value)
-        var h: int = int(height_spin.value)
+        var _w: int = int(width_spin.value)
+        var _h: int = int(height_spin.value)
         var ox: int = int(offset_x_spin.value)
         var oz: int = int(offset_z_spin.value)
         bounds_label.text = "Visible Bounds: %d × %d" % [ox, oz]
