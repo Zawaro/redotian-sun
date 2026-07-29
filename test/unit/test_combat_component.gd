@@ -523,7 +523,9 @@ func test_weapon_fired_signal_emits():
     var signal_received := false
     var signal_weapon: WeaponData = null
     cc.weapon_fired.connect(
-        func(w: WeaponData, _t: Node3D): signal_received = true; signal_weapon = w
+        func(w: WeaponData, _t: Node3D):
+            signal_received = true
+            signal_weapon = w
     )
     cc.set_target(target)
     cc._cooldowns[0] = 0.0
