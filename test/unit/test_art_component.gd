@@ -1,9 +1,6 @@
 extends Node
 
-# ArtComponent unit tests — model cache, async-load guards, and model_loaded signal.
-# Async completion is polled in _process(), which the headless runner does not step,
-# and model_loaded is emitted deferred, so these tests exercise the synchronous
-# mesh-present guarantee and the request/gating setup rather than signal delivery.
+# ArtComponent unit tests — BatchLoader integration, cache hits, fallback loading.
 
 const ART_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/ArtComponent.gd")
 
@@ -20,12 +17,12 @@ func _make_component(entity: Node3D) -> ArtComponent:
     return comp as ArtComponent
 
 
-func _make_data(model_path: String) -> EntityData:
+func _make_data(path: String) -> EntityData:
     var data := EntityData.new()
     data.id = "TEST_ART"
     var art := ArtData.new()
     art.id = "TEST_ART"
-    art.model_path = model_path
+    art.model_path = path
     data.art_data = art
     data.foundation = Vector2i(1, 1)
     return data
@@ -44,9 +41,9 @@ func _on_model_loaded() -> void:
     _signal_fired = true
 
 
-func test_cache_hit_instantiates_synchronously():
-    var path := "res://__test_cache_hit__.tscn"
-    ArtComponent._model_cache[path] = _make_scene()
+func test_batch_loader_cache_hit_instantiates_synchronously():
+    var path := "res://__test_batch_cache_hit__.tscn"
+    BatchLoader._cache[path] = _make_scene()
 
     var entity := Node3D.new()
     var comp := _make_component(entity)
@@ -54,8 +51,8 @@ func test_cache_hit_instantiates_synchronously():
     comp.model_loaded.connect(_on_model_loaded)
     comp.configure(_make_data(path))
 
-    var has_child := comp.get_child_count() > 0
-    TestHelper.assert_true(has_child, "cache hit adds the model as a child synchronously")
+    var has_child: bool = comp.get_child_count() > 0
+    TestHelper.assert_true(has_child, "BatchLoader cache hit adds model as child synchronously")
     TestHelper.assert_true(
         not _signal_fired, "cache hit defers model_loaded until after configure() returns"
     )
@@ -63,28 +60,27 @@ func test_cache_hit_instantiates_synchronously():
     _test_failed += TestHelper._failed
     TestHelper.reset()
 
-    ArtComponent._model_cache.erase(path)
+    BatchLoader._cache.erase(path)
     entity.free()
 
 
-func test_cache_miss_starts_threaded_load():
-    # Valid, uncached model: configure() must issue a threaded request and enable polling.
-    # Completion can't be polled headless, so we only assert the request started.
+func test_fallback_starts_threaded_load():
     var path := "res://assets/models/gdi_conyard01.glb"
-    ArtComponent._model_cache.erase(path)
+    BatchLoader._cache.erase(path)
     TestHelper.assert_true(ResourceLoader.exists(path), "test model resource exists")
 
     var entity := Node3D.new()
     var comp := _make_component(entity)
     comp.configure(_make_data(path))
 
-    TestHelper.assert_true(comp._loading_path == path, "cache miss issues a threaded load request")
-    TestHelper.assert_true(comp.is_processing(), "cache miss enables _process polling")
+    TestHelper.assert_true(
+        comp._waiting_for_path == path, "fallback sets _waiting_for_path to the model path"
+    )
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
 
-    ArtComponent._model_cache.erase(path)
+    BatchLoader._cache.erase(path)
     entity.free()
 
 
@@ -93,10 +89,10 @@ func test_missing_model_starts_no_load():
     var comp := _make_component(entity)
     comp.configure(_make_data("res://does_not_exist_model.glb"))
 
-    var no_child := comp.get_child_count() == 0
-    var not_loading := comp._loading_path == ""
+    var no_child: bool = comp.get_child_count() == 0
+    var not_waiting: bool = comp._waiting_for_path == ""
     TestHelper.assert_true(no_child, "missing model adds no child")
-    TestHelper.assert_true(not_loading, "missing model does not start a threaded load")
+    TestHelper.assert_true(not_waiting, "missing model does not start a load")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
@@ -105,8 +101,8 @@ func test_missing_model_starts_no_load():
 
 
 func test_cache_shared_across_components():
-    var path := "res://__test_shared_cache__.tscn"
-    ArtComponent._model_cache[path] = _make_scene()
+    var path := "res://__test_shared_batch_cache__.tscn"
+    BatchLoader._cache[path] = _make_scene()
 
     var entity_a := Node3D.new()
     var comp_a := _make_component(entity_a)
@@ -116,14 +112,16 @@ func test_cache_shared_across_components():
     var comp_b := _make_component(entity_b)
     comp_b.configure(_make_data(path))
 
-    var both_have_model := comp_a.get_child_count() > 0 and comp_b.get_child_count() > 0
-    var neither_loading := comp_a._loading_path == "" and comp_b._loading_path == ""
-    TestHelper.assert_true(both_have_model, "both components instantiate from the shared cache")
-    TestHelper.assert_true(neither_loading, "cached path triggers no threaded load in either")
+    var both_have_model: bool = comp_a.get_child_count() > 0 and comp_b.get_child_count() > 0
+    var neither_waiting: bool = comp_a._waiting_for_path == "" and comp_b._waiting_for_path == ""
+    TestHelper.assert_true(
+        both_have_model, "both components instantiate from the shared BatchLoader cache"
+    )
+    TestHelper.assert_true(neither_waiting, "cached path triggers no threaded load in either")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
 
-    ArtComponent._model_cache.erase(path)
+    BatchLoader._cache.erase(path)
     entity_a.free()
     entity_b.free()
