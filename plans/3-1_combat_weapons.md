@@ -168,7 +168,7 @@ func take_damage(amount, damage_type):
 
 ### Attack Command (Issue #79)
 - SelectionManager has no `request_attack()` — only move/harvest
-- MouseHandler has no right-click-on-enemy handler
+- MouseHandler has no left-click-on-enemy handler
 - CombatComponent has no `set_target()` entry point from player input
 - Need: entity ownership (player_id) + PlayerManager.is_enemy() for target filtering
 

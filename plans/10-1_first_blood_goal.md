@@ -11,40 +11,37 @@ End-to-end gameplay flow: player deploys MCV, builds base, trains infantry, atta
 | 1 | Place MCV in MapEditor, assign to player 0 | #83 | ✅ Closed |
 | 2 | Place Con Yard in MapEditor, assign to enemy (player 1) | #83 | ✅ Closed |
 | 3 | Deploy MCV → Con Yard | #80 | ✅ Closed |
-| 4 | Build menu empty before Con Yard exists | #81 | ❌ Open |
+| 4 | Build menu empty before Con Yard exists | #81 | ✅ Closed |
 | 5 | Build Power Plant (unlocks Barracks) | #81, #23 | ✅ Closed |
 | 6 | Build Barracks (unlocks Infantry) | #81, #23 | ✅ Closed |
 | 7 | Train infantry (E1 rifle) | #23 (weapon data) | ✅ Closed |
-| 8 | Right-click enemy Con Yard → attack command | #79 | ❌ Open |
-| 9 | Infantry fires weapon → projectile flies | #78, #89, #28 | ❌ Open |
-| 10 | Projectile hits Con Yard → damage applied | #29, #30 | ❌ Open |
-| 11 | Con Yard health reaches 0 → destroyed, removed | #82 | ❌ Open |
+| 8 | Left-click enemy Con Yard → attack command | #79 | ✅ Closed |
+| 9 | Infantry fires weapon → hitscan damage applied | #28 | ✅ Closed |
+| 10 | Con Yard health reaches 0 → health_zero signal | #30 | ❌ Open |
+| 11 | Death handler removes destroyed building | #82 | ❌ Open |
 
 ## Dependency Graph
 
 ```
-#81 (Prerequisite Chain)
-  └─ #79 (Attack Command)
-       └─ #28 (CombatComponent Firing)
-            ├─ #78 (Projectile System)
-            │    └─ #89 (ProjectileData Resource)
-            │         └─ #29 (HitboxComponent)
-            │              └─ #30 (HealthComponent)
-            │                   └─ #82 (Death Handler)
-            └─ #26 (GlobalRules Integration)
+#28 (CombatComponent Firing — hitscan MVP)
+  ├─ #30 (HealthComponent death)
+  │    └─ #82 (Death Handler)
+  └─ #26 (GlobalRules Integration)
+
+#78/#89 (Projectile System — future upgrade from hitscan)
 ```
 
 ## Critical Path
 
 The longest dependency chain is:
 
-1. **#81** → prerequisite chain wiring (just .tres edits)
-2. **#79** → attack command (needs player_id + is_enemy — already in codebase from #77)
-3. **#28** → CombatComponent fires (needs attack command)
-4. **#78/#89** → projectile system + ProjectileData resource (needs CombatComponent to spawn it)
-5. **#29** → hitbox detects projectile (needs projectile to exist)
-6. **#30** → health decrements (needs hitbox forwarding)
-7. **#82** → death removes building (needs health_zero)
+1. ~~**#81** → prerequisite chain wiring~~ ✅
+2. ~~**#79** → attack command~~ ✅
+3. ~~**#28** → CombatComponent fires (hitscan MVP)~~ ✅
+4. **#30** → health_zero signal emitted (already works, needs death handler)
+5. **#82** → death removes building (connects to health_zero)
+
+Note: #78/#89 (projectile system) and #29 (HitboxComponent) are future upgrades from the hitscan MVP. They add visual projectiles but are not required for the First Blood demo.
 
 ## Parallel Workstreams
 
@@ -81,19 +78,19 @@ After implementation, verify:
 5. Build Power Plant → Barracks unlocks
 6. Build Barracks → Infantry unlocks
 7. Train infantry
-8. Right-click enemy Con Yard → infantry walks toward it
-9. In range → fires weapon → projectile flies
-10. Projectile hits → health bar decreases
+8. Left-click enemy Con Yard → infantry walks toward it
+9. In range → fires weapon → hitscan damage applied
+10. Health bar decreases
 11. Health reaches 0 → Con Yard disappears, cells freed
 
 ## Related Issues
 
 - #81 — Prerequisite chain wiring
 - #79 — Attack command
-- #28 — CombatComponent firing logic
-- #78 — Projectile system
-- #89 — ProjectileData resource class
-- #29 — HitboxComponent damage detection
+- #28 — CombatComponent firing logic (hitscan MVP)
+- #78 — Projectile system (future upgrade)
+- #89 — ProjectileData resource class (future upgrade)
+- #29 — HitboxComponent damage detection (future upgrade)
 - #30 — HealthComponent death/armor
 - #82 — Death handler
 - #26 — GlobalRules integration
@@ -105,3 +102,6 @@ After implementation, verify:
 - #83 — MapEditor entity placement
 - #80 — MCV deploy
 - #23 — Entity data population
+- #81 — Prerequisite chain wiring
+- #79 — Attack command
+- #28 — CombatComponent firing logic (hitscan MVP)
