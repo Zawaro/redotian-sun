@@ -239,9 +239,7 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
             if stats and stats.player_id >= 0:
                 var local_id := PlayerManager.get_local_player_id()
                 if PlayerManager.is_enemy(stats.player_id, local_id):
-                    var orders := OrderSystem.get_orders(
-                        target, target_cell, target_pos, modifiers
-                    )
+                    var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
                     if not orders.is_empty():
                         for order in orders:
                             order.execute.call()

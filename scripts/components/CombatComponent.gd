@@ -174,8 +174,9 @@ func _move_toward_target() -> void:
         if distance <= 0.01:
             return
         var angle := atan2(to_target.x, to_target.z)
-        var stop_pos := _target.global_position - Vector3(
-            sin(angle) * range_world, 0.0, cos(angle) * range_world
+        var stop_pos := (
+            _target.global_position
+            - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
         )
         _combat_move = true
         mc.set_target_position(stop_pos)
