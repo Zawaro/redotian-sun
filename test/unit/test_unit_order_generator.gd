@@ -408,6 +408,34 @@ func test_orders_enemy_with_non_combat_unit():
     target.free()
 
 
+func test_non_combat_empty_orders_allows_enemy_selection():
+    if _sm == null:
+        _test_failed += 1
+        print("    FAIL: SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var entity := _make_non_combat_entity(local_id)
+    _setup_selection([entity])
+    var target := _make_target(local_id + 1, true)
+    var target_sc := target.get_node_or_null("SelectComponent") as SelectComponent
+    var gen := _get_generator()
+    var orders := gen.get_orders(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_eq(orders.size(), 0, "non-combat + enemy -> empty orders")
+    if orders.is_empty() and target_sc:
+        _sm.add_entity(target_sc)
+        TestHelper.assert_true(
+            _sm.is_entity_selected(target_sc),
+            "enemy selected after empty orders (MouseHandler fallthrough)"
+        )
+        _sm.deselect_all()
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    _teardown_selection([entity])
+    target.free()
+
+
 func test_orders_already_selected_self():
     if _sm == null:
         _test_failed += 1
