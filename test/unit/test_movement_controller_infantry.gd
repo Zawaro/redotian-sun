@@ -193,3 +193,39 @@ func test_is_moving_false_when_idle():
     TestHelper.assert_eq(mc.is_moving(), false, "idle state -> is_moving() = false")
 
     entity.queue_free()
+
+
+func test_is_moving_true_when_rotating():
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    var entity := Node3D.new()
+    entity.add_child(mc)
+    mc._state = MovementController.State.ROTATING
+
+    TestHelper.assert_eq(mc.is_moving(), true, "rotating state -> is_moving() = true")
+
+    entity.queue_free()
+
+
+func test_is_moving_true_when_moving():
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    var entity := Node3D.new()
+    entity.add_child(mc)
+    mc._state = MovementController.State.MOVING
+
+    TestHelper.assert_eq(mc.is_moving(), true, "moving state -> is_moving() = true")
+
+    entity.queue_free()
+
+
+func test_is_moving_true_when_wait():
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    var entity := Node3D.new()
+    entity.add_child(mc)
+    mc._state = MovementController.State.WAIT
+
+    TestHelper.assert_eq(mc.is_moving(), true, "wait state -> is_moving() = true")
+
+    entity.queue_free()

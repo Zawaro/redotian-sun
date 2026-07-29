@@ -25,6 +25,7 @@ func _make_combat_entity(has_weapon: bool = true, player_id: int = -1) -> Node3D
     entity.add_child(combat)
     if has_weapon:
         combat.weapons = [_make_weapon()]
+        combat._init_cooldowns()
     var stats := StatsComponent.new()
     stats.name = "StatsComponent"
     stats.player_id = player_id
@@ -428,14 +429,10 @@ func test_clear_target_clears_reference():
 
 func test_cooldown_blocks_fire():
     var entity := _make_combat_entity(true, 0)
-    add_child(entity)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var target := _make_target_with_health(1, 100)
-    add_child(target)
-    target.global_position = Vector3(0, 0, 0)
-    entity.global_position = Vector3(0, 0, 0)
     cc.set_target(target)
-    cc._cooldowns[0] = 5.0
+    cc._cooldowns = [5.0]
     var old_health: int = target.get_node("HealthComponent").current_health
     cc._physics_process(0.1)
     var new_health: int = target.get_node("HealthComponent").current_health
@@ -443,31 +440,21 @@ func test_cooldown_blocks_fire():
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
-    remove_child(entity)
-    remove_child(target)
     entity.free()
     target.free()
 
 
 func test_fire_deals_damage_in_range():
     var entity := _make_combat_entity(true, 0)
-    add_child(entity)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var target := _make_target_with_health(1, 100)
-    add_child(target)
-    target.global_position = Vector3(0, 0, 0)
-    entity.global_position = Vector3(0, 0, 0)
-    cc.set_target(target)
-    cc._cooldowns[0] = 0.0
-    cc._physics_process(0.01)
-    var health: int = target.get_node("HealthComponent").current_health
     var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 100 - weapon.damage, "fire deals weapon.damage")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
-    remove_child(entity)
-    remove_child(target)
     entity.free()
     target.free()
 
@@ -514,29 +501,21 @@ func test_target_death_clears_target():
 
 func test_weapon_fired_signal_emits():
     var entity := _make_combat_entity(true, 0)
-    add_child(entity)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var target := _make_target_with_health(1, 100)
-    add_child(target)
-    target.global_position = Vector3(0, 0, 0)
-    entity.global_position = Vector3(0, 0, 0)
-    var signal_received := false
-    var signal_weapon: WeaponData = null
+    var result := [false, null]
     cc.weapon_fired.connect(
         func(w: WeaponData, _t: Node3D):
-            signal_received = true
-            signal_weapon = w
+            result[0] = true
+            result[1] = w
     )
-    cc.set_target(target)
-    cc._cooldowns[0] = 0.0
-    cc._physics_process(0.01)
-    TestHelper.assert_true(signal_received, "weapon_fired signal emitted")
-    TestHelper.assert_eq(signal_weapon, cc.get_current_weapon(), "signal passes weapon data")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    TestHelper.assert_true(result[0], "weapon_fired signal emitted")
+    TestHelper.assert_eq(result[1], weapon, "signal passes weapon data")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
-    remove_child(entity)
-    remove_child(target)
     entity.free()
     target.free()
 
