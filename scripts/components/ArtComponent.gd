@@ -5,21 +5,12 @@ class_name ArtComponent extends Node3D
 ## cache-hit path and a completed background load.
 signal model_loaded
 
-## Process-wide cache of loaded model scenes (model_path -> PackedScene),
-## shared across every ArtComponent so each model is read from disk at most once.
-static var _model_cache: Dictionary = {}
-
 @export var art_data: ArtData = null
 
 var _animation_player: AnimationPlayer
 var _foundation: Vector2i = Vector2i(1, 1)
 var _configured: bool = false
-var _loading_path: String = ""
-
-
-func _init() -> void:
-    # Only poll while a background load is in flight (see _load_model / _process).
-    set_process(false)
+var _waiting_for_path: String = ""
 
 
 func _ready() -> void:
@@ -27,14 +18,18 @@ func _ready() -> void:
         return
     if not _configured:
         if art_data and not art_data.model_path.is_empty():
-            _load_model()
+            _try_load_model()
             if not art_data.active_anims.is_empty():
                 _setup_animation_player()
         else:
             _add_placeholder()
-    # Node3D re-enables _process on tree entry (overriding _init), so gate it here:
-    # only poll while a threaded load is actually in flight (_process clears it on completion).
-    set_process(not _loading_path.is_empty())
+
+
+func _exit_tree() -> void:
+    if not _waiting_for_path.is_empty():
+        if BatchLoader.model_loaded.is_connected(_on_batch_model_loaded):
+            BatchLoader.model_loaded.disconnect(_on_batch_model_loaded)
+        _waiting_for_path = ""
 
 
 func configure(data: EntityData) -> void:
@@ -42,7 +37,7 @@ func configure(data: EntityData) -> void:
     _foundation = data.foundation
     _configured = true
     if art_data and not art_data.model_path.is_empty():
-        _load_model()
+        _try_load_model()
         if not art_data.active_anims.is_empty():
             _setup_animation_player()
     else:
@@ -53,34 +48,61 @@ func configure(data: EntityData) -> void:
         exit.unit_spawned.connect(_on_exit_unit_spawned)
 
 
-func _load_model() -> void:
+func _try_load_model() -> void:
     if art_data == null or art_data.model_path.is_empty():
         return
     var path := art_data.model_path
-    var cached := _model_cache.get(path) as PackedScene
+    # 1. Check BatchLoader cache — instant hit
+    var cached := BatchLoader.get_scene(path)
     if cached != null:
         _finalize_model(cached)
         return
+    # 2. Check if BatchLoader is already loading this path — wait for signal
+    if BatchLoader.is_in_flight(path):
+        _wait_for_model(path)
+        return
+    # 3. Fallback: fire our own threaded request
+    _load_model_fallback(path)
+
+
+func _wait_for_model(path: String) -> void:
+    _waiting_for_path = path
+    if not BatchLoader.model_loaded.is_connected(_on_batch_model_loaded):
+        BatchLoader.model_loaded.connect(_on_batch_model_loaded)
+
+
+func _on_batch_model_loaded(path: String) -> void:
+    if path != _waiting_for_path:
+        return
+    if BatchLoader.model_loaded.is_connected(_on_batch_model_loaded):
+        BatchLoader.model_loaded.disconnect(_on_batch_model_loaded)
+    _waiting_for_path = ""
+    var scene := BatchLoader.get_scene(path)
+    if scene != null and is_instance_valid(self):
+        _finalize_model(scene)
+
+
+func _load_model_fallback(path: String) -> void:
     if not ResourceLoader.exists(path):
         push_warning("ArtComponent: model not found: %s" % path)
         return
-    # Load off the main thread; completion is polled in _process().
     var err := ResourceLoader.load_threaded_request(path)
     if err != OK:
         push_warning("ArtComponent: failed to request model: %s" % path)
         return
-    _loading_path = path
+    _waiting_for_path = path
+    # Poll via _process for the fallback path
     set_process(true)
 
 
 func _process(_delta: float) -> void:
-    if Engine.is_editor_hint() or _loading_path.is_empty():
+    if Engine.is_editor_hint() or _waiting_for_path.is_empty():
         return
-    var status := ResourceLoader.load_threaded_get_status(_loading_path)
+    var path := _waiting_for_path
+    var status := ResourceLoader.load_threaded_get_status(path)
     if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
         return
-    var path := _loading_path
-    _loading_path = ""
+    _waiting_for_path = ""
     set_process(false)
     if status != ResourceLoader.THREAD_LOAD_LOADED:
         push_warning("ArtComponent: failed to load model: %s" % path)
@@ -89,7 +111,6 @@ func _process(_delta: float) -> void:
     if scene == null:
         push_warning("ArtComponent: loaded resource is not a PackedScene: %s" % path)
         return
-    _model_cache[path] = scene
     if not is_instance_valid(self):
         return
     _finalize_model(scene)
