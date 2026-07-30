@@ -4,6 +4,7 @@ signal build_mode_changed(is_active: bool)
 signal building_placed(building: Node3D, entity_data: EntityData)
 signal building_sold(building: Node3D, entity_data: EntityData)
 signal building_repaired(building: Node3D, entity_data: EntityData)
+signal building_destroyed(building: Node3D, entity_data: EntityData)
 
 var is_build_mode: bool = false
 var current_building_type: EntityData = null
@@ -194,6 +195,11 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
             }
         )
     )
+
+    # Connect death handler — cleanup on health_zero.
+    var health := building.get_node_or_null("HealthComponent") as HealthComponent
+    if health:
+        health.health_zero.connect(_on_building_destroyed.bind(building))
 
     building_placed.emit(building, building_type)
 
@@ -627,6 +633,33 @@ func sell_building(building_node: Node3D) -> bool:
     # Free the node
     building_node.queue_free()
     return true
+
+
+func _on_building_destroyed(building_node: Node3D) -> void:
+    var idx := _find_building_index(building_node)
+    if idx < 0:
+        return
+    var entry: Dictionary = _buildings[idx]
+    var entity_data: EntityData = entry.get("type") as EntityData
+    var pid := PlayerManager.get_local_player_id()
+    # Unregister from prerequisite system
+    var ps := get_node_or_null("/root/PrerequisiteSystem")
+    if ps:
+        ps.unregister_building(pid, entity_data)
+    # Unregister cells
+    var cells: Array = entry.get("cells", []) as Array
+    if not cells.is_empty():
+        SpatialHash.instance.unregister_building_cells(cells)
+    # Remove from list
+    _buildings.remove_at(idx)
+    # Deselect before freeing
+    var select_comp := building_node.get_node_or_null("SelectComponent") as SelectComponent
+    if select_comp:
+        SelectionManager.deselect_entity(select_comp)
+    # Emit signal before freeing
+    building_destroyed.emit(building_node, entity_data)
+    # Free the node
+    building_node.queue_free()
 
 
 func repair_building(building_node: Node3D) -> bool:
