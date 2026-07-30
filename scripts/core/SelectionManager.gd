@@ -224,6 +224,8 @@ func _synchronize_visual_selection() -> void:
     if not tree:
         return
     for entity in tree.get_nodes_in_group("selectable"):
+        if not is_instance_valid(entity):
+            continue
         var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
         if not select_comp:
             continue
