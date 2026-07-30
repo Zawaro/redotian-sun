@@ -97,6 +97,8 @@ func _collect_entities():
         return
 
     for ent_node in tree.get_nodes_in_group("selectable"):
+        if not is_instance_valid(ent_node):
+            continue
         var ent := ent_node.get_node_or_null("SelectComponent") as SelectComponent
         if not ent or not (ent.is_selected or ent.is_hovering):
             continue

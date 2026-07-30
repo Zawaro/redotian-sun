@@ -210,6 +210,9 @@ func _on_selection_changed(selected: Array[SelectComponent]) -> void:
         clear_inspection()
         return
     var select_comp: SelectComponent = selected[0]
+    if not is_instance_valid(select_comp):
+        clear_inspection()
+        return
     var entity := select_comp.get_parent() as Node3D
     if entity and is_instance_valid(entity):
         _show_inspection(entity)
