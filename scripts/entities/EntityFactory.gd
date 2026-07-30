@@ -107,6 +107,11 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     _add_components(entity, data)
     _configure_components(entity, data)
 
+    # Death cleanup — free entity when health reaches zero.
+    var health := entity.get_node_or_null("HealthComponent") as HealthComponent
+    if health:
+        health.health_zero.connect(func() -> void: entity.queue_free())
+
     # Cell occupancy — all except OVERLAY, and TERRAIN without foundation.
     var etype := data.entity_type
     if etype != EntityData.EntityType.OVERLAY:
