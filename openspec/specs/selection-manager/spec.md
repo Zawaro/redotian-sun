@@ -46,19 +46,23 @@ When multiple vehicles are selected and a move command is issued, `request_move(
 - **THEN** all vehicles move to the exact target position (no formation offsets)
 
 ### Requirement: Infantry cell pre-assignment
-When infantry units are selected and a move command is issued, `request_move()` SHALL pre-assign each infantry to a cell using spiral search from the target cell. Each cell supports up to 3 infantry. The assignment uses `CellUtil.spiral_first_free()` with max radius 4.
+When infantry units are selected and a move command is issued, `request_move()` SHALL pre-assign each infantry to a cell using spiral search from the target cell, with max 3 per cell based on `CellReservation` combined capacity (physical idle infantry + in-flight claims). `request_move()` SHALL NOT pre-assign sub-slots; slot assignment SHALL occur at movement start inside `MovementController.set_target_position` via `CellReservation.reserve_sub_slot`.
 
 #### Scenario: Three infantry to same cell
-- **WHEN** 3 infantry move to a cell with no existing infantry
-- **THEN** all 3 are assigned to the target cell (slots 0, 1, 2)
+- **WHEN** 3 infantry move to a cell with no existing infantry and no claims
+- **THEN** all 3 are assigned to the target cell, and each claims a distinct sub-slot (0, 1, 2) at movement start
 
 #### Scenario: Infantry overflow to adjacent cells
 - **WHEN** 4 infantry move to a cell
 - **THEN** 3 are assigned to the target cell, the 4th is assigned to the nearest free adjacent cell
 
 #### Scenario: Target cell already has infantry
-- **WHEN** 2 infantry move to a cell that already has 1 infantry
-- **THEN** the 2 new infantry fill slots 1 and 2, totaling 3 in the cell
+- **WHEN** 2 infantry move to a cell that already has 1 idle infantry
+- **THEN** the 2 new infantry fill the remaining capacity, totaling 3 in the cell
+
+#### Scenario: In-flight claims fill capacity
+- **WHEN** a cell has idle infantry plus in-flight claims totaling 3
+- **THEN** `_find_infantry_cell()` assigns new infantry to a neighboring cell instead
 
 ### Requirement: Batched move dispatch
 SelectionManager SHALL dispatch pending moves in batches of 8 per frame via `_process()`. This prevents frame spikes when moving large groups.
@@ -86,7 +90,7 @@ Entities with DeployComponent that are transitioning (deploying/undeploying) SHA
 - **THEN** it is skipped in `request_move()` and does not receive a move command
 
 ### Requirement: Cell reservation during move
-Before issuing move commands, SelectionManager SHALL clear all existing reservations, then reserve each selected entity's current cell. If a vehicle's target cell is already reserved, a fallback target is found via spiral search.
+Before issuing move commands, SelectionManager SHALL clear all existing reservations, then reserve each selected entity's current cell. If a vehicle's target cell is already reserved, a fallback target is found via spiral search. This requirement covers vehicle cell reservation only; infantry sub-slot claims are handled by `CellReservation`.
 
 #### Scenario: Reserve current cells
 - **WHEN** `request_move()` is called
