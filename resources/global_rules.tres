@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="GlobalRules" load_steps=33 format=3 uid="uid://b7ai3dvldeg34"]
+[gd_resource type="Resource" script_class="GlobalRules" load_steps=47 format=3 uid="uid://b7ai3dvldeg34"]
 
 [ext_resource type="Script" uid="uid://b46r2xj1die61" path="res://scripts/data/GlobalRules.gd" id="1_script"]
 [ext_resource type="Resource" uid="uid://dqabewo4e4375" path="res://resources/resource_types/tiberium.tres" id="2_tib"]
@@ -32,6 +32,20 @@
 [ext_resource type="Resource" path="res://resources/warheads/samwh.tres" id="30_samwh"]
 [ext_resource type="Resource" path="res://resources/warheads/rpg.tres" id="31_rpg"]
 [ext_resource type="Resource" path="res://resources/warheads/empuls.tres" id="32_empuls"]
+[ext_resource type="Resource" path="res://resources/land_types/clear.tres" id="33_lt_clear"]
+[ext_resource type="Resource" path="res://resources/land_types/rough.tres" id="34_lt_rough"]
+[ext_resource type="Resource" path="res://resources/land_types/road.tres" id="35_lt_road"]
+[ext_resource type="Resource" path="res://resources/land_types/water.tres" id="36_lt_water"]
+[ext_resource type="Resource" path="res://resources/land_types/cliff.tres" id="37_lt_cliff"]
+[ext_resource type="Resource" path="res://resources/locomotors/Foot.tres" id="38_lm_foot"]
+[ext_resource type="Resource" path="res://resources/locomotors/Track.tres" id="39_lm_track"]
+[ext_resource type="Resource" path="res://resources/locomotors/Wheel.tres" id="40_lm_wheel"]
+[ext_resource type="Resource" path="res://resources/locomotors/Hover.tres" id="41_lm_hover"]
+[ext_resource type="Resource" path="res://resources/locomotors/Amphibious.tres" id="42_lm_amphibious"]
+[ext_resource type="Resource" path="res://resources/locomotors/Fly.tres" id="43_lm_fly"]
+[ext_resource type="Resource" path="res://resources/locomotors/Jumpjet.tres" id="44_lm_jumpjet"]
+[ext_resource type="Resource" path="res://resources/locomotors/Subterranean.tres" id="45_lm_subterranean"]
+[ext_resource type="Resource" path="res://resources/locomotors/Ship.tres" id="46_lm_ship"]
 
 [resource]
 script = ExtResource("1_script")
@@ -75,4 +89,22 @@ resource_types = {
 "tiberium_green": ExtResource("3_tibgreen"),
 "tiberium_red": ExtResource("5_tibred"),
 "vein": ExtResource("6_vein")
+}
+land_types = {
+"clear": ExtResource("33_lt_clear"),
+"rough": ExtResource("34_lt_rough"),
+"road": ExtResource("35_lt_road"),
+"water": ExtResource("36_lt_water"),
+"cliff": ExtResource("37_lt_cliff")
+}
+locomotors = {
+"Foot": ExtResource("38_lm_foot"),
+"Track": ExtResource("39_lm_track"),
+"Wheel": ExtResource("40_lm_wheel"),
+"Hover": ExtResource("41_lm_hover"),
+"Amphibious": ExtResource("42_lm_amphibious"),
+"Fly": ExtResource("43_lm_fly"),
+"Jumpjet": ExtResource("44_lm_jumpjet"),
+"Subterranean": ExtResource("45_lm_subterranean"),
+"Ship": ExtResource("46_lm_ship")
 }

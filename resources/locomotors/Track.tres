@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Locomotor" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/Locomotor.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "Track"
+terrain_speeds = {
+"clear": 1.0,
+"road": 1.25,
+"rough": 0.88
+}
+climb_tolerance = 1
+crushes = PackedStringArray("infantry")

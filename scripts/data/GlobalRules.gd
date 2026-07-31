@@ -86,6 +86,16 @@ class_name GlobalRules extends Resource
 @export var tracked_downhill: float = 1.1
 @export var wheeled_uphill: float = 0.5
 @export var wheeled_downhill: float = 1.2
+## Weight threshold for breakable-surface (ice) damage, from rules.ini [General].
+@export var ice_cracking_weight: float = 2.0
+
+@export_group("Land Types")
+## Land type registry — maps land type id to LandType resource.
+@export var land_types: Dictionary = {}
+
+@export_group("Locomotors")
+## Locomotor registry — maps locomotor id to Locomotor resource.
+@export var locomotors: Dictionary = {}
 
 @export_group("Combat Damage")
 ## Minimum damage after all adjustments, from rules.ini [CombatDamage] MinDamage.
@@ -142,6 +152,27 @@ func get_armor_ids() -> Array[String]:
 
 func get_warhead(warhead_id: String) -> WarheadData:
     return warheads.get(warhead_id) as WarheadData
+
+
+func get_land_type(land_type_id: String) -> LandType:
+    return land_types.get(land_type_id) as LandType
+
+
+func get_locomotor(locomotor_id: String) -> Locomotor:
+    return locomotors.get(locomotor_id) as Locomotor
+
+
+## Validates every registered Locomotor's terrain speed keys against the land
+## type registry. Returns errors for unknown land type references.
+func validate_locomotor_keys() -> PackedStringArray:
+    var errors: PackedStringArray = []
+    for key in locomotors:
+        var lm := locomotors[key] as Locomotor
+        if lm:
+            for land_id in lm.terrain_speeds:
+                if not land_types.has(land_id):
+                    errors.append("Locomotor %s: unknown land type %s" % [lm.id, land_id])
+    return errors
 
 
 ## Validates every registered warhead's armor multiplier keys against the armor

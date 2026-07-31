@@ -19,6 +19,8 @@ class_name StatsComponent extends Node
 @export var crusher: bool = false
 ## Whether this entity can be crushed by larger units.
 @export var crushable: bool = false
+## Mass — drives breakable-surface (ice) damage. Does not affect speed.
+@export var weight: float = 1.0
 
 
 func configure(data: EntityData) -> void:
@@ -33,6 +35,7 @@ func configure(data: EntityData) -> void:
     points = data.points
     crusher = data.crusher
     crushable = data.crushable
+    weight = data.weight
 
 
 func validate(data: EntityData) -> PackedStringArray:
