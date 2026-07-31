@@ -28,22 +28,13 @@ func place_entity(
         var mc := entity.get_node_or_null("MovementController") as MovementController
         if mc:
             var cell := CellUtil.world_to_cell(world_pos)
-            var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
-            var taken_slots: Dictionary = {}
-            var entries: Array = SpatialHash.instance.get_entries(cell)
-            for entry in entries:
-                var entry_mc: MovementController = entry["mc"]
-                if entry_mc and entry_mc._has_sub_slot:
-                    taken_slots[entry_mc._assigned_slot] = true
-            var slot := 0
-            for i in range(positions.size()):
-                if not taken_slots.has(i):
-                    slot = i
-                    break
-            mc._assigned_slot = slot
-            mc._sub_slot_position = CellUtil.cell_to_world(cell) + positions[slot]
-            mc._has_sub_slot = true
-            entity.global_position = mc._sub_slot_position
+            var slot: int = CellReservation.instance.reserve_sub_slot(cell, entity, 0)
+            if slot >= 0:
+                var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
+                mc._assigned_slot = slot
+                mc._sub_slot_position = CellUtil.cell_to_world(cell) + positions[slot]
+                mc._has_sub_slot = true
+                entity.global_position = mc._sub_slot_position
     entity_placed.emit(entity, entity_data)
     return entity
 

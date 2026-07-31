@@ -165,23 +165,12 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
         else:
             vehicles.append(ent)
 
-    var cell_occupancy: Dictionary = {}
-    var target_cell := CellUtil.world_to_cell(target_position)
-    var existing_count := SpatialHash.instance.get_infantry_count(target_cell)
-    if existing_count > 0:
-        cell_occupancy[CellUtil.cell_key(target_cell)] = existing_count
     for inf in infantry:
         var parent := inf.get_parent() as Node3D
         if not is_instance_valid(parent):
             continue
-        var assigned_cell := _find_infantry_cell(target_position, cell_occupancy)
-        var cell_key := CellUtil.cell_key(assigned_cell)
-        var slot: int = cell_occupancy.get(cell_key, 0)
-        cell_occupancy[cell_key] = slot + 1
+        var assigned_cell := _find_infantry_cell(target_position)
         var cell_center := CellUtil.cell_to_world(assigned_cell)
-        var mc := parent.get_node_or_null("MovementController") as MovementController
-        if mc:
-            mc._assigned_slot = slot
         _pending_moves.append([inf, cell_center])
 
     for ent in vehicles:
@@ -303,15 +292,13 @@ func request_set_rally_point(target_position: Vector3) -> void:
             rally.set_rally_point(cell)
 
 
-func _find_infantry_cell(target_position: Vector3, occupancy: Dictionary) -> Vector2i:
+func _find_infantry_cell(target_position: Vector3) -> Vector2i:
     var target := CellUtil.world_to_cell(target_position)
     return CellUtil.spiral_first_free(
         target,
         4,
         func(cell: Vector2i) -> bool:
-            var key := CellUtil.cell_key(cell)
-            var total: int = SpatialHash.instance.get_infantry_count(cell) + occupancy.get(key, 0)
-            if total >= 3:
+            if CellReservation.instance.is_cell_full(cell):
                 return true
             if SpatialHash.instance.is_cell_blocked(cell):
                 return true
