@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="GlobalRules" load_steps=7 format=3 uid="uid://b7ai3dvldeg34"]
+[gd_resource type="Resource" script_class="GlobalRules" load_steps=33 format=3 uid="uid://b7ai3dvldeg34"]
 
 [ext_resource type="Script" uid="uid://b46r2xj1die61" path="res://scripts/data/GlobalRules.gd" id="1_script"]
 [ext_resource type="Resource" uid="uid://dqabewo4e4375" path="res://resources/resource_types/tiberium.tres" id="2_tib"]
@@ -6,6 +6,32 @@
 [ext_resource type="Resource" path="res://resources/resource_types/tiberium_blue.tres" id="4_tibblue"]
 [ext_resource type="Resource" path="res://resources/resource_types/tiberium_red.tres" id="5_tibred"]
 [ext_resource type="Resource" path="res://resources/resource_types/vein.tres" id="6_vein"]
+[ext_resource type="Resource" path="res://resources/armor_types/none.tres" id="7_none"]
+[ext_resource type="Resource" path="res://resources/armor_types/wood.tres" id="8_wood"]
+[ext_resource type="Resource" path="res://resources/armor_types/light.tres" id="9_light"]
+[ext_resource type="Resource" path="res://resources/armor_types/heavy.tres" id="10_heavy"]
+[ext_resource type="Resource" path="res://resources/armor_types/concrete.tres" id="11_concrete"]
+[ext_resource type="Resource" path="res://resources/warheads/sa.tres" id="12_sa"]
+[ext_resource type="Resource" path="res://resources/warheads/ap.tres" id="13_ap"]
+[ext_resource type="Resource" path="res://resources/warheads/he.tres" id="14_he"]
+[ext_resource type="Resource" path="res://resources/warheads/super.tres" id="15_super"]
+[ext_resource type="Resource" path="res://resources/warheads/fire.tres" id="16_fire"]
+[ext_resource type="Resource" path="res://resources/warheads/gas.tres" id="17_gas"]
+[ext_resource type="Resource" path="res://resources/warheads/mechanical.tres" id="18_mechanical"]
+[ext_resource type="Resource" path="res://resources/warheads/hollowpoint.tres" id="19_hollowpoint"]
+[ext_resource type="Resource" path="res://resources/warheads/sonicwarhead.tres" id="20_sonicwarhead"]
+[ext_resource type="Resource" path="res://resources/warheads/railshot.tres" id="21_railshot"]
+[ext_resource type="Resource" path="res://resources/warheads/railshot2.tres" id="22_railshot2"]
+[ext_resource type="Resource" path="res://resources/warheads/plasmawh.tres" id="23_plasmawh"]
+[ext_resource type="Resource" path="res://resources/warheads/organic.tres" id="24_organic"]
+[ext_resource type="Resource" path="res://resources/warheads/orcahe.tres" id="25_orcahe"]
+[ext_resource type="Resource" path="res://resources/warheads/orcaap.tres" id="26_orcaap"]
+[ext_resource type="Resource" path="res://resources/warheads/artyhe.tres" id="27_artyhe"]
+[ext_resource type="Resource" path="res://resources/warheads/slimer.tres" id="28_slimer"]
+[ext_resource type="Resource" path="res://resources/warheads/shard.tres" id="29_shard"]
+[ext_resource type="Resource" path="res://resources/warheads/samwh.tres" id="30_samwh"]
+[ext_resource type="Resource" path="res://resources/warheads/rpg.tres" id="31_rpg"]
+[ext_resource type="Resource" path="res://resources/warheads/empuls.tres" id="32_empuls"]
 
 [resource]
 script = ExtResource("1_script")
@@ -13,6 +39,36 @@ starting_credits = 10000
 harvester_fill_rate = 0.5
 tree_growth_rate = 0.1
 spread_amount = 50
+armor_types = {
+"none": ExtResource("7_none"),
+"wood": ExtResource("8_wood"),
+"light": ExtResource("9_light"),
+"heavy": ExtResource("10_heavy"),
+"concrete": ExtResource("11_concrete"),
+}
+warheads = {
+"SA": ExtResource("12_sa"),
+"AP": ExtResource("13_ap"),
+"HE": ExtResource("14_he"),
+"Super": ExtResource("15_super"),
+"Fire": ExtResource("16_fire"),
+"Gas": ExtResource("17_gas"),
+"Mechanical": ExtResource("18_mechanical"),
+"HollowPoint": ExtResource("19_hollowpoint"),
+"SonicWarhead": ExtResource("20_sonicwarhead"),
+"RailShot": ExtResource("21_railshot"),
+"RailShot2": ExtResource("22_railshot2"),
+"PlasmaWH": ExtResource("23_plasmawh"),
+"Organic": ExtResource("24_organic"),
+"ORCAHE": ExtResource("25_orcahe"),
+"ORCAAP": ExtResource("26_orcaap"),
+"ARTYHE": ExtResource("27_artyhe"),
+"Slimer": ExtResource("28_slimer"),
+"Shard": ExtResource("29_shard"),
+"SAMWH": ExtResource("30_samwh"),
+"RPG": ExtResource("31_rpg"),
+"EMPuls": ExtResource("32_empuls"),
+}
 resource_types = {
 "tiberium": ExtResource("2_tib"),
 "tiberium_blue": ExtResource("4_tibblue"),
