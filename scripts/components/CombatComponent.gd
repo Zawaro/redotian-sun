@@ -59,7 +59,7 @@ func get_effective_damage(weapon: WeaponData) -> int:
     var stats := get_parent().get_node_or_null("StatsComponent") as StatsComponent
     if not stats or stats.veteran_level <= 0:
         return weapon.damage
-    var rules := _get_rules()
+    var rules := GlobalRules.get_current()
     if not rules:
         return weapon.damage
     var mult := rules.get_veteran_combat_multiplier(stats.veteran_level)
@@ -170,30 +170,19 @@ func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:
         return
     var damage := get_effective_damage(weapon)
     var target_stats := target.get_node_or_null("StatsComponent") as StatsComponent
-    if target_stats:
-        var rules := _get_rules()
-        if rules:
-            var mult := rules.get_warhead_armor_multiplier(weapon.warhead, target_stats.armor)
-            if mult > 0.0:
-                damage = clampi(roundi(damage * mult), rules.min_damage, rules.max_damage)
-            else:
-                damage = 0
+    var target_armor := target_stats.armor if target_stats else "none"
+    var rules := GlobalRules.get_current()
+    if rules:
+        var mult := rules.get_warhead_armor_multiplier(weapon.warhead, target_armor)
+        if mult > 0.0:
+            damage = clampi(roundi(damage * mult), rules.min_damage, rules.max_damage)
+        else:
+            damage = 0
     health.take_damage(damage, weapon.warhead)
     _fire_count += 1
     var rof: float = maxf(weapon.rate_of_fire, 0.001)
     _cooldowns[_current_weapon_index] = 60.0 / rof
     weapon_fired.emit(weapon, target)
-
-
-func _get_rules() -> GlobalRules:
-    var main_loop := Engine.get_main_loop()
-    if not main_loop:
-        return null
-    var root: Node = main_loop.root
-    var entity_factory: Node = root.get_node_or_null("EntityFactory")
-    if entity_factory and entity_factory.has_method("get_global_rules"):
-        return entity_factory.get_global_rules() as GlobalRules
-    return null
 
 
 func _move_toward_target() -> void:

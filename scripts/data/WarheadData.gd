@@ -64,16 +64,14 @@ func validate() -> PackedStringArray:
         errors.append("%s: damage_modifier must be >= 0" % id)
     if armor_damage_multipliers.is_empty():
         errors.append("%s: armor_damage_multipliers must not be empty" % id)
-    if Engine.is_editor_hint():
-        return errors
-    var main_loop := Engine.get_main_loop()
-    if not main_loop:
-        return errors
-    var entity_factory: Node = main_loop.root.get_node_or_null("EntityFactory")
-    var rules: GlobalRules = entity_factory.get_global_rules() if entity_factory else null
-    if not rules:
-        return errors
-    var armor_ids: Array[String] = rules.get_armor_ids()
+    return errors
+
+
+## Cross-checks this warhead's armor multiplier keys against a registry of armor
+## ids. Reports missing and unknown armor entries. Registry-agnostic so resources
+## validate identically in editor, runtime, and tests.
+func validate_against_armor(armor_ids: Array[String]) -> PackedStringArray:
+    var errors: PackedStringArray = []
     for armor_id in armor_ids:
         if not armor_damage_multipliers.has(armor_id):
             errors.append(

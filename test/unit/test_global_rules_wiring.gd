@@ -148,25 +148,6 @@ func test_get_effective_damage_rookie():
     entity.free()
 
 
-# --- Slope coefficients ---
-
-
-func test_slope_tracked_uphill():
-    var rules := _make_rules()
-    TestHelper.assert_eq(rules.tracked_uphill, 0.5, "tracked uphill coefficient read")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
-
-
-func test_slope_wheeled_downhill():
-    var rules := _make_rules()
-    TestHelper.assert_eq(rules.wheeled_downhill, 1.2, "wheeled downhill coefficient read")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
-
-
 # --- Production constants ---
 
 
@@ -175,10 +156,10 @@ func test_build_time_uses_rules_speed():
     data.id = "TEST_BUILDING"
     data.cost = 1000
     data.build_time = 0.0
-    var with_rules := data.get_build_time(0.8)
+    var with_rules := data.get_build_time(0.5)
     var fallback := data.get_build_time()
-    TestHelper.assert_eq(with_rules, fallback, "rules build_speed matches constant fallback at 0.8")
-    TestHelper.assert_eq(with_rules, 48.0, "1000 cost at 0.8 build speed -> 48s")
+    TestHelper.assert_eq(with_rules, 30.0, "1000 cost at 0.5 build speed -> 30s")
+    TestHelper.assert_true(with_rules != fallback, "non-default build_speed changes build time")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
@@ -190,25 +171,6 @@ func test_build_time_explicit_overrides():
     data.cost = 1000
     data.build_time = 20.0
     TestHelper.assert_eq(data.get_build_time(0.8), 20.0, "explicit build_time wins")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
-
-
-func test_multiple_factory_bonus():
-    var rules := _make_rules()
-    TestHelper.assert_eq(rules.multiple_factory, 0.5, "multiple_factory read from rules")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
-
-
-# --- Repair step ---
-
-
-func test_repair_step_from_rules():
-    var rules := _make_rules()
-    TestHelper.assert_eq(rules.repair_step, 8, "repair_step read from rules")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()

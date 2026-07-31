@@ -676,7 +676,7 @@ func repair_building(building_node: Node3D) -> bool:
         if health.current_health >= entity_data.strength:
             return false
         # Heal by repair_step from GlobalRules
-        var rules := _get_rules()
+        var rules := GlobalRules.get_current()
         var repair_step: int = rules.repair_step if rules else 8
         var heal_amount: int = mini(repair_step, entity_data.strength - health.current_health)
         health.heal(heal_amount)
@@ -690,17 +690,6 @@ func _find_building_index(building_node: Node3D) -> int:
         if entry.get("node") == building_node:
             return i
     return -1
-
-
-func _get_rules() -> GlobalRules:
-    var main_loop := Engine.get_main_loop()
-    if not main_loop:
-        return null
-    var root: Node = main_loop.root
-    var entity_factory: Node = root.get_node_or_null("EntityFactory")
-    if entity_factory and entity_factory.has_method("get_global_rules"):
-        return entity_factory.get_global_rules() as GlobalRules
-    return null
 
 
 func get_building_at_cell(cell: Vector2i) -> Node3D:
