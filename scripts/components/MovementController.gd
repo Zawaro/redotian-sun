@@ -46,6 +46,12 @@ var _assigned_slot: int = -1
 var _sub_slot_position: Vector3 = Vector3.ZERO
 var _has_sub_slot: bool = false
 var _last_position: Vector3 = Vector3.ZERO
+var _veteran_speed_mult: float = 1.0
+
+
+func configure(data: EntityData) -> void:
+    locomotor = data.locomotor
+    movement_zone = data.movement_zone
 
 
 func _ready() -> void:
@@ -58,6 +64,42 @@ func _ready() -> void:
         _is_infantry = stats.entity_type == EntityData.EntityType.INFANTRY
         _crusher = stats.crusher
         _player_id = stats.player_id
+        _veteran_speed_mult = _get_veteran_speed_mult(stats.veteran_level)
+
+
+func _get_veteran_speed_mult(veteran_level: int) -> float:
+    if veteran_level <= 0:
+        return 1.0
+    var rules := _get_rules()
+    if not rules:
+        return 1.0
+    return rules.get_veteran_speed_multiplier(veteran_level)
+
+
+func _get_rules() -> GlobalRules:
+    var main_loop := Engine.get_main_loop()
+    if not main_loop:
+        return null
+    var root: Node = main_loop.root
+    var entity_factory: Node = root.get_node_or_null("EntityFactory")
+    if entity_factory and entity_factory.has_method("get_global_rules"):
+        return entity_factory.get_global_rules() as GlobalRules
+    return null
+
+
+func _slope_coefficient(direction: Vector3) -> float:
+    var rules := _get_rules()
+    if not rules:
+        return 1.0
+    var probe := _parent.global_position + direction * 1.0
+    var height_ahead := TerrainSystem.get_height_at_world_smooth(probe)
+    var height_now := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    var grade := height_ahead - height_now
+    if absf(grade) < 0.05:
+        return 1.0
+    var uphill: float = rules.tracked_uphill if locomotor == "Track" else rules.wheeled_uphill
+    var downhill: float = rules.tracked_downhill if locomotor == "Track" else rules.wheeled_downhill
+    return uphill if grade > 0.0 else downhill
 
 
 func _num_segments() -> int:
@@ -316,7 +358,15 @@ func _handle_moving_movement(delta: float) -> void:
     if is_instance_valid(_rotation_target):
         _apply_facing(Vector3(final_direction.x, 0.0, final_direction.z).normalized())
 
-    var step := final_direction * move_speed * _speed_jitter * speed_factor * delta
+    var step := (
+        final_direction
+        * move_speed
+        * _speed_jitter
+        * speed_factor
+        * _veteran_speed_mult
+        * _slope_coefficient(final_direction)
+        * delta
+    )
     _spline_t += step.length() / seg_length
 
     if _spline_t >= float(_num_segments()):
@@ -326,7 +376,9 @@ func _handle_moving_movement(delta: float) -> void:
             _state = State.WAIT
             return
 
-        var approach_step := (final_pos - _parent.global_position).limit_length(move_speed * delta)
+        var approach_step := (final_pos - _parent.global_position).limit_length(
+            move_speed * _veteran_speed_mult * delta
+        )
         if approach_step.length() < 0.001:
             _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
                 _parent.global_position
