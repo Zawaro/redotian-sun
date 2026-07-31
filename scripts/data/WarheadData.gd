@@ -16,18 +16,11 @@ class_name WarheadData extends Resource
 @export var kill_animation: String = ""
 
 @export_group("Armor Multipliers")
-## Armor effectiveness multipliers: [none, wood, light, heavy, concrete].
-## Each value is a percentage (0.0–1.0) of base damage applied to that
-## armor type. Example: SA = [1.0, 0.6, 0.4, 0.25, 0.1].
-@export var armor_damage_multipliers: PackedFloat32Array = PackedFloat32Array(
-    [
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-    ]
-)
+## Armor effectiveness multipliers keyed by armor type id (from GlobalRules.armor_types).
+## Each value is a percentage of base damage applied to that armor type, e.g.
+## SA = {"none": 1.0, "wood": 0.6, "light": 0.4, "heavy": 0.25, "concrete": 0.1}.
+## Values may exceed 1.0 (overkill warheads like Fire) or be 0.0 (no damage).
+@export var armor_damage_multipliers: Dictionary = {}
 
 ## Terrain/effect flags from rules.ini
 @export_group("Terrain and Effect Flags")
@@ -59,12 +52,36 @@ class_name WarheadData extends Resource
 @export var bright: bool = false
 
 
+func get_armor_multiplier(armor_type: String) -> float:
+    return float(armor_damage_multipliers.get(armor_type, 1.0))
+
+
 func validate() -> PackedStringArray:
     var errors: PackedStringArray = []
     if id.is_empty():
         errors.append("WarheadData: id is empty")
     if damage_modifier < 0.0:
         errors.append("%s: damage_modifier must be >= 0" % id)
-    if armor_damage_multipliers.size() != 5:
-        errors.append("%s: armor_damage_multipliers must have 5 elements" % id)
+    if armor_damage_multipliers.is_empty():
+        errors.append("%s: armor_damage_multipliers must not be empty" % id)
+    if Engine.is_editor_hint():
+        return errors
+    var main_loop := Engine.get_main_loop()
+    if not main_loop:
+        return errors
+    var entity_factory: Node = main_loop.root.get_node_or_null("EntityFactory")
+    var rules: GlobalRules = entity_factory.get_global_rules() if entity_factory else null
+    if not rules:
+        return errors
+    var armor_ids: Array[String] = rules.get_armor_ids()
+    for armor_id in armor_ids:
+        if not armor_damage_multipliers.has(armor_id):
+            errors.append(
+                "%s: armor_damage_multipliers missing entry for armor type '%s'" % [id, armor_id]
+            )
+    for key in armor_damage_multipliers:
+        if not armor_ids.has(key):
+            errors.append(
+                "%s: armor_damage_multipliers references unknown armor type '%s'" % [id, key]
+            )
     return errors

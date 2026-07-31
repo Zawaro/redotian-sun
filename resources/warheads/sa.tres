@@ -6,14 +6,10 @@
 script = ExtResource("1_script")
 id = "SA"
 display_name = "Small Arms"
-splash_radius = 3
-armor_damage_multipliers = PackedFloat32Array([1.0, 0.6, 0.4, 0.25, 0.1])
-can_damage_walls = false
-can_damage_wood = false
-can_damage_tiberium = false
-sets_on_fire = false
-is_conventional = false
-produces_sparks = false
-rocks_target = false
-infantry_death_type = 1
-prone_damage_modifier = 0.7
+armor_damage_multipliers = {
+"none": 1.000000,
+"wood": 0.600000,
+"light": 0.400000,
+"heavy": 0.250000,
+"concrete": 0.100000
+}

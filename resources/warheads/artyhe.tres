@@ -6,14 +6,10 @@
 script = ExtResource("1_script")
 id = "ARTYHE"
 display_name = "Artillery HE"
-splash_radius = 6
-armor_damage_multipliers = PackedFloat32Array([1.0, 0.85, 0.68, 0.35, 0.35])
-can_damage_walls = true
-can_damage_wood = true
-can_damage_tiberium = true
-sets_on_fire = false
-is_conventional = true
-produces_sparks = false
-rocks_target = true
-infantry_death_type = 2
-prone_damage_modifier = 1.5
+armor_damage_multipliers = {
+"none": 1.000000,
+"wood": 0.850000,
+"light": 0.680000,
+"heavy": 0.350000,
+"concrete": 0.350000
+}
