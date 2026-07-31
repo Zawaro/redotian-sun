@@ -293,6 +293,43 @@ func test_idle_occupant_slot_visible_to_new_arrival():
     TestHelper.assert_eq(slot_b, 1, "new arrival avoids idle occupant's slot")
 
 
+func test_moving_occupant_does_not_block_slot():
+    var cr := CellReservation.instance
+    var sh := SpatialHash.instance
+    if cr == null or sh == null:
+        TestHelper.assert_true(false, "CellReservation/SpatialHash not available")
+        return
+    cr.clear()
+    sh._grid.clear()
+    var cell := Vector2i(30, 30)
+    var key := CellUtil.cell_key(cell)
+    var moving_root := Node3D.new()
+    var moving_mc := MovementController.new()
+    moving_root.add_child(moving_mc)
+    moving_mc._parent = moving_root
+    moving_mc._assigned_slot = 0
+    moving_mc._state = MovementController.State.MOVING
+    sh._grid[key] = [
+        {
+            "node": moving_root,
+            "mc": moving_mc,
+            "entity_type": EntityData.EntityType.INFANTRY,
+            "player_id": 0,
+        },
+    ]
+    var entity_b := Node3D.new()
+    var mc_b := MovementController.new()
+    entity_b.add_child(mc_b)
+    mc_b._parent = entity_b
+    mc_b._assign_sub_slot_at_cell(cell)
+    var slot_b: int = mc_b._assigned_slot
+    sh._grid.erase(key)
+    cr.clear()
+    moving_root.queue_free()
+    entity_b.queue_free()
+    TestHelper.assert_eq(slot_b, 0, "moving transit unit does not hold its slot")
+
+
 func test_finish_stop_releases_sub_slot_claim():
     var cr := CellReservation.instance
     if cr == null:
