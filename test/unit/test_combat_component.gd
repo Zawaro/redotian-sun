@@ -526,8 +526,57 @@ func test_weapon_fired_signal_emits():
 
 # --- Armor resolution (warhead vs armor) tests ---
 
+var _real_rules: GlobalRules = null
+
+
+func _inject_test_rules() -> void:
+    var rules := GlobalRules.new()
+    rules.min_damage = 1
+    rules.max_damage = 1000
+    for aid in ["none", "wood", "light", "heavy", "concrete"]:
+        var at := ArmorType.new()
+        at.id = aid
+        rules.armor_types[aid] = at
+    var sa := WarheadData.new()
+    sa.id = "SA"
+    sa.armor_damage_multipliers = {
+        "none": 1.0, "wood": 0.6, "light": 0.4, "heavy": 0.25, "concrete": 0.1
+    }
+    rules.warheads["SA"] = sa
+    var ap := WarheadData.new()
+    ap.id = "AP"
+    ap.armor_damage_multipliers = {
+        "none": 0.25, "wood": 0.65, "light": 0.75, "heavy": 1.0, "concrete": 0.6
+    }
+    rules.warheads["AP"] = ap
+    var mechanical := WarheadData.new()
+    mechanical.id = "Mechanical"
+    mechanical.armor_damage_multipliers = {
+        "none": 0.0, "wood": 1.0, "light": 1.0, "heavy": 1.0, "concrete": 1.0
+    }
+    rules.warheads["Mechanical"] = mechanical
+    var fire := WarheadData.new()
+    fire.id = "Fire"
+    fire.armor_damage_multipliers = {
+        "none": 6.0, "wood": 1.48, "light": 0.59, "heavy": 0.06, "concrete": 0.02
+    }
+    rules.warheads["Fire"] = fire
+    var main_loop := Engine.get_main_loop()
+    var ef: Node = main_loop.root.get_node_or_null("EntityFactory") if main_loop else null
+    if ef and ef.has_method("set_global_rules"):
+        _real_rules = ef.get_global_rules()
+        ef.set_global_rules(rules)
+
+
+func _restore_rules() -> void:
+    var main_loop := Engine.get_main_loop()
+    var ef: Node = main_loop.root.get_node_or_null("EntityFactory") if main_loop else null
+    if ef and ef.has_method("set_global_rules"):
+        ef.set_global_rules(_real_rules)
+
 
 func test_armor_sa_vs_heavy():
+    _inject_test_rules()
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.weapons = [_make_weapon(100, 5.0, "SA")]
@@ -542,9 +591,11 @@ func test_armor_sa_vs_heavy():
     TestHelper.reset()
     entity.free()
     target.free()
+    _restore_rules()
 
 
 func test_armor_ap_vs_heavy_full():
+    _inject_test_rules()
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.weapons = [_make_weapon(100, 5.0, "AP")]
@@ -559,9 +610,11 @@ func test_armor_ap_vs_heavy_full():
     TestHelper.reset()
     entity.free()
     target.free()
+    _restore_rules()
 
 
 func test_armor_sa_vs_concrete_min_floor():
+    _inject_test_rules()
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.weapons = [_make_weapon(5, 5.0, "SA")]
@@ -576,9 +629,11 @@ func test_armor_sa_vs_concrete_min_floor():
     TestHelper.reset()
     entity.free()
     target.free()
+    _restore_rules()
 
 
 func test_armor_zero_damage_pairing():
+    _inject_test_rules()
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.weapons = [_make_weapon(100, 5.0, "Mechanical")]
@@ -593,9 +648,11 @@ func test_armor_zero_damage_pairing():
     TestHelper.reset()
     entity.free()
     target.free()
+    _restore_rules()
 
 
 func test_armor_unknown_warhead_full():
+    _inject_test_rules()
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.weapons = [_make_weapon(50, 5.0, "UnknownWH")]
@@ -610,9 +667,11 @@ func test_armor_unknown_warhead_full():
     TestHelper.reset()
     entity.free()
     target.free()
+    _restore_rules()
 
 
 func test_armor_unknown_target_armor_full():
+    _inject_test_rules()
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.weapons = [_make_weapon(50, 5.0, "SA")]
@@ -627,9 +686,11 @@ func test_armor_unknown_target_armor_full():
     TestHelper.reset()
     entity.free()
     target.free()
+    _restore_rules()
 
 
 func test_armor_fire_overkill_caps_at_max():
+    _inject_test_rules()
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.weapons = [_make_weapon(500, 5.0, "Fire")]
@@ -646,6 +707,7 @@ func test_armor_fire_overkill_caps_at_max():
     TestHelper.reset()
     entity.free()
     target.free()
+    _restore_rules()
 
 
 # --- OrderResolver integration: selected units + enemy click ---

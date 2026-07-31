@@ -120,6 +120,19 @@ func get_armor_type(armor_type_id: String) -> ArmorType:
     return armor_types.get(armor_type_id) as ArmorType
 
 
+## Returns the active GlobalRules resource loaded by the EntityFactory autoload,
+## or null when unavailable (editor context, tests before autoloads exist).
+static func get_current() -> GlobalRules:
+    var main_loop := Engine.get_main_loop()
+    if not main_loop:
+        return null
+    var root: Node = main_loop.root
+    var entity_factory: Node = root.get_node_or_null("EntityFactory")
+    if entity_factory and entity_factory.has_method("get_global_rules"):
+        return entity_factory.get_global_rules() as GlobalRules
+    return null
+
+
 func get_armor_ids() -> Array[String]:
     var result: Array[String] = []
     for key in armor_types:
@@ -129,6 +142,18 @@ func get_armor_ids() -> Array[String]:
 
 func get_warhead(warhead_id: String) -> WarheadData:
     return warheads.get(warhead_id) as WarheadData
+
+
+## Validates every registered warhead's armor multiplier keys against the armor
+## type registry. Returns errors for missing and unknown armor entries.
+func validate_warhead_armor_keys() -> PackedStringArray:
+    var errors: PackedStringArray = []
+    var armor_ids := get_armor_ids()
+    for warhead in warheads.values():
+        var wh := warhead as WarheadData
+        if wh:
+            errors.append_array(wh.validate_against_armor(armor_ids))
+    return errors
 
 
 func _veteran_multiplier(base: float, level: int) -> float:

@@ -18,6 +18,9 @@ enum State { IDLE, ROTATING, MOVING, WAIT }
 
 const REPULSION_STRENGTH: float = 0.1
 
+## Locomotor id for tracked vehicles (rules.ini [General] TrackedUphill/Downhill).
+const LOCOMOTOR_TRACK: String = "Track"
+
 ## Timing thresholds in seconds, derived from the frame counts they replaced at 60 FPS.
 ## Delta-accumulated, so they stay frame-rate independent and scale with game speed.
 const REPAIR_INTERVAL: float = 10.0 / 60.0
@@ -47,6 +50,7 @@ var _sub_slot_position: Vector3 = Vector3.ZERO
 var _has_sub_slot: bool = false
 var _last_position: Vector3 = Vector3.ZERO
 var _veteran_speed_mult: float = 1.0
+var _rules: GlobalRules = null
 
 
 func configure(data: EntityData) -> void:
@@ -59,6 +63,7 @@ func _ready() -> void:
     _resolve_rotation_target()
     _speed_jitter = randf_range(0.95, 1.0)
     _wait_threshold = randf_range(WAIT_MIN_SECONDS, WAIT_MAX_SECONDS)
+    _rules = GlobalRules.get_current()
     var stats := _parent.get_node_or_null("StatsComponent") as StatsComponent
     if stats:
         _is_infantry = stats.entity_type == EntityData.EntityType.INFANTRY
@@ -70,26 +75,13 @@ func _ready() -> void:
 func _get_veteran_speed_mult(veteran_level: int) -> float:
     if veteran_level <= 0:
         return 1.0
-    var rules := _get_rules()
-    if not rules:
+    if not _rules:
         return 1.0
-    return rules.get_veteran_speed_multiplier(veteran_level)
-
-
-func _get_rules() -> GlobalRules:
-    var main_loop := Engine.get_main_loop()
-    if not main_loop:
-        return null
-    var root: Node = main_loop.root
-    var entity_factory: Node = root.get_node_or_null("EntityFactory")
-    if entity_factory and entity_factory.has_method("get_global_rules"):
-        return entity_factory.get_global_rules() as GlobalRules
-    return null
+    return _rules.get_veteran_speed_multiplier(veteran_level)
 
 
 func _slope_coefficient(direction: Vector3) -> float:
-    var rules := _get_rules()
-    if not rules:
+    if not _rules:
         return 1.0
     var probe := _parent.global_position + direction * 1.0
     var height_ahead := TerrainSystem.get_height_at_world_smooth(probe)
@@ -97,8 +89,9 @@ func _slope_coefficient(direction: Vector3) -> float:
     var grade := height_ahead - height_now
     if absf(grade) < 0.05:
         return 1.0
-    var uphill: float = rules.tracked_uphill if locomotor == "Track" else rules.wheeled_uphill
-    var downhill: float = rules.tracked_downhill if locomotor == "Track" else rules.wheeled_downhill
+    var is_tracked: bool = locomotor == LOCOMOTOR_TRACK
+    var uphill: float = _rules.tracked_uphill if is_tracked else _rules.wheeled_uphill
+    var downhill: float = _rules.tracked_downhill if is_tracked else _rules.wheeled_downhill
     return uphill if grade > 0.0 else downhill
 
 
@@ -376,8 +369,9 @@ func _handle_moving_movement(delta: float) -> void:
             _state = State.WAIT
             return
 
+        var approach_direction := (final_pos - _parent.global_position).normalized()
         var approach_step := (final_pos - _parent.global_position).limit_length(
-            move_speed * _veteran_speed_mult * delta
+            move_speed * _veteran_speed_mult * _slope_coefficient(approach_direction) * delta
         )
         if approach_step.length() < 0.001:
             _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(

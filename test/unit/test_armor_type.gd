@@ -32,20 +32,3 @@ func test_armor_type_defaults():
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
-
-
-func test_armor_type_unique_ids():
-    var ids := {
-        "none": ArmorType.new(),
-        "wood": ArmorType.new(),
-        "light": ArmorType.new(),
-        "heavy": ArmorType.new(),
-        "concrete": ArmorType.new(),
-    }
-    var keys := ids.keys()
-    for i in range(keys.size()):
-        for j in range(i + 1, keys.size()):
-            TestHelper.assert_true(keys[i] != keys[j], "armor type ids are distinct")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

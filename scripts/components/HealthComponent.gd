@@ -34,22 +34,11 @@ func _apply_veteran_armor(damage: int) -> int:
     var stats := get_parent().get_node_or_null("StatsComponent") as StatsComponent
     if not stats or stats.veteran_level <= 0:
         return damage
-    var rules := _get_rules()
+    var rules := GlobalRules.get_current()
     if not rules:
         return damage
     var mult := rules.get_veteran_armor_multiplier(stats.veteran_level)
     return maxi(0, roundi(damage * mult))
-
-
-func _get_rules() -> GlobalRules:
-    var main_loop := Engine.get_main_loop()
-    if not main_loop:
-        return null
-    var root: Node = main_loop.root
-    var entity_factory: Node = root.get_node_or_null("EntityFactory")
-    if entity_factory and entity_factory.has_method("get_global_rules"):
-        return entity_factory.get_global_rules() as GlobalRules
-    return null
 
 
 func heal(amount: int) -> void:

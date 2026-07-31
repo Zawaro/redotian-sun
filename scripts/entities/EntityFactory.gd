@@ -367,6 +367,11 @@ func get_global_rules() -> GlobalRules:
     return _global_rules
 
 
+## Overrides the active GlobalRules — used by tests to inject controlled rules.
+func set_global_rules(rules: GlobalRules) -> void:
+    _global_rules = rules
+
+
 func _add_resource_tree_component(entity: Node3D, data: EntityData) -> void:
     if data.resource_category == "tiberium_tree":
         var component := Node.new()

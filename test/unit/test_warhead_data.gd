@@ -73,10 +73,28 @@ func test_validate_empty_id():
     TestHelper.reset()
 
 
-func test_validate_keyed_multipliers_no_crash():
+func test_validate_keyed_multipliers_clean():
     var wh := _make_warhead({"none": 1.0, "heavy": 0.25})
-    var errors := wh.validate()
-    TestHelper.assert_true(true, "validate runs without crash for keyed multipliers")
+    var errors := wh.validate_against_armor(["none", "heavy"])
+    TestHelper.assert_eq(errors.size(), 0, "all keys present -> no errors")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+
+
+func test_validate_against_armor_missing_entry():
+    var wh := _make_warhead({"none": 1.0, "heavy": 0.25})
+    var errors := wh.validate_against_armor(["none", "heavy", "concrete"])
+    TestHelper.assert_true(errors.size() > 0, "missing armor entry reported")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+
+
+func test_validate_against_armor_unknown_key():
+    var wh := _make_warhead({"none": 1.0, "bogus": 0.5})
+    var errors := wh.validate_against_armor(["none"])
+    TestHelper.assert_true(errors.size() > 0, "unknown armor key reported")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()

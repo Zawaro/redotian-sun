@@ -35,7 +35,7 @@ func _physics_process(delta: float) -> void:
     if get_tree().current_scene and get_tree().current_scene.name == "MapEditor":
         return
 
-    var rules := _get_rules()
+    var rules := GlobalRules.get_current()
     if not rules:
         return
     if not rules.resource_grows and not rules.resource_spreads:
@@ -57,13 +57,6 @@ func _physics_process(delta: float) -> void:
         _tick_resource_batch(rules)
 
 
-func _get_rules() -> GlobalRules:
-    var ef := Engine.get_main_loop().root.get_node_or_null("EntityFactory") as EntityFactory
-    if ef:
-        return ef.get_global_rules()
-    return null
-
-
 func _rebuild_cache() -> void:
     _cached_trees = _get_trees()
     _cached_resources = _get_resources()
@@ -74,7 +67,7 @@ func _rebuild_cache() -> void:
 
 
 func _reset_tree_timer() -> void:
-    var rules := _get_rules()
+    var rules := GlobalRules.get_current()
     var base: float = 180.0
     if rules:
         base = rules.tree_growth_rate * 60.0
@@ -82,7 +75,7 @@ func _reset_tree_timer() -> void:
 
 
 func _reset_resource_timer() -> void:
-    var rules := _get_rules()
+    var rules := GlobalRules.get_current()
     var base: float = 300.0
     if rules:
         base = rules.growth_rate * 60.0
@@ -269,7 +262,7 @@ func _grow_entry(entry: Dictionary) -> void:
         var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
         var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
         if tib_comp and hp and hp.current_health < hp.max_health:
-            var rules := _get_rules()
+            var rules := GlobalRules.get_current()
             var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
             var grow_rate: float = rt.grow_rate if rt else 0.1
             var grow_amount: int = ceili(float(hp.max_health) * grow_rate)
