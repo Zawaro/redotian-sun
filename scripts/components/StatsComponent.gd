@@ -11,6 +11,8 @@ class_name StatsComponent extends Node
 @export var sight: int = 1
 @export var owner_faction: PackedStringArray = []
 @export var points: int = 0
+## Veteran rank: 0 = rookie, 1 = veteran, 2 = elite.
+@export var veteran_level: int = 0
 ## Player who owns this entity instance (-1 = unset).
 @export var player_id: int = -1
 ## Whether this entity can crush infantry underfoot.

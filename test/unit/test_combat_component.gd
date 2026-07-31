@@ -8,12 +8,13 @@ var _test_passed := 0
 var _test_failed := 0
 
 
-func _make_weapon(damage: int = 10, range_cells: float = 5.0) -> WeaponData:
+func _make_weapon(damage: int = 10, range_cells: float = 5.0, warhead: String = "SA") -> WeaponData:
     var w := WeaponData.new()
     w.id = "TEST_WEAPON"
     w.damage = damage
     w.attack_range = range_cells
     w.rate_of_fire = 1.0
+    w.warhead = warhead
     return w
 
 
@@ -383,12 +384,15 @@ func test_validate_no_weapons():
 # --- Firing logic tests ---
 
 
-func _make_target_with_health(player_id: int = 1, health: int = 100) -> Node3D:
+func _make_target_with_health(
+    player_id: int = 1, health: int = 100, armor: String = "none"
+) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TargetEntity"
     var stats := StatsComponent.new()
     stats.name = "StatsComponent"
     stats.player_id = player_id
+    stats.armor = armor
     entity.add_child(stats)
     var hc := HealthComponent.new()
     hc.name = "HealthComponent"
@@ -513,6 +517,130 @@ func test_weapon_fired_signal_emits():
     cc._fire_weapon(weapon, target)
     TestHelper.assert_true(result[0], "weapon_fired signal emitted")
     TestHelper.assert_eq(result[1], weapon, "signal passes weapon data")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+# --- Armor resolution (warhead vs armor) tests ---
+
+
+func test_armor_sa_vs_heavy():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.weapons = [_make_weapon(100, 5.0, "SA")]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 1000, "heavy")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(health, 1000 - 25, "SA vs heavy (0.25) deals 25 damage")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_armor_ap_vs_heavy_full():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.weapons = [_make_weapon(100, 5.0, "AP")]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 1000, "heavy")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(health, 1000 - 100, "AP vs heavy (1.0) deals full damage")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_armor_sa_vs_concrete_min_floor():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.weapons = [_make_weapon(5, 5.0, "SA")]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 1000, "concrete")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(health, 1000 - 1, "SA vs concrete (0.1*5=0.5) floors to min_damage 1")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_armor_zero_damage_pairing():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.weapons = [_make_weapon(100, 5.0, "Mechanical")]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 1000, "none")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(health, 1000 - 0, "Mechanical vs none (0.0) deals 0 damage")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_armor_unknown_warhead_full():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.weapons = [_make_weapon(50, 5.0, "UnknownWH")]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 1000, "heavy")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(health, 1000 - 50, "unknown warhead deals full damage")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_armor_unknown_target_armor_full():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.weapons = [_make_weapon(50, 5.0, "SA")]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 1000, "flak")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(health, 1000 - 50, "unknown armor deals full damage")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    entity.free()
+    target.free()
+
+
+func test_armor_fire_overkill_caps_at_max():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.weapons = [_make_weapon(500, 5.0, "Fire")]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 100000, "none")
+    var weapon := cc.get_current_weapon()
+    cc._fire_weapon(weapon, target)
+    var health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(
+        health, 100000 - 1000, "Fire vs none (6.0*500=3000) caps to max_damage 1000"
+    )
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
