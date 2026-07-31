@@ -48,6 +48,7 @@ const DOCK_UNLOAD_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/DockUnloadComponent.gd"
 )
 const DEPLOY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DeployComponent.gd")
+const ICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/IceComponent.gd")
 
 var _entity_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
@@ -163,6 +164,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_deploy_component(entity, data)
     _add_exit_component(entity, data)
     _add_rally_point_component(entity, data)
+    _add_ice_component(entity, data)
     if data.resource_category != "tiberium":
         _add_art_component(entity, data)
 
@@ -443,6 +445,21 @@ func _add_deploy_component(entity: Node3D, data: EntityData) -> void:
         component.set_script(DEPLOY_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
+
+
+## Breakable surface entities (TS ICE01-05). Detected via legacy_id prefix;
+## swap for a dedicated data flag if more breakable surfaces appear.
+func _add_ice_component(entity: Node3D, data: EntityData) -> void:
+    if data.entity_type != EntityData.EntityType.TERRAIN:
+        return
+    if not data.legacy_id.begins_with("ICE"):
+        return
+    var component := Node.new()
+    component.name = "IceComponent"
+    component.set_script(ICE_COMPONENT_SCRIPT)
+    entity.add_child(component)
+    component.owner = entity
+    entity.add_to_group("ice")
 
 
 func _add_interact_hitbox(entity: Node3D) -> void:

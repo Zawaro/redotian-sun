@@ -51,6 +51,14 @@ var _has_sub_slot: bool = false
 var _last_position: Vector3 = Vector3.ZERO
 var _veteran_speed_mult: float = 1.0
 var _rules: GlobalRules = null
+var _locomotor_data: Locomotor = null
+var _hover_height: float = 0.0
+var _is_hover: bool = false
+var _is_jumpjet: bool = false
+var _is_subterranean: bool = false
+var _hybrid_active: bool = false
+var _ice_cracking_weight: float = 2.0
+var _weight: float = 1.0
 
 
 func configure(data: EntityData) -> void:
@@ -69,7 +77,26 @@ func _ready() -> void:
         _is_infantry = stats.entity_type == EntityData.EntityType.INFANTRY
         _crusher = stats.crusher
         _player_id = stats.player_id
+        _weight = stats.weight
         _veteran_speed_mult = _get_veteran_speed_mult(stats.veteran_level)
+    _resolve_locomotor()
+
+
+func _resolve_locomotor() -> void:
+    if not _rules or locomotor.is_empty():
+        return
+    _locomotor_data = _rules.get_locomotor(locomotor)
+    if _locomotor_data == null:
+        push_error("[MovementController] Unknown locomotor: %s" % locomotor)
+        return
+    _is_hover = _locomotor_data.is_hover
+    _is_jumpjet = _locomotor_data.is_jumpjet
+    _is_subterranean = _locomotor_data.is_subterranean
+    if _locomotor_data.hover_height_override > 0.0:
+        _hover_height = _locomotor_data.hover_height_override
+    else:
+        _hover_height = float(_rules.hover_height) * (CellUtil.CELL_SIZE / 256.0)
+    _ice_cracking_weight = _rules.ice_cracking_weight
 
 
 func _get_veteran_speed_mult(veteran_level: int) -> float:
@@ -80,8 +107,8 @@ func _get_veteran_speed_mult(veteran_level: int) -> float:
     return _rules.get_veteran_speed_multiplier(veteran_level)
 
 
-func _slope_coefficient(direction: Vector3) -> float:
-    if not _rules:
+func _slope_coefficient(_direction: Vector3) -> float:
+    if not _rules or _is_hover:
         return 1.0
     var uphill: float
     var downhill: float
@@ -94,13 +121,28 @@ func _slope_coefficient(direction: Vector3) -> float:
             downhill = _rules.wheeled_downhill
         _:
             return 1.0
-    var probe := _parent.global_position + direction * 1.0
+    if _waypoints.size() < 2:
+        return 1.0
+    var seg := _spline_segment()
+    var next_idx := mini(seg + 1, _waypoints.size() - 1)
+    var probe := CellUtil.cell_to_world(CellUtil.world_to_cell(_waypoints[next_idx]))
     var height_ahead := TerrainSystem.get_height_at_world_smooth(probe)
     var height_now := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
     var grade := height_ahead - height_now
     if absf(grade) < 0.05:
         return 1.0
     return uphill if grade > 0.0 else downhill
+
+
+func _terrain_speed_factor() -> float:
+    if not _locomotor_data or _locomotor_data.is_fly:
+        return 1.0
+    var cell := CellUtil.world_to_cell(_parent.global_position)
+    return _locomotor_data.get_speed_multiplier(TerrainSystem.get_land_type(cell))
+
+
+func _is_floating() -> bool:
+    return _is_hover or (_is_jumpjet and _hybrid_active)
 
 
 func _num_segments() -> int:
@@ -164,6 +206,7 @@ func _finish_stop() -> void:
     _waypoints = PackedVector3Array()
     _spline_t = 0.0
     _has_sub_slot = false
+    _hybrid_active = false
     _state = State.IDLE
     SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
     CellReservation.instance.release_all(_parent)
@@ -202,7 +245,25 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
             target = _sub_slot_position
 
     var blocked := _build_blocked_cells(unblock_buildings)
-    var path: PackedVector3Array = Pathfinder.find_path(_parent.global_position, target, blocked)
+    var path: PackedVector3Array = Pathfinder.find_path(
+        _parent.global_position, target, blocked, _locomotor_data
+    )
+
+    var hybrid_fallback := false
+    if _is_jumpjet and _locomotor_data:
+        var fly_dist := _parent.global_position.distance_to(target)
+        var fly_threshold: float = _locomotor_data.jumpjet_fly_distance
+        if path.is_empty() or (fly_threshold > 0.0 and fly_dist > fly_threshold):
+            hybrid_fallback = true
+    elif _is_subterranean and _locomotor_data:
+        var dig_dist := _parent.global_position.distance_to(target)
+        var dig_threshold: float = _locomotor_data.subterranean_dig_distance
+        if path.is_empty() or (dig_threshold > 0.0 and dig_dist > dig_threshold):
+            hybrid_fallback = true
+
+    if hybrid_fallback:
+        path = PackedVector3Array([target])
+    _hybrid_active = hybrid_fallback
 
     if path.is_empty():
         _scatter_blockers()
@@ -274,9 +335,8 @@ func _physics_process(delta: float) -> void:
         State.WAIT:
             _handle_wait(delta)
         State.IDLE:
-            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
-                _parent.global_position
-            )
+            var idle_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+            _parent.global_position.y = idle_y + (_hover_height if _is_floating() else 0.0)
 
 
 func _handle_rotating(delta: float) -> void:
@@ -376,6 +436,7 @@ func _handle_moving_movement(delta: float) -> void:
         * speed_factor
         * _veteran_speed_mult
         * _slope_coefficient(final_direction)
+        * _terrain_speed_factor()
         * delta
     )
     _spline_t += step.length() / seg_length
@@ -389,13 +450,20 @@ func _handle_moving_movement(delta: float) -> void:
 
         var approach_direction := (final_pos - _parent.global_position).normalized()
         var approach_step := (final_pos - _parent.global_position).limit_length(
-            move_speed * _veteran_speed_mult * _slope_coefficient(approach_direction) * delta
+            (
+                move_speed
+                * _veteran_speed_mult
+                * _slope_coefficient(approach_direction)
+                * _terrain_speed_factor()
+                * delta
+            )
         )
         if approach_step.length() < 0.001:
             _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
                 _parent.global_position
             )
             _has_sub_slot = false
+            _hybrid_active = false
             _state = State.IDLE
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
@@ -419,10 +487,11 @@ func _handle_moving_movement(delta: float) -> void:
             _parent.global_position = Vector3(lerped.x, _parent.global_position.y, lerped.z)
         _snap_to_terrain()
 
-    if _crusher:
-        var new_cell := CellUtil.world_to_cell(_parent.global_position)
-        var old_cell := CellUtil.world_to_cell(_last_position)
-        if new_cell != old_cell:
+    var new_cell := CellUtil.world_to_cell(_parent.global_position)
+    var old_cell := CellUtil.world_to_cell(_last_position)
+    if new_cell != old_cell:
+        _damage_ice(new_cell)
+        if _crusher:
             _try_crush(new_cell)
     _last_position = _parent.global_position
 
@@ -449,6 +518,7 @@ func _handle_wait(delta: float) -> void:
         if _parent.global_position.distance_to(cell_center) < 0.05:
             _parent.global_position = cell_center
             _has_sub_slot = false
+            _hybrid_active = false
             _state = State.IDLE
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
@@ -473,6 +543,20 @@ func _try_crush(cell: Vector2i) -> void:
         var hc := (enemy as Node3D).get_node_or_null("HealthComponent") as HealthComponent
         if hc:
             hc.kill()
+
+
+## One-time weight-based damage to breakable surfaces (ice) on cell entry.
+## Units below the cracking threshold deal none, and floating units (hover,
+## jumpjet flight) do not touch the surface. Damage is per entry, not per tick.
+func _damage_ice(cell: Vector2i) -> void:
+    if _is_floating() or _weight < _ice_cracking_weight or SpatialHash.instance == null:
+        return
+    for ice in SpatialHash.instance.get_ice_entities_on_cell(cell):
+        if not is_instance_valid(ice):
+            continue
+        var hc := (ice as Node3D).get_node_or_null("HealthComponent") as HealthComponent
+        if hc:
+            hc.take_damage(roundi(_weight))
 
 
 func _apply_facing(direction: Vector3) -> void:
@@ -612,7 +696,8 @@ func nudge_from_cell(blocking_cell: Vector2i) -> bool:
 
 func _snap_to_terrain() -> void:
     var terrain_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
-    _parent.global_position.y = lerpf(_parent.global_position.y, terrain_y, 0.95)
+    var target_y := terrain_y + (_hover_height if _is_floating() else 0.0)
+    _parent.global_position.y = lerpf(_parent.global_position.y, target_y, 0.95)
 
 
 func get_cursor_for_target(_target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
