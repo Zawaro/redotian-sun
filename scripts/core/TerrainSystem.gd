@@ -6,6 +6,8 @@ signal grid_initialized
 const HEIGHT_STEP: float = 0.815
 const MAX_HEIGHT: int = 10
 const DEFAULT_GRID_CELLS: Vector2i = Vector2i(50, 50)
+## Default land type for cells with no explicit surface assignment.
+const DEFAULT_LAND_TYPE: String = "clear"
 
 var grid_cells: Vector2i = DEFAULT_GRID_CELLS:
     set(value):
@@ -14,6 +16,8 @@ var grid_cells: Vector2i = DEFAULT_GRID_CELLS:
 
 var _vertex_grid: Array = []
 var _cells: Dictionary = {}
+## Sparse per-cell land type overlay: cell_key -> land type id. Absent = DEFAULT_LAND_TYPE.
+var _land_types: Dictionary = {}
 
 var _corner_to_dir: Array[String] = ["west", "north", "south", "east"]
 
@@ -46,6 +50,7 @@ func _exit_tree() -> void:
 func clear() -> void:
     _init_vertex_grid()
     _cells.clear()
+    _land_types.clear()
 
 
 # ========================================
@@ -136,6 +141,20 @@ func get_cell_type(cell: Vector2i) -> String:
     var key := CellUtil.cell_key_str(Vector2i(cx, cz))
     var data: Dictionary = _cells.get(key, {})
     return data.get("type", "")
+
+
+## Land type id for a cell (defaults to "clear" when unassigned).
+func get_land_type(cell: Vector2i) -> String:
+    return _land_types.get(CellUtil.cell_key(cell), DEFAULT_LAND_TYPE)
+
+
+## Assigns a land type to a cell. Assigning the default land type clears the override.
+func set_land_type(cell: Vector2i, land_type_id: String) -> void:
+    var key: int = CellUtil.cell_key(cell)
+    if land_type_id == DEFAULT_LAND_TYPE or land_type_id.is_empty():
+        _land_types.erase(key)
+    else:
+        _land_types[key] = land_type_id
 
 
 func get_cell_max_height(cell: Vector2i) -> float:
