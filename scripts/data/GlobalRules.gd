@@ -87,15 +87,19 @@ class_name GlobalRules extends Resource
 @export var wheeled_uphill: float = 0.5
 @export var wheeled_downhill: float = 1.2
 
+@export_group("Combat Damage")
+## Minimum damage after all adjustments, from rules.ini [CombatDamage] MinDamage.
+@export var min_damage: int = 1
+## Maximum damage after all adjustments, from rules.ini [CombatDamage] MaxDamage.
+@export var max_damage: int = 1000
+
 @export_group("Armor Types")
-## Armor types (customizable dictionary)
-@export var armor_types: Dictionary = {
-    "none": {"modifier": 1.0},
-    "wood": {"modifier": 0.7},
-    "light": {"modifier": 0.6},
-    "heavy": {"modifier": 0.4},
-    "concrete": {"modifier": 0.3},
-}
+## Armor type registry — maps armor type id to ArmorType resource.
+@export var armor_types: Dictionary = {}
+
+@export_group("Warheads")
+## Warhead registry — maps warhead id to WarheadData resource.
+@export var warheads: Dictionary = {}
 
 @export_group("Resource Types")
 ## Resource type definitions — maps resource ID to ResourceType.
@@ -112,10 +116,47 @@ class_name GlobalRules extends Resource
 @export var maximum_queued_objects: int = 4
 
 
-func get_armor_modifier(armor_type: String) -> float:
-    if armor_types.has(armor_type):
-        return armor_types[armor_type].get("modifier", 1.0)
-    return 1.0
+func get_armor_type(armor_type_id: String) -> ArmorType:
+    return armor_types.get(armor_type_id) as ArmorType
+
+
+func get_armor_ids() -> Array[String]:
+    var result: Array[String] = []
+    for key in armor_types:
+        result.append(String(key))
+    return result
+
+
+func get_warhead(warhead_id: String) -> WarheadData:
+    return warheads.get(warhead_id) as WarheadData
+
+
+func _veteran_multiplier(base: float, level: int) -> float:
+    return 1.0 + base * float(clampi(level, 0, veteran_cap))
+
+
+## Combat damage multiplier for a veteran level (level clamped to veteran_cap).
+func get_veteran_combat_multiplier(level: int) -> float:
+    return _veteran_multiplier(veteran_combat, level)
+
+
+## Speed multiplier for a veteran level (level clamped to veteran_cap).
+func get_veteran_speed_multiplier(level: int) -> float:
+    return _veteran_multiplier(veteran_speed, level)
+
+
+## Armor (incoming damage) multiplier for a veteran level (level clamped to veteran_cap).
+func get_veteran_armor_multiplier(level: int) -> float:
+    return _veteran_multiplier(-veteran_armor, level)
+
+
+## Returns the damage multiplier a warhead applies against a given armor type,
+## defaulting to 1.0 (full damage) for unknown warheads or armor types.
+func get_warhead_armor_multiplier(warhead_id: String, armor_type: String) -> float:
+    var warhead := get_warhead(warhead_id)
+    if not warhead:
+        return 1.0
+    return warhead.get_armor_multiplier(armor_type)
 
 
 func get_resource_type(id: String) -> ResourceType:
