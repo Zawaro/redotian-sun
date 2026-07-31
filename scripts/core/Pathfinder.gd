@@ -19,14 +19,61 @@ static func get_terrain_height(cell: Vector2i) -> float:
     return ts.get_height_at_world(world_pos)
 
 
+## Resolves the TerrainSystem autoload once per pathfinding call (hot path).
+static func _get_terrain_system() -> Node:
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    if not tree:
+        return null
+    return tree.root.get_node_or_null("TerrainSystem")
+
+
+static func _cell_height(terrain: Node, cell: Vector2i) -> float:
+    if terrain == null:
+        return 0.0
+    return terrain.get_height_at_world(CellUtil.cell_to_world(cell))
+
+
+## Terrain passability for a unit's locomotor. Fly/hover pass everything; others
+## pass only positive-speed land types. Intact ice provides footing on water.
+static func _is_terrain_passable(locomotor: Locomotor, land: String, cell: Vector2i) -> bool:
+    if locomotor.is_passable(land):
+        return true
+    if (
+        land == "water"
+        and SpatialHash.instance
+        and SpatialHash.instance.has_intact_ice_on_cell(cell)
+    ):
+        return true
+    return false
+
+
+## Pathing cost multiplier = inverse of terrain speed multiplier. Ice-covered
+## water costs like clear ground.
+static func _cost_multiplier(locomotor: Locomotor, land: String, cell: Vector2i) -> float:
+    if (
+        land == "water"
+        and not locomotor.is_passable(land)
+        and SpatialHash.instance
+        and SpatialHash.instance.has_intact_ice_on_cell(cell)
+    ):
+        return 1.0
+    var mult: float = locomotor.get_speed_multiplier(land)
+    return 1.0 / mult if mult > 0.0 else INF
+
+
 static func find_path(
-    start_world: Vector3, end_world: Vector3, blocked_cells: Dictionary = {}
+    start_world: Vector3,
+    end_world: Vector3,
+    blocked_cells: Dictionary = {},
+    locomotor: Locomotor = null,
 ) -> PackedVector3Array:
     var start_cell := CellUtil.world_to_cell(start_world)
     var end_cell := CellUtil.world_to_cell(end_world)
 
     if start_cell == end_cell:
         return PackedVector3Array()
+
+    var terrain: Node = _get_terrain_system()
 
     var open_heap: Array = [{"cell": start_cell, "f": CellUtil.heuristic(start_cell, end_cell)}]
     var open_lookup: Dictionary = {}
@@ -60,6 +107,13 @@ static func find_path(
     var best_cell: Vector2i = start_cell
     var best_dist: float = CellUtil.heuristic(start_cell, end_cell)
 
+    var climb_limit: float = (
+        float(locomotor.climb_tolerance) * terrain.HEIGHT_STEP if terrain and locomotor else 0.0
+    )
+    var ignores_height: bool = false
+    if locomotor:
+        ignores_height = locomotor.is_fly or locomotor.is_jumpjet
+
     while not open_heap.is_empty():
         var current_entry: Dictionary = _heap_pop(open_heap)
         var current: Vector2i = current_entry["cell"]
@@ -85,7 +139,7 @@ static func find_path(
         if stagnant > STAGNANT_LIMIT or iter > MAX_ITER:
             return _path_or_fallback(came_from, start_cell, best_cell)
 
-        var current_height := get_terrain_height(current)
+        var current_height := _cell_height(terrain, current)
 
         for i in 8:
             var neighbor: Vector2i = current + neighbor_dirs[i]
@@ -94,9 +148,20 @@ static func find_path(
             if blocked_cells.has(nkey):
                 continue
 
-            var neighbor_height: float = get_terrain_height(neighbor)
-            var height_cost: float = abs(neighbor_height - current_height) * 0.5
-            var tentative_g: float = g_score.get(current_key, INF) + neighbor_costs[i] + height_cost
+            var neighbor_height: float = _cell_height(terrain, neighbor)
+            var cost_multiplier: float = 1.0
+            if terrain and locomotor:
+                if not ignores_height and absf(neighbor_height - current_height) > climb_limit:
+                    continue
+                var land: String = terrain.get_land_type(neighbor)
+                if not _is_terrain_passable(locomotor, land, neighbor):
+                    continue
+                cost_multiplier = _cost_multiplier(locomotor, land, neighbor)
+
+            var height_cost: float = absf(neighbor_height - current_height) * 0.5
+            var tentative_g: float = (
+                g_score.get(current_key, INF) + neighbor_costs[i] * cost_multiplier + height_cost
+            )
 
             if tentative_g < g_score.get(nkey, INF):
                 came_from[nkey] = current
