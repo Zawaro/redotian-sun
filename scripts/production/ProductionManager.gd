@@ -183,7 +183,7 @@ func _process(delta: float) -> void:
             continue
 
         var speed := _get_production_speed(key)
-        var build_time: float = item.entity_data.get_build_time()
+        var build_time: float = item.entity_data.get_build_time(_get_build_speed())
         if build_time <= 0.0:
             _complete_item(key, active)
             continue
@@ -317,7 +317,29 @@ func _get_production_speed(queue_key: String) -> float:
     var player_id := int(queue_key.get_slice(":", 0))
     var factory_type := queue_key.get_slice(":", 1)
     var result := _find_factories(player_id, factory_type)
-    return 1.0 + (result.count - 1) * 0.25
+    var multiple_factory: float = 0.5
+    var rules := _get_rules()
+    if rules:
+        multiple_factory = rules.multiple_factory
+    return 1.0 + (result.count - 1) * multiple_factory
+
+
+func _get_build_speed() -> float:
+    var rules := _get_rules()
+    if not rules:
+        return -1.0
+    return rules.build_speed
+
+
+func _get_rules() -> GlobalRules:
+    var main_loop := Engine.get_main_loop()
+    if not main_loop:
+        return null
+    var root: Node = main_loop.root
+    var entity_factory: Node = root.get_node_or_null("EntityFactory")
+    if entity_factory and entity_factory.has_method("get_global_rules"):
+        return entity_factory.get_global_rules() as GlobalRules
+    return null
 
 
 func _queue_key(player_id: int, factory_type: String) -> String:
