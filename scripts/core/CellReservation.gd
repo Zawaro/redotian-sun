@@ -111,7 +111,12 @@ func _is_slot_free(cell: Vector2i, owner: Node3D, slot: int) -> bool:
         if entry["node"] == owner:
             continue
         var mc: Node = entry["mc"]
-        if mc and mc.has_method("get_assigned_slot") and int(mc.get_assigned_slot()) == slot:
+        if not mc or not mc.has_method("get_assigned_slot"):
+            continue
+        # MOVING/WAIT units are covered by their claim, not their position.
+        if mc.has_method("is_moving") and mc.is_moving():
+            continue
+        if int(mc.get_assigned_slot()) == slot:
             return false
     return true
 
