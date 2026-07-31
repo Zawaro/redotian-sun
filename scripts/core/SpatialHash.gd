@@ -9,6 +9,7 @@ var _bib_cells: Dictionary = {}
 var _reserved: Dictionary = {}
 var _resource_cells: Dictionary = {}
 var _infantry_cell_counts: Dictionary = {}
+var _ice_cells: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -23,6 +24,15 @@ func rebuild() -> void:
     _grid.clear()
     _blocked_cells.clear()
     _infantry_cell_counts.clear()
+    _ice_cells.clear()
+    for ice in get_tree().get_nodes_in_group("ice"):
+        var ice_root := ice as Node3D
+        if not is_instance_valid(ice_root):
+            continue
+        var ice_key: int = CellUtil.cell_key(CellUtil.world_to_cell(ice_root.global_position))
+        if not _ice_cells.has(ice_key):
+            _ice_cells[ice_key] = []
+        _ice_cells[ice_key].append(ice_root)
     for entity in get_tree().get_nodes_in_group("entities"):
         # ponytail: scene-placed units add SelectComponent (Node) to group,
         # not the root Node3D. Resolve root for MC lookup + position.
@@ -62,6 +72,22 @@ func rebuild() -> void:
 
 func get_entries(cell: Vector2i) -> Array:
     return _grid.get(CellUtil.cell_key(cell), [])
+
+
+## Ice entities (breakable surfaces) occupying a cell.
+func get_ice_entities_on_cell(cell: Vector2i) -> Array:
+    return _ice_cells.get(CellUtil.cell_key(cell), [])
+
+
+## True when a live (intact) ice entity occupies the cell.
+func has_intact_ice_on_cell(cell: Vector2i) -> bool:
+    for ice in _ice_cells.get(CellUtil.cell_key(cell), []):
+        if not is_instance_valid(ice):
+            continue
+        var hc := (ice as Node3D).get_node_or_null("HealthComponent") as HealthComponent
+        if hc and hc.current_health > 0:
+            return true
+    return false
 
 
 func get_blocked_cells() -> Dictionary:
