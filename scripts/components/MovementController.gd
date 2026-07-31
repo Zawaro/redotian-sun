@@ -83,15 +83,23 @@ func _get_veteran_speed_mult(veteran_level: int) -> float:
 func _slope_coefficient(direction: Vector3) -> float:
     if not _rules:
         return 1.0
+    var uphill: float
+    var downhill: float
+    match locomotor:
+        LOCOMOTOR_TRACK:
+            uphill = _rules.tracked_uphill
+            downhill = _rules.tracked_downhill
+        "Wheel":
+            uphill = _rules.wheeled_uphill
+            downhill = _rules.wheeled_downhill
+        _:
+            return 1.0
     var probe := _parent.global_position + direction * 1.0
     var height_ahead := TerrainSystem.get_height_at_world_smooth(probe)
     var height_now := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
     var grade := height_ahead - height_now
     if absf(grade) < 0.05:
         return 1.0
-    var is_tracked: bool = locomotor == LOCOMOTOR_TRACK
-    var uphill: float = _rules.tracked_uphill if is_tracked else _rules.wheeled_uphill
-    var downhill: float = _rules.tracked_downhill if is_tracked else _rules.wheeled_downhill
     return uphill if grade > 0.0 else downhill
 
 

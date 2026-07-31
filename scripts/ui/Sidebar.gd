@@ -352,7 +352,9 @@ func _create_cameo(data: EntityData) -> Button:
         count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
         btn.add_child(count_label)
 
-    var time_str := "%.0fs" % data.get_build_time()
+    var rules := GlobalRules.get_current()
+    var build_time := data.get_build_time(rules.build_speed) if rules else data.get_build_time()
+    var time_str := "%.0fs" % build_time
     btn.tooltip_text = "%s\n$%d\nTime: %s" % [data.display_name, data.cost, time_str]
     return btn
 
