@@ -5,15 +5,11 @@
 [resource]
 script = ExtResource("1_script")
 id = "ORCAAP"
-display_name = "Orca AP Missile"
-splash_radius = 2
-armor_damage_multipliers = PackedFloat32Array([0.3, 0.65, 1.5, 1.0, 0.3])
-can_damage_walls = true
-can_damage_wood = true
-can_damage_tiberium = false
-sets_on_fire = false
-is_conventional = true
-produces_sparks = false
-rocks_target = false
-infantry_death_type = 3
-prone_damage_modifier = 0.5
+display_name = "ORCA Armor Piercing"
+armor_damage_multipliers = {
+"none": 0.300000,
+"wood": 0.650000,
+"light": 1.500000,
+"heavy": 1.000000,
+"concrete": 0.300000
+}

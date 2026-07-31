@@ -6,14 +6,10 @@
 script = ExtResource("1_script")
 id = "Fire"
 display_name = "Fire"
-splash_radius = 8
-armor_damage_multipliers = PackedFloat32Array([6.0, 1.48, 0.59, 0.06, 0.02])
-can_damage_walls = false
-can_damage_wood = true
-can_damage_tiberium = false
-sets_on_fire = true
-is_conventional = false
-produces_sparks = true
-rocks_target = false
-infantry_death_type = 4
-prone_damage_modifier = 6.0
+armor_damage_multipliers = {
+"none": 6.000000,
+"wood": 1.480000,
+"light": 0.590000,
+"heavy": 0.060000,
+"concrete": 0.020000
+}

@@ -6,14 +6,10 @@
 script = ExtResource("1_script")
 id = "HE"
 display_name = "High Explosive"
-splash_radius = 4
-armor_damage_multipliers = PackedFloat32Array([1.0, 0.85, 0.7, 0.35, 0.28])
-can_damage_walls = true
-can_damage_wood = true
-can_damage_tiberium = true
-sets_on_fire = false
-is_conventional = true
-produces_sparks = true
-rocks_target = false
-infantry_death_type = 2
-prone_damage_modifier = 0.7
+armor_damage_multipliers = {
+"none": 1.000000,
+"wood": 0.850000,
+"light": 0.700000,
+"heavy": 0.350000,
+"concrete": 0.280000
+}
