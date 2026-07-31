@@ -76,6 +76,7 @@ func _start_exit(unit: Node3D = null, exit_pos: Vector3 = Vector3.ZERO) -> void:
         var mc := unit.get_node_or_null("MovementController") as MovementController
         if mc:
             mc._has_sub_slot = false
+            CellReservation.instance.release_all(unit)
             if not mc.arrived.is_connected(_on_exit_arrived):
                 mc.arrived.connect(_on_exit_arrived.bind(unit))
         _move_to_exit(unit, exit_pos)

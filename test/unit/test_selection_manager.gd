@@ -267,10 +267,10 @@ func test_find_infantry_cell_empty():
     # Ensure 50×50 grid so world→cell conversion is deterministic
     if _ts:
         _ts.init_grid(50, 50)
-    var occupancy: Dictionary = {}
+    CellReservation.instance.clear()
     var target := Vector2i(10, 10)
     # Centered: cell (10,10) on 50×50 → world (-79, 0, -79)
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79), occupancy)
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79))
     if result == target:
         _test_passed += 1
         print("    PASS: _find_infantry_cell returns target when empty")
@@ -287,12 +287,19 @@ func test_find_infantry_cell_at_capacity():
     # Ensure 50×50 grid so world→cell conversion is deterministic
     if _ts:
         _ts.init_grid(50, 50)
-    var occupancy: Dictionary = {}
+    CellReservation.instance.clear()
     var target := Vector2i(10, 10)
-    var key: int = CellUtil.cell_key(target)
-    occupancy[key] = 3
+    var claimers: Array[Node3D] = []
+    for i in CellReservation.NUM_SLOTS:
+        var claimer := Node3D.new()
+        add_child(claimer)
+        claimers.append(claimer)
+        CellReservation.instance.reserve_sub_slot(target, claimer)
     # Centered coords: cell (10,10) on 50×50 grid → world (-79, 0, -79)
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79), occupancy)
+    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79))
+    for claimer in claimers:
+        claimer.queue_free()
+    CellReservation.instance.clear()
     if result != target:
         _test_passed += 1
         print("    PASS: _find_infantry_cell spirals when target is full")

@@ -229,3 +229,112 @@ func test_is_moving_true_when_wait():
     TestHelper.assert_eq(mc.is_moving(), true, "wait state -> is_moving() = true")
 
     entity.queue_free()
+
+
+func test_two_units_same_cell_get_distinct_slots():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.assert_true(false, "CellReservation not available")
+        return
+    cr.clear()
+    var cell := Vector2i(30, 30)
+    var entity_a := Node3D.new()
+    var mc_a := MovementController.new()
+    entity_a.add_child(mc_a)
+    mc_a._parent = entity_a
+    var entity_b := Node3D.new()
+    var mc_b := MovementController.new()
+    entity_b.add_child(mc_b)
+    mc_b._parent = entity_b
+    mc_a._assign_sub_slot_at_cell(cell)
+    mc_b._assign_sub_slot_at_cell(cell)
+    var distinct: bool = mc_a._assigned_slot != mc_b._assigned_slot
+    var both_have: bool = mc_a._has_sub_slot and mc_b._has_sub_slot
+    cr.clear()
+    entity_a.queue_free()
+    entity_b.queue_free()
+    TestHelper.assert_true(distinct, "two units same cell get distinct sub-slots")
+    TestHelper.assert_true(both_have, "both units hold a sub-slot")
+
+
+func test_idle_occupant_slot_visible_to_new_arrival():
+    var cr := CellReservation.instance
+    var sh := SpatialHash.instance
+    if cr == null or sh == null:
+        TestHelper.assert_true(false, "CellReservation/SpatialHash not available")
+        return
+    cr.clear()
+    sh._grid.clear()
+    var cell := Vector2i(30, 30)
+    var key := CellUtil.cell_key(cell)
+    var idle_root := Node3D.new()
+    var idle_mc := MovementController.new()
+    idle_root.add_child(idle_mc)
+    idle_mc._parent = idle_root
+    idle_mc._assigned_slot = 0
+    sh._grid[key] = [
+        {
+            "node": idle_root,
+            "mc": idle_mc,
+            "entity_type": EntityData.EntityType.INFANTRY,
+            "player_id": 0,
+        },
+    ]
+    var entity_b := Node3D.new()
+    var mc_b := MovementController.new()
+    entity_b.add_child(mc_b)
+    mc_b._parent = entity_b
+    mc_b._assign_sub_slot_at_cell(cell)
+    var slot_b: int = mc_b._assigned_slot
+    sh._grid.erase(key)
+    cr.clear()
+    idle_root.queue_free()
+    entity_b.queue_free()
+    TestHelper.assert_eq(slot_b, 1, "new arrival avoids idle occupant's slot")
+
+
+func test_finish_stop_releases_sub_slot_claim():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.assert_true(false, "CellReservation not available")
+        return
+    cr.clear()
+    var cell := Vector2i(30, 30)
+    var entity := Node3D.new()
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    mc._assign_sub_slot_at_cell(cell)
+    var before: int = cr.get_claim_count(cell)
+    mc._finish_stop()
+    var after: int = cr.get_claim_count(cell)
+    cr.clear()
+    entity.queue_free()
+    TestHelper.assert_eq(before, 1, "move start holds a claim")
+    TestHelper.assert_eq(after, 0, "finish stop releases the claim")
+
+
+func test_full_cell_spreads_to_neighbor():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.assert_true(false, "CellReservation not available")
+        return
+    cr.clear()
+    var target := Vector2i(30, 30)
+    var owners: Array[Node3D] = []
+    for i in CellReservation.NUM_SLOTS:
+        var owner := Node3D.new()
+        add_child(owner)
+        owners.append(owner)
+        cr.reserve_sub_slot(target, owner)
+    var entity := Node3D.new()
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    var free_cell := mc._find_nearest_free_sub_slot_cell(target)
+    var spread: bool = free_cell != target
+    cr.clear()
+    for owner in owners:
+        owner.queue_free()
+    entity.queue_free()
+    TestHelper.assert_true(spread, "full cell spreads to a neighbor")

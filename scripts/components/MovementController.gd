@@ -111,6 +111,10 @@ func is_moving() -> bool:
     return _state != State.IDLE
 
 
+func get_assigned_slot() -> int:
+    return _assigned_slot
+
+
 func stop() -> void:
     if _state == State.IDLE:
         return
@@ -162,6 +166,7 @@ func _finish_stop() -> void:
     _has_sub_slot = false
     _state = State.IDLE
     SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
+    CellReservation.instance.release_all(_parent)
     if debug_show_path:
         DebugVisualizer.clear_path(get_path())
 
@@ -188,7 +193,12 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
 
     if _is_infantry:
         _assign_sub_slot_at_cell(target_cell)
-        if _has_sub_slot:
+        if not _has_sub_slot:
+            var free_cell := _find_nearest_free_sub_slot_cell(target_cell)
+            _assign_sub_slot_at_cell(free_cell)
+            if _has_sub_slot:
+                target = _sub_slot_position
+        else:
             target = _sub_slot_position
 
     var blocked := _build_blocked_cells(unblock_buildings)
@@ -391,6 +401,7 @@ func _handle_moving_movement(delta: float) -> void:
             # movement start in set_target_position(). Snapping on arrival is
             # visually broken.
             SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
+            CellReservation.instance.release_all(_parent)
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
             arrived.emit(_parent.global_position)
@@ -443,6 +454,7 @@ func _handle_wait(delta: float) -> void:
             # movement start in set_target_position(). Snapping on arrival is
             # visually broken.
             SpatialHash.instance.release_cell(final_cell)
+            CellReservation.instance.release_all(_parent)
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
             arrived.emit(_parent.global_position)
@@ -487,37 +499,13 @@ func _apply_facing(direction: Vector3) -> void:
 
 func _assign_sub_slot_at_cell(cell: Vector2i) -> void:
     _has_sub_slot = false
-    var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
-    var taken_slots: Dictionary = {}
-    # Loop 1: entities already at this cell (in SpatialHash).
-    var entries: Array = SpatialHash.instance.get_entries(cell)
-    for entry in entries:
-        var entry_mc: MovementController = entry["mc"]
-        if entry_mc and entry_mc != self and entry_mc._has_sub_slot:
-            taken_slots[entry_mc._assigned_slot] = true
-    # Loop 2: entities en route to this cell (not in SpatialHash yet).
-    for entity in get_tree().get_nodes_in_group("entities"):
-        if entity == _parent:
-            continue
-        var mc: MovementController = entity.get_node_or_null("MovementController")
-        if mc and mc != self and mc._has_sub_slot:
-            var mc_cell := CellUtil.world_to_cell(mc._sub_slot_position)
-            if mc_cell == cell:
-                taken_slots[mc._assigned_slot] = true
-    if (
-        _assigned_slot >= 0
-        and _assigned_slot < positions.size()
-        and not taken_slots.has(_assigned_slot)
-    ):
-        _sub_slot_position = CellUtil.cell_to_world(cell) + positions[_assigned_slot]
-        _has_sub_slot = true
+    var slot: int = CellReservation.instance.reserve_sub_slot(cell, _parent, _assigned_slot)
+    if slot < 0:
         return
-    for i in range(positions.size()):
-        if not taken_slots.has(i):
-            _assigned_slot = i
-            _sub_slot_position = CellUtil.cell_to_world(cell) + positions[i]
-            _has_sub_slot = true
-            break
+    _assigned_slot = slot
+    var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
+    _sub_slot_position = CellUtil.cell_to_world(cell) + positions[slot]
+    _has_sub_slot = true
 
 
 func _spline_segment() -> int:
@@ -566,6 +554,21 @@ func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
 
 func _find_nearest_free_cell(cell: Vector2i) -> Vector2i:
     return CellUtil.spiral_first_free(cell, 4, _is_cell_occupied_by_idle)
+
+
+func _find_nearest_free_sub_slot_cell(cell: Vector2i) -> Vector2i:
+    return CellUtil.spiral_first_free(cell, 4, _is_cell_unavailable_for_sub_slot)
+
+
+func _is_cell_unavailable_for_sub_slot(cell: Vector2i) -> bool:
+    if SpatialHash.instance.is_cell_blocked(cell):
+        return true
+    var key := CellUtil.cell_key(cell)
+    if SpatialHash.instance.get_building_cells().has(key):
+        return true
+    if SpatialHash.instance.is_bib_cell(cell):
+        return true
+    return CellReservation.instance.is_cell_full(cell)
 
 
 func _scatter_blockers() -> void:
