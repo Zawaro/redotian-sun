@@ -26,6 +26,9 @@ class_name Locomotor extends Resource
 ## Jumpjet flies when the straight-line distance exceeds this (world units);
 ## 0 = fly only when walking is impossible.
 @export var jumpjet_fly_distance: float = 0.0
+## Jumpjet flight altitude above terrain, in terrain height units
+## (each = TerrainSystem.HEIGHT_STEP world units); default 6.0 = 6 height levels.
+@export var jumpjet_target_height: float = 6.0
 ## Subterranean digs when the straight-line distance exceeds this (world units);
 ## 0 = dig only when surface travel is impossible.
 @export var subterranean_dig_distance: float = 0.0

@@ -13,3 +13,4 @@ terrain_speeds = {
 climb_tolerance = 99
 is_jumpjet = true
 jumpjet_fly_distance = 20.0
+jumpjet_target_height = 6.0
