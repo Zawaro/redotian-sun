@@ -130,3 +130,39 @@ func test_damage_clamp_defaults():
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
+
+
+func test_bib_cost_penalty_default():
+    var rules := GlobalRules.new()
+    (
+        TestHelper
+        . assert_eq(
+            rules.bib_cost_penalty,
+            6.0,
+            "default bib_cost_penalty == 6.0 (got %f)" % rules.bib_cost_penalty,
+        )
+    )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+
+
+func test_bib_cost_penalty_loaded_from_tres():
+    if not ResourceLoader.exists("res://resources/global_rules.tres"):
+        _test_failed += 1
+        print("    FAIL: global_rules.tres missing")
+        return
+    var rules := load("res://resources/global_rules.tres") as GlobalRules
+    TestHelper.assert_true(rules != null, "global_rules.tres loads as GlobalRules")
+    if rules:
+        (
+            TestHelper
+            . assert_eq(
+                rules.bib_cost_penalty,
+                6.0,
+                "tres bib_cost_penalty == 6.0 (got %f)" % rules.bib_cost_penalty,
+            )
+        )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()

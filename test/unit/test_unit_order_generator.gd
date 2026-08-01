@@ -540,6 +540,85 @@ func test_is_local_entity_true_for_local():
     entity.free()
 
 
+## Harvester with HarvestComponent + DockClient + Transport, ready to dock.
+func _make_harvester_entity(player_id: int = -1) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "HarvesterEntity"
+    var transport := TransportComponent.new()
+    transport.name = "TransportComponent"
+    transport.dock = "GDI_REFINERY"
+    transport.storage = 700
+    transport.cargo = {"tiberium_green": 700.0}
+    entity.add_child(transport)
+    var harvest := HarvestComponent.new()
+    harvest.name = "HarvestComponent"
+    entity.add_child(harvest)
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    entity.add_child(stats)
+    return entity
+
+
+func _make_refinery_target(player_id: int = -1) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "RefineryTarget"
+    var dock := DockHostComponent.new()
+    dock.name = "DockHostComponent"
+    entity.add_child(dock)
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    entity.add_child(stats)
+    return entity
+
+
+func test_orders_harvester_friendly_refinery_returns_enter():
+    if _sm == null:
+        _test_failed += 1
+        print("    FAIL: SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var harvester := _make_harvester_entity(local_id)
+    _setup_selection([harvester])
+    var refinery := _make_refinery_target(local_id)
+    var gen := _get_generator()
+    var orders := gen.get_orders(refinery, Vector2i.ZERO, refinery.global_position, {})
+    TestHelper.assert_eq(orders.size(), 1, "harvester + friendly refinery -> 1 order")
+    TestHelper.assert_eq(
+        orders[0].cursor, CursorState.Type.ENTER, "friendly refinery click -> ENTER (dock)"
+    )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    _teardown_selection([harvester])
+    refinery.free()
+
+
+func test_orders_friendly_unit_no_order_returns_empty():
+    if _sm == null:
+        _test_failed += 1
+        print("    FAIL: SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var entity := _make_combat_entity(local_id)
+    _setup_selection([entity])
+    var friendly := _make_non_combat_entity(local_id)
+    friendly.add_to_group("selectable")
+    var gen := _get_generator()
+    var orders := gen.get_orders(friendly, Vector2i.ZERO, friendly.global_position, {})
+    TestHelper.assert_eq(
+        orders.size(), 0, "combat unit + friendly non-combat unit -> no orders (select fallback)"
+    )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    _teardown_selection([entity])
+    friendly.free()
+
+
 func test_is_local_entity_false_for_enemy():
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
