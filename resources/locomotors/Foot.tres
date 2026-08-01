@@ -11,3 +11,7 @@ terrain_speeds = {
 "rough": 0.89
 }
 climb_tolerance = 1
+shares_cell = true
+stand_upright = true
+instant_turn = true
+organic_path = true

@@ -24,7 +24,9 @@ func place_entity(
     entity.position = world_pos
     var target := parent if parent else get_tree().current_scene
     target.add_child(entity)
-    if entity_data.entity_type == EntityData.EntityType.INFANTRY:
+    var rules := GlobalRules.get_current()
+    var lm: Locomotor = rules.get_locomotor(entity_data.locomotor) if rules else null
+    if lm and lm.shares_cell:
         var mc := entity.get_node_or_null("MovementController") as MovementController
         if mc:
             var cell := CellUtil.world_to_cell(world_pos)

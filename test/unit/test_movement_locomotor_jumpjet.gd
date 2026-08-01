@@ -18,7 +18,18 @@ func _jumpjet() -> Locomotor:
     jj.terrain_speeds = {"clear": 1.0, "rough": 0.89}
     jj.is_jumpjet = true
     jj.jumpjet_fly_distance = 0.0
+    jj.shares_cell = true
+    jj.stand_upright = true
+    jj.instant_turn = true
+    jj.organic_path = true
     return jj
+
+
+func _infantry_like(mc: MovementController) -> void:
+    mc._shares_cell = true
+    mc._stand_upright = true
+    mc._instant_turn = true
+    mc._organic_path = true
 
 
 func _make_mc(entity_type: int) -> Array:
@@ -61,7 +72,7 @@ func test_jumpjet_move_order_walks_when_reachable():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target)
     var hybrid: bool = mc._hybrid_active
@@ -88,7 +99,7 @@ func test_jumpjet_move_order_flies_when_far():
     jj.jumpjet_fly_distance = 1.0
     mc._locomotor_data = jj
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     var target := CellUtil.cell_to_world(Vector2i(54, 50))
     mc.set_target_position(target)
     var hybrid: bool = mc._hybrid_active
@@ -115,7 +126,7 @@ func test_jumpjet_airborne_move_flies_then_lands():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target)
@@ -146,7 +157,7 @@ func test_jumpjet_walk_books_sub_slot():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.GROUND
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target)
@@ -170,7 +181,7 @@ func test_jumpjet_move_order_same_cell_stays_grounded():
     entity.global_position = CellUtil.cell_to_world(Vector2i(52, 50))
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target)
     var hybrid: bool = mc._hybrid_active
@@ -193,7 +204,7 @@ func test_jumpjet_landing_waypoint_is_exact_sub_slot():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target)
@@ -226,7 +237,7 @@ func test_jumpjet_landing_move_relocates_occupied_cell():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target)
@@ -260,7 +271,7 @@ func test_jumpjet_airborne_hold_ignores_occupied_cell():
     entity.global_position = Vector3.ZERO
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     mc._land_on_arrival = false
     mc._state = MovementController.State.MOVING
@@ -295,7 +306,7 @@ func test_jumpjet_attack_move_has_no_spread():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target, false, true)
@@ -322,7 +333,7 @@ func test_jumpjet_cancel_move_retains_air():
     root.add_child(entity)
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._state = MovementController.State.MOVING
     mc._vertical_state = MovementController.VerticalState.AIR
     mc._land_on_arrival = true
@@ -347,7 +358,7 @@ func test_jumpjet_cancel_move_ignores_grounded():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._state = MovementController.State.MOVING
     mc._vertical_state = MovementController.VerticalState.GROUND
     mc.cancel_move_retain_vertical()
@@ -369,7 +380,7 @@ func test_jumpjet_attack_after_cancel_flies():
     root.add_child(entity)
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._state = MovementController.State.MOVING
     mc._vertical_state = MovementController.VerticalState.AIR
     mc._land_on_arrival = true
@@ -396,7 +407,7 @@ func test_jumpjet_wait_retarget_keeps_air_zone():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     mc._land_on_arrival = false
     mc._state = MovementController.State.WAIT
@@ -426,7 +437,7 @@ func test_jumpjet_wait_retarget_landing_lands():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     mc._land_on_arrival = true
     mc._state = MovementController.State.WAIT
@@ -455,7 +466,7 @@ func test_jumpjet_blocked_arrival_retargets_immediately():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     mc._land_on_arrival = true
     mc._state = MovementController.State.MOVING
@@ -484,7 +495,7 @@ func test_jumpjet_distant_flies():
     jj.jumpjet_fly_distance = 1.0
     mc._locomotor_data = jj
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     var target := CellUtil.cell_to_world(Vector2i(54, 50))
     mc.set_target_position(target)
     var hybrid: bool = mc._hybrid_active
@@ -670,7 +681,7 @@ func test_jumpjet_new_order_while_descending_ascends():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.DESCENDING
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target)
@@ -696,7 +707,7 @@ func test_jumpjet_keep_zone_airborne_flies():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target, false, true)
@@ -720,7 +731,7 @@ func test_jumpjet_keep_zone_grounded_walks():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.GROUND
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target, false, true)
@@ -744,7 +755,7 @@ func test_jumpjet_keep_zone_descending_ascends():
     var mc: MovementController = pair[1]
     mc._locomotor_data = _jumpjet()
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.DESCENDING
     var target := CellUtil.cell_to_world(Vector2i(52, 50))
     mc.set_target_position(target, false, true)
@@ -797,7 +808,7 @@ func test_jumpjet_short_approach_no_overshoot():
     var final_pos := Vector3(4.0, 0.0, 0.0)
     entity.global_position = start
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._vertical_state = MovementController.VerticalState.AIR
     mc._land_on_arrival = false
     mc._state = MovementController.State.MOVING

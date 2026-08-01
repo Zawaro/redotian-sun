@@ -36,7 +36,7 @@ func _make_infantry_entry(
         )
     )
     if entity_type == 0:  # INFANTRY = 0
-        _sh._infantry_cell_counts[key] = _sh._infantry_cell_counts.get(key, 0) + 1
+        _sh._shared_cell_counts[key] = _sh._shared_cell_counts.get(key, 0) + 1
     return {"node": node, "key": key}
 
 
@@ -47,7 +47,7 @@ func _cleanup_entries():
             if is_instance_valid(node):
                 node.queue_free()
     _sh._grid.clear()
-    _sh._infantry_cell_counts.clear()
+    _sh._shared_cell_counts.clear()
 
 
 func test_crushable_enemies_returns_enemy_infantry():

@@ -56,7 +56,7 @@ func test_margin():
 func test_spacing():
     var cell := Vector2i(2, 8)
     var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
-    var min_dist := CellSubPositions.MIN_SLOT_DIST
+    var min_dist := CellSubPositions.min_slot_dist()
     var all_spaced := true
     for i in range(positions.size()):
         for j in range(i + 1, positions.size()):
@@ -99,3 +99,14 @@ func test_different_cells_different_positions():
     else:
         _test_failed += 1
         print("    FAIL: different cells produced identical positions")
+
+
+func test_geometry_follows_capacity():
+    var cell := Vector2i(1, 2)
+    var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell, 4)
+    if positions.size() == 4:
+        _test_passed += 1
+        print("    PASS: get_sub_positions(cell, 4) returns 4 positions")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected 4 positions, got %d" % positions.size())

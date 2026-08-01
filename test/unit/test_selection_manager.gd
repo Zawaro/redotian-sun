@@ -259,7 +259,7 @@ func test_is_local_entity_allows_local():
     entity.free()
 
 
-func test_find_infantry_cell_empty():
+func test_find_sharer_cell_empty():
     if _sm == null:
         _test_failed += 1
         print("    FAIL: SelectionManager not injected")
@@ -270,16 +270,16 @@ func test_find_infantry_cell_empty():
     CellReservation.instance.clear()
     var target := Vector2i(10, 10)
     # Centered: cell (10,10) on 50×50 → world (-79, 0, -79)
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79))
+    var result: Vector2i = _sm._find_sharer_cell(Vector3(-79, 0, -79))
     if result == target:
         _test_passed += 1
-        print("    PASS: _find_infantry_cell returns target when empty")
+        print("    PASS: _find_sharer_cell returns target when empty")
     else:
         _test_failed += 1
         print("    FAIL: expected %s, got %s" % [target, result])
 
 
-func test_find_infantry_cell_at_capacity():
+func test_find_sharer_cell_at_capacity():
     if _sm == null:
         _test_failed += 1
         print("    FAIL: SelectionManager not injected")
@@ -296,13 +296,49 @@ func test_find_infantry_cell_at_capacity():
         claimers.append(claimer)
         CellReservation.instance.reserve_sub_slot(target, claimer)
     # Centered coords: cell (10,10) on 50×50 grid → world (-79, 0, -79)
-    var result: Vector2i = _sm._find_infantry_cell(Vector3(-79, 0, -79))
+    var result: Vector2i = _sm._find_sharer_cell(Vector3(-79, 0, -79))
     for claimer in claimers:
         claimer.queue_free()
     CellReservation.instance.clear()
     if result != target:
         _test_passed += 1
-        print("    PASS: _find_infantry_cell spirals when target is full")
+        print("    PASS: _find_sharer_cell spirals when target is full")
     else:
         _test_failed += 1
         print("    FAIL: should have spiraled away from full cell")
+
+
+func test_non_infantry_sharer_uses_cell_distribution():
+    if _sm == null or _ts == null:
+        _test_failed += 1
+        print("    FAIL: SelectionManager/TerrainSystem not injected")
+        return
+    _ts.init_grid(50, 50)
+    _sm.deselect_all()
+    CellReservation.instance.clear()
+    var entity := Node3D.new()
+    entity.name = "VehicleSharer"
+    var stats := StatsComponent.new()
+    stats.player_id = -1
+    stats.entity_type = EntityData.EntityType.VEHICLE
+    entity.add_child(stats)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    mc._shares_cell = true
+    _sm.add_child(entity)
+    var select_comp := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    select_comp.name = "SelectComponent"
+    entity.add_child(select_comp)
+    _sm.select_entity(select_comp)
+    _sm.request_move(Vector3(-79, 0, -79))
+    var routed: bool = _sm._pending_moves.size() == 1
+    _sm.deselect_all()
+    CellReservation.instance.clear()
+    entity.queue_free()
+    if routed:
+        _test_passed += 1
+        print("    PASS: non-infantry sharer routed via cell distribution")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected 1 pending sharer move, got %d" % _sm._pending_moves.size())

@@ -221,74 +221,74 @@ func test_is_any_entity_on_cell_resource_only():
         print("    FAIL: expected false for resource-only cell, got true")
 
 
-func test_get_infantry_count_empty():
+func test_get_shared_cell_count_empty():
     if _sh == null:
         _test_failed += 1
         print("    FAIL: SpatialHash not injected")
         return
-    _sh._infantry_cell_counts.clear()
+    _sh._shared_cell_counts.clear()
     var cell := Vector2i(50, 50)
-    var count: int = _sh.get_infantry_count(cell)
+    var count: int = _sh.get_shared_cell_count(cell)
     if count == 0:
         _test_passed += 1
-        print("    PASS: get_infantry_count returns 0 for empty cell")
+        print("    PASS: get_shared_cell_count returns 0 for empty cell")
     else:
         _test_failed += 1
         print("    FAIL: expected 0, got %d" % count)
 
 
-func test_get_infantry_count_with_entries():
+func test_get_shared_cell_count_with_entries():
     if _sh == null:
         _test_failed += 1
         print("    FAIL: SpatialHash not injected")
         return
-    _sh._infantry_cell_counts.clear()
+    _sh._shared_cell_counts.clear()
     var cell := Vector2i(10, 10)
     var key: int = CellUtil.cell_key(cell)
-    _sh._infantry_cell_counts[key] = 2
-    var count: int = _sh.get_infantry_count(cell)
-    _sh._infantry_cell_counts.erase(key)
+    _sh._shared_cell_counts[key] = 2
+    var count: int = _sh.get_shared_cell_count(cell)
+    _sh._shared_cell_counts.erase(key)
     if count == 2:
         _test_passed += 1
-        print("    PASS: get_infantry_count returns correct count")
+        print("    PASS: get_shared_cell_count returns correct count")
     else:
         _test_failed += 1
         print("    FAIL: expected 2, got %d" % count)
 
 
-func test_is_cell_full_for_infantry():
+func test_is_cell_full_for_shared():
     if _sh == null:
         _test_failed += 1
         print("    FAIL: SpatialHash not injected")
         return
-    _sh._infantry_cell_counts.clear()
+    _sh._shared_cell_counts.clear()
     var cell := Vector2i(10, 10)
     var key: int = CellUtil.cell_key(cell)
-    _sh._infantry_cell_counts[key] = 3
-    var full: bool = _sh.is_cell_full_for_infantry(cell)
-    _sh._infantry_cell_counts.erase(key)
+    _sh._shared_cell_counts[key] = 3
+    var full: bool = _sh.is_cell_full_for_shared(cell)
+    _sh._shared_cell_counts.erase(key)
     if full == true:
         _test_passed += 1
-        print("    PASS: is_cell_full_for_infantry returns true at capacity")
+        print("    PASS: is_cell_full_for_shared returns true at capacity")
     else:
         _test_failed += 1
         print("    FAIL: expected true at capacity, got false")
 
 
-func test_is_cell_not_full_for_infantry():
+func test_is_cell_not_full_for_shared():
     if _sh == null:
         _test_failed += 1
         print("    FAIL: SpatialHash not injected")
         return
-    _sh._infantry_cell_counts.clear()
+    _sh._shared_cell_counts.clear()
     var cell := Vector2i(10, 10)
     var key: int = CellUtil.cell_key(cell)
-    _sh._infantry_cell_counts[key] = 2
-    var full: bool = _sh.is_cell_full_for_infantry(cell)
-    _sh._infantry_cell_counts.erase(key)
+    _sh._shared_cell_counts[key] = 2
+    var full: bool = _sh.is_cell_full_for_shared(cell)
+    _sh._shared_cell_counts.erase(key)
     if full == false:
         _test_passed += 1
-        print("    PASS: is_cell_full_for_infantry returns false below capacity")
+        print("    PASS: is_cell_full_for_shared returns false below capacity")
     else:
         _test_failed += 1
         print("    FAIL: expected false below capacity, got true")
@@ -318,7 +318,7 @@ func test_get_crushable_enemies_filters_by_player():
     _sh.set_process(false)
     _sh.set_physics_process(false)
     _sh._grid.clear()
-    _sh._infantry_cell_counts.clear()
+    _sh._shared_cell_counts.clear()
     var cell := Vector2i(10, 10)
     var cell_world := CellUtil.cell_to_world(cell)
     var key: int = CellUtil.cell_key(cell)
@@ -378,7 +378,7 @@ func test_get_crushable_enemies_skips_non_crushable():
     _sh.set_process(false)
     _sh.set_physics_process(false)
     _sh._grid.clear()
-    _sh._infantry_cell_counts.clear()
+    _sh._shared_cell_counts.clear()
     var cell := Vector2i(10, 10)
     var key: int = CellUtil.cell_key(cell)
     var enemy := Node3D.new()
@@ -405,3 +405,36 @@ func test_get_crushable_enemies_skips_non_crushable():
         print("    FAIL: non-crushable enemy was returned")
     remove_child(enemy)
     enemy.free()
+
+
+func test_vehicle_sharer_counted_when_idle():
+    if _sh == null:
+        _test_failed += 1
+        print("    FAIL: SpatialHash not injected")
+        return
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entity := Node3D.new()
+    entity.name = "VehicleSharer"
+    entity.add_to_group("entities")
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.entity_type = EntityData.EntityType.VEHICLE
+    entity.add_child(stats)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    mc._shares_cell = true
+    _sh.add_child(entity)
+    _sh.rebuild()
+    var cell := CellUtil.world_to_cell(entity.global_position)
+    var count: int = _sh.get_shared_cell_count(cell)
+    var blocked: bool = _sh.is_cell_blocked(cell)
+    _sh.remove_child(entity)
+    entity.free()
+    if count == 1 and not blocked:
+        _test_passed += 1
+        print("    PASS: non-infantry sharer counted in shared cells, not blocked")
+    else:
+        _test_failed += 1
+        print("    FAIL: count=%d blocked=%s, expected 1/false" % [count, str(blocked)])
