@@ -84,7 +84,7 @@ func test_jumpjet_move_order_walks_when_reachable():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, false, "reachable move order walks on the ground")
-    TestHelper.assert_true(waypoints > 2, "walk path has intermediate waypoints")
+    TestHelper.assert_true(waypoints >= 2, "clear walk path is a straight segment")
     TestHelper.assert_eq(zone, MovementController.VerticalState.GROUND, "default zone stays GROUND")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed

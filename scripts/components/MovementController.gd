@@ -395,15 +395,37 @@ func set_target_position(
 
     if _shares_cell and _has_sub_slot and path.size() > 0 and not hybrid_fallback:
         path[path.size() - 1] = _sub_slot_position
-    if _shares_cell and path.size() > 1 and not hybrid_fallback:
+
+    # Share the unit's own lane offset across all intermediate waypoints so the
+    # whole path runs parallel to the cell-center path (a squad of sharers fans
+    # out into parallel lanes). The offset is the booked destination sub-slot's
+    # displacement from its cell center — radius < half-cell, so each shifted
+    # waypoint stays inside its own cell and path integrity is preserved.
+    if _shares_cell and _has_sub_slot and path.size() > 2 and not hybrid_fallback:
+        var lane_offset := (
+            _sub_slot_position - CellUtil.cell_to_world(CellUtil.world_to_cell(_sub_slot_position))
+        )
         for i in range(0, path.size() - 1):
-            var wp_cell := CellUtil.world_to_cell(path[i])
-            var wp_positions := CellSubPositions.get_sub_positions(wp_cell)
-            var offset_idx := CellUtil.cell_key(wp_cell) % wp_positions.size()
-            path[i] = path[i] + wp_positions[offset_idx]
+            path[i] += lane_offset
 
     var full_path: PackedVector3Array = [_parent.global_position]
     full_path.append_array(path)
+
+    # The unit's start is a sub-slot offset, not a cell center, so the first
+    # waypoint (cell center or its sub-slot) can point sideways off the line to
+    # the destination. When the start has a clear line of sight to the final
+    # waypoint, collapse the path to a straight segment — no hump through
+    # intermediate cell centers, and no cut corners (LOS is obstacle-aware).
+    if _shares_cell and full_path.size() > 2 and not hybrid_fallback:
+        if (
+            Pathfinder
+            . has_line_of_sight(
+                CellUtil.world_to_cell(full_path[0]),
+                CellUtil.world_to_cell(full_path[full_path.size() - 1]),
+                blocked,
+            )
+        ):
+            full_path = PackedVector3Array([full_path[0], full_path[full_path.size() - 1]])
 
     for i in range(1, full_path.size()):
         full_path[i].y = TerrainSystem.get_height_at_world_smooth(full_path[i])
@@ -519,7 +541,16 @@ func _handle_moving_movement(delta: float) -> void:
     var spline_dir := _get_spline_tangent(_spline_t)
     spline_dir.y = 0.0
     spline_dir = spline_dir.normalized()
-    var direction := spline_dir
+    # Organic paths (infantry) walk straight legs between waypoints — no spline
+    # arc, which Catmull-Rom sweeps into a wide curve at sharp corners.
+    var steering_dir := spline_dir
+    if _organic_path and _waypoints.size() > 1:
+        var next_wp := _waypoints[mini(_spline_segment() + 1, _waypoints.size() - 1)]
+        var to_next := next_wp - parent_pos
+        to_next.y = 0.0
+        if to_next.length() > 0.001:
+            steering_dir = to_next.normalized()
+    var direction := steering_dir
 
     var final_pos := _waypoints[_waypoints.size() - 1]
     var dist_to_final := parent_pos.distance_to(final_pos)
@@ -544,7 +575,7 @@ func _handle_moving_movement(delta: float) -> void:
 
                 var neighbor_dist: float = parent_pos.distance_to(entity_parent.global_position)
                 var to_neighbor := (entity_parent.global_position - parent_pos).normalized()
-                if to_neighbor.dot(spline_dir) > 0.0 and neighbor_dist < min_neighbor_dist_ahead:
+                if to_neighbor.dot(steering_dir) > 0.0 and neighbor_dist < min_neighbor_dist_ahead:
                     min_neighbor_dist_ahead = neighbor_dist
 
                 if neighbor_dist < cell_radius * 2.0 and neighbor_dist > 0.01:
@@ -558,8 +589,8 @@ func _handle_moving_movement(delta: float) -> void:
     if min_neighbor_dist_ahead < INF:
         var t := clampf(min_neighbor_dist_ahead / (cell_radius * 1.5), 0.0, 1.0)
         speed_factor = 0.3 + 0.7 * smoothstep(0.0, 1.0, t)
-    var deviation := (direction - spline_dir).limit_length(0.3 * repulsion_weight)
-    var final_direction := (spline_dir + deviation).normalized()
+    var deviation := (direction - steering_dir).limit_length(0.3 * repulsion_weight)
+    var final_direction := (steering_dir + deviation).normalized()
 
     if is_instance_valid(_rotation_target):
         _apply_facing(Vector3(final_direction.x, 0.0, final_direction.z).normalized())
@@ -636,10 +667,10 @@ func _handle_moving_movement(delta: float) -> void:
             _snap_to_terrain(delta)
     else:
         _parent.global_position += step
-        var skip_lerp := (
-            _organic_path and (_spline_segment() == 0 or _spline_segment() >= _num_segments() - 1)
-        )
-        if not skip_lerp:
+        # Organic paths (infantry) steer straight toward each waypoint; the
+        # Catmull-Rom spline-position lerp is what dragged them into arcs at
+        # corners. Only spline-steered (non-organic) movers lerp toward the curve.
+        if not _organic_path:
             var spline_pos := _get_spline_pos(_spline_t)
             var lerped := _parent.global_position.lerp(spline_pos, 0.2)
             _parent.global_position = Vector3(lerped.x, _parent.global_position.y, lerped.z)
