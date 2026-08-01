@@ -1,4 +1,10 @@
-## ADDED Requirements
+# pathfinder Specification
+
+## Purpose
+
+Pathfinder provides A* pathfinding on the 2m × 2m centered grid: occupancy-aware routing with height cost, optional per-locomotor terrain passability and climb tolerance, line-of-sight smoothing, a binary heap open set, and stagnation fallback.
+
+## Requirements
 
 ### Requirement: Pathfinder provides A* pathfinding on 2m grid
 `Pathfinder` SHALL be a static GDScript class at `scripts/core/Pathfinder.gd` implementing A* pathfinding on a 2m × 2m grid with 8-direction adjacency (cardinal + diagonal). Diagonal movement SHALL use `sqrt(2)` cost weighting. The heuristic SHALL be octile distance.
@@ -84,20 +90,54 @@ Pathfinder SHALL use a binary min-heap for the open set to achieve O(log n) inse
 - **WHEN** a path goes start → A → B → goal
 - **THEN** the output is `[A_world, B_world, goal_world]` (start excluded)
 
-### Requirement: Pathfinder cell-to-world-with-height
-`Pathfinder.cell_to_world_with_height(cell)` SHALL return the centered
-world-space cell position from `CellUtil.cell_to_world()` with the terrain
-height assigned to Y.
-
-#### Scenario: Path endpoint near world origin
-- **WHEN** `cell_to_world_with_height(Vector2i(50, 50))` is called on a 50×50 grid
-- **THEN** the returned position is near `Vector3(0, height, 0)`
-
 ### Requirement: Pathfinder uses centered coordinates
-`Pathfinder.find_path()` SHALL convert world positions to cells with centered
-`CellUtil.world_to_cell()` and convert path cells back with centered
-`CellUtil.cell_to_world()`.
+`Pathfinder.find_path()` SHALL convert world positions to cells with centered `CellUtil.world_to_cell()` and convert path cells back with centered `CellUtil.cell_to_world()`.
 
 #### Scenario: Path waypoints span centered world coordinates
 - **WHEN** `find_path(start_world, end_world)` crosses world origin
 - **THEN** the returned waypoints can contain both negative and positive XZ coordinates
+
+### Requirement: Per-locomotor terrain passability filtering
+`Pathfinder.find_path()` SHALL accept an optional `locomotor: Locomotor` parameter. When provided, a neighbor cell SHALL be impassable if the unit's `terrain_speeds` for that cell's land type is `0.0` or the land type id is absent from `terrain_speeds`. A water cell occupied by an intact ice entity SHALL be passable to ground locomotors (see ice-drowning). When `locomotor` is null, all cells remain passable (preserving current behavior).
+
+#### Scenario: Wheeled blocked by water
+- **WHEN** a wheeled unit with `terrain_speeds = {"clear": 1.0, "water": 0.0}` pathfinds across a water cell
+- **THEN** the water cell is excluded and the path routes around it
+
+#### Scenario: Hover crosses water
+- **WHEN** a hover unit with `terrain_speeds = {"clear": 1.0, "water": 1.0}` pathfinds across the same water cell
+- **THEN** the water cell is included and the path crosses it
+
+#### Scenario: Ice provides footing on water
+- **WHEN** a wheeled unit pathfinds onto a water cell that holds an intact ice entity
+- **THEN** the cell is treated as passable
+
+#### Scenario: No locomotor preserves behavior
+- **WHEN** `find_path()` is called without a locomotor
+- **THEN** terrain type does not affect passability
+
+### Requirement: Terrain speed pathing cost
+Pathfinder SHALL weight neighbor transitions by the inverse of the unit's terrain speed multiplier for the target cell (`cost = base_cost / multiplier`). Faster surfaces (roads) yield cheaper paths than slow ones (rough).
+
+#### Scenario: Road preferred over rough
+- **WHEN** a wheeled unit (`rough = 0.5`, `road = 1.25`) has equal-length routes over rough and road
+- **THEN** the road route has lower total cost and is preferred
+
+#### Scenario: Water with zero speed is blocked
+- **WHEN** a unit's terrain speed multiplier for a cell is `0.0`
+- **THEN** the cell is treated as impassable regardless of pathing cost
+
+### Requirement: Per-locomotor climb tolerance
+Pathfinder SHALL treat a neighbor transition as impassable when the absolute height difference between the current and neighbor cell exceeds `climb_tolerance × HEIGHT_STEP` for the unit's locomotor. Fly and Jumpjet locomotors SHALL ignore this check. The existing soft height cost penalty SHALL remain for passable transitions.
+
+#### Scenario: Cliff blocks foot
+- **WHEN** a foot unit (`climb_tolerance = 1`) is adjacent to a cell 3 height levels higher
+- **THEN** that cell is excluded from the path
+
+#### Scenario: Fly ignores cliffs
+- **WHEN** a fly unit pathfinds across a 3-level height step
+- **THEN** the transition is allowed
+
+#### Scenario: No locomotor keeps soft penalty only
+- **WHEN** `find_path()` is called without a locomotor across a 3-level height step
+- **THEN** the transition is allowed with the existing height cost penalty

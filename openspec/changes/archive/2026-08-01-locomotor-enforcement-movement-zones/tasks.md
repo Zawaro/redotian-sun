@@ -56,5 +56,5 @@
 
 ## 8. Finalization
 
-- [ ] 8.1 Update `openspec/specs/` with the new capabilities (land-types, locomotor, ice-drowning) and deltas (pathfinder, entity-data) by archiving the change
-- [ ] 8.2 Commit on `feat/34-locomotor-enforcement-movement-zones` with Conventional Commits format referencing #34
+- [x] 8.1 Update `openspec/specs/` with the new capabilities (land-types, locomotor, ice-drowning) and deltas (pathfinder, entity-data) by archiving the change
+- [x] 8.2 Commit on `feat/34-locomotor-enforcement-movement-zones` with Conventional Commits format referencing #34
