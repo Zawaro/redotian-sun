@@ -4,6 +4,7 @@ extends Node
 
 var _sm: Node = null
 var _pm: Node = null
+var _ts: Node = null
 var _test_passed := 0
 var _test_failed := 0
 
@@ -755,23 +756,33 @@ func test_order_resolver_returns_attack_for_enemy_with_selection():
 
 
 func test_player_move_clears_attack_target():
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    if SpatialHash.instance:
+        SpatialHash.instance._grid.clear()
     var entity := _make_combat_entity(true, 0)
     add_child(entity)
     var mc := MovementController.new()
     mc.name = "MovementController"
     entity.add_child(mc)
+    mc._parent = entity
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var target := _make_target_with_health(1, 100)
     add_child(target)
+    entity.global_position = Vector3(1, 0, 1)
     cc.set_target(target)
     TestHelper.assert_eq(cc._target, target, "target set before move")
     TestHelper.assert_true(cc._attack_active, "attack active before move")
-    mc.set_target_position(Vector3(100, 0, 100))
+    mc.set_target_position(Vector3(5, 0, 5))
     TestHelper.assert_eq(cc._target, null, "target cleared after player move")
     TestHelper.assert_eq(cc._attack_active, false, "attack inactive after player move")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
+    _ts.clear()
     remove_child(entity)
     remove_child(target)
     entity.free()
@@ -779,24 +790,32 @@ func test_player_move_clears_attack_target():
 
 
 func test_combat_move_preserves_attack_target():
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    if SpatialHash.instance:
+        SpatialHash.instance._grid.clear()
     var entity := _make_combat_entity(true, 0)
     add_child(entity)
     var mc := MovementController.new()
     mc.name = "MovementController"
     entity.add_child(mc)
+    mc._parent = entity
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var target := _make_target_with_health(1, 100)
     add_child(target)
-    target.global_position = Vector3(0, 0, 0)
-    entity.global_position = Vector3(0, 0, 0)
+    entity.global_position = Vector3(1, 0, 1)
     cc.set_target(target)
     cc._combat_move = true
-    mc.set_target_position(Vector3(100, 0, 100))
+    mc.set_target_position(Vector3(5, 0, 5))
     TestHelper.assert_eq(cc._target, target, "target preserved after combat move")
     TestHelper.assert_true(cc._attack_active, "attack active after combat move")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
+    _ts.clear()
     remove_child(entity)
     remove_child(target)
     entity.free()

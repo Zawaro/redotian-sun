@@ -280,9 +280,6 @@ func set_target_position(
         printerr("[MovementController] Ignoring invalid target position: ", target)
         return
 
-    if not internal:
-        movement_started.emit()
-
     var target_cell := CellUtil.world_to_cell(target)
 
     # Jumpjet flight decision before any ground booking: fly when airborne,
@@ -448,6 +445,17 @@ func set_target_position(
         _state = State.ROTATING
     if debug_show_path:
         DebugVisualizer.draw_path(get_path(), _parent.global_position, _waypoints, 0)
+
+    # Emit only after _waypoints is set so consumers reading the destination
+    # (e.g. SelectComponent's move-target line) never see the stale/empty path.
+    if not internal:
+        movement_started.emit()
+
+
+func get_target_position() -> Vector3:
+    if _waypoints.is_empty():
+        return _parent.global_position
+    return _waypoints[_waypoints.size() - 1]
 
 
 func _resolve_rotation_target() -> void:

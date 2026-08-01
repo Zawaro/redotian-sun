@@ -78,6 +78,10 @@ func cycle_weapon() -> void:
         _current_weapon_index = (_current_weapon_index + 1) % weapons.size()
 
 
+func get_target() -> Node3D:
+    return _target
+
+
 func set_target(entity: Node3D) -> void:
     _target = entity
     _attack_active = true
@@ -276,6 +280,7 @@ func _connect_mc_signal() -> void:
     if mc:
         mc.arrived.connect(_on_movement_arrived)
         mc.movement_started.connect(_on_movement_started)
+        mc.pathfinding_failed.connect(_on_pathfinding_failed)
         _mc_connected = true
 
 
@@ -314,3 +319,9 @@ func _on_movement_started() -> void:
         _combat_move = false
         return
     clear_target()
+
+
+func _on_pathfinding_failed() -> void:
+    # A failed move never emits movement_started, so clear the combat-approach
+    # flag here to avoid it consuming a later move order's signal.
+    _combat_move = false
