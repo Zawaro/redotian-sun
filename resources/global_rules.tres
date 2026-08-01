@@ -54,6 +54,7 @@ harvester_fill_rate = 0.5
 tree_growth_rate = 0.1
 spread_amount = 50
 shared_slots_per_cell = 3
+bib_cost_penalty = 6.0
 armor_types = {
 "none": ExtResource("7_none"),
 "wood": ExtResource("8_wood"),

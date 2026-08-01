@@ -348,7 +348,9 @@ func set_target_position(
                 target = _sub_slot_position
 
         blocked = _build_blocked_cells(unblock_buildings)
-        path = Pathfinder.find_path(_parent.global_position, target, blocked, _locomotor_data)
+        path = Pathfinder.find_path(
+            _parent.global_position, target, blocked, _locomotor_data, unblock_buildings
+        )
 
         if _is_jumpjet and _locomotor_data:
             if path.is_empty():

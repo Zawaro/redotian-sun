@@ -85,7 +85,12 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
             var parts := cell_str.split(",")
             if parts.size() == 2:
                 var cell := Vector2i(parts[0].to_int(), parts[1].to_int())
-                var world_pos: Vector3 = CellUtil.cell_to_world(cell)
+                # The map editor stores a building's cell as its footprint origin
+                # and places the entity at the footprint center. Match that so
+                # dock/foundation cells (derived from the entity's world
+                # position) line up with where the building visually sits.
+                var entity_data := EntityFactory.get_entity_data(entity_id)
+                var world_pos: Vector3 = placement_position(cell, entity_data)
                 var cell_data: Dictionary = TerrainSystem.get_cell(cell)
                 if not cell_data.is_empty():
                     var h: int = cell_data.get("max_height", cell_data.get("height", 0))
@@ -93,7 +98,6 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
                 entity.position = world_pos
                 var rotation_y: float = entry_dict.get("rotation_y", 0.0)
                 if rotation_y != 0.0:
-                    var entity_data := EntityFactory.get_entity_data(entity_id)
                     if entity_data and entity_data.entity_type != EntityData.EntityType.BUILDING:
                         _apply_rotation_with_slope(entity, rotation_y)
         var current_health: int = entry_dict.get("current_health", 0)
@@ -104,6 +108,15 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
         parent.add_child(entity)
         result.append({"key": cell_str, "node": entity, "data": entry_dict})
     return result
+
+
+## World position for a map entity. Buildings are placed at the footprint
+## center (matching the editor / BuildingManager), everything else at the cell
+## center.
+static func placement_position(cell: Vector2i, data: EntityData) -> Vector3:
+    if data and data.entity_type == EntityData.EntityType.BUILDING:
+        return CellUtil.cell_origin_to_world(cell, data.foundation)
+    return CellUtil.cell_to_world(cell)
 
 
 static func _apply_rotation_with_slope(node: Node3D, rotation_y_deg: float) -> void:

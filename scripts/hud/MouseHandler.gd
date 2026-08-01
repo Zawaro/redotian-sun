@@ -227,11 +227,7 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
         )
         # If already selected or no select component, try order system
         if already_selected or not select_comp:
-            var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
-            if not orders.is_empty():
-                for order in orders:
-                    order.execute.call()
-                return
+            _try_execute_orders(target, target_cell, target_pos, modifiers)
             return
         # Unselected entity while we have a selection — enemy? skip select, go to orders
         if selection_manager and not selection_manager.selected_entities.is_empty():
@@ -239,13 +235,14 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
             if stats and stats.player_id >= 0:
                 var local_id := PlayerManager.get_local_player_id()
                 if PlayerManager.is_enemy(stats.player_id, local_id):
-                    var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
-                    if not orders.is_empty():
-                        for order in orders:
-                            order.execute.call()
+                    if _try_execute_orders(target, target_cell, target_pos, modifiers):
                         return
-        # Friendly/neutral unselected, or enemy with no orders — select it
+        # Friendly/neutral unselected — try orders (dock/harvest) before selecting;
+        # only select when no order applies. Shift+click keeps forced selection.
         if select_comp and selection_manager:
+            if not shift_pressed:
+                if _try_execute_orders(target, target_cell, target_pos, modifiers):
+                    return
             selection_manager.select_entity(select_comp, shift_pressed)
         return
 
@@ -257,13 +254,7 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
         var target := _find_entity_parent(collider)
         if target:
             var target_cell := CellUtil.world_to_cell(target.global_position)
-            var orders := OrderSystem.get_orders(
-                target, target_cell, target.global_position, modifiers
-            )
-            if not orders.is_empty():
-                for order in orders:
-                    order.execute.call()
-                return
+            _try_execute_orders(target, target_cell, target.global_position, modifiers)
 
     # No entity — deselect and issue movement command.
     if selection_manager and not selection_manager.selected_entities.is_empty():
@@ -272,6 +263,17 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
             var orders := OrderSystem.get_orders(null, Vector2i.ZERO, ground_pos, modifiers)
             for order in orders:
                 order.execute.call()
+
+
+func _try_execute_orders(
+    target: Node, target_cell: Vector2i, target_pos: Vector3, modifiers: Dictionary
+) -> bool:
+    var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
+    if orders.is_empty():
+        return false
+    for order in orders:
+        order.execute.call()
+    return true
 
 
 func _build_modifiers(shift_pressed: bool) -> Dictionary:

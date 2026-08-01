@@ -24,8 +24,15 @@ func _ready() -> void:
         return
     var origin_cell := CellUtil.world_to_cell_origin(entity.global_position, foundation)
     _registered_cells = get_foundation_cells(origin_cell)
-    SpatialHash.instance.register_building_cells(_registered_cells)
     _registered_bib_cells = get_bib_cells(origin_cell)
+    # Bib cells are the walkable pad in front of the building (e.g. the refinery
+    # dock) — dockers must path onto them, so they are NOT blocked building
+    # cells. Register only the non-bib foundation cells as blocked, matching
+    # BuildingManager.place_building.
+    var non_bib_cells: Array[Vector2i] = _registered_cells.duplicate()
+    for bib in _registered_bib_cells:
+        non_bib_cells.erase(bib)
+    SpatialHash.instance.register_building_cells(non_bib_cells)
     if not _registered_bib_cells.is_empty():
         SpatialHash.instance.register_bib_cells(_registered_bib_cells)
 
