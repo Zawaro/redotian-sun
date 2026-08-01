@@ -1,14 +1,18 @@
-## ADDED Requirements
+# cell-reservation Specification
 
+## Purpose
+
+`CellReservation` owns in-flight sharer sub-slot claims, the "coming" half of cell occupancy. Present occupancy is derived from the SpatialHash grid; this registry holds claims for units en route to a cell.
+## Requirements
 ### Requirement: In-flight sub-slot registry
-The system SHALL provide a `CellReservation` autoload owning all infantry sub-slot claims for units en route to a cell. The registry SHALL map each cell to up to 3 owned slots (`CellSubPositions.NUM_SLOTS`). It SHALL be the single source of truth for in-flight slot occupancy and combined cell capacity for infantry targeting.
+The system SHALL provide a `CellReservation` autoload owning all sub-slot claims for `shares_cell = true` units en route to a cell. The registry SHALL map each cell to up to `CellSubPositions.get_slot_count()` owned slots. It SHALL be the single source of truth for in-flight slot occupancy and combined cell capacity for sharing-unit targeting.
 
 #### Scenario: Reserve an available slot
-- **WHEN** `reserve_sub_slot(cell, owner)` is called on a cell with fewer than 3 claims
+- **WHEN** `reserve_sub_slot(cell, owner)` is called on a cell with fewer claims than `CellSubPositions.get_slot_count()`
 - **THEN** the owner SHALL be assigned the lowest-numbered free slot and the claim SHALL be immediately visible to all subsequent calls in the same frame
 
 #### Scenario: Cell is full
-- **WHEN** `reserve_sub_slot(cell, owner)` is called on a cell with 3 claims
+- **WHEN** `reserve_sub_slot(cell, owner)` is called on a cell with `CellSubPositions.get_slot_count()` claims
 - **THEN** the call SHALL return -1 and no claim SHALL be made
 
 #### Scenario: Release a claim
@@ -41,21 +45,6 @@ A re-reserve of the same cell by the same owner SHALL return the existing claim 
 - **WHEN** an owner holding a claim on cell A calls `reserve_sub_slot(B, owner)`
 - **THEN** the claim on A SHALL be released before the claim on B is made
 
-### Requirement: Combined infantry-scoped capacity
-`is_cell_full(cell)` SHALL return true when `physical idle infantry count + in-flight claims >= 3`. The capacity query SHALL apply only to infantry targeting; vehicle blocking SHALL remain purely physical.
-
-#### Scenario: In-flight units count toward capacity
-- **WHEN** 3 infantry hold claims on a cell but none have arrived
-- **THEN** a targeting query SHALL treat the cell as full
-
-#### Scenario: Physical + claims combine
-- **WHEN** a cell has 1 idle infantry and 2 in-flight claims
-- **THEN** a targeting query SHALL treat the cell as full
-
-#### Scenario: Vehicle blocking unaffected by claims
-- **WHEN** a vehicle pathing check queries a cell with only in-flight infantry claims
-- **THEN** the cell SHALL NOT be blocked for the vehicle
-
 ### Requirement: Full-cell spread fallback
 When no free slot is available on the target cell, the unit SHALL spread to the nearest cell with a free slot via `_find_nearest_free_cell` and claim there, rather than settling at the cell center.
 
@@ -84,3 +73,23 @@ Slot assignment SHALL be deterministic: with GDScript single-threaded execution 
 #### Scenario: Concurrent orders do not pile
 - **WHEN** a second move order targets a cell whose 3 slots are already claimed by in-flight infantry
 - **THEN** the new infantry SHALL spread to a neighboring cell via the fallback instead of sharing a taken slot
+
+### Requirement: Combined sharing-scoped capacity
+`is_cell_full(cell)` SHALL return true when `physical idle sharer count + in-flight claims >= CellSubPositions.get_slot_count()`. The capacity query SHALL apply only to sharing-unit targeting; vehicle blocking SHALL remain purely physical.
+
+#### Scenario: In-flight units count toward capacity
+- **WHEN** the capacity in sharers hold claims on a cell but none have arrived
+- **THEN** a targeting query SHALL treat the cell as full
+
+#### Scenario: Physical + claims combine
+- **WHEN** a cell has 1 idle sharer and in-flight claims bringing the total to the capacity
+- **THEN** a targeting query SHALL treat the cell as full
+
+#### Scenario: Vehicle blocking unaffected by claims
+- **WHEN** a vehicle pathing check queries a cell with only in-flight sharing-unit claims
+- **THEN** the cell SHALL NOT be blocked for the vehicle
+
+#### Scenario: Capacity follows rules
+- **WHEN** `shared_slots_per_cell = 4`
+- **THEN** `is_cell_full` is false at 3 idle sharers and true at 4
+
