@@ -88,6 +88,10 @@ class_name GlobalRules extends Resource
 @export var wheeled_downhill: float = 1.2
 ## Weight threshold for breakable-surface (ice) damage, from rules.ini [General].
 @export var ice_cracking_weight: float = 2.0
+## Extra pathfinding cost for traversing bib cells. High enough to divert
+## ordinary traffic around building pads, low enough that dockers (harvesters)
+## and emergency crossers can still pass.
+@export var bib_cost_penalty: float = 6.0
 
 @export_group("Cell Occupancy")
 ## Max units whose Locomotor has shares_cell = true that may occupy one cell.

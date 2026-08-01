@@ -48,6 +48,7 @@ static func find_path(
     end_world: Vector3,
     blocked_cells: Dictionary = {},
     locomotor: Locomotor = null,
+    ignore_bib_penalty: bool = false,
 ) -> PackedVector3Array:
     var start_cell := CellUtil.world_to_cell(start_world)
     var end_cell := CellUtil.world_to_cell(end_world)
@@ -56,6 +57,16 @@ static func find_path(
         return PackedVector3Array()
 
     var terrain: Node = _get_terrain_system()
+
+    # Bib cells are walkable but penalized — dockers (harvesters) path onto the
+    # dock pad, but ordinary traffic detours around it. Null-safe: no penalty in
+    # editor/test contexts where GlobalRules is unavailable. `ignore_bib_penalty`
+    # is used for building-associated moves (e.g. exiting a factory), where the
+    # unit legitimately crosses its own pad.
+    var rules := GlobalRules.get_current()
+    var bib_penalty: float = (
+        0.0 if ignore_bib_penalty else (rules.bib_cost_penalty if rules else 0.0)
+    )
 
     var open_heap: Array = [{"cell": start_cell, "f": CellUtil.heuristic(start_cell, end_cell)}]
     var open_lookup: Dictionary = {}
@@ -141,8 +152,16 @@ static func find_path(
                 cost_multiplier = _cost_multiplier(locomotor, land, neighbor)
 
             var height_cost: float = absf(neighbor_height - current_height) * 0.5
+            var bib_cost: float = (
+                bib_penalty
+                if SpatialHash.instance and SpatialHash.instance.is_bib_cell(neighbor)
+                else 0.0
+            )
             var tentative_g: float = (
-                g_score.get(current_key, INF) + neighbor_costs[i] * cost_multiplier + height_cost
+                g_score.get(current_key, INF)
+                + neighbor_costs[i] * cost_multiplier
+                + height_cost
+                + bib_cost
             )
 
             if tentative_g < g_score.get(nkey, INF):

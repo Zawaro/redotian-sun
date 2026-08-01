@@ -265,18 +265,17 @@ func find_nearest_host(parent: Node3D, exclude: Node3D = null) -> Node3D:
     var parent_cell := CellUtil.world_to_cell(parent.global_position)
     var nearest: Node3D = null
     var nearest_dist := float(search_radius_cells * search_radius_cells)
-    var buildings_parent := get_tree().current_scene.get_node_or_null("Buildings")
-    if not buildings_parent:
-        return null
 
-    for child in buildings_parent.get_children():
+    # Scan the whole scene via the entities group (map-loaded, player-built, and
+    # MCV-deployed buildings all register here) instead of a single Buildings
+    # node, which map-loaded buildings never join.
+    for child in get_tree().get_nodes_in_group("entities"):
         if child == exclude:
             continue
         var dock := child.get_node_or_null("DockHostComponent") as DockHostComponent
         if not dock:
             continue
-        var entity_id := dock.get_entity_id()
-        if not can_dock_with.is_empty() and entity_id not in can_dock_with:
+        if not can_dock_with.is_empty() and dock.get_entity_id() not in can_dock_with:
             continue
         var dock_cell := CellUtil.world_to_cell(CellUtil.cell_to_world(dock._dock_cell))
         var raw_dist := Vector2(parent_cell - dock_cell).length_squared()
