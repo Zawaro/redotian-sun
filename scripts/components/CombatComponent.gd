@@ -15,6 +15,9 @@ class_name CombatComponent extends Node3D
 
 signal weapon_fired(weapon: WeaponData, target: Node3D)
 
+## World-space separation at which airborne attackers stop nudging each other.
+const MIN_AIR_SEPARATION: float = 1.5
+
 @export_group("Combat")
 @export var weapons: Array[WeaponData] = []
 @export var elite_weapons: Array[WeaponData] = []
@@ -80,6 +83,9 @@ func set_target(entity: Node3D) -> void:
     _attack_active = true
     _connect_mc_signal()
     _connect_health_signal()
+    var mc := get_parent().get_node_or_null("MovementController") as MovementController
+    if mc:
+        mc.cancel_move_retain_vertical()
 
 
 func clear_target() -> void:
@@ -156,8 +162,9 @@ func _physics_process(delta: float) -> void:
     if weapon_idx < _cooldowns.size():
         _cooldowns[weapon_idx] = maxf(_cooldowns[weapon_idx] - delta, 0.0)
     var range_world := weapon.attack_range * CellUtil.CELL_SIZE
-    var distance := global_position.distance_to(_target.global_position)
-    if distance <= range_world:
+    var to_target := _target.global_position - global_position
+    var horizontal_distance := Vector3(to_target.x, 0.0, to_target.z).length()
+    if horizontal_distance <= range_world:
         if weapon_idx < _cooldowns.size() and _cooldowns[weapon_idx] <= 0.0:
             _fire_weapon(weapon, _target)
     else:
@@ -199,13 +206,64 @@ func _move_toward_target() -> void:
         var distance := to_target.length()
         if distance <= 0.01:
             return
-        var angle := atan2(to_target.x, to_target.z)
-        var stop_pos := (
-            _target.global_position
-            - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
-        )
+        var stop_pos: Vector3
+        if mc.is_airborne_jumpjet():
+            # Shortest air path: approach the target head-on to weapon range,
+            # then nudge off any airborne jumpjets already there so the group
+            # spreads dynamically instead of stacking on one point.
+            var approach_dir := Vector3(to_target.x, 0.0, to_target.z).normalized()
+            var base_pos := _target.global_position - approach_dir * range_world
+            stop_pos = (
+                base_pos
+                + _air_repulsion(
+                    entity.global_position, _nearby_airborne_jumpjets(entity), range_world
+                )
+            )
+            # Never push an attacker out of firing range: pull any overshoot
+            # back onto the range circle so it fires on arrival instead of
+            # bouncing back to re-approach.
+            var stop_offset := _target.global_position - stop_pos
+            if stop_offset.length() > range_world:
+                stop_pos = _target.global_position - stop_offset.normalized() * range_world
+        else:
+            var angle := atan2(to_target.x, to_target.z)
+            stop_pos = (
+                _target.global_position
+                - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
+            )
         _combat_move = true
-        mc.set_target_position(stop_pos)
+        mc.set_target_position(stop_pos, false, true)
+
+
+## World-space positions of airborne jumpjets within the 3x3 cells around the
+## entity, used to spread attacking jumpjets without hard reservation.
+func _nearby_airborne_jumpjets(entity: Node3D) -> Array[Vector3]:
+    var result: Array[Vector3] = []
+    var cell := CellUtil.world_to_cell(entity.global_position)
+    for dx in range(-1, 2):
+        for dz in range(-1, 2):
+            for entry in SpatialHash.instance.get_entries(cell + Vector2i(dx, dz)):
+                var other := entry.node as Node3D
+                if not is_instance_valid(other) or other == entity:
+                    continue
+                var other_mc := entry.mc as MovementController
+                if other_mc and other_mc.is_airborne_jumpjet():
+                    result.append(other.global_position)
+    return result
+
+
+## Push vector away from close airborne jumpjets, linearly tapering to zero at
+## MIN_AIR_SEPARATION and capped so a cluster stays near attack range.
+func _air_repulsion(from: Vector3, neighbors: Array[Vector3], range_world: float) -> Vector3:
+    var push := Vector3.ZERO
+    for other in neighbors:
+        var diff := from - other
+        diff.y = 0.0
+        var dist := diff.length()
+        if dist > 0.01 and dist < MIN_AIR_SEPARATION:
+            push += diff / dist * (1.0 - dist / MIN_AIR_SEPARATION)
+    var cap := minf(MIN_AIR_SEPARATION, range_world * 0.25)
+    return push.limit_length(cap)
 
 
 func _connect_mc_signal() -> void:
