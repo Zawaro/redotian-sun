@@ -144,7 +144,7 @@ MovementController SHALL compute the slope coefficient by sampling terrain heigh
 - **THEN** no slope coefficient is applied
 
 ### Requirement: Locomotor drives MovementController behavior
-MovementController SHALL derive occupancy participation and infantry-style movement feel from the unit's resolved Locomotor and SHALL NOT read `EntityData.EntityType` for movement decisions. `shares_cell` SHALL gate sub-slot booking, exact sub-slot landing, per-waypoint offsets, repulsion bypass between sharers, and non-sharer blocking of sharer cells. `stand_upright` SHALL gate the facing normal (`Vector3.UP` vs terrain normal), `instant_turn` SHALL gate the direct IDLE→MOVING transition (skipping ROTATING), and `organic_path` SHALL gate path smoothing and spline-end easing.
+MovementController SHALL derive occupancy participation and infantry-style movement feel from the unit's resolved Locomotor and SHALL NOT read `EntityData.EntityType` for movement decisions. `shares_cell` SHALL gate sub-slot booking, exact sub-slot landing, repulsion bypass between sharers, and non-sharer blocking of sharer cells. `stand_upright` SHALL gate the facing normal (`Vector3.UP` vs terrain normal), `instant_turn` SHALL gate the direct IDLE→MOVING transition (skipping ROTATING), and `organic_path` SHALL gate path smoothing and spline-end easing.
 
 #### Scenario: Foot infantry behaves unchanged
 - **WHEN** an infantry unit resolves `locomotor = "Foot"`

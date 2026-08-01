@@ -230,7 +230,7 @@ static func _heap_pop(heap: Array) -> Dictionary:
     return result
 
 
-static func _has_line_of_sight(from: Vector2i, to: Vector2i, blocked: Dictionary) -> bool:
+static func has_line_of_sight(from: Vector2i, to: Vector2i, blocked: Dictionary) -> bool:
     var dx: int = absi(to.x - from.x)
     var dy: int = absi(to.y - from.y)
     var sx: int = 1 if from.x < to.x else -1
@@ -266,7 +266,7 @@ static func smooth_path(waypoints: PackedVector3Array, blocked: Dictionary) -> P
     while i < cells.size() - 1:
         var farthest: int = i + 1
         for try in range(cells.size() - 1, i, -1):
-            if _has_line_of_sight(cells[i], cells[try], blocked):
+            if has_line_of_sight(cells[i], cells[try], blocked):
                 farthest = try
                 break
         result.append(waypoints[farthest])
