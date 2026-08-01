@@ -1,7 +1,7 @@
 ## 1. Data model
 
 - [x] 1.1 Create `scripts/data/LandType.gd` resource class (`id`, `display_name`, `color`) + `.uid`
-- [x] 1.2 Create `scripts/data/Locomotor.gd` resource class (`id`, `terrain_speeds` float-multiplier dict, `climb_tolerance`, `crushes`, `shares_cell`, `is_hover`, `is_amphibious`, `is_fly`, `is_jumpjet`, `is_subterranean`, `is_ship`, `hover_height_override`, `jumpjet_fly_distance`, `subterranean_dig_distance`) + `.uid`
+- [x] 1.2 Create `scripts/data/Locomotor.gd` resource class (`id`, `terrain_speeds` float-multiplier dict, `climb_tolerance`, `crushes`, `is_hover`, `is_amphibious`, `is_fly`, `is_jumpjet`, `is_subterranean`, `is_ship`, `hover_height_override`, `jumpjet_fly_distance`, `subterranean_dig_distance`) + `.uid`
 - [x] 1.3 Create default LandType `.tres` files (clear, rough, road, water, cliff) under `resources/land_types/`
 - [x] 1.4 Create default Locomotor `.tres` files (Foot, Track, Wheel, Hover, Amphibious, Fly, Jumpjet, Subterranean, Ship) under `resources/locomotors/` with float-multiplier tables anchored to reference values
 - [x] 1.5 Create ice terrain entity `.tres` + scene (terrain entity, HealthComponent) under the existing terrain-entity pattern

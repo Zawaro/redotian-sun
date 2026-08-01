@@ -1,7 +1,7 @@
 ## 1. Data model
 
-- [x] 1.1 Add `jumpjet_target_height: float = 5.0` export to `scripts/data/Locomotor.gd` (terrain height units)
-- [x] 1.2 Set `jumpjet_target_height = 5.0` in `resources/locomotors/Jumpjet.tres`
+- [x] 1.1 Add `jumpjet_target_height: float = 6.0` export to `scripts/data/Locomotor.gd` (terrain height units)
+- [x] 1.2 Set `jumpjet_target_height = 6.0` in `resources/locomotors/Jumpjet.tres`
 
 ## 2. MovementController vertical state machine
 
@@ -21,10 +21,10 @@
 
 ## 4. Tests
 
-- [x] 4.1 Unit tests: jumpjet target-height config (default 5.0 × HEIGHT_STEP; override)
+- [x] 4.1 Unit tests: jumpjet target-height config (default 6.0 × HEIGHT_STEP; override)
 - [x] 4.2 Unit tests: ascend/descend transitions move Y at `move_speed * delta` and reach GROUND/AIR
 - [x] 4.3 Unit tests: `keep_zone` attack retention (grounded walks, airborne flies, mid-transition ascends)
-- [x] 4.4 Unit tests: hover on fly-order arrival; land on walk-order arrival; descend interrupt ascends
+- [x] 4.4 Unit tests: walk-first move orders (walk when reachable, fly-fallback lands on arrival); descend interrupt ascends
 - [x] 4.5 Unit tests: airborne terrain speed factor = 1.0
 - [x] 4.6 Unit tests: CombatComponent XZ range check (vertical separation ignored, airborne attacker fires)
 - [x] 4.7 Run full suite (`redot --headless -s test/run_tests.gd`) + `gdlint` / `gdformat` check on new/edited files

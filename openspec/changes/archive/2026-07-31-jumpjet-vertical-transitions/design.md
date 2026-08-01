@@ -7,10 +7,10 @@
 ## Goals / Non-Goals
 
 **Goals:**
-- Configurable jumpjet flight altitude driven by the Locomotor data (terrain height units, default 5.0).
+- Configurable jumpjet flight altitude driven by the Locomotor data (terrain height units, default 6.0).
 - Explicit vertical states (GROUND/ASCENDING/AIR/DESCENDING) with Y movement at `move_speed`.
 - Attack approach preserves the current zone (ground attack on land, air attack airborne); mid-transition attack ascends to target height first.
-- Fly-order arrival hovers; walk-order arrival lands.
+- Walk-first move orders: walk on foot when reachable, fly-fallback to the destination then land; fly move orders land on arrival.
 - Any new order while descending returns the unit to the air zone.
 - Horizontal (XZ) combat range check so altitude never blocks firing.
 
@@ -18,13 +18,13 @@
 - Jumpjet animation states (flight/landed art).
 - Per-entity height overrides (Locomotor-level is enough).
 - Aircraft (`is_fly`) altitude — those keep their current instant-height behavior.
-- Attack *targeting* rules (which targets a weapon may engage) — out of scope; only the range measurement changes.
+- Generalized attack *targeting* rules (a weapon target-type filter) — out of scope; only the range measurement changes. The JumpCannon data sets `anti_air = true` / `anti_ground = true` so jumpjets can engage both ground and air targets, matching the jumpjet spec requirement.
 
 ## Decisions
 
 ### D1. `jumpjet_target_height` on Locomotor, in terrain height units
 
-Add `@export var jumpjet_target_height: float = 5.0` to `Locomotor.gd`. It is stored in terrain height units (each = `TerrainSystem.HEIGHT_STEP`), matching the `climb_tolerance` (height-level) convention already in the class. `MovementController._resolve_locomotor()` computes `_jumpjet_air_height = jumpjet_target_height * TerrainSystem.HEIGHT_STEP`. `resources/locomotors/Jumpjet.tres` sets `jumpjet_target_height = 5.0` explicitly.
+Add `@export var jumpjet_target_height: float = 6.0` to `Locomotor.gd`. It is stored in terrain height units (each = `TerrainSystem.HEIGHT_STEP`), matching the `climb_tolerance` (height-level) convention already in the class. `MovementController._resolve_locomotor()` computes `_jumpjet_air_height = jumpjet_target_height * TerrainSystem.HEIGHT_STEP`. `resources/locomotors/Jumpjet.tres` sets `jumpjet_target_height = 6.0` explicitly.
 
 *Alternative considered:* reuse `hover_height_override`. Rejected — it is hover-specific, has a `0 = use GlobalRules` sentinel, and mixing jumpjet altitude into it would break hover data semantics. A dedicated field keeps the two locomotion families independent.
 
@@ -81,7 +81,7 @@ Add `enum VerticalState { GROUND, ASCENDING, AIR, DESCENDING }` and `_vertical_s
 5. Unit tests; run full suite + lint/format.
 6. Archive the OpenSpec change; commit on `feat/34-locomotor-enforcement-movement-zones` referencing #34.
 
-Rollback: revert `MovementController.gd`, `CombatComponent.gd`, `Locomotor.gd`, `Jumpjet.tres`, and the archived spec delta. No data migration needed (new field defaults to 5.0).
+Rollback: revert `MovementController.gd`, `CombatComponent.gd`, `Locomotor.gd`, `Jumpjet.tres`, and the archived spec delta. No data migration needed (new field defaults to 6.0).
 
 ## Open Questions
 
