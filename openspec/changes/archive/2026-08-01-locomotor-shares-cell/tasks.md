@@ -51,5 +51,5 @@
 
 ## 9. Finalization
 
-- [ ] 9.1 Archive the change to update `openspec/specs/`: add `cell-occupancy`, remove `infantry-occupancy`, deltas to `locomotor` / `cell-reservation` / `spatial-hash` / `selection-manager` (incl. requirement renames)
-- [ ] 9.2 Commit on `feat/190-locomotor-shares-cell` (Conventional Commits, reference #190)
+- [x] 9.1 Archive the change to update `openspec/specs/`: add `cell-occupancy`, remove `infantry-occupancy`, deltas to `locomotor` / `cell-reservation` / `spatial-hash` / `selection-manager` (incl. requirement renames)
+- [x] 9.2 Commit on `feat/190-locomotor-shares-cell` (Conventional Commits, reference #190)
