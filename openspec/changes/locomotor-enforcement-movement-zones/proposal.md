@@ -5,7 +5,7 @@ All units move identically regardless of being tracked, wheeled, hover, or on fo
 ## What Changes
 
 - Introduce a data-driven **LandType registry** — fully customizable terrain surface types (e.g. clear, rough, road, water, cliff, and modder-defined ones like lava). LandTypes are surface identity only (id, name, color); movement behavior lives in the Locomotor registry. Replaces the current height-only terrain model.
-- Introduce a **Locomotor registry** with all TS locomotor types plus naval and future-proofed types: `Foot`, `Track`, `Wheel`, `Hover`, `Amphibious`, `Fly` (Winged), `Jumpjet`, `Subterranean`, and `Ship`. Each defines a **float-multiplier terrain speed table** (0.0 = impassable, 1.0 = normal, 1.2 = bonus), climb tolerance, crush set, shares-cell, and behavior flags. A submarine is a `Ship` with stealth (`cloakable`), not a distinct type.
+- Introduce a **Locomotor registry** with all TS locomotor types plus naval and future-proofed types: `Foot`, `Track`, `Wheel`, `Hover`, `Amphibious`, `Fly` (Winged), `Jumpjet`, `Subterranean`, and `Ship`. Each defines a **float-multiplier terrain speed table** (0.0 = impassable, 1.0 = normal, 1.2 = bonus), climb tolerance, crush set, and behavior flags. A submarine is a `Ship` with stealth (`cloakable`), not a distinct type.
 - **Movement zone filtering** in `Pathfinder`/`MovementController`: cells impassable to a unit's locomotor are excluded from pathing; a per-locomotor **climb tolerance** makes height cliffs impassable (`|Δh| > tolerance → blocked`, the height-proxy that works before LandTypes land).
 - **Hover locomotion**: ignores slope coefficients, floats at `GlobalRules.hover_height` (boost on straightaways deferred by the issue).
 - **Amphibious locomotion**: passes water and land; applied to the GDI Amphibious APC.
@@ -20,7 +20,7 @@ All units move identically regardless of being tracked, wheeled, hover, or on fo
 
 ### New Capabilities
 - `land-types`: LandType registry resource — surface identity (id, name, color), fully customizable and extensible at runtime.
-- `locomotor`: Locomotor registry + all locomotor types and their props (float terrain-speed multipliers, climb tolerance, crush set, shares-cell, hover/amphibious/jumpjet/subterranean/ship behavior) + movement zone filtering in pathfinding.
+- `locomotor`: Locomotor registry + all locomotor types and their props (float terrain-speed multipliers, climb tolerance, crush set, hover/amphibious/jumpjet/subterranean/ship behavior) + movement zone filtering in pathfinding.
 - `ice-drowning`: ice as a damageable terrain entity with weight-based damage and occupant drowning.
 
 ### Modified Capabilities

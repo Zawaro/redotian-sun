@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Configurable jumpjet target height
-The `Locomotor` resource SHALL provide a `jumpjet_target_height: float` field expressed in terrain height units (each unit = `TerrainSystem.HEIGHT_STEP` world units), defaulting to `5.0`. `MovementController` SHALL use `jumpjet_target_height * HEIGHT_STEP` as the jumpjet's flight altitude, independent of `GlobalRules.hover_height` and `hover_height_override`.
+The `Locomotor` resource SHALL provide a `jumpjet_target_height: float` field expressed in terrain height units (each unit = `TerrainSystem.HEIGHT_STEP` world units), defaulting to `6.0`. `MovementController` SHALL use `jumpjet_target_height * HEIGHT_STEP` as the jumpjet's flight altitude, independent of `GlobalRules.hover_height` and `hover_height_override`.
 
 #### Scenario: Default target height
 - **WHEN** a Jumpjet Locomotor resource is created without overriding `jumpjet_target_height`
-- **THEN** the jumpjet's flight altitude SHALL be `5.0 * HEIGHT_STEP` world units above terrain
+- **THEN** the jumpjet's flight altitude SHALL be `6.0 * HEIGHT_STEP` world units above terrain
 
 #### Scenario: Configurable target height
 - **WHEN** a Jumpjet Locomotor resource sets `jumpjet_target_height = 3.0`
@@ -41,16 +41,20 @@ When `MovementController.set_target_position(target, unblock_buildings, keep_zon
 - **WHEN** a jumpjet in ASCENDING or DESCENDING is issued an attack order
 - **THEN** it completes the ascent to the flight altitude before attacking
 
-### Requirement: Hover on fly-order arrival
-A jumpjet completing a fly order SHALL remain hovering at its flight altitude above the destination. Only a walk order SHALL trigger descent to the ground.
+### Requirement: Walk-first move orders with fly fallback
+A jumpjet's default zone SHALL be GROUND: it spawns and idles on the ground, and move orders SHALL walk on the ground like infantry when the target is reachable on foot within `jumpjet_fly_distance`. It SHALL only fly when the walk path is empty or the straight-line distance exceeds `jumpjet_fly_distance`; a fly move SHALL go straight to the destination cell and then land there (descending after reaching the target), not hover.
 
-#### Scenario: Fly order arrives and hovers
-- **WHEN** a jumpjet completes a fly (distant or unreachable) move order
-- **THEN** it stays at the flight altitude (AIR) instead of landing
+#### Scenario: Move order to reachable target walks
+- **WHEN** a grounded jumpjet is issued a move order to a reachable cell within `jumpjet_fly_distance`
+- **THEN** it pathfinds on foot and stays in GROUND
 
-#### Scenario: Walk order arrives and lands
-- **WHEN** a jumpjet completes a walk move order
-- **THEN** it descends to and stands on the ground
+#### Scenario: Move order to far target flies then lands
+- **WHEN** a grounded jumpjet is issued a move order to a cell beyond `jumpjet_fly_distance`
+- **THEN** it ascends, flies a straight line to the target cell, then descends and lands there
+
+#### Scenario: Airborne move order lands at destination
+- **WHEN** an airborne jumpjet is issued a move order
+- **THEN** it flies to the target cell, then enters DESCENDING and lands on the ground at that cell
 
 ### Requirement: New order while descending ascends back
 If a jumpjet receives any new order while in the DESCENDING state, it SHALL interrupt the descent and ascend back to the air zone before processing the new order's movement.
@@ -65,3 +69,14 @@ If a jumpjet receives any new order while in the DESCENDING state, it SHALL inte
 #### Scenario: Flying over rough terrain
 - **WHEN** an airborne jumpjet passes over a rough cell that would slow its walking speed
 - **THEN** its movement speed is unaffected by the terrain multiplier
+
+### Requirement: Jumpjet attacks land and air targets
+The GDI Jumpjet Infantry entity SHALL carry a weapon (JumpCannon) so `CombatComponent` can generate attack orders. Its weapon SHALL be able to target both ground and air entities regardless of the jumpjet's altitude.
+
+#### Scenario: Ground target
+- **WHEN** a jumpjet unit is selected and an enemy ground entity is the order target
+- **THEN** an ATTACK order SHALL be generated
+
+#### Scenario: Air target
+- **WHEN** a jumpjet unit is selected and an enemy aircraft entity is the order target
+- **THEN** an ATTACK order SHALL be generated
