@@ -44,6 +44,13 @@ func _make_target(player_id: int) -> Node3D:
     return entity
 
 
+func _make_target_of_type(player_id: int, entity_type: int) -> Node3D:
+    var entity := _make_target(player_id)
+    var stats := entity.get_node("StatsComponent") as StatsComponent
+    stats.entity_type = entity_type
+    return entity
+
+
 # --- get_cursor_for_target tests ---
 
 
@@ -792,5 +799,60 @@ func test_combat_move_preserves_attack_target():
     TestHelper.reset()
     remove_child(entity)
     remove_child(target)
+    entity.free()
+    target.free()
+
+
+func test_range_ignores_vertical_separation():
+    var root: Node = Engine.get_main_loop().root
+    var entity := _make_combat_entity(true, 0)
+    root.add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    entity.global_position = Vector3(0, 0, 0)
+    target.global_position = Vector3(4.0, 50.0, 0.0)
+    cc.set_target(target)
+    var old_health: int = target.get_node("HealthComponent").current_health
+    cc._physics_process(0.1)
+    var new_health: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_true(
+        new_health < old_health, "vertical separation does not block firing when XZ in range"
+    )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+
+
+func test_range_horizontal_distance_used():
+    var root: Node = Engine.get_main_loop().root
+    var entity := _make_combat_entity(true, 0)
+    root.add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    entity.global_position = Vector3(0, 0, 0)
+    var weapon := cc.get_current_weapon()
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    target.global_position = Vector3(range_world + 1.0, 0.0, 0.0)
+    cc.set_target(target)
+    cc._physics_process(0.1)
+    var health_out: int = target.get_node("HealthComponent").current_health
+    target.get_node("HealthComponent").current_health = 100
+    target.global_position = Vector3(range_world - 1.0, 0.0, 0.0)
+    cc.set_target(target)
+    cc._physics_process(0.1)
+    var health_in: int = target.get_node("HealthComponent").current_health
+    TestHelper.assert_eq(health_out, 100, "out of XZ range does not fire")
+    TestHelper.assert_true(health_in < 100, "within XZ range fires")
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+    root.remove_child(entity)
+    root.remove_child(target)
     entity.free()
     target.free()
