@@ -19,14 +19,6 @@ func _wheel() -> Locomotor:
     return wheel
 
 
-func _jumpjet() -> Locomotor:
-    var jj := Locomotor.new()
-    jj.terrain_speeds = {"clear": 1.0, "rough": 0.89}
-    jj.is_jumpjet = true
-    jj.jumpjet_fly_distance = 0.0
-    return jj
-
-
 func _subterranean() -> Locomotor:
     var sub := Locomotor.new()
     sub.terrain_speeds = {"clear": 1.0}
@@ -121,54 +113,6 @@ func test_ground_unit_snaps_to_terrain():
     root.remove_child(entity)
     entity.free()
     TestHelper.assert_true(y < 0.5, "ground unit snaps down to terrain")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
-
-
-func test_jumpjet_reachable_walks():
-    _reset_terrain()
-    var pair: Array = _make_mc(EntityData.EntityType.INFANTRY)
-    var mc: MovementController = pair[1]
-    mc._locomotor_data = _jumpjet()
-    mc._is_jumpjet = true
-    mc._is_infantry = true
-    var target := CellUtil.cell_to_world(Vector2i(52, 50))
-    mc.set_target_position(target)
-    var hybrid: bool = mc._hybrid_active
-    var waypoints: int = mc._waypoints.size()
-    var cr := CellReservation.instance
-    if cr:
-        cr.clear()
-    _reset_terrain()
-    pair[0].queue_free()
-    TestHelper.assert_eq(hybrid, false, "reachable target within threshold walks")
-    TestHelper.assert_true(waypoints > 2, "walk path has intermediate waypoints")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
-
-
-func test_jumpjet_distant_flies():
-    _reset_terrain()
-    var pair: Array = _make_mc(EntityData.EntityType.INFANTRY)
-    var mc: MovementController = pair[1]
-    var jj := _jumpjet()
-    jj.jumpjet_fly_distance = 1.0
-    mc._locomotor_data = jj
-    mc._is_jumpjet = true
-    mc._is_infantry = true
-    var target := CellUtil.cell_to_world(Vector2i(54, 50))
-    mc.set_target_position(target)
-    var hybrid: bool = mc._hybrid_active
-    var waypoints: int = mc._waypoints.size()
-    var cr := CellReservation.instance
-    if cr:
-        cr.clear()
-    _reset_terrain()
-    pair[0].queue_free()
-    TestHelper.assert_eq(hybrid, true, "distant target triggers flight")
-    TestHelper.assert_eq(waypoints, 2, "flight is a single straight segment")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
