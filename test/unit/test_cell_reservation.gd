@@ -44,7 +44,7 @@ func test_reserve_three_slots_deterministic_order():
     cr.clear()
     var cell := Vector2i(10, 10)
     var owners: Array[Node3D] = []
-    for i in CellReservation.NUM_SLOTS:
+    for i in CellSubPositions.get_slot_count():
         owners.append(_make_owner())
     var slots: Array[int] = []
     for owner in owners:
@@ -69,7 +69,7 @@ func test_reserve_full_cell_returns_minus_one():
     cr.clear()
     var cell := Vector2i(10, 10)
     var owners: Array[Node3D] = []
-    for i in CellReservation.NUM_SLOTS:
+    for i in CellSubPositions.get_slot_count():
         owners.append(_make_owner())
         cr.reserve_sub_slot(cell, owners[i])
     var fourth := _make_owner()

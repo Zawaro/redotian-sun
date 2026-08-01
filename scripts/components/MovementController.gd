@@ -539,7 +539,7 @@ func _handle_moving_movement(delta: float) -> void:
                 if not mc or mc._state == State.IDLE:
                     continue
 
-                if _shares_cell and mc._shares_cell:
+                if _shares_cell and mc.shares_cell():
                     continue
 
                 var neighbor_dist: float = parent_pos.distance_to(entity_parent.global_position)

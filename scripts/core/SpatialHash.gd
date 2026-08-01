@@ -121,14 +121,6 @@ func is_cell_full_for_shared(cell: Vector2i) -> bool:
     return get_shared_cell_count(cell) >= CellSubPositions.get_slot_count()
 
 
-func get_full_shared_cells() -> Dictionary:
-    var result: Dictionary = {}
-    for key in _shared_cell_counts:
-        if _shared_cell_counts[key] >= CellSubPositions.get_slot_count():
-            result[key] = true
-    return result
-
-
 func get_shared_cells() -> Dictionary:
     var result: Dictionary = {}
     for key in _shared_cell_counts:
