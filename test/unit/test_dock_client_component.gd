@@ -542,3 +542,107 @@ func test_idle_arrived_ignored():
     else:
         _test_failed += 1
         print("    FAIL: state = %d (expected IDLE)" % client.get_state())
+
+
+## Builds a dock host entity configured to report `_entity_id`, attached to the
+## real scene-tree root and added to the "entities" group so find_nearest_host's
+## scene-wide scan can see it.
+func _make_scene_dock_host(
+    entity_id: String = "GDI_REFINERY", dock_cell: Vector2i = Vector2i(50, 50)
+) -> Node3D:
+    var host_entity := Node3D.new()
+    host_entity.name = "SceneHost"
+
+    var host := DockHostComponent.new()
+    host.name = "DockHostComponent"
+    var data := EntityData.new()
+    data.id = entity_id
+    host.configure(data)
+    host._dock_cell = dock_cell
+    host_entity.add_child(host)
+
+    host_entity.add_to_group("entities")
+    Engine.get_main_loop().root.add_child(host_entity)
+    return host_entity
+
+
+func _remove_scene_dock_host(host_entity: Node3D) -> void:
+    if is_instance_valid(host_entity):
+        host_entity.free()
+
+
+func test_find_nearest_host_finds_map_rooted_host():
+    var entity := _make_entity_with_client()
+    Engine.get_main_loop().root.add_child(entity)
+    var host_entity := _make_scene_dock_host()
+
+    var client := entity.get_node("DockClientComponent") as DockClientComponent
+    var found := client.find_nearest_host(entity)
+    _remove_scene_dock_host(host_entity)
+    entity.free()
+
+    if found == host_entity:
+        _test_passed += 1
+        print("    PASS: find_nearest_host finds a host not under a Buildings node")
+    else:
+        _test_failed += 1
+        print("    FAIL: found=%s (expected map-rooted host)" % [found])
+
+
+func test_find_nearest_host_skips_incompatible_dock_type():
+    var entity := _make_entity_with_client()
+    Engine.get_main_loop().root.add_child(entity)
+    var wrong_host := _make_scene_dock_host("NOD_REFINERY")
+    var right_host := _make_scene_dock_host("GDI_REFINERY", Vector2i(52, 50))
+
+    var client := entity.get_node("DockClientComponent") as DockClientComponent
+    var found := client.find_nearest_host(entity)
+    _remove_scene_dock_host(wrong_host)
+    _remove_scene_dock_host(right_host)
+    entity.free()
+
+    if found == right_host:
+        _test_passed += 1
+        print("    PASS: find_nearest_host skips incompatible dock type, finds compatible")
+    else:
+        _test_failed += 1
+        print("    FAIL: found=%s (expected compatible GDI host)" % [found])
+
+
+func test_find_nearest_host_occupancy_ranking():
+    var entity := _make_entity_with_client()
+    Engine.get_main_loop().root.add_child(entity)
+    # Two compatible hosts at equal distance; the occupied one ranks lower.
+    var empty_host := _make_scene_dock_host("GDI_REFINERY", Vector2i(49, 49))
+    var busy_host := _make_scene_dock_host("GDI_REFINERY", Vector2i(51, 51))
+    var busy_dock := busy_host.get_node("DockHostComponent") as DockHostComponent
+    busy_dock.current_docker = Node.new()
+
+    var client := entity.get_node("DockClientComponent") as DockClientComponent
+    var found := client.find_nearest_host(entity)
+    _remove_scene_dock_host(empty_host)
+    _remove_scene_dock_host(busy_host)
+    entity.free()
+
+    if found == empty_host:
+        _test_passed += 1
+        print("    PASS: find_nearest_host ranks less-occupied host first")
+    else:
+        _test_failed += 1
+        print("    FAIL: found=%s (expected less-occupied host)" % [found])
+
+
+func test_find_nearest_host_no_host():
+    var entity := _make_entity_with_client()
+    Engine.get_main_loop().root.add_child(entity)
+
+    var client := entity.get_node("DockClientComponent") as DockClientComponent
+    var found := client.find_nearest_host(entity)
+    entity.free()
+
+    if found == null:
+        _test_passed += 1
+        print("    PASS: find_nearest_host returns null when no compatible host")
+    else:
+        _test_failed += 1
+        print("    FAIL: found=%s (expected null)" % [found])

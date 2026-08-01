@@ -252,3 +252,54 @@ func test_map_loaded_building_blocks_pathfinding():
     else:
         _test_failed += 1
         print("    FAIL: path=%s bad_cell=%s (should route around building)" % [path, bad_cell])
+
+
+func test_map_loaded_refinery_bibs_not_building_blocked():
+    SpatialHash.instance._building_cells.clear()
+    SpatialHash.instance._bib_cells.clear()
+    TerrainSystem.init_grid(64, 64)
+    var building := EntityFactory.create_entity("GDI_REFINERY")
+    if building == null:
+        _test_failed += 1
+        print("    FAIL: EntityFactory could not create GDI_REFINERY")
+        return
+    var origin := Vector2i(60, 60)
+    building.position = CellUtil.cell_origin_to_world(origin, Vector2i(4, 3))
+    SpatialHash.instance.add_child(building)
+    var sh := SpatialHash.instance
+    var bib_cells := [origin + Vector2i(3, 0), origin + Vector2i(3, 1), origin + Vector2i(3, 2)]
+    var bib_not_blocked: bool = true
+    for cell in bib_cells:
+        if sh.get_blocked_cells().has(CellUtil.cell_key(cell)):
+            bib_not_blocked = false
+            break
+    var bib_tracked: bool = true
+    for cell in bib_cells:
+        if not sh.is_bib_cell(cell):
+            bib_tracked = false
+            break
+    var non_bib_blocked: bool = (
+        sh.get_blocked_cells().has(CellUtil.cell_key(origin))
+        and sh.get_blocked_cells().has(CellUtil.cell_key(origin + Vector2i(2, 2)))
+    )
+    SpatialHash.instance.remove_child(building)
+    building.free()
+    var cleared: bool = not sh.get_blocked_cells().has(CellUtil.cell_key(origin))
+    SpatialHash.instance._building_cells.clear()
+    SpatialHash.instance._bib_cells.clear()
+    if bib_not_blocked and bib_tracked and non_bib_blocked and cleared:
+        _test_passed += 1
+        print(
+            (
+                "    PASS: refinery bib cells are bib-tracked, not building-blocked; "
+                + "non-bib foundation blocked; unregistered on exit"
+            )
+        )
+    else:
+        _test_failed += 1
+        print(
+            (
+                "    FAIL: bib_not_blocked=%s bib_tracked=%s non_bib_blocked=%s cleared=%s"
+                % [bib_not_blocked, bib_tracked, non_bib_blocked, cleared]
+            )
+        )
