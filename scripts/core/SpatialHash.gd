@@ -8,7 +8,7 @@ var _building_cells: Dictionary = {}
 var _bib_cells: Dictionary = {}
 var _reserved: Dictionary = {}
 var _resource_cells: Dictionary = {}
-var _infantry_cell_counts: Dictionary = {}
+var _shared_cell_counts: Dictionary = {}
 var _ice_cells: Dictionary = {}
 
 
@@ -23,7 +23,7 @@ func _physics_process(_delta: float) -> void:
 func rebuild() -> void:
     _grid.clear()
     _blocked_cells.clear()
-    _infantry_cell_counts.clear()
+    _shared_cell_counts.clear()
     _ice_cells.clear()
     # ponytail: ice spawned mid-game by EntityFactory._add_ice_component only
     # joins _ice_cells on the next rebuild (rebuild() runs every physics frame),
@@ -66,11 +66,11 @@ func rebuild() -> void:
             )
         )
         if mc and mc._state == MovementController.State.IDLE:
-            # ponytail: only count IDLE infantry. Moving infantry can stack
-            # beyond 3 transiently, but crush clears them. Counting MOVING
-            # would block pathfinding for all cells with moving infantry.
-            if stats and stats.entity_type == EntityData.EntityType.INFANTRY:
-                _infantry_cell_counts[key] = _infantry_cell_counts.get(key, 0) + 1
+            # ponytail: only count IDLE sharers. Moving sharers can stack
+            # beyond capacity transiently, but crush clears them. Counting
+            # MOVING would block pathfinding for all cells with moving sharers.
+            if mc.shares_cell():
+                _shared_cell_counts[key] = _shared_cell_counts.get(key, 0) + 1
             else:
                 _blocked_cells[key] = true
 
@@ -113,34 +113,34 @@ func is_cell_blocked(cell: Vector2i) -> bool:
     return _blocked_cells.has(CellUtil.cell_key(cell))
 
 
-func get_infantry_count(cell: Vector2i) -> int:
-    return _infantry_cell_counts.get(CellUtil.cell_key(cell), 0)
+func get_shared_cell_count(cell: Vector2i) -> int:
+    return _shared_cell_counts.get(CellUtil.cell_key(cell), 0)
 
 
-func is_cell_full_for_infantry(cell: Vector2i) -> bool:
-    return get_infantry_count(cell) >= 3
+func is_cell_full_for_shared(cell: Vector2i) -> bool:
+    return get_shared_cell_count(cell) >= CellSubPositions.get_slot_count()
 
 
-func get_full_infantry_cells() -> Dictionary:
+func get_full_shared_cells() -> Dictionary:
     var result: Dictionary = {}
-    for key in _infantry_cell_counts:
-        if _infantry_cell_counts[key] >= 3:
+    for key in _shared_cell_counts:
+        if _shared_cell_counts[key] >= CellSubPositions.get_slot_count():
             result[key] = true
     return result
 
 
-func get_infantry_cells() -> Dictionary:
+func get_shared_cells() -> Dictionary:
     var result: Dictionary = {}
-    for key in _infantry_cell_counts:
-        if _infantry_cell_counts[key] > 0:
+    for key in _shared_cell_counts:
+        if _shared_cell_counts[key] > 0:
             result[key] = true
     return result
 
 
 func get_crusher_blocking_cells(player_id: int) -> Dictionary:
     var result: Dictionary = {}
-    for key in _infantry_cell_counts:
-        if _infantry_cell_counts[key] <= 0:
+    for key in _shared_cell_counts:
+        if _shared_cell_counts[key] <= 0:
             continue
         var entries: Array = _grid.get(key, [])
         for entry in entries:

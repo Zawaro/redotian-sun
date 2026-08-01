@@ -44,7 +44,10 @@ var _repair_time: float = 0.0
 var _speed_jitter: float = 1.0
 var _rotation_yaw: float = 0.0
 
-var _is_infantry: bool = false
+var _shares_cell: bool = false
+var _stand_upright: bool = false
+var _instant_turn: bool = false
+var _organic_path: bool = false
 var _crusher: bool = false
 var _player_id: int = -1
 var _assigned_slot: int = -1
@@ -78,7 +81,6 @@ func _ready() -> void:
     _rules = GlobalRules.get_current()
     var stats := _parent.get_node_or_null("StatsComponent") as StatsComponent
     if stats:
-        _is_infantry = stats.entity_type == EntityData.EntityType.INFANTRY
         _crusher = stats.crusher
         _player_id = stats.player_id
         _weight = stats.weight
@@ -102,6 +104,14 @@ func _resolve_locomotor() -> void:
         _hover_height = float(_rules.hover_height) * (CellUtil.CELL_SIZE / 256.0)
     _jumpjet_air_height = _locomotor_data.jumpjet_target_height * TerrainSystem.HEIGHT_STEP
     _ice_cracking_weight = _rules.ice_cracking_weight
+    _shares_cell = _locomotor_data.shares_cell
+    _stand_upright = _locomotor_data.stand_upright
+    _instant_turn = _locomotor_data.instant_turn
+    _organic_path = _locomotor_data.organic_path
+
+
+func shares_cell() -> bool:
+    return _shares_cell
 
 
 func _get_veteran_speed_mult(veteran_level: int) -> float:
@@ -201,7 +211,7 @@ func stop() -> void:
         var seg := _spline_segment()
         var next_idx := mini(seg + 1, _waypoints.size() - 1)
         var next_waypoint := _waypoints[next_idx]
-        if _is_infantry and not (_is_jumpjet and _vertical_state != VerticalState.GROUND):
+        if _shares_cell and not (_is_jumpjet and _vertical_state != VerticalState.GROUND):
             var current_cell := CellUtil.world_to_cell(_parent.global_position)
             _assign_sub_slot_at_cell(current_cell)
             if _has_sub_slot:
@@ -299,7 +309,7 @@ func set_target_position(
         # so the jumpjet descends onto a sub-slot instead of the cell center.
         _has_sub_slot = false
         hybrid_fallback = true
-        if _is_infantry and not keep_zone:
+        if _shares_cell and not keep_zone:
             # Never fly into an occupied landing cell: relocate up front, like
             # the ground branch, before booking so arrival is clean.
             if _is_cell_occupied_by_idle(target_cell):
@@ -323,7 +333,7 @@ func set_target_position(
             var free := _find_nearest_free_cell(target_cell)
             target = CellUtil.cell_to_world(free)
             target_cell = free
-        if _is_infantry:
+        if _shares_cell:
             _assign_sub_slot_at_cell(target_cell)
             if not _has_sub_slot:
                 var free_cell := _find_nearest_free_sub_slot_cell(target_cell)
@@ -374,12 +384,12 @@ func set_target_position(
         pathfinding_failed.emit()
         return
 
-    if _is_infantry and path.size() > 2 and not hybrid_fallback:
+    if _organic_path and path.size() > 2 and not hybrid_fallback:
         path = Pathfinder.smooth_path(path, blocked)
 
-    if _is_infantry and _has_sub_slot and path.size() > 0 and not hybrid_fallback:
+    if _shares_cell and _has_sub_slot and path.size() > 0 and not hybrid_fallback:
         path[path.size() - 1] = _sub_slot_position
-    if _is_infantry and path.size() > 1 and not hybrid_fallback:
+    if _shares_cell and path.size() > 1 and not hybrid_fallback:
         for i in range(0, path.size() - 1):
             var wp_cell := CellUtil.world_to_cell(path[i])
             var wp_positions := CellSubPositions.get_sub_positions(wp_cell)
@@ -399,7 +409,7 @@ func set_target_position(
     _last_position = _parent.global_position
     if is_instance_valid(_rotation_target):
         _rotation_yaw = _rotation_target.global_rotation.y
-    if _is_infantry:
+    if _instant_turn:
         _state = State.MOVING
         if is_instance_valid(_rotation_target) and _waypoints.size() > 1:
             var tangent := (_waypoints[1] - _waypoints[0]).normalized()
@@ -523,7 +533,7 @@ func _handle_moving_movement(delta: float) -> void:
                 if not mc or mc._state == State.IDLE:
                     continue
 
-                if _is_infantry and mc._is_infantry:
+                if _shares_cell and mc._shares_cell:
                     continue
 
                 var neighbor_dist: float = parent_pos.distance_to(entity_parent.global_position)
@@ -581,7 +591,6 @@ func _handle_moving_movement(delta: float) -> void:
                 _state = State.WAIT
             return
 
-        var approach_direction := (final_pos - _parent.global_position).normalized()
         var approach_step := (final_pos - _parent.global_position).limit_length(
             (
                 move_speed
@@ -622,7 +631,7 @@ func _handle_moving_movement(delta: float) -> void:
     else:
         _parent.global_position += step
         var skip_lerp := (
-            _is_infantry and (_spline_segment() == 0 or _spline_segment() >= _num_segments() - 1)
+            _organic_path and (_spline_segment() == 0 or _spline_segment() >= _num_segments() - 1)
         )
         if not skip_lerp:
             var spline_pos := _get_spline_pos(_spline_t)
@@ -735,7 +744,7 @@ func _apply_facing(direction: Vector3) -> void:
         return
     var normal := (
         Vector3.UP
-        if _is_infantry
+        if _stand_upright
         else TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
     )
     var projected := (forward - forward.dot(normal) * normal).normalized()
@@ -776,10 +785,10 @@ func _build_blocked_cells(unblock_buildings: bool = false) -> Dictionary:
     var result: Dictionary = SpatialHash.instance.get_blocked_cells().duplicate()
     var cell := CellUtil.world_to_cell(_parent.global_position)
     result.erase(CellUtil.cell_key(cell))
-    if not _is_infantry and _crusher:
+    if not _shares_cell and _crusher:
         result.merge(SpatialHash.instance.get_crusher_blocking_cells(_player_id))
-    elif not _is_infantry:
-        result.merge(SpatialHash.instance.get_infantry_cells())
+    elif not _shares_cell:
+        result.merge(SpatialHash.instance.get_shared_cells())
     if unblock_buildings:
         for key in SpatialHash.instance.get_building_cells():
             result.erase(key)
@@ -798,7 +807,8 @@ func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
     if SpatialHash.instance._grid.has(key):
         for entry in SpatialHash.instance._grid[key]:
             if entry.node != _parent:
-                if _is_infantry and entry.entity_type == EntityData.EntityType.INFANTRY:
+                var entry_mc := entry.mc as MovementController
+                if _shares_cell and entry_mc and entry_mc.shares_cell():
                     continue
                 return true
     return false

@@ -138,7 +138,7 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
     _pending_moves.clear()
     _pending_index = 0
 
-    var infantry: Array[SelectComponent] = []
+    var sharers: Array[SelectComponent] = []
     var vehicles: Array[SelectComponent] = []
 
     # Snapshot — undeploy mutates selected_entities mid-loop
@@ -159,19 +159,19 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
         if deploy and deploy.can_undeploy():
             continue
 
-        var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
-        if stats and stats.entity_type == EntityData.EntityType.INFANTRY:
-            infantry.append(ent)
+        var mc := parent.get_node_or_null("MovementController") as MovementController
+        if mc and mc.shares_cell():
+            sharers.append(ent)
         else:
             vehicles.append(ent)
 
-    for inf in infantry:
-        var parent := inf.get_parent() as Node3D
+    for sharer in sharers:
+        var parent := sharer.get_parent() as Node3D
         if not is_instance_valid(parent):
             continue
-        var assigned_cell := _find_infantry_cell(target_position)
+        var assigned_cell := _find_sharer_cell(target_position)
         var cell_center := CellUtil.cell_to_world(assigned_cell)
-        _pending_moves.append([inf, cell_center])
+        _pending_moves.append([sharer, cell_center])
 
     for ent in vehicles:
         var parent := ent.get_parent() as Node3D
@@ -292,7 +292,7 @@ func request_set_rally_point(target_position: Vector3) -> void:
             rally.set_rally_point(cell)
 
 
-func _find_infantry_cell(target_position: Vector3) -> Vector2i:
+func _find_sharer_cell(target_position: Vector3) -> Vector2i:
     var target := CellUtil.world_to_cell(target_position)
     return CellUtil.spiral_first_free(
         target,

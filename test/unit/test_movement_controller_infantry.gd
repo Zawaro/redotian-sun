@@ -2,6 +2,7 @@ extends Node
 
 # MovementController tests — crush mechanics, cursor resolution, and order generation
 
+var _ts: Node = null
 var _test_passed := 0
 var _test_failed := 0
 
@@ -375,3 +376,62 @@ func test_full_cell_spreads_to_neighbor():
         owner.queue_free()
     entity.queue_free()
     TestHelper.assert_true(spread, "full cell spreads to a neighbor")
+
+
+func test_non_infantry_sharer_books_sub_slot():
+    var cr := CellReservation.instance
+    var sh := SpatialHash.instance
+    if cr == null or sh == null or _ts == null:
+        _test_failed += 1
+        print("    FAIL: CellReservation/SpatialHash/TerrainSystem not available")
+        return
+    cr.clear()
+    _ts.init_grid(50, 50)
+    var cell := Vector2i(40, 40)
+    var entity := Node3D.new()
+    var stats := StatsComponent.new()
+    stats.entity_type = EntityData.EntityType.VEHICLE
+    entity.add_child(stats)
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    mc._shares_cell = true
+    _ts.add_child(entity)
+    mc.set_target_position(CellUtil.cell_to_world(cell))
+    var claim: int = cr.get_claim_count(cell)
+    cr.clear()
+    _ts.remove_child(entity)
+    entity.queue_free()
+    if claim >= 1:
+        _test_passed += 1
+        print("    PASS: non-infantry shares_cell unit books a sub-slot")
+    else:
+        _test_failed += 1
+        print("    FAIL: non-infantry shares_cell unit books a sub-slot")
+
+
+func test_non_sharing_vehicle_does_not_book():
+    var cr := CellReservation.instance
+    if cr == null or SpatialHash.instance == null or _ts == null:
+        _test_failed += 1
+        print("    FAIL: CellReservation/SpatialHash/TerrainSystem not available")
+        return
+    cr.clear()
+    _ts.init_grid(50, 50)
+    var cell := Vector2i(45, 45)
+    var entity := Node3D.new()
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    _ts.add_child(entity)
+    mc.set_target_position(CellUtil.cell_to_world(cell))
+    var claim: int = cr.get_claim_count(cell)
+    cr.clear()
+    _ts.remove_child(entity)
+    entity.queue_free()
+    if claim == 0:
+        _test_passed += 1
+        print("    PASS: non-sharing vehicle books no sub-slot")
+    else:
+        _test_failed += 1
+        print("    FAIL: expected 0 claims, got %d" % claim)

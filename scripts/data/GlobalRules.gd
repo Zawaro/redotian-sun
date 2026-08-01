@@ -89,6 +89,10 @@ class_name GlobalRules extends Resource
 ## Weight threshold for breakable-surface (ice) damage, from rules.ini [General].
 @export var ice_cracking_weight: float = 2.0
 
+@export_group("Cell Occupancy")
+## Max units whose Locomotor has shares_cell = true that may occupy one cell.
+@export var shared_slots_per_cell: int = 3
+
 @export_group("Land Types")
 ## Land type registry — maps land type id to LandType resource.
 @export var land_types: Dictionary = {}
@@ -184,6 +188,15 @@ func validate_warhead_armor_keys() -> PackedStringArray:
         var wh := warhead as WarheadData
         if wh:
             errors.append_array(wh.validate_against_armor(armor_ids))
+    return errors
+
+
+## Validates the cell-occupancy configuration. Returns errors when the shared
+## per-cell slot count is below the minimum of 1.
+func validate_cell_occupancy() -> PackedStringArray:
+    var errors: PackedStringArray = []
+    if shared_slots_per_cell < 1:
+        errors.append("shared_slots_per_cell must be >= 1, got %d" % shared_slots_per_cell)
     return errors
 
 

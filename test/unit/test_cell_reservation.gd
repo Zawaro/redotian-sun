@@ -178,14 +178,14 @@ func test_present_occupant_slot_counts_toward_capacity():
             "player_id": 0,
         },
     ]
-    sh._infantry_cell_counts[key] = 1
+    sh._shared_cell_counts[key] = 1
     var a := _make_owner()
     var b := _make_owner()
     var slot_a: int = cr.reserve_sub_slot(cell, a)
     var slot_b: int = cr.reserve_sub_slot(cell, b)
     var full: bool = cr.is_cell_full(cell)
     sh._grid.erase(key)
-    sh._infantry_cell_counts.erase(key)
+    sh._shared_cell_counts.erase(key)
     cr.clear()
     present_mc.queue_free()
     present_root.queue_free()

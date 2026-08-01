@@ -51,14 +51,25 @@ func _make_target_of_type(player_id: int, entity_type: int) -> Node3D:
     return entity
 
 
+func _infantry_like(mc: MovementController) -> void:
+    mc._shares_cell = true
+    mc._stand_upright = true
+    mc._instant_turn = true
+    mc._organic_path = true
+
+
 func _make_jumpjet_combat() -> Array:
     var entity := _make_combat_entity(true, 0)
     var mc := MovementController.new()
     mc.name = "MovementController"
     mc._is_jumpjet = true
-    mc._is_infantry = true
+    _infantry_like(mc)
     mc._locomotor_data = Locomotor.new()
     mc._locomotor_data.is_jumpjet = true
+    mc._locomotor_data.shares_cell = true
+    mc._locomotor_data.stand_upright = true
+    mc._locomotor_data.instant_turn = true
+    mc._locomotor_data.organic_path = true
     entity.add_child(mc)
     var cc := entity.get_node("CombatComponent") as CombatComponent
     return [entity, mc, cc]

@@ -19,6 +19,15 @@ class_name Locomotor extends Resource
 @export var is_jumpjet: bool = false
 ## Subterranean: travels on the surface, digs when the target is far or unreachable.
 @export var is_subterranean: bool = false
+## Shares a cell with other sharing units, booking a sub-slot up to the
+## configured per-cell capacity (GlobalRules.shared_slots_per_cell).
+@export var shares_cell: bool = false
+## Stands upright (facing normal Vector3.UP) instead of banking with terrain.
+@export var stand_upright: bool = false
+## Turns instantly (IDLE → MOVING) instead of rotating in place first.
+@export var instant_turn: bool = false
+## Smooths the walk path and eases spline segment ends.
+@export var organic_path: bool = false
 
 @export_group("Hybrid Thresholds")
 ## Hover height in world units; 0 = use GlobalRules.hover_height.
