@@ -4,6 +4,7 @@ extends Node
 
 var _sm: Node = null
 var _pm: Node = null
+var _ts: Node = null
 var _test_passed := 0
 var _test_failed := 0
 
@@ -254,6 +255,80 @@ func test_jumpjet_attack_repulsion_separates_two():
     TestHelper.assert_true(in_range2, "second attacker stays within weapon range")
     TestHelper.assert_true(
         dest1.distance_to(dest2) > 0.5, "two attackers nudge apart instead of stacking"
+    )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+
+
+func test_grounded_jumpjet_far_attack_takes_off():
+    var root: Node = Engine.get_main_loop().root
+    var pair: Array = _make_jumpjet_combat()
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    var cc: CombatComponent = pair[2]
+    root.add_child(entity)
+    mc._parent = entity
+    mc._state = MovementController.State.IDLE
+    mc._vertical_state = MovementController.VerticalState.GROUND
+    mc._locomotor_data.jumpjet_fly_distance = 10.0
+    mc._locomotor_data.terrain_speeds = {"clear": 1.0, "rough": 0.89}
+    if _ts:
+        _ts.init_grid(50, 50)
+    entity.global_position = Vector3(0.0, 0.0, 0.0)
+    var target := _make_target(1)
+    root.add_child(target)
+    target.global_position = Vector3(40.0, 0.0, 0.0)
+    cc.set_target(target)
+    cc._move_toward_target()
+    var hybrid: bool = mc._hybrid_active
+    var zone: int = mc._vertical_state
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(hybrid, "grounded jumpjet far attack uses the fly path")
+    (
+        TestHelper
+        . assert_true(
+            zone != MovementController.VerticalState.GROUND,
+            "grounded jumpjet far attack takes off (ascends)",
+        )
+    )
+    _test_passed += TestHelper._passed
+    _test_failed += TestHelper._failed
+    TestHelper.reset()
+
+
+func test_grounded_jumpjet_near_attack_walks():
+    var root: Node = Engine.get_main_loop().root
+    var pair: Array = _make_jumpjet_combat()
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    var cc: CombatComponent = pair[2]
+    root.add_child(entity)
+    mc._parent = entity
+    mc._state = MovementController.State.IDLE
+    mc._vertical_state = MovementController.VerticalState.GROUND
+    mc._locomotor_data.jumpjet_fly_distance = 10.0
+    mc._locomotor_data.terrain_speeds = {"clear": 1.0, "rough": 0.89}
+    if _ts:
+        _ts.init_grid(50, 50)
+    entity.global_position = Vector3(0.0, 0.0, 0.0)
+    var target := _make_target(1)
+    root.add_child(target)
+    target.global_position = Vector3(5.0, 0.0, 0.0)
+    cc.set_target(target)
+    cc._move_toward_target()
+    var hybrid: bool = mc._hybrid_active
+    var zone: int = mc._vertical_state
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_eq(hybrid, false, "grounded jumpjet near attack walks")
+    TestHelper.assert_eq(
+        zone, MovementController.VerticalState.GROUND, "near attack stays grounded"
     )
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed

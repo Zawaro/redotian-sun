@@ -292,6 +292,12 @@ func set_target_position(
     if _is_jumpjet and _locomotor_data:
         if keep_zone:
             fly_move = _vertical_state != VerticalState.GROUND
+            # A grounded jumpjet ordered far still takes off even when the
+            # caller asked to keep the zone (e.g. combat approach to a distant
+            # target), matching the normal-move fly-when-far rule.
+            if not fly_move and _locomotor_data.jumpjet_fly_distance > 0.0:
+                var fly_dist := _parent.global_position.distance_to(target)
+                fly_move = fly_dist > _locomotor_data.jumpjet_fly_distance
         elif _vertical_state != VerticalState.GROUND:
             fly_move = true
         else:
