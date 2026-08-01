@@ -360,7 +360,7 @@ func test_full_cell_spreads_to_neighbor():
     cr.clear()
     var target := Vector2i(30, 30)
     var owners: Array[Node3D] = []
-    for i in CellReservation.NUM_SLOTS:
+    for i in CellSubPositions.get_slot_count():
         var owner := Node3D.new()
         add_child(owner)
         owners.append(owner)

@@ -1,10 +1,8 @@
 class_name CellReservation extends Node
 
-## Single source of truth for in-flight infantry sub-slot claims.
+## Single source of truth for in-flight sharer sub-slot claims.
 ## Present occupancy is derived from the SpatialHash grid; this registry holds
 ## claims only for units en route to a cell (the "coming" half of the split).
-
-const NUM_SLOTS: int = CellSubPositions.NUM_SLOTS
 
 static var instance: CellReservation
 

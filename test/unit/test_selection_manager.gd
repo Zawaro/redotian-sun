@@ -290,7 +290,7 @@ func test_find_sharer_cell_at_capacity():
     CellReservation.instance.clear()
     var target := Vector2i(10, 10)
     var claimers: Array[Node3D] = []
-    for i in CellReservation.NUM_SLOTS:
+    for i in CellSubPositions.get_slot_count():
         var claimer := Node3D.new()
         add_child(claimer)
         claimers.append(claimer)
