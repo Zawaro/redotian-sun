@@ -210,6 +210,11 @@ func register_bib_cells(cells: Array[Vector2i]) -> void:
         _bib_cells[CellUtil.cell_key(cell)] = true
 
 
+func unregister_bib_cells(cells: Array[Vector2i]) -> void:
+    for cell in cells:
+        _bib_cells.erase(CellUtil.cell_key(cell))
+
+
 func is_bib_cell(cell: Vector2i) -> bool:
     return _bib_cells.has(CellUtil.cell_key(cell))
 

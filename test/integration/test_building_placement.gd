@@ -95,11 +95,51 @@ func test_pathfinder_routes_around_centered_building_cell() -> void:
         )
 
 
-func test_foundation_component_does_not_register_cells_on_ready():
+func test_building_foundation_registers_cells_on_ready():
+    SpatialHash.instance._building_cells.clear()
+    TerrainSystem.init_grid(64, 64)
+    var origin := Vector2i(60, 60)
+    var entity := Node3D.new()
+    entity.name = "TestBuilding"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.entity_type = EntityData.EntityType.BUILDING
+    entity.add_child(stats)
+    var fc := FoundationComponent.new()
+    fc.foundation = Vector2i(3, 3)
+    entity.add_child(fc)
+    entity.position = CellUtil.cell_origin_to_world(origin, fc.foundation)
+    SpatialHash.instance.add_child(entity)
+    var sh := SpatialHash.instance
+    var blocked := sh.get_blocked_cells()
+    var has_origin: bool = blocked.has(CellUtil.cell_key(origin))
+    var has_edge: bool = blocked.has(CellUtil.cell_key(origin + Vector2i(2, 2)))
+    SpatialHash.instance.remove_child(entity)
+    var cleared: bool = not sh.get_blocked_cells().has(CellUtil.cell_key(origin))
+    entity.free()
+    SpatialHash.instance._building_cells.clear()
+    if has_origin and has_edge and cleared:
+        _test_passed += 1
+        print("    PASS: building FoundationComponent registers foundation cells on _ready")
+    else:
+        _test_failed += 1
+        print(
+            (
+                "    FAIL: has_origin=%s has_edge=%s cleared=%s (should all be true)"
+                % [has_origin, has_edge, cleared]
+            )
+        )
+
+
+func test_non_building_foundation_does_not_register_cells():
     SpatialHash.instance._building_cells.clear()
     TerrainSystem.init_grid(64, 64)
     var entity := Node3D.new()
-    entity.name = "TestBuilding"
+    entity.name = "TestUnit"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.entity_type = EntityData.EntityType.VEHICLE
+    entity.add_child(stats)
     var fc := FoundationComponent.new()
     fc.foundation = Vector2i(3, 3)
     entity.add_child(fc)
@@ -112,7 +152,103 @@ func test_foundation_component_does_not_register_cells_on_ready():
     SpatialHash.instance._building_cells.clear()
     if building_cell_count == 0:
         _test_passed += 1
-        print("    PASS: FoundationComponent does not register cells on _ready")
+        print("    PASS: non-building FoundationComponent does not register cells")
     else:
         _test_failed += 1
-        print("    FAIL: FC registered %d cells on _ready (should be 0)" % building_cell_count)
+        print(
+            "    FAIL: FC registered %d cells for non-building (should be 0)" % building_cell_count
+        )
+
+
+func test_preview_building_does_not_register_cells():
+    SpatialHash.instance._building_cells.clear()
+    TerrainSystem.init_grid(64, 64)
+    var entity := Node3D.new()
+    entity.name = "TestPreview"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.entity_type = EntityData.EntityType.BUILDING
+    entity.add_child(stats)
+    var fc := FoundationComponent.new()
+    fc.foundation = Vector2i(3, 3)
+    entity.add_child(fc)
+    entity.set_meta("_preview", true)
+    entity.position = Vector3(11.0, 0.0, 11.0)
+    SpatialHash.instance.add_child(entity)
+    var sh := SpatialHash.instance
+    var building_cell_count := sh.get_building_cells().size()
+    SpatialHash.instance.remove_child(entity)
+    entity.free()
+    SpatialHash.instance._building_cells.clear()
+    if building_cell_count == 0:
+        _test_passed += 1
+        print("    PASS: preview building FoundationComponent does not register cells")
+    else:
+        _test_failed += 1
+        print("    FAIL: preview FC registered %d cells (should be 0)" % building_cell_count)
+
+
+func test_map_loaded_building_registers_foundation_cells():
+    SpatialHash.instance._building_cells.clear()
+    TerrainSystem.init_grid(64, 64)
+    var building := EntityFactory.create_entity("GDI_CONSTRUCTION_YARD")
+    if building == null:
+        _test_failed += 1
+        print("    FAIL: EntityFactory could not create GDI_CONSTRUCTION_YARD")
+        return
+    var origin := Vector2i(60, 60)
+    building.position = CellUtil.cell_origin_to_world(origin, Vector2i(3, 3))
+    SpatialHash.instance.add_child(building)
+    var sh := SpatialHash.instance
+    var blocked := sh.get_blocked_cells()
+    var has_origin: bool = blocked.has(CellUtil.cell_key(origin))
+    var has_center: bool = blocked.has(CellUtil.cell_key(origin + Vector2i(1, 1)))
+    var has_corner: bool = blocked.has(CellUtil.cell_key(origin + Vector2i(2, 2)))
+    SpatialHash.instance.remove_child(building)
+    building.free()
+    SpatialHash.instance._building_cells.clear()
+    if has_origin and has_center and has_corner:
+        _test_passed += 1
+        print("    PASS: map-loaded building registers all 3x3 foundation cells")
+    else:
+        _test_failed += 1
+        print(
+            (
+                "    FAIL: origin=%s center=%s corner=%s (should all be true)"
+                % [has_origin, has_center, has_corner]
+            )
+        )
+
+
+func test_map_loaded_building_blocks_pathfinding():
+    SpatialHash.instance._building_cells.clear()
+    TerrainSystem.init_grid(64, 64)
+    var building := EntityFactory.create_entity("GDI_CONSTRUCTION_YARD")
+    if building == null:
+        _test_failed += 1
+        print("    FAIL: EntityFactory could not create GDI_CONSTRUCTION_YARD")
+        return
+    var origin := Vector2i(60, 60)
+    building.position = CellUtil.cell_origin_to_world(origin, Vector2i(3, 3))
+    SpatialHash.instance.add_child(building)
+    var blocked: Dictionary = SpatialHash.instance.get_blocked_cells()
+    var start_world: Vector3 = CellUtil.cell_to_world(Vector2i(57, 60))
+    var end_world: Vector3 = CellUtil.cell_to_world(Vector2i(63, 60))
+    var path: PackedVector3Array = Pathfinder.find_path(start_world, end_world, blocked)
+    var avoids_building := not path.is_empty()
+    var bad_cell: Vector2i = Vector2i.ZERO
+    for waypoint: Vector3 in path:
+        var cell: Vector2i = CellUtil.world_to_cell(waypoint)
+        if blocked.has(CellUtil.cell_key(cell)):
+            avoids_building = false
+            bad_cell = cell
+            break
+    SpatialHash.instance.remove_child(building)
+    building.free()
+    SpatialHash.instance._building_cells.clear()
+    if avoids_building:
+        _test_passed += 1
+        print("    PASS: pathfinder routes around map-loaded building foundation")
+    else:
+        _test_failed += 1
+        print("    FAIL: path=%s bad_cell=%s (should route around building)" % [path, bad_cell])
