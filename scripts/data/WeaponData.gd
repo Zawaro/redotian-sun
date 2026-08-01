@@ -27,6 +27,9 @@ class_name WeaponData extends Resource
 @export var barrel_length: float = 0.0
 
 ## Targeting flags
+## ponytail: anti_air / anti_ground are data-only today — CombatComponent has a
+## TODO to check them when choosing targets. JumpCannon sets both true so jumpjets
+## can engage ground and air; enforcement is a future targeting pass.
 @export_group("Targeting Flags")
 @export var anti_air: bool = false
 @export var anti_ground: bool = true

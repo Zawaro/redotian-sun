@@ -112,7 +112,7 @@ func _get_veteran_speed_mult(veteran_level: int) -> float:
     return _rules.get_veteran_speed_multiplier(veteran_level)
 
 
-func _slope_coefficient(_direction: Vector3) -> float:
+func _slope_coefficient() -> float:
     if not _rules or _is_hover:
         return 1.0
     var uphill: float
@@ -314,13 +314,9 @@ func set_target_position(
                     target = _sub_slot_position
             else:
                 target = _sub_slot_position
-        if keep_zone:
-            # Attack approaches keep CombatComponent's (clamped) stop position
-            # exactly so it stays within weapon range; spread is the repulsion's
-            # job.
-            path = PackedVector3Array([target])
-        else:
-            path = PackedVector3Array([target])
+        # `target` is the exact stop position (clamped attack approach) or the
+        # booked landing sub-slot; both are single straight-line fly segments.
+        path = PackedVector3Array([target])
     else:
         # Ground move: normal infantry booking, then walk pathfinding.
         if _is_cell_occupied_by_idle(target_cell):
@@ -559,7 +555,7 @@ func _handle_moving_movement(delta: float) -> void:
         * _speed_jitter
         * speed_factor
         * _veteran_speed_mult
-        * _slope_coefficient(final_direction)
+        * _slope_coefficient()
         * _terrain_speed_factor()
         * delta
     )
@@ -591,7 +587,7 @@ func _handle_moving_movement(delta: float) -> void:
                 move_speed
                 * _vertical_split_factor()
                 * _veteran_speed_mult
-                * _slope_coefficient(approach_direction)
+                * _slope_coefficient()
                 * _terrain_speed_factor()
                 * delta
             )

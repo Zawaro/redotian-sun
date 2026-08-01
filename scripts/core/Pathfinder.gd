@@ -1,24 +1,6 @@
 class_name Pathfinder
 
 
-static func cell_to_world_with_height(cell: Vector2i) -> Vector3:
-    var height := get_terrain_height(cell)
-    var pos := CellUtil.cell_to_world(cell)
-    pos.y = height
-    return pos
-
-
-static func get_terrain_height(cell: Vector2i) -> float:
-    var tree: SceneTree = Engine.get_main_loop() as SceneTree
-    if not tree:
-        return 0.0
-    var ts: Node = tree.root.get_node_or_null("TerrainSystem")
-    if not ts:
-        return 0.0
-    var world_pos := CellUtil.cell_to_world(cell)
-    return ts.get_height_at_world(world_pos)
-
-
 ## Resolves the TerrainSystem autoload once per pathfinding call (hot path).
 static func _get_terrain_system() -> Node:
     var tree: SceneTree = Engine.get_main_loop() as SceneTree
