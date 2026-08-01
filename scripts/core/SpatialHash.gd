@@ -25,6 +25,11 @@ func rebuild() -> void:
     _blocked_cells.clear()
     _infantry_cell_counts.clear()
     _ice_cells.clear()
+    # ponytail: ice spawned mid-game by EntityFactory._add_ice_component only
+    # joins _ice_cells on the next rebuild (rebuild() runs every physics frame),
+    # so a freshly spawned ice block has a 1-frame window without passability
+    # override / weight damage. Map ice is scene-placed before the first rebuild,
+    # so this only matters for runtime ice spawning.
     for ice in get_tree().get_nodes_in_group("ice"):
         var ice_root := ice as Node3D
         if not is_instance_valid(ice_root):

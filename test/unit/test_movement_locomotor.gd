@@ -194,7 +194,7 @@ func test_slope_probe_uphill():
         _ts._vertex_grid[v.x][v.y] = 3
     mc._waypoints = [Vector3.ZERO, CellUtil.cell_to_world(Vector2i(51, 50))]
     mc._spline_t = 0.0
-    var coeff: float = mc._slope_coefficient(Vector3.FORWARD)
+    var coeff: float = mc._slope_coefficient()
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(coeff, 0.5), "tracked uphill -> 0.5")
@@ -220,7 +220,7 @@ func test_slope_probe_downhill():
         _ts._vertex_grid[v.x][v.y] = 3
     mc._waypoints = [Vector3.ZERO, CellUtil.cell_to_world(Vector2i(51, 50))]
     mc._spline_t = 0.0
-    var coeff: float = mc._slope_coefficient(Vector3.FORWARD)
+    var coeff: float = mc._slope_coefficient()
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(coeff, 1.1), "tracked downhill -> 1.1")
@@ -240,7 +240,7 @@ func test_slope_probe_flat():
     mc.locomotor = "Track"
     mc._waypoints = [Vector3.ZERO, CellUtil.cell_to_world(Vector2i(51, 50))]
     mc._spline_t = 0.0
-    var coeff: float = mc._slope_coefficient(Vector3.FORWARD)
+    var coeff: float = mc._slope_coefficient()
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(coeff, 1.0), "flat segment -> no coefficient")
