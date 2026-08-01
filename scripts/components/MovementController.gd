@@ -5,6 +5,7 @@ signal movement_started
 signal pathfinding_failed
 
 enum State { IDLE, ROTATING, MOVING, WAIT }
+enum VerticalState { GROUND, ASCENDING, AIR, DESCENDING }
 
 @export_group("Movement")
 @export var move_speed: float = 8.0
@@ -32,6 +33,7 @@ static var _scattered_this_frame: Dictionary = {}
 static var _last_physics_frame: int = -1
 
 var _state: State = State.IDLE
+var _vertical_state: VerticalState = VerticalState.GROUND
 var _waypoints: PackedVector3Array = PackedVector3Array()
 var _spline_t: float = 0.0
 var _rotation_target: Node3D
@@ -53,10 +55,12 @@ var _veteran_speed_mult: float = 1.0
 var _rules: GlobalRules = null
 var _locomotor_data: Locomotor = null
 var _hover_height: float = 0.0
+var _jumpjet_air_height: float = 0.0
 var _is_hover: bool = false
 var _is_jumpjet: bool = false
 var _is_subterranean: bool = false
 var _hybrid_active: bool = false
+var _land_on_arrival: bool = false
 var _ice_cracking_weight: float = 2.0
 var _weight: float = 1.0
 
@@ -96,6 +100,7 @@ func _resolve_locomotor() -> void:
         _hover_height = _locomotor_data.hover_height_override
     else:
         _hover_height = float(_rules.hover_height) * (CellUtil.CELL_SIZE / 256.0)
+    _jumpjet_air_height = _locomotor_data.jumpjet_target_height * TerrainSystem.HEIGHT_STEP
     _ice_cracking_weight = _rules.ice_cracking_weight
 
 
@@ -137,12 +142,33 @@ func _slope_coefficient(_direction: Vector3) -> float:
 func _terrain_speed_factor() -> float:
     if not _locomotor_data or _locomotor_data.is_fly:
         return 1.0
+    if _is_jumpjet and _vertical_state != VerticalState.GROUND:
+        return 1.0
     var cell := CellUtil.world_to_cell(_parent.global_position)
     return _locomotor_data.get_speed_multiplier(TerrainSystem.get_land_type(cell))
 
 
 func _is_floating() -> bool:
-    return _is_hover or (_is_jumpjet and _hybrid_active)
+    if _is_hover:
+        return true
+    return _is_jumpjet and _vertical_state != VerticalState.GROUND
+
+
+## Split factor while a jumpjet vertically transitions (ascend/descend) at the
+## same time as moving forward: each axis gets 50% of move_speed. Pure vertical
+## transitions (idle landing) keep full speed.
+func _vertical_split_factor() -> float:
+    if not _is_jumpjet:
+        return 1.0
+    if _vertical_state != VerticalState.ASCENDING and _vertical_state != VerticalState.DESCENDING:
+        return 1.0
+    if _state == State.IDLE:
+        return 1.0
+    return 0.5
+
+
+func is_airborne_jumpjet() -> bool:
+    return _is_jumpjet and _vertical_state != VerticalState.GROUND
 
 
 func _num_segments() -> int:
@@ -175,7 +201,7 @@ func stop() -> void:
         var seg := _spline_segment()
         var next_idx := mini(seg + 1, _waypoints.size() - 1)
         var next_waypoint := _waypoints[next_idx]
-        if _is_infantry:
+        if _is_infantry and not (_is_jumpjet and _vertical_state != VerticalState.GROUND):
             var current_cell := CellUtil.world_to_cell(_parent.global_position)
             _assign_sub_slot_at_cell(current_cell)
             if _has_sub_slot:
@@ -207,6 +233,7 @@ func _finish_stop() -> void:
     _spline_t = 0.0
     _has_sub_slot = false
     _hybrid_active = false
+    _land_on_arrival = false
     _state = State.IDLE
     SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
     CellReservation.instance.release_all(_parent)
@@ -214,7 +241,24 @@ func _finish_stop() -> void:
         DebugVisualizer.clear_path(get_path())
 
 
-func set_target_position(target: Vector3, unblock_buildings: bool = false) -> void:
+## Cancels an airborne jumpjet's current move without losing its air zone, so a
+## new order (e.g. an attack) resumes from the air instead of landing first.
+func cancel_move_retain_vertical() -> void:
+    if not is_airborne_jumpjet():
+        return
+    if _state != State.IDLE:
+        _finish_stop()
+
+
+## `internal` marks re-targets issued by this controller itself (repair,
+## blocked-arrival settle, wait scatter, nudges) rather than new player orders;
+## those do not emit `movement_started`.
+func set_target_position(
+    target: Vector3,
+    unblock_buildings: bool = false,
+    keep_zone: bool = false,
+    internal: bool = false,
+) -> void:
     if (
         is_nan(target.x)
         or is_nan(target.y)
@@ -226,43 +270,107 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
         printerr("[MovementController] Ignoring invalid target position: ", target)
         return
 
-    movement_started.emit()
+    if not internal:
+        movement_started.emit()
 
     var target_cell := CellUtil.world_to_cell(target)
-    if _is_cell_occupied_by_idle(target_cell):
-        var free := _find_nearest_free_cell(target_cell)
-        target = CellUtil.cell_to_world(free)
-        target_cell = free
 
-    if _is_infantry:
-        _assign_sub_slot_at_cell(target_cell)
-        if not _has_sub_slot:
-            var free_cell := _find_nearest_free_sub_slot_cell(target_cell)
-            _assign_sub_slot_at_cell(free_cell)
-            if _has_sub_slot:
-                target = _sub_slot_position
-        else:
-            target = _sub_slot_position
-
-    var blocked := _build_blocked_cells(unblock_buildings)
-    var path: PackedVector3Array = Pathfinder.find_path(
-        _parent.global_position, target, blocked, _locomotor_data
-    )
-
-    var hybrid_fallback := false
+    # Jumpjet flight decision before any ground booking: fly when airborne,
+    # when attacking from the air, or when the target is far; otherwise walk
+    # on the ground like infantry (default zone GROUND).
+    var fly_move := false
     if _is_jumpjet and _locomotor_data:
-        var fly_dist := _parent.global_position.distance_to(target)
-        var fly_threshold: float = _locomotor_data.jumpjet_fly_distance
-        if path.is_empty() or (fly_threshold > 0.0 and fly_dist > fly_threshold):
-            hybrid_fallback = true
-    elif _is_subterranean and _locomotor_data:
-        var dig_dist := _parent.global_position.distance_to(target)
-        var dig_threshold: float = _locomotor_data.subterranean_dig_distance
-        if path.is_empty() or (dig_threshold > 0.0 and dig_dist > dig_threshold):
-            hybrid_fallback = true
+        if keep_zone:
+            fly_move = _vertical_state != VerticalState.GROUND
+        elif _vertical_state != VerticalState.GROUND:
+            fly_move = true
+        else:
+            var fly_dist := _parent.global_position.distance_to(target)
+            var fly_threshold: float = _locomotor_data.jumpjet_fly_distance
+            fly_move = fly_threshold > 0.0 and fly_dist > fly_threshold
 
-    if hybrid_fallback:
-        path = PackedVector3Array([target])
+    var path: PackedVector3Array
+    var blocked: Dictionary = {}
+    var hybrid_fallback := false
+
+    if fly_move:
+        # Air move: straight line to the target, no path-cell booking. When the
+        # move will land (not keep_zone), reserve a sub-slot at the landing cell
+        # so the jumpjet descends onto a sub-slot instead of the cell center.
+        _has_sub_slot = false
+        hybrid_fallback = true
+        if _is_infantry and not keep_zone:
+            # Never fly into an occupied landing cell: relocate up front, like
+            # the ground branch, before booking so arrival is clean.
+            if _is_cell_occupied_by_idle(target_cell):
+                var free := _find_nearest_free_cell(target_cell)
+                target = CellUtil.cell_to_world(free)
+                target_cell = free
+            _assign_sub_slot_at_cell(target_cell)
+            if not _has_sub_slot:
+                var free_cell := _find_nearest_free_sub_slot_cell(target_cell)
+                _assign_sub_slot_at_cell(free_cell)
+                if _has_sub_slot:
+                    target = _sub_slot_position
+            else:
+                target = _sub_slot_position
+        if keep_zone:
+            # Attack approaches keep CombatComponent's (clamped) stop position
+            # exactly so it stays within weapon range; spread is the repulsion's
+            # job.
+            path = PackedVector3Array([target])
+        else:
+            path = PackedVector3Array([target])
+    else:
+        # Ground move: normal infantry booking, then walk pathfinding.
+        if _is_cell_occupied_by_idle(target_cell):
+            var free := _find_nearest_free_cell(target_cell)
+            target = CellUtil.cell_to_world(free)
+            target_cell = free
+        if _is_infantry:
+            _assign_sub_slot_at_cell(target_cell)
+            if not _has_sub_slot:
+                var free_cell := _find_nearest_free_sub_slot_cell(target_cell)
+                _assign_sub_slot_at_cell(free_cell)
+                target_cell = free_cell
+                if _has_sub_slot:
+                    target = _sub_slot_position
+            else:
+                target = _sub_slot_position
+
+        blocked = _build_blocked_cells(unblock_buildings)
+        path = Pathfinder.find_path(_parent.global_position, target, blocked, _locomotor_data)
+
+        if _is_jumpjet and _locomotor_data:
+            if path.is_empty():
+                var same_cell := (
+                    CellUtil.world_to_cell(_parent.global_position)
+                    == CellUtil.world_to_cell(target)
+                )
+                if same_cell:
+                    # Already at the target cell: settle into the sub-slot on
+                    # the ground instead of taking off.
+                    path = PackedVector3Array([target])
+                else:
+                    # Unreachable on foot: fly straight to the target, then land.
+                    hybrid_fallback = true
+                    path = PackedVector3Array([target])
+        elif _is_subterranean and _locomotor_data:
+            var dig_dist := _parent.global_position.distance_to(target)
+            var dig_threshold: float = _locomotor_data.subterranean_dig_distance
+            if path.is_empty() or (dig_threshold > 0.0 and dig_dist > dig_threshold):
+                hybrid_fallback = true
+                path = PackedVector3Array([target])
+
+    if _is_jumpjet:
+        if _vertical_state == VerticalState.DESCENDING:
+            hybrid_fallback = true
+        var desired_zone: VerticalState = (
+            VerticalState.AIR if hybrid_fallback else VerticalState.GROUND
+        )
+        _apply_zone_desire(desired_zone)
+
+    _land_on_arrival = _is_jumpjet and hybrid_fallback and not keep_zone
     _hybrid_active = hybrid_fallback
 
     if path.is_empty():
@@ -270,12 +378,12 @@ func set_target_position(target: Vector3, unblock_buildings: bool = false) -> vo
         pathfinding_failed.emit()
         return
 
-    if _is_infantry and path.size() > 2:
+    if _is_infantry and path.size() > 2 and not hybrid_fallback:
         path = Pathfinder.smooth_path(path, blocked)
 
-    if _is_infantry and _has_sub_slot and path.size() > 0:
+    if _is_infantry and _has_sub_slot and path.size() > 0 and not hybrid_fallback:
         path[path.size() - 1] = _sub_slot_position
-    if _is_infantry and path.size() > 1:
+    if _is_infantry and path.size() > 1 and not hybrid_fallback:
         for i in range(0, path.size() - 1):
             var wp_cell := CellUtil.world_to_cell(path[i])
             var wp_positions := CellSubPositions.get_sub_positions(wp_cell)
@@ -335,8 +443,11 @@ func _physics_process(delta: float) -> void:
         State.WAIT:
             _handle_wait(delta)
         State.IDLE:
-            var idle_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
-            _parent.global_position.y = idle_y + (_hover_height if _is_floating() else 0.0)
+            if _is_jumpjet:
+                _update_vertical(delta)
+            else:
+                var idle_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+                _parent.global_position.y = idle_y + (_hover_height if _is_floating() else 0.0)
 
 
 func _handle_rotating(delta: float) -> void:
@@ -368,6 +479,13 @@ func _handle_moving_movement(delta: float) -> void:
     var seg_begin := _get_spline_pos(float(seg))
     var seg_end := _get_spline_pos(float(seg + 1))
     var seg_length := seg_begin.distance_to(seg_end)
+    # Floating units move horizontally while their Y is owned by the vertical
+    # state machine (`_update_vertical` / hover float). Using the 3D segment
+    # length here would let `_spline_t` reach the path end after travelling more
+    # horizontal distance than the destination needs — overshooting past the
+    # stop and then gliding back (the "bounce"). Measure on the XZ plane instead.
+    if _is_floating():
+        seg_length = Vector2(seg_begin.x - seg_end.x, seg_begin.z - seg_end.z).length()
     if seg_length < 0.01:
         seg_length = 0.01
 
@@ -376,8 +494,13 @@ func _handle_moving_movement(delta: float) -> void:
         if _repair_time >= REPAIR_INTERVAL:
             _repair_time = 0.0
             var next_cell := CellUtil.world_to_cell(_waypoints[seg + 1])
-            if _is_cell_occupied_by_idle(next_cell):
-                set_target_position(_waypoints[_waypoints.size() - 1])
+            if (
+                not (_is_jumpjet and _vertical_state != VerticalState.GROUND)
+                and _is_cell_occupied_by_idle(next_cell)
+            ):
+                set_target_position(
+                    _waypoints[_waypoints.size() - 1], false, not _land_on_arrival, true
+                )
                 return
 
     var parent_pos := _parent.global_position
@@ -432,6 +555,7 @@ func _handle_moving_movement(delta: float) -> void:
     var step := (
         final_direction
         * move_speed
+        * _vertical_split_factor()
         * _speed_jitter
         * speed_factor
         * _veteran_speed_mult
@@ -444,24 +568,47 @@ func _handle_moving_movement(delta: float) -> void:
     if _spline_t >= float(_num_segments()):
         _spline_t = float(_num_segments())
         var final_cell := CellUtil.world_to_cell(final_pos)
-        if _is_cell_occupied_by_idle(final_cell):
-            _state = State.WAIT
+        # An airborne attack hold hovers at its in-range stop position regardless
+        # of what occupies the ground cell below — re-targeting would push it off
+        # the range circle and make it bounce back. Only landing moves (and ground
+        # movers) re-target off a blocked cell.
+        var airborne_hold := is_airborne_jumpjet() and not _land_on_arrival
+        if not airborne_hold and _is_cell_occupied_by_idle(final_cell):
+            if _is_jumpjet:
+                # A jumpjet can fly: don't freeze waiting for the cell to clear,
+                # glide to the nearest free cell instead (keeping its zone intent).
+                var free_cell := _find_nearest_free_cell(final_cell)
+                set_target_position(
+                    CellUtil.cell_to_world(free_cell), false, not _land_on_arrival, true
+                )
+            else:
+                _state = State.WAIT
             return
 
         var approach_direction := (final_pos - _parent.global_position).normalized()
         var approach_step := (final_pos - _parent.global_position).limit_length(
             (
                 move_speed
+                * _vertical_split_factor()
                 * _veteran_speed_mult
                 * _slope_coefficient(approach_direction)
                 * _terrain_speed_factor()
                 * delta
             )
         )
-        if approach_step.length() < 0.001:
-            _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
-                _parent.global_position
-            )
+        # Jumpjets hover above terrain, so arrival is measured on the XZ plane.
+        var arrival_dist: float = (
+            Vector2(approach_step.x, approach_step.z).length()
+            if _is_jumpjet
+            else approach_step.length()
+        )
+        if arrival_dist < 0.001:
+            if not _is_jumpjet:
+                _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
+                    _parent.global_position
+                )
+            if _is_jumpjet and _land_on_arrival and _vertical_state != VerticalState.GROUND:
+                _vertical_state = VerticalState.DESCENDING
             _has_sub_slot = false
             _hybrid_active = false
             _state = State.IDLE
@@ -475,7 +622,7 @@ func _handle_moving_movement(delta: float) -> void:
             arrived.emit(_parent.global_position)
         else:
             _parent.global_position += Vector3(approach_step.x, 0.0, approach_step.z)
-            _snap_to_terrain()
+            _snap_to_terrain(delta)
     else:
         _parent.global_position += step
         var skip_lerp := (
@@ -485,7 +632,7 @@ func _handle_moving_movement(delta: float) -> void:
             var spline_pos := _get_spline_pos(_spline_t)
             var lerped := _parent.global_position.lerp(spline_pos, 0.2)
             _parent.global_position = Vector3(lerped.x, _parent.global_position.y, lerped.z)
-        _snap_to_terrain()
+        _snap_to_terrain(delta)
 
     var new_cell := CellUtil.world_to_cell(_parent.global_position)
     var old_cell := CellUtil.world_to_cell(_last_position)
@@ -498,6 +645,8 @@ func _handle_moving_movement(delta: float) -> void:
 
 func _handle_wait(delta: float) -> void:
     _wait_time += delta
+    if _is_jumpjet:
+        _update_vertical(delta)
 
     # Fire the mid-wait scatter once, on the tick that crosses the threshold.
     if _wait_time >= WAIT_SCATTER_SECONDS and _wait_time - delta < WAIT_SCATTER_SECONDS:
@@ -508,15 +657,38 @@ func _handle_wait(delta: float) -> void:
         _scatter_blockers()
         var target_cell := CellUtil.world_to_cell(_waypoints[_waypoints.size() - 1])
         var free_cell := _find_nearest_free_cell(target_cell)
-        set_target_position(CellUtil.cell_to_world(free_cell))
+        # Keep the move's zone intent: an attack hold stays airborne, a landing
+        # move still lands.
+        set_target_position(
+            CellUtil.cell_to_world(free_cell), false, _is_jumpjet and not _land_on_arrival, true
+        )
         return
 
     var final_cell := CellUtil.world_to_cell(_waypoints[_waypoints.size() - 1])
     if not _is_cell_occupied_by_idle(final_cell):
         var cell_center := CellUtil.cell_to_world(final_cell)
-        _parent.global_position = _parent.global_position.lerp(cell_center, 0.3)
-        if _parent.global_position.distance_to(cell_center) < 0.05:
-            _parent.global_position = cell_center
+        var wait_target := _sub_slot_position if _has_sub_slot else cell_center
+        if _is_jumpjet:
+            _parent.global_position.x = lerpf(_parent.global_position.x, wait_target.x, 0.3)
+            _parent.global_position.z = lerpf(_parent.global_position.z, wait_target.z, 0.3)
+        else:
+            _parent.global_position = _parent.global_position.lerp(wait_target, 0.3)
+        var wait_arrival_dist: float = (
+            (
+                Vector2(
+                    _parent.global_position.x - wait_target.x,
+                    _parent.global_position.z - wait_target.z,
+                )
+                . length()
+            )
+            if _is_jumpjet
+            else _parent.global_position.distance_to(wait_target)
+        )
+        if wait_arrival_dist < 0.05:
+            if not _is_jumpjet:
+                _parent.global_position = wait_target
+            if _is_jumpjet and _land_on_arrival and _vertical_state != VerticalState.GROUND:
+                _vertical_state = VerticalState.DESCENDING
             _has_sub_slot = false
             _hybrid_active = false
             _state = State.IDLE
@@ -680,7 +852,15 @@ func _scatter_blockers() -> void:
                 for entry in SpatialHash.instance.get_entries(ncell):
                     var mc := entry.mc as MovementController
                     if mc and mc._state == State.IDLE and mc != self:
-                        mc.set_target_position(CellUtil.cell_to_world(push_cell))
+                        (
+                            mc
+                            . set_target_position(
+                                CellUtil.cell_to_world(push_cell),
+                                false,
+                                mc.is_airborne_jumpjet(),
+                                true,
+                            )
+                        )
 
 
 func nudge_from_cell(blocking_cell: Vector2i) -> bool:
@@ -689,15 +869,69 @@ func nudge_from_cell(blocking_cell: Vector2i) -> bool:
         var mc := entry.mc as MovementController
         if mc and mc._state == State.IDLE:
             var free := _find_nearest_free_cell(blocking_cell)
-            mc.set_target_position(CellUtil.cell_to_world(free))
+            mc.set_target_position(
+                CellUtil.cell_to_world(free), false, mc.is_airborne_jumpjet(), true
+            )
             return true
     return false
 
 
-func _snap_to_terrain() -> void:
+func _snap_to_terrain(delta: float = 0.0) -> void:
+    if _is_jumpjet:
+        _update_vertical(delta)
+        return
     var terrain_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
     var target_y := terrain_y + (_hover_height if _is_floating() else 0.0)
     _parent.global_position.y = lerpf(_parent.global_position.y, target_y, 0.95)
+
+
+func _update_vertical(delta: float) -> void:
+    if not _is_jumpjet:
+        return
+    var terrain_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    match _vertical_state:
+        VerticalState.GROUND:
+            _parent.global_position.y = terrain_y
+        VerticalState.AIR:
+            _parent.global_position.y = terrain_y + _jumpjet_air_height
+        VerticalState.ASCENDING:
+            var target_air_y := terrain_y + _jumpjet_air_height
+            _parent.global_position.y += move_speed * _vertical_split_factor() * delta
+            if _parent.global_position.y >= target_air_y:
+                _parent.global_position.y = target_air_y
+                _vertical_state = VerticalState.AIR
+        VerticalState.DESCENDING:
+            _parent.global_position.y -= move_speed * _vertical_split_factor() * delta
+            if _parent.global_position.y <= terrain_y:
+                _parent.global_position.y = terrain_y
+                _vertical_state = VerticalState.GROUND
+                _land_on_arrival = false
+
+
+func _apply_zone_desire(desired: VerticalState) -> void:
+    if not _is_jumpjet:
+        return
+    if desired == _vertical_state:
+        return
+    match _vertical_state:
+        VerticalState.GROUND:
+            if desired == VerticalState.AIR:
+                _vertical_state = VerticalState.ASCENDING
+        VerticalState.AIR:
+            if desired == VerticalState.GROUND:
+                _vertical_state = VerticalState.DESCENDING
+        VerticalState.ASCENDING:
+            _vertical_state = (
+                VerticalState.DESCENDING
+                if desired == VerticalState.GROUND
+                else VerticalState.ASCENDING
+            )
+        VerticalState.DESCENDING:
+            _vertical_state = (
+                VerticalState.ASCENDING
+                if desired == VerticalState.AIR
+                else VerticalState.DESCENDING
+            )
 
 
 func get_cursor_for_target(_target: Node3D, _target_cell: Vector2i) -> CursorState.Type:
