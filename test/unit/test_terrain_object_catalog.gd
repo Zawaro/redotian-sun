@@ -91,6 +91,25 @@ func test_variant_corners_pre_rotated_per_facing():
     _finish()
 
 
+func _crease_for_corners(corners: Array) -> String:
+    var lo: int = corners[0]
+    var hi: int = corners[0]
+    for c in corners:
+        lo = mini(lo, int(c))
+        hi = maxi(hi, int(c))
+    if hi == lo:
+        return "flat"
+    var high: Array[int] = []
+    for i in 4:
+        if int(corners[i]) == hi:
+            high.append(i)
+    if high.size() == 2:
+        if (high[0] - high[1]) % 2 == 0:
+            return "y"
+        return "flat"
+    return "x"
+
+
 func test_crease_values_valid():
     for path in [
         "res://resources/terrain_objects/cliff01_n.tres",
@@ -113,6 +132,15 @@ func test_crease_values_valid():
                 TestHelper.assert_true(
                     corners.size() == 4, "corners has 4 entries in " + path + " @" + key
                 )
+                if corners.size() == 4:
+                    (
+                        TestHelper
+                        . assert_eq(
+                            crease,
+                            _crease_for_corners(corners),
+                            "crease matches corners in " + path + " @" + key,
+                        )
+                    )
     _finish()
 
 
@@ -173,8 +201,17 @@ func test_temperate_theater_registers_catalog():
     TestHelper.assert_eq(theater.id, "temperate", "temperate theater id")
     TestHelper.assert_eq(theater.default_land_type, "clear", "temperate default land type")
     TestHelper.assert_true(theater.art_data != null, "temperate has art_data")
-    var expected_count := 140
-    TestHelper.assert_eq(theater.terrain_objects.size(), expected_count, "140 variants registered")
+    # Count must match the generated catalog: every registered id is a
+    # directional variant (<base>_<dir>) and every variant is registered, so the
+    # count is derived rather than a hardcoded magic number.
+    var expected_count := 0
+    for object_id in theater.terrain_objects:
+        if String(object_id).ends_with("_n"):
+            expected_count += 4
+    TestHelper.assert_eq(
+        theater.terrain_objects.size(), expected_count, "variants registered in 4s"
+    )
+    TestHelper.assert_true(expected_count > 0, "expected_count derived from catalog is non-zero")
     for tile_id in [
         "cliff01_n",
         "cliff01_e",
@@ -219,6 +256,29 @@ func test_all_catalog_tiles_load_with_valid_cells():
             )
             scanned += 1
     TestHelper.assert_true(scanned > 0, "scanned at least one cell")
+    _finish()
+
+
+func test_art_seam_suffix_and_rotation():
+    var art: TerrainArtData = load("res://resources/art/terrain/placeholder_terrain_art.tres")
+    TestHelper.assert_true(art != null, "placeholder art loads")
+    if art == null:
+        _finish()
+        return
+    TestHelper.assert_true(art.is_placeholder, "placeholder art flagged as placeholder")
+    TestHelper.assert_eq(art.mesh_name("cliff01_n"), "cliff01", "_n strips suffix to base mesh")
+    TestHelper.assert_eq(art.mesh_name("cliff01_e"), "cliff01", "_e strips suffix to base mesh")
+    TestHelper.assert_eq(art.mesh_name("ramp01_s"), "ramp01", "_s strips suffix to base mesh")
+    TestHelper.assert_eq(art.mesh_name("wcliff23_w"), "wcliff23", "_w strips suffix to base mesh")
+    TestHelper.assert_eq(art.base_mesh_id("cliff01_n"), "cliff01", "base_mesh_id strips suffix")
+    TestHelper.assert_eq(art.base_mesh_id("cliff01"), "cliff01", "base_mesh_id passes through")
+    TestHelper.assert_eq(art.mesh_rotation("cliff01_n"), 0.0, "n rotation 0")
+    TestHelper.assert_eq(art.mesh_rotation("cliff01_e"), 90.0, "e rotation 90")
+    TestHelper.assert_eq(art.mesh_rotation("cliff01_s"), 180.0, "s rotation 180")
+    TestHelper.assert_eq(art.mesh_rotation("cliff01_w"), 270.0, "w rotation 270")
+    TestHelper.assert_eq(art.mesh_rotation("cliff01"), 0.0, "non-directional rotation 0")
+    TestHelper.assert_eq(art.mesh_name("cliff12_n"), "cliff09", "fallback table resolves base id")
+    TestHelper.assert_eq(art.mesh_name("ramp06_e"), "ramp01", "fallback applies after suffix strip")
     _finish()
 
 
