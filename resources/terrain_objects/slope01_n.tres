@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="TerrainObject" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/TerrainObject.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "slope01_n"
+cell_type = "slope"
+display_name = "Slope01 N"
+cells = {
+"0,0": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"north": {
+"role": "ground"
+},
+"south": {
+"role": "ground"
+},
+"west": {
+"role": "ground"
+}
+},
+"corners": [0, 1, 1, 0],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+}
+}
