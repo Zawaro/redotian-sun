@@ -2,6 +2,10 @@
 .godot/
 /android/
 
+# Python tooling cache
+__pycache__/
+*.pyc
+
 # Reference files (rules.ini, art.ini)
 references/
 
