@@ -1,0 +1,160 @@
+[gd_resource type="Resource" script_class="TerrainObject" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/TerrainObject.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "ramp08_s"
+cell_type = "ramp"
+display_name = "Ramp08 S"
+cells = {
+"0,0": {
+"connections": {
+"east": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"north": {
+"role": "ground"
+},
+"west": {
+"role": "ground"
+}
+},
+"corners": [4, 3, 3, 4],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+},
+"0,1": {
+"connections": {
+"south": {
+"role": "cliff"
+},
+"west": {
+"role": "ground"
+}
+},
+"corners": [4, 3, 4, 4],
+"crease": "x",
+"land": "clear",
+"slope": 12
+},
+"1,0": {
+"connections": {
+"east": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"north": {
+"role": "ground"
+}
+},
+"corners": [3, 2, 2, 3],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+},
+"1,1": {
+"connections": {
+"east": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"north": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+}
+},
+"corners": [3, 3, 4, 4],
+"crease": "flat",
+"land": "rock",
+"slope": 4
+},
+"1,2": {
+"connections": {
+"east": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"north": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"south": {
+"role": "cliff"
+},
+"west": {
+"role": "ground"
+}
+},
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "rock"
+},
+"2,0": {
+"connections": {
+"east": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"north": {
+"role": "ground"
+},
+"south": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+}
+},
+"corners": [2, 1, 1, 2],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+},
+"2,1": {
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "rock"
+},
+"2,2": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"south": {
+"role": "cliff"
+}
+},
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "rock"
+},
+"3,0": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"north": {
+"role": "ground"
+}
+},
+"corners": [1, 0, 0, 1],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+},
+"3,1": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"south": {
+"role": "cliff"
+}
+},
+"corners": [1, 0, 0, 0],
+"crease": "x",
+"land": "clear",
+"slope": 5
+}
+}

@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="TerrainObject" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/TerrainObject.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "ramp07_n"
+cell_type = "ramp"
+display_name = "Ramp07 N"
+cells = {
+"0,0": {
+"connections": {
+"north": {
+"role": "cliff"
+},
+"west": {
+"role": "ground"
+}
+},
+"corners": [3, 4, 4, 3],
+"crease": "flat",
+"land": "rock",
+"slope": 1
+},
+"0,1": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"south": {
+"role": "ground"
+},
+"west": {
+"role": "ground"
+}
+},
+"corners": [3, 4, 4, 4],
+"crease": "x",
+"land": "clear",
+"slope": 9
+},
+"1,0": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"north": {
+"role": "cliff"
+},
+"south": {
+"role": "ground"
+},
+"west": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+}
+},
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "rock"
+}
+}

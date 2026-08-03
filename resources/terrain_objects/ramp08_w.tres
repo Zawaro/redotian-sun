@@ -1,0 +1,160 @@
+[gd_resource type="Resource" script_class="TerrainObject" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/TerrainObject.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "ramp08_w"
+cell_type = "ramp"
+display_name = "Ramp08 W"
+cells = {
+"0,1": {
+"connections": {
+"east": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"north": {
+"role": "ground"
+},
+"south": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"west": {
+"role": "cliff"
+}
+},
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "rock"
+},
+"0,2": {
+"connections": {
+"south": {
+"role": "ground"
+},
+"west": {
+"role": "cliff"
+}
+},
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "rock"
+},
+"1,0": {
+"connections": {
+"north": {
+"role": "ground"
+},
+"west": {
+"role": "cliff"
+}
+},
+"corners": [4, 4, 3, 4],
+"crease": "x",
+"land": "clear",
+"slope": 12
+},
+"1,1": {
+"connections": {
+"east": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"south": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+}
+},
+"corners": [4, 3, 3, 4],
+"crease": "flat",
+"land": "rock",
+"slope": 4
+},
+"1,2": {
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "rock"
+},
+"1,3": {
+"connections": {
+"south": {
+"role": "ground"
+},
+"west": {
+"role": "cliff"
+}
+},
+"corners": [0, 1, 0, 0],
+"crease": "x",
+"land": "clear",
+"slope": 5
+},
+"2,0": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"north": {
+"role": "ground"
+},
+"south": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+}
+},
+"corners": [4, 4, 3, 3],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+},
+"2,1": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"south": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+}
+},
+"corners": [3, 3, 2, 2],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+},
+"2,2": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"south": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+},
+"west": {
+"allowed": ["ramp01", "ramp06", "ramp07", "clat01"],
+"role": "ramp"
+}
+},
+"corners": [2, 2, 1, 1],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+},
+"2,3": {
+"connections": {
+"east": {
+"role": "ground"
+},
+"south": {
+"role": "ground"
+}
+},
+"corners": [1, 1, 0, 0],
+"crease": "flat",
+"land": "clear",
+"slope": 1
+}
+}
