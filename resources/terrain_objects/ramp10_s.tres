@@ -23,7 +23,7 @@ cells = {
 "corners": [4, 4, 3, 4],
 "crease": "x",
 "land": "clear",
-"slope": 9
+"slope": 11
 },
 "1,0": {
 "connections": {
@@ -57,6 +57,6 @@ cells = {
 "corners": [4, 4, 3, 3],
 "crease": "flat",
 "land": "rock",
-"slope": 2
+"slope": 4
 }
 }

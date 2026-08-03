@@ -24,7 +24,7 @@ cells = {
 "corners": [4, 4, 3, 3],
 "crease": "flat",
 "land": "clear",
-"slope": 2
+"slope": 4
 },
 "0,1": {
 "connections": {
@@ -39,7 +39,7 @@ cells = {
 "corners": [3, 3, 2, 2],
 "crease": "flat",
 "land": "clear",
-"slope": 2
+"slope": 4
 },
 "0,2": {
 "connections": {
@@ -58,7 +58,7 @@ cells = {
 "corners": [2, 2, 1, 1],
 "crease": "flat",
 "land": "clear",
-"slope": 2
+"slope": 4
 },
 "0,3": {
 "connections": {
@@ -72,7 +72,7 @@ cells = {
 "corners": [1, 1, 0, 0],
 "crease": "flat",
 "land": "clear",
-"slope": 2
+"slope": 4
 },
 "1,0": {
 "connections": {
@@ -86,7 +86,7 @@ cells = {
 "corners": [4, 4, 4, 3],
 "crease": "x",
 "land": "clear",
-"slope": 10
+"slope": 12
 },
 "1,1": {
 "connections": {
@@ -102,7 +102,7 @@ cells = {
 "corners": [3, 4, 4, 3],
 "crease": "flat",
 "land": "rock",
-"slope": 3
+"slope": 1
 },
 "1,2": {
 "corners": [0, 0, 0, 0],
@@ -121,7 +121,7 @@ cells = {
 "corners": [1, 0, 0, 0],
 "crease": "x",
 "land": "clear",
-"slope": 5
+"slope": 7
 },
 "2,1": {
 "connections": {

@@ -16,12 +16,10 @@ class_name TerrainObject extends Resource
 @export var display_name: String = ""
 ## Per-cell surface data keyed by object-local "x,z" -> {"land": land_type_id,
 ## "corners": [nw, ne, se, sw] (absolute vertex heights), "crease": "flat"|"x"|"y",
-## "slope": int (optional TS RampType provenance)}.
+## "slope": int (optional TS RampType provenance), "connections": {edge: role}}.
+## Per-edge connection roles live inside each cell (see `connections` on the
+## cell entry); there is no tile-level connections field.
 @export var cells: Dictionary = {}
-## Per-edge connection roles: "north"/"east"/"south"/"west" ->
-## {"role": "plateau"|"ground"|"cliff"|"ramp", "allowed": [object ids...]}.
-## Drives seam validation and auto-ramp placement.
-@export var connections: Dictionary = {}
 
 
 ## Land type id at an object-local coordinate ("x,z"), or "" when unset.

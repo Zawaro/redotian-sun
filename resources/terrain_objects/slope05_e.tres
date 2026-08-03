@@ -26,6 +26,6 @@ cells = {
 "corners": [0, 0, 0, 1],
 "crease": "x",
 "land": "clear",
-"slope": 5
+"slope": 6
 }
 }

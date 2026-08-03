@@ -48,6 +48,21 @@ TERRAIN_OBJECT_SCRIPT = "res://scripts/data/TerrainObject.gd"
 # footprint rotation transform: n=0, e=90CW, s=180, w=270CW.
 DIRECTIONS = ["n", "e", "s", "w"]
 
+# A full cliff tier is 4 lattice steps; cells at or above this on a tile edge
+# are the high side, below it the low side.
+CLIFF_STEP = 4
+
+# WAE/FinalSun RampCornerHeights: per RampType, corner offsets from the cell's
+# level in NW, NE, SE, SW order. Type 0 = flat cell.
+RAMP_CORNER_HEIGHTS = {
+    0: [0, 0, 0, 0], 1: [0, 1, 1, 0], 2: [0, 0, 1, 1], 3: [1, 0, 0, 1],
+    4: [1, 1, 0, 0], 5: [0, 0, 1, 0], 6: [0, 0, 0, 1], 7: [1, 0, 0, 0],
+    8: [0, 1, 0, 0], 9: [0, 1, 1, 1], 10: [1, 0, 1, 1], 11: [1, 1, 0, 1],
+    12: [1, 1, 1, 0], 13: [0, 1, 2, 1], 14: [1, 0, 1, 2], 15: [2, 1, 0, 1],
+    16: [1, 2, 1, 0], 17: [0, 1, 0, 1], 18: [1, 0, 1, 0], 19: [0, 1, 0, 1],
+    20: [1, 0, 1, 0],
+}
+
 # Catalog ids that may dock on a ramp-role edge.
 RAMP_IDS = ["ramp01", "ramp06", "ramp07", "clat01"]
 
@@ -117,8 +132,8 @@ def _edge_role(cells: list, width: int, height: int, kind: str, edge: str) -> st
     heights = [cell_map[c][0] for c in coords if c in cell_map]
     if not heights:
         return "ground"
-    has_high = any(h >= 4 for h in heights)
-    has_low = any(h < 4 for h in heights)
+    has_high = any(h >= CLIFF_STEP for h in heights)
+    has_low = any(h < CLIFF_STEP for h in heights)
     if kind == "wcliff":
         return "water" if not has_high else "cliff"
     if has_high and has_low:
@@ -209,14 +224,18 @@ def generate(catalog_path: str, out_dir: str) -> int:
             for x, y, height, land, slope in cells_rot:
                 key = f"{x},{y}"
                 entry: dict = {"land": LAND_MAP.get(land, "clear")}
-                # Corners = cell level + RampType corner offsets (already
-                # rotation-corrected by catalog.py), rotated to this facing.
-                offsets = _slope_offsets(slope)
+                # Rotate the slope code along with the cell; the rotated
+                # RampType's corner offsets already encode the rotation, so
+                # corners = height + offsets[rotated_slope] are the facing
+                # corners directly (no extra corner rotation). The stored
+                # slope therefore describes exactly the stored corners.
+                rotated_slope = rotate_slope(slope, t)
+                offsets = _slope_offsets(rotated_slope)
                 corners = [height + o for o in offsets]
-                entry["corners"] = rotate_corners(corners, t)
+                entry["corners"] = corners
                 entry["crease"] = derive_crease(corners)
-                if slope:
-                    entry["slope"] = slope
+                if rotated_slope:
+                    entry["slope"] = rotated_slope
                 if key in cell_conns:
                     entry["connections"] = cell_conns[key]
                 cells[key] = entry
@@ -236,15 +255,24 @@ def generate(catalog_path: str, out_dir: str) -> int:
 
 def _slope_offsets(slope: int) -> list:
     """WAE/FinalSun RampCornerHeights corner offsets for a RampType code."""
-    table = {
-        0: [0, 0, 0, 0], 1: [0, 1, 1, 0], 2: [0, 0, 1, 1], 3: [1, 0, 0, 1],
-        4: [1, 1, 0, 0], 5: [0, 0, 1, 0], 6: [0, 0, 0, 1], 7: [1, 0, 0, 0],
-        8: [0, 1, 0, 0], 9: [0, 1, 1, 1], 10: [1, 0, 1, 1], 11: [1, 1, 0, 1],
-        12: [1, 1, 1, 0], 13: [0, 1, 2, 1], 14: [1, 0, 1, 2], 15: [2, 1, 0, 1],
-        16: [1, 2, 1, 0], 17: [0, 1, 0, 1], 18: [1, 0, 1, 0], 19: [0, 1, 0, 1],
-        20: [1, 0, 1, 0],
-    }
-    return table.get(slope, [0, 0, 0, 0])
+    return list(RAMP_CORNER_HEIGHTS.get(slope, [0, 0, 0, 0]))
+
+
+# Reverse RampType lookup: corner-offset tuple -> slope code that produces it.
+# Slopes 17/19 and 18/20 share offsets (geometrically identical); the first code
+# wins, and rotation never emits the duplicates.
+REVERSE_RAMP: dict[tuple, int] = {}
+for _code, _offsets in RAMP_CORNER_HEIGHTS.items():
+    REVERSE_RAMP.setdefault(tuple(_offsets), _code)
+
+
+def rotate_slope(slope: int, t: int) -> int:
+    """Rotate a RampType code by transform t so it matches rotated corners."""
+    if slope == 0 or t == 0:
+        return slope
+    offsets = _slope_offsets(slope)
+    rotated = rotate_corners(offsets, t)
+    return REVERSE_RAMP.get(tuple(rotated), slope)
 
 
 def main(argv: list[str] | None = None) -> int:

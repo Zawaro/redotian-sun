@@ -147,25 +147,6 @@ def canonical_footprint(tile: Tile) -> tuple:
     return best  # type: ignore[return-value]
 
 
-def _rotate_cell_to_canonical(cells: list, width: int, height: int) -> list:
-    """Rotate a footprint to its canonical orientation (smallest transform)."""
-    best = None
-    best_t = 0
-    for t in range(4):
-        key = rotate_footprint(cells, width, height, t)
-        if best is None or key < best:
-            best = key
-            best_t = t
-    rotated = []
-    for x, y, h, land, slope in cells:
-        rx, ry = rotate_cell(x, y, width, height, best_t)
-        rs = rotate_slope(slope, best_t)
-        rotated.append((rx, ry, h, land, rs))
-    mx = min(p[0] for p in rotated)
-    my = min(p[1] for p in rotated)
-    return [(p[0] - mx, p[1] - my, p[2], p[3], p[4]) for p in rotated]
-
-
 def _normalize_origin(cells: list) -> list:
     """Translate a footprint so its origin is (0, 0) without rotating it."""
     mx = min(p[0] for p in cells)
