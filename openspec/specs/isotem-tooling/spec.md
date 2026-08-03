@@ -64,7 +64,15 @@ The system SHALL provide a generator (`tools/isotem/generate_tres.py`) that read
 
 #### Scenario: Crease derived from corners
 - **WHEN** a cell has two adjacent high corners
-- **THEN** its `crease` is set to the diagonal connecting the high corners and `corners` reflects the rotated heights
+- **THEN** its `crease` is `"flat"` (the quad is planar; no fold diagonal) and `corners` reflects the rotated heights
+
+#### Scenario: Opposite high corners fold along the high diagonal
+- **WHEN** a cell has two opposite high corners (a saddle)
+- **THEN** its `crease` is `"y"`, folding along the diagonal connecting the high corners
+
+#### Scenario: Single or triple high corner folds
+- **WHEN** a cell has one or three high corners (tent or inverted tent)
+- **THEN** its `crease` is `"x"`
 
 #### Scenario: Slope emitted as provenance only
 - **WHEN** a cell has a non-zero TS RampType
