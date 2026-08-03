@@ -1,0 +1,293 @@
+[gd_resource type="Resource" script_class="TheaterData" load_steps=143 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/TheaterData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/terrain/placeholder_terrain_art.tres" id="2_art"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clat01_e.tres" id="3_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clat01_n.tres" id="4_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clat01_s.tres" id="5_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clat01_w.tres" id="6_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clear01_e.tres" id="7_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clear01_n.tres" id="8_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clear01_s.tres" id="9_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/clear01_w.tres" id="10_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff01_e.tres" id="11_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff01_n.tres" id="12_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff01_s.tres" id="13_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff01_w.tres" id="14_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff02_e.tres" id="15_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff02_n.tres" id="16_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff02_s.tres" id="17_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff02_w.tres" id="18_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff05_e.tres" id="19_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff05_n.tres" id="20_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff05_s.tres" id="21_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff05_w.tres" id="22_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff09_e.tres" id="23_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff09_n.tres" id="24_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff09_s.tres" id="25_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff09_w.tres" id="26_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff12_e.tres" id="27_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff12_n.tres" id="28_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff12_s.tres" id="29_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff12_w.tres" id="30_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff19_e.tres" id="31_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff19_n.tres" id="32_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff19_s.tres" id="33_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff19_w.tres" id="34_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff23_e.tres" id="35_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff23_n.tres" id="36_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff23_s.tres" id="37_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff23_w.tres" id="38_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff26_e.tres" id="39_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff26_n.tres" id="40_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff26_s.tres" id="41_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff26_w.tres" id="42_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff27_e.tres" id="43_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff27_n.tres" id="44_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff27_s.tres" id="45_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/cliff27_w.tres" id="46_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/dcliff01_e.tres" id="47_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/dcliff01_n.tres" id="48_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/dcliff01_s.tres" id="49_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/dcliff01_w.tres" id="50_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp01_e.tres" id="51_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp01_n.tres" id="52_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp01_s.tres" id="53_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp01_w.tres" id="54_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp02_e.tres" id="55_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp02_n.tres" id="56_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp02_s.tres" id="57_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp02_w.tres" id="58_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp05_e.tres" id="59_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp05_n.tres" id="60_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp05_s.tres" id="61_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp05_w.tres" id="62_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp06_e.tres" id="63_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp06_n.tres" id="64_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp06_s.tres" id="65_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp06_w.tres" id="66_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp07_e.tres" id="67_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp07_n.tres" id="68_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp07_s.tres" id="69_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp07_w.tres" id="70_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp08_e.tres" id="71_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp08_n.tres" id="72_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp08_s.tres" id="73_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp08_w.tres" id="74_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp09_e.tres" id="75_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp09_n.tres" id="76_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp09_s.tres" id="77_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp09_w.tres" id="78_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp10_e.tres" id="79_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp10_n.tres" id="80_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp10_s.tres" id="81_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/ramp10_w.tres" id="82_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope01_e.tres" id="83_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope01_n.tres" id="84_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope01_s.tres" id="85_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope01_w.tres" id="86_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope05_e.tres" id="87_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope05_n.tres" id="88_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope05_s.tres" id="89_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope05_w.tres" id="90_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope09_e.tres" id="91_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope09_n.tres" id="92_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope09_s.tres" id="93_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope09_w.tres" id="94_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope13_e.tres" id="95_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope13_n.tres" id="96_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope13_s.tres" id="97_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope13_w.tres" id="98_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope17_e.tres" id="99_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope17_n.tres" id="100_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope17_s.tres" id="101_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope17_w.tres" id="102_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff01_e.tres" id="103_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff01_n.tres" id="104_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff01_s.tres" id="105_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff01_w.tres" id="106_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff02_e.tres" id="107_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff02_n.tres" id="108_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff02_s.tres" id="109_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff02_w.tres" id="110_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff05_e.tres" id="111_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff05_n.tres" id="112_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff05_s.tres" id="113_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff05_w.tres" id="114_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff09_e.tres" id="115_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff09_n.tres" id="116_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff09_s.tres" id="117_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff09_w.tres" id="118_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff10_e.tres" id="119_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff10_n.tres" id="120_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff10_s.tres" id="121_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff10_w.tres" id="122_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff12_e.tres" id="123_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff12_n.tres" id="124_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff12_s.tres" id="125_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff12_w.tres" id="126_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff19_e.tres" id="127_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff19_n.tres" id="128_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff19_s.tres" id="129_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff19_w.tres" id="130_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff23_e.tres" id="131_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff23_n.tres" id="132_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff23_s.tres" id="133_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff23_w.tres" id="134_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff24_e.tres" id="135_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff24_n.tres" id="136_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff24_s.tres" id="137_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff24_w.tres" id="138_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff28_e.tres" id="139_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff28_n.tres" id="140_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff28_s.tres" id="141_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/wcliff28_w.tres" id="142_obj"]
+
+[resource]
+script = ExtResource("1_script")
+id = "temperate"
+display_name = "Temperate"
+terrain_objects = {
+"clat01_e": ExtResource("3_obj"),
+"clat01_n": ExtResource("4_obj"),
+"clat01_s": ExtResource("5_obj"),
+"clat01_w": ExtResource("6_obj"),
+"clear01_e": ExtResource("7_obj"),
+"clear01_n": ExtResource("8_obj"),
+"clear01_s": ExtResource("9_obj"),
+"clear01_w": ExtResource("10_obj"),
+"cliff01_e": ExtResource("11_obj"),
+"cliff01_n": ExtResource("12_obj"),
+"cliff01_s": ExtResource("13_obj"),
+"cliff01_w": ExtResource("14_obj"),
+"cliff02_e": ExtResource("15_obj"),
+"cliff02_n": ExtResource("16_obj"),
+"cliff02_s": ExtResource("17_obj"),
+"cliff02_w": ExtResource("18_obj"),
+"cliff05_e": ExtResource("19_obj"),
+"cliff05_n": ExtResource("20_obj"),
+"cliff05_s": ExtResource("21_obj"),
+"cliff05_w": ExtResource("22_obj"),
+"cliff09_e": ExtResource("23_obj"),
+"cliff09_n": ExtResource("24_obj"),
+"cliff09_s": ExtResource("25_obj"),
+"cliff09_w": ExtResource("26_obj"),
+"cliff12_e": ExtResource("27_obj"),
+"cliff12_n": ExtResource("28_obj"),
+"cliff12_s": ExtResource("29_obj"),
+"cliff12_w": ExtResource("30_obj"),
+"cliff19_e": ExtResource("31_obj"),
+"cliff19_n": ExtResource("32_obj"),
+"cliff19_s": ExtResource("33_obj"),
+"cliff19_w": ExtResource("34_obj"),
+"cliff23_e": ExtResource("35_obj"),
+"cliff23_n": ExtResource("36_obj"),
+"cliff23_s": ExtResource("37_obj"),
+"cliff23_w": ExtResource("38_obj"),
+"cliff26_e": ExtResource("39_obj"),
+"cliff26_n": ExtResource("40_obj"),
+"cliff26_s": ExtResource("41_obj"),
+"cliff26_w": ExtResource("42_obj"),
+"cliff27_e": ExtResource("43_obj"),
+"cliff27_n": ExtResource("44_obj"),
+"cliff27_s": ExtResource("45_obj"),
+"cliff27_w": ExtResource("46_obj"),
+"dcliff01_e": ExtResource("47_obj"),
+"dcliff01_n": ExtResource("48_obj"),
+"dcliff01_s": ExtResource("49_obj"),
+"dcliff01_w": ExtResource("50_obj"),
+"ramp01_e": ExtResource("51_obj"),
+"ramp01_n": ExtResource("52_obj"),
+"ramp01_s": ExtResource("53_obj"),
+"ramp01_w": ExtResource("54_obj"),
+"ramp02_e": ExtResource("55_obj"),
+"ramp02_n": ExtResource("56_obj"),
+"ramp02_s": ExtResource("57_obj"),
+"ramp02_w": ExtResource("58_obj"),
+"ramp05_e": ExtResource("59_obj"),
+"ramp05_n": ExtResource("60_obj"),
+"ramp05_s": ExtResource("61_obj"),
+"ramp05_w": ExtResource("62_obj"),
+"ramp06_e": ExtResource("63_obj"),
+"ramp06_n": ExtResource("64_obj"),
+"ramp06_s": ExtResource("65_obj"),
+"ramp06_w": ExtResource("66_obj"),
+"ramp07_e": ExtResource("67_obj"),
+"ramp07_n": ExtResource("68_obj"),
+"ramp07_s": ExtResource("69_obj"),
+"ramp07_w": ExtResource("70_obj"),
+"ramp08_e": ExtResource("71_obj"),
+"ramp08_n": ExtResource("72_obj"),
+"ramp08_s": ExtResource("73_obj"),
+"ramp08_w": ExtResource("74_obj"),
+"ramp09_e": ExtResource("75_obj"),
+"ramp09_n": ExtResource("76_obj"),
+"ramp09_s": ExtResource("77_obj"),
+"ramp09_w": ExtResource("78_obj"),
+"ramp10_e": ExtResource("79_obj"),
+"ramp10_n": ExtResource("80_obj"),
+"ramp10_s": ExtResource("81_obj"),
+"ramp10_w": ExtResource("82_obj"),
+"slope01_e": ExtResource("83_obj"),
+"slope01_n": ExtResource("84_obj"),
+"slope01_s": ExtResource("85_obj"),
+"slope01_w": ExtResource("86_obj"),
+"slope05_e": ExtResource("87_obj"),
+"slope05_n": ExtResource("88_obj"),
+"slope05_s": ExtResource("89_obj"),
+"slope05_w": ExtResource("90_obj"),
+"slope09_e": ExtResource("91_obj"),
+"slope09_n": ExtResource("92_obj"),
+"slope09_s": ExtResource("93_obj"),
+"slope09_w": ExtResource("94_obj"),
+"slope13_e": ExtResource("95_obj"),
+"slope13_n": ExtResource("96_obj"),
+"slope13_s": ExtResource("97_obj"),
+"slope13_w": ExtResource("98_obj"),
+"slope17_e": ExtResource("99_obj"),
+"slope17_n": ExtResource("100_obj"),
+"slope17_s": ExtResource("101_obj"),
+"slope17_w": ExtResource("102_obj"),
+"wcliff01_e": ExtResource("103_obj"),
+"wcliff01_n": ExtResource("104_obj"),
+"wcliff01_s": ExtResource("105_obj"),
+"wcliff01_w": ExtResource("106_obj"),
+"wcliff02_e": ExtResource("107_obj"),
+"wcliff02_n": ExtResource("108_obj"),
+"wcliff02_s": ExtResource("109_obj"),
+"wcliff02_w": ExtResource("110_obj"),
+"wcliff05_e": ExtResource("111_obj"),
+"wcliff05_n": ExtResource("112_obj"),
+"wcliff05_s": ExtResource("113_obj"),
+"wcliff05_w": ExtResource("114_obj"),
+"wcliff09_e": ExtResource("115_obj"),
+"wcliff09_n": ExtResource("116_obj"),
+"wcliff09_s": ExtResource("117_obj"),
+"wcliff09_w": ExtResource("118_obj"),
+"wcliff10_e": ExtResource("119_obj"),
+"wcliff10_n": ExtResource("120_obj"),
+"wcliff10_s": ExtResource("121_obj"),
+"wcliff10_w": ExtResource("122_obj"),
+"wcliff12_e": ExtResource("123_obj"),
+"wcliff12_n": ExtResource("124_obj"),
+"wcliff12_s": ExtResource("125_obj"),
+"wcliff12_w": ExtResource("126_obj"),
+"wcliff19_e": ExtResource("127_obj"),
+"wcliff19_n": ExtResource("128_obj"),
+"wcliff19_s": ExtResource("129_obj"),
+"wcliff19_w": ExtResource("130_obj"),
+"wcliff23_e": ExtResource("131_obj"),
+"wcliff23_n": ExtResource("132_obj"),
+"wcliff23_s": ExtResource("133_obj"),
+"wcliff23_w": ExtResource("134_obj"),
+"wcliff24_e": ExtResource("135_obj"),
+"wcliff24_n": ExtResource("136_obj"),
+"wcliff24_s": ExtResource("137_obj"),
+"wcliff24_w": ExtResource("138_obj"),
+"wcliff28_e": ExtResource("139_obj"),
+"wcliff28_n": ExtResource("140_obj"),
+"wcliff28_s": ExtResource("141_obj"),
+"wcliff28_w": ExtResource("142_obj")
+}
+art_data = ExtResource("2_art")
+default_land_type = "clear"
