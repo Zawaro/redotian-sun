@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="TerrainObject" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="TerrainObject" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/TerrainObject.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/art/terrain/clat01.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
+art_data = ExtResource("2_art")
 id = "clat01_s"
 cell_type = "slope"
 display_name = "Clat01 S"
