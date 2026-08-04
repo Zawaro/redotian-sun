@@ -12,7 +12,7 @@ var _pending_index: int = 0
 
 
 func _ready():
-    if not Engine.is_editor_hint():
+    if not Engine.is_editor_hint() and OS.is_stdout_verbose():
         print("✅ SelectionManager loaded successfully!")
 
 

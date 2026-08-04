@@ -3,9 +3,6 @@ extends Node
 # Asset preview data contracts: art seam resolves to existing GLB submeshes,
 # mesh rotation matches the direction table, and footprint AABB math.
 
-var _test_passed := 0
-var _test_failed := 0
-
 var _theater: TheaterData = null
 
 
@@ -133,6 +130,4 @@ func test_footprint_bounds_known_tiles():
 
 
 func _finish() -> void:
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
+    pass

@@ -4,8 +4,6 @@ extends Node
 
 var _ts: Node = null
 var _sh: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _reset_terrain() -> void:
@@ -93,9 +91,6 @@ func test_cost_multiplier_formula():
             "clear 1.0 -> cost 1.0",
         )
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_passability_static():
@@ -115,15 +110,11 @@ func test_passability_static():
     TestHelper.assert_true(
         Pathfinder._is_terrain_passable(hover, "water", Vector2i.ZERO), "hover passes water"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_wheeled_blocked_by_water():
     if _ts == null or _sh == null:
-        _test_failed += 1
-        print("    FAIL: autoloads not injected")
+        TestHelper.fail("autoloads not injected")
         return
     _reset_terrain()
     var water_cell := Vector2i(50, 50)
@@ -134,15 +125,11 @@ func test_wheeled_blocked_by_water():
     var avoids_water := not _path_cells(path).has(water_cell)
     _reset_terrain()
     TestHelper.assert_true(avoids_water, "wheeled path avoids water cell")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_hover_crosses_water():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     var water_cell := Vector2i(50, 50)
@@ -153,15 +140,11 @@ func test_hover_crosses_water():
     var crosses := _path_cells(path).has(water_cell)
     _reset_terrain()
     TestHelper.assert_true(crosses, "hover path crosses water cell")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_ice_provides_footing_on_water():
     if _ts == null or _sh == null:
-        _test_failed += 1
-        print("    FAIL: autoloads not injected")
+        TestHelper.fail("autoloads not injected")
         return
     _reset_terrain()
     var water_cell := Vector2i(50, 50)
@@ -181,15 +164,11 @@ func test_ice_provides_footing_on_water():
     _reset_terrain()
     ice.free()
     TestHelper.assert_true(crosses, "intact ice lets wheeled cross water")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_cliff_blocks_foot():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     _raise_wall()
@@ -199,15 +178,11 @@ func test_cliff_blocks_foot():
     var crossed := _path_cells(path).has(Vector2i(50, 50))
     _reset_terrain()
     TestHelper.assert_eq(crossed, false, "foot cannot cross the cliff wall")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_fly_ignores_cliffs():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     _raise_wall()
@@ -217,15 +192,11 @@ func test_fly_ignores_cliffs():
     var crosses := _path_cells(path).has(Vector2i(50, 50))
     _reset_terrain()
     TestHelper.assert_true(crosses, "fly crosses the cliff wall")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_no_locomotor_keeps_old_behavior():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     var water_cell := Vector2i(50, 50)
@@ -236,6 +207,3 @@ func test_no_locomotor_keeps_old_behavior():
     var crosses := _path_cells(path).has(water_cell)
     _reset_terrain()
     TestHelper.assert_true(crosses, "no locomotor -> terrain ignored, water crossed")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

@@ -4,8 +4,6 @@ extends Node
 
 const ART_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/ArtComponent.gd")
 
-var _test_passed := 0
-var _test_failed := 0
 var _signal_fired := false
 
 
@@ -56,9 +54,6 @@ func test_batch_loader_cache_hit_instantiates_synchronously():
     TestHelper.assert_true(
         not _signal_fired, "cache hit defers model_loaded until after configure() returns"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
     BatchLoader._cache.erase(path)
     entity.free()
@@ -76,9 +71,6 @@ func test_fallback_starts_threaded_load():
     TestHelper.assert_true(
         comp._waiting_for_path == path, "fallback sets _waiting_for_path to the model path"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
     BatchLoader._cache.erase(path)
     entity.free()
@@ -93,9 +85,6 @@ func test_missing_model_starts_no_load():
     var not_waiting: bool = comp._waiting_for_path == ""
     TestHelper.assert_true(no_child, "missing model adds no child")
     TestHelper.assert_true(not_waiting, "missing model does not start a load")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
     entity.free()
 
@@ -118,9 +107,6 @@ func test_cache_shared_across_components():
         both_have_model, "both components instantiate from the shared BatchLoader cache"
     )
     TestHelper.assert_true(neither_waiting, "cached path triggers no threaded load in either")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
     BatchLoader._cache.erase(path)
     entity_a.free()

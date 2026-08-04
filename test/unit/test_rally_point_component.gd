@@ -4,8 +4,6 @@ extends Node
 
 const RallyPointComponentScript = preload("res://scripts/components/RallyPointComponent.gd")
 
-var _test_passed := 0
-var _test_failed := 0
 var _rally_changed_received := false
 var _rally_point: Vector2i = Vector2i.ZERO
 
@@ -28,39 +26,41 @@ func _on_rally_changed(point: Vector2i) -> void:
 func test_set_rally_point():
     var rally := _make_rally()
     rally.set_rally_point(Vector2i(5, 10))
-    if rally.rally_point == Vector2i(5, 10):
-        _test_passed += 1
-        print("    PASS: set_rally_point updates point")
-    else:
-        _test_failed += 1
-        print("    FAIL: set_rally_point did not update point")
+    (
+        TestHelper
+        . assert_true(
+            rally.rally_point == Vector2i(5, 10),
+            "set_rally_point updates point: set_rally_point did not update point",
+        )
+    )
 
 
 func test_clear_rally_point():
     var rally := _make_rally()
     rally.set_rally_point(Vector2i(5, 10))
     rally.clear_rally_point()
-    if rally.rally_point == Vector2i(-1, -1):
-        _test_passed += 1
-        print("    PASS: clear_rally_point resets to sentinel")
-    else:
-        _test_failed += 1
-        print("    FAIL: clear_rally_point did not reset")
+    (
+        TestHelper
+        . assert_true(
+            rally.rally_point == Vector2i(-1, -1),
+            "clear_rally_point resets to sentinel: clear_rally_point did not reset",
+        )
+    )
 
 
 func test_has_rally_point():
     var rally := _make_rally()
     if not rally.has_rally_point():
         rally.set_rally_point(Vector2i(5, 10))
-        if rally.has_rally_point():
-            _test_passed += 1
-            print("    PASS: has_rally_point works correctly")
-        else:
-            _test_failed += 1
-            print("    FAIL: has_rally_point returned false after set")
+        (
+            TestHelper
+            . assert_true(
+                rally.has_rally_point(),
+                "has_rally_point works correctly: has_rally_point returned false after set",
+            )
+        )
     else:
-        _test_failed += 1
-        print("    FAIL: has_rally_point should be false initially")
+        TestHelper.fail("has_rally_point should be false initially")
 
 
 func test_signal_emitted():
@@ -72,12 +72,13 @@ func test_signal_emitted():
 
     rally.set_rally_point(Vector2i(3, 7))
 
-    if _rally_changed_received and _rally_point == Vector2i(3, 7):
-        _test_passed += 1
-        print("    PASS: rally_point_changed signal emitted")
-    else:
-        _test_failed += 1
-        print("    FAIL: rally_point_changed signal not emitted")
+    (
+        TestHelper
+        . assert_true(
+            _rally_changed_received and _rally_point == Vector2i(3, 7),
+            "rally_point_changed signal emitted: rally_point_changed signal not emitted",
+        )
+    )
 
 
 func test_get_target_position():
@@ -85,9 +86,16 @@ func test_get_target_position():
     rally.set_rally_point(Vector2i(2, 3))
     var pos: Vector3 = rally.get_target_position()
     var expected: Vector3 = CellUtil.cell_to_world(Vector2i(2, 3))
-    if pos.is_equal_approx(expected):
-        _test_passed += 1
-        print("    PASS: get_target_position returns correct world pos")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_target_position returned %s, expected %s" % [pos, expected])
+    (
+        TestHelper
+        . assert_true(
+            pos.is_equal_approx(expected),
+            (
+                (
+                    "get_target_position returns correct world pos: "
+                    + "get_target_position returned %s, expected %s"
+                )
+                % [pos, expected]
+            ),
+        )
+    )

@@ -2,9 +2,6 @@ extends Node
 
 # GlobalRules wiring tests — veterancy (armor/combat/speed), slope, production, repair
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func _make_rules() -> GlobalRules:
     var rules := GlobalRules.new()
@@ -40,25 +37,16 @@ func test_veteran_combat_multiplier():
     TestHelper.assert_eq(rules.get_veteran_combat_multiplier(0), 1.0, "level 0 -> 1.0")
     TestHelper.assert_eq(rules.get_veteran_combat_multiplier(1), 1.25, "level 1 -> 1.25")
     TestHelper.assert_eq(rules.get_veteran_combat_multiplier(2), 1.5, "level 2 -> 1.5")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_veteran_combat_multiplier_capped():
     var rules := _make_rules()
     TestHelper.assert_eq(rules.get_veteran_combat_multiplier(9), 1.5, "level 9 clamped to cap 2")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_veteran_speed_multiplier():
     var rules := _make_rules()
     TestHelper.assert_eq(rules.get_veteran_speed_multiplier(1), 1.3, "level 1 -> 1.3")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_veteran_armor_multiplier():
@@ -66,9 +54,6 @@ func test_veteran_armor_multiplier():
     TestHelper.assert_eq(
         rules.get_veteran_armor_multiplier(1), 0.75, "level 1 -> 0.75 (25% reduction)"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_veteran_armor_reduces_damage():
@@ -84,9 +69,6 @@ func test_veteran_armor_reduces_damage():
     entity.add_child(hc)
     hc.take_damage(100)
     TestHelper.assert_eq(hc.current_health, 125, "veteran armor reduces 100 -> 75 damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -103,9 +85,6 @@ func test_rookie_takes_full_damage():
     entity.add_child(hc)
     hc.take_damage(100)
     TestHelper.assert_eq(hc.current_health, 100, "rookie takes full 100 damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -124,9 +103,6 @@ func test_get_effective_damage_veteran():
     var weapon := WeaponData.new()
     weapon.damage = 20
     TestHelper.assert_eq(combat.get_effective_damage(weapon), 25, "veteran combat 20 -> 25")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -142,9 +118,6 @@ func test_get_effective_damage_rookie():
     var weapon := WeaponData.new()
     weapon.damage = 20
     TestHelper.assert_eq(combat.get_effective_damage(weapon), 20, "rookie combat unchanged")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -160,9 +133,6 @@ func test_build_time_uses_rules_speed():
     var fallback := data.get_build_time()
     TestHelper.assert_eq(with_rules, 30.0, "1000 cost at 0.5 build speed -> 30s")
     TestHelper.assert_true(with_rules != fallback, "non-default build_speed changes build time")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_build_time_explicit_overrides():
@@ -171,6 +141,3 @@ func test_build_time_explicit_overrides():
     data.cost = 1000
     data.build_time = 20.0
     TestHelper.assert_eq(data.get_build_time(0.8), 20.0, "explicit build_time wins")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

@@ -4,9 +4,6 @@ extends Node
 # dock/foundation cells match the visual building (regression for pre-placed
 # refinery dock offset).
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func _make_building_data(foundation: Vector2i) -> EntityData:
     var data := EntityData.new()
@@ -21,12 +18,16 @@ func test_building_placed_at_footprint_center():
     var pos: Vector3 = MapLoader.placement_position(Vector2i(66, 58), data)
     var origin: Vector2i = CellUtil.world_to_cell_origin(pos, data.foundation)
     TerrainSystem.clear()
-    if origin == Vector2i(66, 58):
-        _test_passed += 1
-        print("    PASS: building placed at footprint center, origin round-trips")
-    else:
-        _test_failed += 1
-        print("    FAIL: origin=%s (expected (66,58))" % origin)
+    (
+        TestHelper
+        . assert_true(
+            origin == Vector2i(66, 58),
+            (
+                "building placed at footprint center, origin round-trips: origin=%s "
+                + "(expected (66,58))" % origin
+            ),
+        )
+    )
 
 
 func test_building_dock_cell_alignment():
@@ -39,12 +40,16 @@ func test_building_dock_cell_alignment():
     var dock_cell := CellUtil.world_to_cell(dock_world)
     var expected := origin + Vector2i(3, 1)
     TerrainSystem.clear()
-    if dock_cell == expected:
-        _test_passed += 1
-        print("    PASS: dock cell lands at origin+(3,1), no offset")
-    else:
-        _test_failed += 1
-        print("    FAIL: dock_cell=%s expected=%s" % [dock_cell, expected])
+    (
+        TestHelper
+        . assert_true(
+            dock_cell == expected,
+            (
+                "dock cell lands at origin+(3,1), no offset: dock_cell=%s expected=%s"
+                % [dock_cell, expected]
+            ),
+        )
+    )
 
 
 func test_unit_placed_at_cell_center():
@@ -54,12 +59,13 @@ func test_unit_placed_at_cell_center():
     var pos: Vector3 = MapLoader.placement_position(Vector2i(66, 58), data)
     var expected: Vector3 = CellUtil.cell_to_world(Vector2i(66, 58))
     TerrainSystem.clear()
-    if pos == expected:
-        _test_passed += 1
-        print("    PASS: non-building placed at cell center")
-    else:
-        _test_failed += 1
-        print("    FAIL: pos=%s expected=%s" % [pos, expected])
+    (
+        TestHelper
+        . assert_true(
+            pos == expected,
+            "non-building placed at cell center: pos=%s expected=%s" % [pos, expected],
+        )
+    )
 
 
 func test_building_placement_without_data_defaults_cell_center():
@@ -67,9 +73,10 @@ func test_building_placement_without_data_defaults_cell_center():
     var pos: Vector3 = MapLoader.placement_position(Vector2i(66, 58), null)
     var expected: Vector3 = CellUtil.cell_to_world(Vector2i(66, 58))
     TerrainSystem.clear()
-    if pos == expected:
-        _test_passed += 1
-        print("    PASS: missing data falls back to cell center")
-    else:
-        _test_failed += 1
-        print("    FAIL: pos=%s expected=%s" % [pos, expected])
+    (
+        TestHelper
+        . assert_true(
+            pos == expected,
+            "missing data falls back to cell center: pos=%s expected=%s" % [pos, expected],
+        )
+    )

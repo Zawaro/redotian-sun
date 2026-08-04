@@ -3,9 +3,6 @@ extends Node
 # TS-derived TerrainObject catalog: baked 4-direction variants, per-cell
 # corners/crease, and registration in the temperate theater.
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func _catalog_obj(object_id: String) -> TerrainObject:
     return load("res://resources/terrain_objects/%s.tres" % object_id) as TerrainObject
@@ -287,6 +284,4 @@ func test_art_seam_suffix_and_rotation():
 
 
 func _finish() -> void:
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
+    pass

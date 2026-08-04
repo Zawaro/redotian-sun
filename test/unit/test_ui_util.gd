@@ -2,9 +2,6 @@ extends Node
 
 # UIUtil unit tests — static UI overlap detection helpers
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func test_is_inside_node_true():
     var parent := Node.new()
@@ -14,12 +11,9 @@ func test_is_inside_node_true():
     parent.add_child(child)
     var result := UIUtil.is_inside_node(child, "TargetParent")
     parent.queue_free()
-    if result:
-        _test_passed += 1
-        print("    PASS: is_inside_node finds ancestor")
-    else:
-        _test_failed += 1
-        print("    FAIL: is_inside_node should find TargetParent")
+    TestHelper.assert_true(
+        result, "is_inside_node finds ancestor: is_inside_node should find TargetParent"
+    )
 
 
 func test_is_inside_node_false():
@@ -30,12 +24,16 @@ func test_is_inside_node_false():
     parent.add_child(child)
     var result := UIUtil.is_inside_node(child, "NotHere")
     parent.queue_free()
-    if not result:
-        _test_passed += 1
-        print("    PASS: is_inside_node returns false for missing ancestor")
-    else:
-        _test_failed += 1
-        print("    FAIL: is_inside_node should return false")
+    (
+        TestHelper
+        . assert_true(
+            not result,
+            (
+                "is_inside_node returns false for missing ancestor: "
+                + "is_inside_node should return false"
+            ),
+        )
+    )
 
 
 func test_is_inside_node_walks_chain():
@@ -49,19 +47,24 @@ func test_is_inside_node_walks_chain():
     mid.add_child(leaf)
     var result := UIUtil.is_inside_node(leaf, "Root")
     root.queue_free()
-    if result:
-        _test_passed += 1
-        print("    PASS: is_inside_node walks multi-level chain")
-    else:
-        _test_failed += 1
-        print("    FAIL: is_inside_node should find Root through chain")
+    (
+        TestHelper
+        . assert_true(
+            result,
+            (
+                "is_inside_node walks multi-level chain: "
+                + "is_inside_node should find Root through chain"
+            ),
+        )
+    )
 
 
 func test_find_sidebar_returns_null_when_missing():
     var result := UIUtil.find_sidebar()
-    if result == null:
-        _test_passed += 1
-        print("    PASS: find_sidebar returns null when no sidebar exists")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected null, got %s" % result)
+    (
+        TestHelper
+        . assert_true(
+            result == null,
+            "find_sidebar returns null when no sidebar exists: expected null, got %s" % result,
+        )
+    )

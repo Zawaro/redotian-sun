@@ -3,8 +3,6 @@ extends Node
 # MovementController move-target API tests (backs SelectComponent move target line)
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _make_mc() -> MovementController:
@@ -25,12 +23,16 @@ func _free_mc(mc: MovementController) -> void:
 func test_get_target_position_returns_last_waypoint():
     var mc := _make_mc()
     mc._waypoints = PackedVector3Array([Vector3(1, 0, 1), Vector3(5, 0, 7)])
-    if mc.get_target_position() == Vector3(5, 0, 7):
-        _test_passed += 1
-        print("    PASS: get_target_position returns last waypoint")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_target_position returned %s" % mc.get_target_position())
+    (
+        TestHelper
+        . assert_true(
+            mc.get_target_position() == Vector3(5, 0, 7),
+            (
+                "get_target_position returns last waypoint: get_target_position returned %s"
+                % mc.get_target_position()
+            ),
+        )
+    )
     _free_mc(mc)
 
 
@@ -38,12 +40,16 @@ func test_get_target_position_idle_returns_parent_position():
     var mc := _make_mc()
     mc._waypoints = PackedVector3Array()
     mc._parent.global_position = Vector3(2, 0, 3)
-    if mc.get_target_position() == Vector3(2, 0, 3):
-        _test_passed += 1
-        print("    PASS: get_target_position falls back to parent position when idle")
-    else:
-        _test_failed += 1
-        print("    FAIL: idle get_target_position returned %s" % mc.get_target_position())
+    (
+        TestHelper
+        . assert_true(
+            mc.get_target_position() == Vector3(2, 0, 3),
+            (
+                "get_target_position falls back to parent position when idle: idle "
+                + "get_target_position returned %s" % mc.get_target_position()
+            ),
+        )
+    )
     _free_mc(mc)
 
 
@@ -55,17 +61,16 @@ func test_is_moving_tracks_state():
     var moving_ok := mc.is_moving()
     mc._state = MovementController.State.ROTATING
     var rotating_ok := mc.is_moving()
-    if idle_ok and moving_ok and rotating_ok:
-        _test_passed += 1
-        print("    PASS: is_moving true unless IDLE")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            idle_ok and moving_ok and rotating_ok,
             (
-                "    FAIL: is_moving mismatch (idle=%s moving=%s rotating=%s)"
+                "is_moving true unless IDLE: is_moving mismatch (idle=%s moving=%s rotating=%s)"
                 % [idle_ok, moving_ok, rotating_ok]
-            )
+            ),
         )
+    )
     _free_mc(mc)
 
 
@@ -73,8 +78,7 @@ func test_movement_started_only_on_player_order():
     # movement_started drives the move-target line, so it must fire only for
     # genuine player orders — not internal re-paths or scatter/nudge on other units.
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _ts.init_grid(32, 32)
     if SpatialHash.instance:
@@ -103,17 +107,19 @@ func test_movement_started_only_on_player_order():
     var correct_target: bool = not seen_target.is_empty() and seen_target[0] == dest_cell_center
 
     _ts.clear()
-    if suppressed and emitted and correct_target:
-        _test_passed += 1
-        print("    PASS: movement_started fires only for player orders at real target")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            suppressed and emitted and correct_target,
             (
-                "    FAIL: emit gating wrong (suppressed=%s emitted=%s correct_target=%s)"
-                % [suppressed, emitted, correct_target]
-            )
+                "movement_started fires only for player orders at real target: emit gating "
+                + (
+                    "wrong (suppressed=%s emitted=%s correct_target=%s)"
+                    % [suppressed, emitted, correct_target]
+                )
+            ),
         )
+    )
     _free_mc(mc)
 
 
@@ -145,17 +151,16 @@ func test_move_line_endpoint_tracks_attack_target():
     sc.free()
     entity.free()
     target.free()
-    if attack_ok and fallback_ok:
-        _test_passed += 1
-        print("    PASS: move line endpoint tracks attack target, else move destination")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            attack_ok and fallback_ok,
             (
-                "    FAIL: endpoint wrong (attack=%s fallback=%s)"
-                % [attack_endpoint, fallback_endpoint]
-            )
+                "move line endpoint tracks attack target, else move destination: endpoint "
+                + "wrong (attack=%s fallback=%s)" % [attack_endpoint, fallback_endpoint]
+            ),
         )
+    )
 
 
 func test_reselect_shows_line_for_stationary_attacker():
@@ -191,9 +196,13 @@ func test_reselect_shows_line_for_stationary_attacker():
     sc.free()
     entity.free()
     target.free()
-    if shown and hidden:
-        _test_passed += 1
-        print("    PASS: reselect shows line for stationary attacker; deselect hides")
-    else:
-        _test_failed += 1
-        print("    FAIL: reselect attacker line (shown=%s hidden=%s)" % [shown, hidden])
+    (
+        TestHelper
+        . assert_true(
+            shown and hidden,
+            (
+                "reselect shows line for stationary attacker; deselect hides: reselect "
+                + "attacker line (shown=%s hidden=%s)" % [shown, hidden]
+            ),
+        )
+    )

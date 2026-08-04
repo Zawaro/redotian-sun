@@ -3,8 +3,6 @@ extends Node
 # DockHostComponent tests — queue limits, wait timer, has_dock_type, stale eviction
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 var _timeout_signal_emitted := false
 var _timeout_signal_docker: Node = null
 
@@ -31,12 +29,13 @@ func test_request_dock_immediate():
     var host := _make_dock_host()
     var docker := Node.new()
     var result := host.request_dock(docker)
-    if result and host.current_docker == docker:
-        _test_passed += 1
-        print("    PASS: request_dock succeeds when empty")
-    else:
-        _test_failed += 1
-        print("    FAIL: request_dock failed when empty")
+    (
+        TestHelper
+        . assert_true(
+            result and host.current_docker == docker,
+            "request_dock succeeds when empty: request_dock failed when empty",
+        )
+    )
 
 
 func test_request_dock_unlimited_queue():
@@ -47,34 +46,40 @@ func test_request_dock_unlimited_queue():
     host.request_dock(docker1)  # becomes current_docker
     var r2 := host.request_dock(docker2)  # queued
     var r3 := host.request_dock(docker3)  # queued
-    if not r2 and not r3 and host.queue.size() == 2:
-        _test_passed += 1
-        print("    PASS: request_dock queues unlimited clients")
-    else:
-        _test_failed += 1
-        print("    FAIL: r2=%s r3=%s queue_size=%d" % [r2, r3, host.queue.size()])
+    (
+        TestHelper
+        . assert_true(
+            not r2 and not r3 and host.queue.size() == 2,
+            (
+                "request_dock queues unlimited clients: r2=%s r3=%s queue_size=%d"
+                % [r2, r3, host.queue.size()]
+            ),
+        )
+    )
 
 
 func test_get_queue_size():
     var host := _make_dock_host()
     host.queue.append(Node.new())
     host.queue.append(Node.new())
-    if host.get_queue_size() == 2:
-        _test_passed += 1
-        print("    PASS: get_queue_size returns correct count")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_queue_size returned wrong count")
+    (
+        TestHelper
+        . assert_true(
+            host.get_queue_size() == 2,
+            "get_queue_size returns correct count: get_queue_size returned wrong count",
+        )
+    )
 
 
 func test_has_dock_type():
     var host := _make_dock_host()
-    if host.has_dock_type("harvest") and not host.has_dock_type("repair"):
-        _test_passed += 1
-        print("    PASS: has_dock_type works correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: has_dock_type mismatch")
+    (
+        TestHelper
+        . assert_true(
+            host.has_dock_type("harvest") and not host.has_dock_type("repair"),
+            "has_dock_type works correctly: has_dock_type mismatch",
+        )
+    )
 
 
 # --- Stale client eviction ---
@@ -84,12 +89,13 @@ func test_stale_timer_resets_on_dock():
     var host := _make_dock_host(10, 0.1)
     var docker := Node.new()
     host.request_dock(docker)
-    if host._stale_timer == 0.0:
-        _test_passed += 1
-        print("    PASS: _stale_timer resets to 0 on dock")
-    else:
-        _test_failed += 1
-        print("    FAIL: _stale_timer = %f (expected 0)" % host._stale_timer)
+    (
+        TestHelper
+        . assert_true(
+            host._stale_timer == 0.0,
+            "_stale_timer resets to 0 on dock: _stale_timer = %f (expected 0)" % host._stale_timer,
+        )
+    )
 
 
 func test_stale_timer_increments():
@@ -97,12 +103,16 @@ func test_stale_timer_increments():
     var docker := Node.new()
     host.request_dock(docker)
     host._process(1.0)
-    if host._stale_timer == 1.0:
-        _test_passed += 1
-        print("    PASS: _stale_timer increments by delta")
-    else:
-        _test_failed += 1
-        print("    FAIL: _stale_timer = %f (expected 1.0)" % host._stale_timer)
+    (
+        TestHelper
+        . assert_true(
+            host._stale_timer == 1.0,
+            (
+                "_stale_timer increments by delta: _stale_timer = %f (expected 1.0)"
+                % host._stale_timer
+            ),
+        )
+    )
 
 
 func test_stale_eviction():
@@ -112,17 +122,16 @@ func test_stale_eviction():
     host.request_dock(docker)
     # Simulate time passing beyond stale_timeout
     host._process(0.2)
-    if host.current_docker == null and not host.queue.has(docker):
-        _test_passed += 1
-        print("    PASS: stale client evicted after stale_timeout")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == null and not host.queue.has(docker),
             (
-                "    FAIL: current_docker=%s, in_queue=%s"
+                "stale client evicted after stale_timeout: current_docker=%s, in_queue=%s"
                 % [host.current_docker, host.queue.has(docker)]
-            )
+            ),
         )
+    )
     docker.queue_free()
 
 
@@ -135,12 +144,16 @@ func test_stale_eviction_emits_dock_timeout():
     _timeout_signal_docker = null
     host.dock_timeout.connect(_on_timeout_signal)
     host._process(0.2)
-    if _timeout_signal_emitted and _timeout_signal_docker == docker:
-        _test_passed += 1
-        print("    PASS: dock_timeout signal emitted on stale eviction")
-    else:
-        _test_failed += 1
-        print("    FAIL: emitted=%s, docker=%s" % [_timeout_signal_emitted, _timeout_signal_docker])
+    (
+        TestHelper
+        . assert_true(
+            _timeout_signal_emitted and _timeout_signal_docker == docker,
+            (
+                "dock_timeout signal emitted on stale eviction: emitted=%s, docker=%s"
+                % [_timeout_signal_emitted, _timeout_signal_docker]
+            ),
+        )
+    )
     docker.queue_free()
 
 
@@ -155,17 +168,16 @@ func test_stale_eviction_promotes_next():
     # A times out — B should be promoted after vacate resolves
     host._process(0.2)
     host._process(0.0)  # resolve vacate
-    if host.current_docker == docker_b and host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: stale eviction promotes next queued docker")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == docker_b and host.queue.is_empty(),
             (
-                "    FAIL: current_docker=%s, queue_empty=%s"
+                "stale eviction promotes next queued docker: current_docker=%s, queue_empty=%s"
                 % [host.current_docker, host.queue.is_empty()]
-            )
+            ),
         )
+    )
     docker_a.queue_free()
     docker_b.queue_free()
 
@@ -175,12 +187,13 @@ func test_stale_disabled_when_zero():
     var docker := Node.new()
     host.request_dock(docker)
     host._process(100.0)
-    if host.current_docker == docker:
-        _test_passed += 1
-        print("    PASS: no eviction when stale_timeout = 0")
-    else:
-        _test_failed += 1
-        print("    FAIL: docker was evicted with stale_timeout = 0")
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == docker,
+            "no eviction when stale_timeout = 0: docker was evicted with stale_timeout = 0",
+        )
+    )
 
 
 # --- Queue promotion ---
@@ -194,17 +207,16 @@ func test_leave_dock_promotes_next():
     host.request_dock(docker_b)
     host.leave_dock(docker_a)
     host._process(0.0)  # resolve vacate
-    if host.current_docker == docker_b and host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: leave_dock promotes next queued docker")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == docker_b and host.queue.is_empty(),
             (
-                "    FAIL: current_docker=%s, queue_empty=%s"
+                "leave_dock promotes next queued docker: current_docker=%s, queue_empty=%s"
                 % [host.current_docker, host.queue.is_empty()]
-            )
+            ),
         )
+    )
 
 
 func test_leave_dock_clears_queue_when_empty():
@@ -212,17 +224,16 @@ func test_leave_dock_clears_queue_when_empty():
     var docker := Node.new()
     host.request_dock(docker)
     host.leave_dock(docker)
-    if host.current_docker == null and host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: leave_dock clears state when queue empty")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == null and host.queue.is_empty(),
             (
-                "    FAIL: current_docker=%s, queue_empty=%s"
+                "leave_dock clears state when queue empty: current_docker=%s, queue_empty=%s"
                 % [host.current_docker, host.queue.is_empty()]
-            )
+            ),
         )
+    )
 
 
 func test_leave_dock_removes_from_queue():
@@ -234,17 +245,16 @@ func test_leave_dock_removes_from_queue():
     host.request_dock(docker_b)
     host.request_dock(docker_c)
     host.leave_dock(docker_b)  # remove from middle of queue
-    if not host.queue.has(docker_b) and host.queue.has(docker_c):
-        _test_passed += 1
-        print("    PASS: leave_dock removes non-current docker from queue")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            not host.queue.has(docker_b) and host.queue.has(docker_c),
             (
-                "    FAIL: b_in_queue=%s, c_in_queue=%s"
+                "leave_dock removes non-current docker from queue: b_in_queue=%s, c_in_queue=%s"
                 % [host.queue.has(docker_b), host.queue.has(docker_c)]
-            )
+            ),
         )
+    )
 
 
 func test_request_dock_same_docker_returns_true():
@@ -252,12 +262,9 @@ func test_request_dock_same_docker_returns_true():
     var docker := Node.new()
     host.request_dock(docker)
     var result := host.request_dock(docker)
-    if result:
-        _test_passed += 1
-        print("    PASS: request_dock returns true for same docker")
-    else:
-        _test_failed += 1
-        print("    FAIL: re-dock returned false")
+    TestHelper.assert_true(
+        result, "request_dock returns true for same docker: re-dock returned false"
+    )
 
 
 # --- find_wait_cell excludes bib cells ---
@@ -265,8 +272,7 @@ func test_request_dock_same_docker_returns_true():
 
 func test_find_wait_cell_excludes_bib_cells():
     if SpatialHash.instance == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not available")
+        TestHelper.fail("SpatialHash not available")
         return
 
     var host := _make_dock_host()
@@ -287,12 +293,13 @@ func test_find_wait_cell_excludes_bib_cells():
     # Clean up
     SpatialHash.instance._bib_cells.erase(CellUtil.cell_key(Vector2i(5, 6)))
 
-    if wait_cell != Vector2i(5, 6):
-        _test_passed += 1
-        print("    PASS: find_wait_cell excludes bib cells")
-    else:
-        _test_failed += 1
-        print("    FAIL: find_wait_cell returned bib cell %s" % wait_cell)
+    (
+        TestHelper
+        . assert_true(
+            wait_cell != Vector2i(5, 6),
+            "find_wait_cell excludes bib cells: find_wait_cell returned bib cell %s" % wait_cell,
+        )
+    )
 
 
 # --- Centered world placement ---
@@ -300,8 +307,7 @@ func test_find_wait_cell_excludes_bib_cells():
 
 func test_dock_position_uses_real_foundation_origin_on_rectangular_map() -> void:
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem is not available")
+        TestHelper.fail("TerrainSystem is not available")
         return
 
     var grid_cells: Vector2i = Vector2i(51, 50)
@@ -332,25 +338,27 @@ func test_dock_position_uses_real_foundation_origin_on_rectangular_map() -> void
         + entity.global_transform.basis * host.dock_position
     )
     var expected_cell: Vector2i = CellUtil.world_to_cell(expected_world, grid_cells)
-    if (
-        host.get_dock_world_position().is_equal_approx(expected_world)
-        and host._dock_cell == expected_cell
-    ):
-        _test_passed += 1
-        print("    PASS: dock offset starts at the real foundation origin")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
             (
-                "    FAIL: expected dock world/cell %s/%s, got %s/%s"
+                host.get_dock_world_position().is_equal_approx(expected_world)
+                and host._dock_cell == expected_cell
+            ),
+            (
+                (
+                    "dock offset starts at the real foundation origin: expected dock world/cell "
+                    + "%s/%s, got %s/%s"
+                )
                 % [
                     expected_world,
                     expected_cell,
                     host.get_dock_world_position(),
                     host._dock_cell,
                 ]
-            )
+            ),
         )
+    )
 
     entity.queue_free()
     _ts.clear()
@@ -380,12 +388,13 @@ func test_clear_queue_notifies_clients():
 
     host._clear_queue("test")
 
-    if host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: _clear_queue empties the queue")
-    else:
-        _test_failed += 1
-        print("    FAIL: queue size = %d (expected 0)" % host.queue.size())
+    (
+        TestHelper
+        . assert_true(
+            host.queue.is_empty(),
+            "_clear_queue empties the queue: queue size = %d (expected 0)" % host.queue.size(),
+        )
+    )
 
     docker_a.queue_free()
     docker_b.queue_free()
@@ -413,12 +422,16 @@ func test_clear_queue_skips_dead_clients():
 
     host._clear_queue("test dead skip")
 
-    if host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: _clear_queue skips dead clients and empties queue")
-    else:
-        _test_failed += 1
-        print("    FAIL: queue size = %d (expected 0)" % host.queue.size())
+    (
+        TestHelper
+        . assert_true(
+            host.queue.is_empty(),
+            (
+                "_clear_queue skips dead clients and empties queue: queue size = %d (expected 0)"
+                % host.queue.size()
+            ),
+        )
+    )
 
     docker_a.queue_free()
 
@@ -445,31 +458,35 @@ func test_process_promotes_from_queue_after_seconds():
 
     # First tick — counter increments but hasn't reached dock_wait_seconds
     host._process(0.1)
-    if host.current_docker == null and host.queue.size() == 2:
-        _test_passed += 1
-        print("    PASS: _process waits for dock_wait_seconds before promoting")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == null and host.queue.size() == 2,
             (
-                "    FAIL: premature promotion — current=%s queue=%d"
+                (
+                    "_process waits for dock_wait_seconds before promoting: premature promotion"
+                    + " — current=%s queue=%d"
+                )
                 % [host.current_docker, host.queue.size()]
-            )
+            ),
         )
+    )
 
     # Second tick — counter reaches dock_wait_seconds, promotes first
     host._process(0.1)
-    if host.current_docker == docker_a and host.queue.size() == 1:
-        _test_passed += 1
-        print("    PASS: _process promotes first queued client after seconds")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == docker_a and host.queue.size() == 1,
             (
-                "    FAIL: current=%s (expected DockerA), queue=%d"
+                (
+                    "_process promotes first queued client after seconds: current=%s"
+                    + " (expected DockerA), queue=%d"
+                )
                 % [host.current_docker, host.queue.size()]
-            )
+            ),
         )
+    )
 
     docker_a.queue_free()
     docker_b.queue_free()
@@ -499,12 +516,16 @@ func test_process_does_not_pop_queue_when_current_active():
     host._process(0.1)
     host._process(0.1)
 
-    if host.queue.size() == 1 and host.current_docker == current:
-        _test_passed += 1
-        print("    PASS: _process does not pop queue when current_docker active")
-    else:
-        _test_failed += 1
-        print("    FAIL: queue=%d current=%s" % [host.queue.size(), host.current_docker])
+    (
+        TestHelper
+        . assert_true(
+            host.queue.size() == 1 and host.current_docker == current,
+            (
+                "_process does not pop queue when current_docker active: queue=%d current=%s"
+                % [host.queue.size(), host.current_docker]
+            ),
+        )
+    )
 
     current.queue_free()
     queued.queue_free()
@@ -532,12 +553,16 @@ func test_process_promotes_after_current_leaves():
     # Tick — should promote queued
     host._process(0.1)
 
-    if host.current_docker == queued and host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: _process promotes after current leaves")
-    else:
-        _test_failed += 1
-        print("    FAIL: current=%s queue=%d" % [host.current_docker, host.queue.size()])
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == queued and host.queue.is_empty(),
+            (
+                "_process promotes after current leaves: current=%s queue=%d"
+                % [host.current_docker, host.queue.size()]
+            ),
+        )
+    )
 
     queued.queue_free()
 
@@ -565,8 +590,7 @@ func test_process_preserves_queue_order():
     # Promote A
     host._process(0.1)
     if host.current_docker != a:
-        _test_failed += 1
-        print("    FAIL: first promote should be A, got %s" % host.current_docker)
+        TestHelper.fail("first promote should be A, got %s" % host.current_docker)
         a.queue_free()
         b.queue_free()
         c.queue_free()
@@ -576,8 +600,7 @@ func test_process_preserves_queue_order():
     host.current_docker = null
     host._process(0.1)
     if host.current_docker != b:
-        _test_failed += 1
-        print("    FAIL: second promote should be B, got %s" % host.current_docker)
+        TestHelper.fail("second promote should be B, got %s" % host.current_docker)
         a.queue_free()
         b.queue_free()
         c.queue_free()
@@ -586,12 +609,16 @@ func test_process_preserves_queue_order():
     # B leaves, promote C
     host.current_docker = null
     host._process(0.1)
-    if host.current_docker == c and host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: _process preserves FIFO queue order")
-    else:
-        _test_failed += 1
-        print("    FAIL: current=%s queue=%d" % [host.current_docker, host.queue.size()])
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == c and host.queue.is_empty(),
+            (
+                "_process preserves FIFO queue order: current=%s queue=%d"
+                % [host.current_docker, host.queue.size()]
+            ),
+        )
+    )
 
     a.queue_free()
     b.queue_free()
@@ -609,12 +636,16 @@ func test_process_does_not_pop_when_no_current_and_empty_queue():
     # Should return early — no queue, no crash
     host._process(0.1)
 
-    if host.current_docker == null and host.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: _process handles empty queue with no current docker")
-    else:
-        _test_failed += 1
-        print("    FAIL: current=%s queue=%d" % [host.current_docker, host.queue.size()])
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == null and host.queue.is_empty(),
+            (
+                "_process handles empty queue with no current docker: current=%s queue=%d"
+                % [host.current_docker, host.queue.size()]
+            ),
+        )
+    )
 
 
 func test_process_waits_full_ticks_before_promoting():
@@ -631,27 +662,26 @@ func test_process_waits_full_ticks_before_promoting():
     # Tick once — not enough
     host._process(0.1)
     if host.current_docker != null:
-        _test_failed += 1
-        print("    FAIL: promoted too early")
+        TestHelper.fail("promoted too early")
         docker.queue_free()
         return
 
     # Tick twice — not enough
     host._process(0.1)
     if host.current_docker != null:
-        _test_failed += 1
-        print("    FAIL: promoted after 2 ticks, need 3")
+        TestHelper.fail("promoted after 2 ticks, need 3")
         docker.queue_free()
         return
 
     # Tick three times — now promote
     host._process(0.1)
-    if host.current_docker == docker:
-        _test_passed += 1
-        print("    PASS: _process waits full dock_wait_seconds before promoting")
-    else:
-        _test_failed += 1
-        print("    FAIL: not promoted after 3 ticks")
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == docker,
+            "_process waits full dock_wait_seconds before promoting: not promoted after 3 ticks",
+        )
+    )
 
     docker.queue_free()
 
@@ -671,20 +701,28 @@ func test_process_promotion_scales_with_delta():
     host.queue.append(slow_docker)
     for i in range(3):
         host._process(0.05)  # 3 * 0.05 = 0.15 < 0.2
-    if host.current_docker == null:
-        _test_passed += 1
-        print("    PASS: sub-threshold deltas do not promote (frame count irrelevant)")
-    else:
-        _test_failed += 1
-        print("    FAIL: promoted before dock_wait_seconds elapsed")
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == null,
+            (
+                "sub-threshold deltas do not promote (frame count irrelevant): "
+                + "promoted before dock_wait_seconds elapsed"
+            ),
+        )
+    )
 
     # A single delta at/above the threshold promotes on that tick.
     host._process(0.2)
-    if host.current_docker == slow_docker:
-        _test_passed += 1
-        print("    PASS: one delta >= dock_wait_seconds promotes (scales with game speed)")
-    else:
-        _test_failed += 1
-        print("    FAIL: not promoted after delta reached dock_wait_seconds")
+    (
+        TestHelper
+        . assert_true(
+            host.current_docker == slow_docker,
+            (
+                "one delta >= dock_wait_seconds promotes (scales with game speed): "
+                + "not promoted after delta reached dock_wait_seconds"
+            ),
+        )
+    )
 
     slow_docker.queue_free()

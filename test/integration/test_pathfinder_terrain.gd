@@ -4,49 +4,46 @@ extends Node
 
 var _ts: Node = null
 var _sh: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func test_find_path_returns_array():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _ts.init_grid(32, 32)
     var start := Vector3(1.0, 0.0, 1.0)
     var end := Vector3(5.0, 0.0, 5.0)
     var path: PackedVector3Array = Pathfinder.find_path(start, end)
     _ts.clear()
-    if path.size() > 0:
-        _test_passed += 1
-        print("    PASS: find_path returns %d waypoints" % path.size())
-    else:
-        _test_failed += 1
-        print("    FAIL: expected waypoints, got empty array")
+    (
+        TestHelper
+        . assert_true(
+            path.size() > 0,
+            "find_path returns %d waypoints: expected waypoints, got empty array" % path.size(),
+        )
+    )
 
 
 func test_find_path_empty_for_same_cell():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _ts.init_grid(32, 32)
     var pos := Vector3(3.0, 0.0, 3.0)
     var path: PackedVector3Array = Pathfinder.find_path(pos, pos)
     _ts.clear()
-    if path.size() == 0:
-        _test_passed += 1
-        print("    PASS: find_path returns empty for same cell")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected empty, got %d waypoints" % path.size())
+    (
+        TestHelper
+        . assert_true(
+            path.size() == 0,
+            "find_path returns empty for same cell: expected empty, got %d waypoints" % path.size(),
+        )
+    )
 
 
 func test_bib_penalty_routes_around_when_detour_is_cheap():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _ts.init_grid(32, 32)
     # Two bib cells forming a 2-wide wall straight ahead of the direct line.
@@ -64,18 +61,21 @@ func test_bib_penalty_routes_around_when_detour_is_cheap():
             break
     _sh.unregister_bib_cells(bib_cells)
     _ts.clear()
-    if path.size() > 0 and not crossed_bib:
-        _test_passed += 1
-        print("    PASS: path avoids bib cells when a cheaper detour exists")
-    else:
-        _test_failed += 1
-        print("    FAIL: crossed_bib=%s path=%s (should route around)" % [crossed_bib, path])
+    (
+        TestHelper
+        . assert_true(
+            path.size() > 0 and not crossed_bib,
+            (
+                "path avoids bib cells when a cheaper detour exists: "
+                + "crossed_bib=%s path=%s (should route around)" % [crossed_bib, path]
+            ),
+        )
+    )
 
 
 func test_bib_cell_still_reachable_as_destination():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _ts.init_grid(32, 32)
     var dock_cell := Vector2i(16, 16)
@@ -89,28 +89,25 @@ func test_bib_cell_still_reachable_as_destination():
     )
     _sh.unregister_bib_cells([dock_cell] as Array[Vector2i])
     _ts.clear()
-    if reached and last_cell == dock_cell:
-        _test_passed += 1
-        print("    PASS: bib destination (dock pad) is reachable")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            reached and last_cell == dock_cell,
             (
-                "    FAIL: reached=%s last_cell=%s (should reach bib destination)"
-                % [reached, last_cell]
-            )
+                "bib destination (dock pad) is reachable: "
+                + "reached=%s last_cell=%s (should reach bib destination)" % [reached, last_cell]
+            ),
         )
+    )
 
 
 func test_bib_no_penalty_without_rules():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     var ef: Node = Engine.get_main_loop().root.get_node_or_null("EntityFactory")
     if ef == null or not ef.has_method("get_global_rules"):
-        _test_failed += 1
-        print("    FAIL: EntityFactory not available to exercise null-rules path")
+        TestHelper.fail("EntityFactory not available to exercise null-rules path")
         return
     var original: GlobalRules = ef.get_global_rules()
     ef.set_global_rules(null)
@@ -129,23 +126,21 @@ func test_bib_no_penalty_without_rules():
     _sh.unregister_bib_cells(bib_cells)
     _ts.clear()
     ef.set_global_rules(original)
-    if path.size() > 0 and straight_used:
-        _test_passed += 1
-        print("    PASS: no rules → bib cells are not penalized (direct crossing used)")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            path.size() > 0 and straight_used,
             (
-                "    FAIL: straight_used=%s path=%s (no-penalty should cross bib)"
-                % [straight_used, path]
-            )
+                "no rules → bib cells are not penalized (direct crossing used): "
+                + "straight_used=%s path=%s (no-penalty should cross bib)" % [straight_used, path]
+            ),
         )
+    )
 
 
 func test_bib_penalty_ignored_for_building_associated_move():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _ts.init_grid(32, 32)
     var bib_cells: Array[Vector2i] = [Vector2i(16, 15), Vector2i(16, 16)]
@@ -162,14 +157,13 @@ func test_bib_penalty_ignored_for_building_associated_move():
             break
     _sh.unregister_bib_cells(bib_cells)
     _ts.clear()
-    if path.size() > 0 and crossed_bib:
-        _test_passed += 1
-        print("    PASS: ignore_bib_penalty → bib crossing allowed (exit move)")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            path.size() > 0 and crossed_bib,
             (
-                "    FAIL: crossed_bib=%s path=%s (ignore_bib_penalty should cross)"
-                % [crossed_bib, path]
-            )
+                "ignore_bib_penalty → bib crossing allowed (exit move): "
+                + "crossed_bib=%s path=%s (ignore_bib_penalty should cross)" % [crossed_bib, path]
+            ),
         )
+    )

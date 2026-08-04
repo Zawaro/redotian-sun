@@ -3,8 +3,6 @@ extends Node
 # Ice entity: weight damage, one-time per entry, break -> drown occupants, passability revert
 
 var _sh: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _make_ice(cell: Vector2i, strength: int = 50) -> Node3D:
@@ -33,8 +31,7 @@ func _make_mc(weight: float) -> MovementController:
 
 func test_heavy_unit_damages_ice():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     var cell := Vector2i(30, 30)
     var ice := _make_ice(cell)
@@ -47,15 +44,11 @@ func test_heavy_unit_damages_ice():
     ice.free()
     mc.get_parent().queue_free()
     TestHelper.assert_eq(remaining, 47, "weight 3.0 deals 3 damage to ice")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_light_unit_damages_nothing():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     var cell := Vector2i(30, 31)
     var ice := _make_ice(cell)
@@ -68,15 +61,11 @@ func test_light_unit_damages_nothing():
     ice.free()
     mc.get_parent().queue_free()
     TestHelper.assert_eq(remaining, 50, "below cracking threshold deals no damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_break_reverts_passability():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     var cell := Vector2i(30, 32)
     var ice := _make_ice(cell, 10)
@@ -88,15 +77,11 @@ func test_break_reverts_passability():
     _sh._ice_cells.erase(CellUtil.cell_key(cell))
     ice.free()
     TestHelper.assert_eq(intact, false, "broken ice no longer provides footing")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_break_drowns_occupant():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     var cell := Vector2i(30, 33)
     var ice := _make_ice(cell)
@@ -153,6 +138,3 @@ func test_break_drowns_occupant():
     _sh._grid.erase(CellUtil.cell_key(cell + Vector2i(1, 0)))
     TestHelper.assert_eq(drowned, 0, "occupant drowns when ice breaks")
     TestHelper.assert_eq(neighbor_ok, 100, "adjacent unit survives")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

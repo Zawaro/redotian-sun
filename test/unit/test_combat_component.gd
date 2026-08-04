@@ -5,8 +5,6 @@ extends Node
 var _sm: Node = null
 var _pm: Node = null
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _make_weapon(damage: int = 10, range_cells: float = 5.0, warhead: String = "SA") -> WeaponData:
@@ -60,9 +58,6 @@ func test_cursor_null_target_returns_default():
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var cursor := cc.get_cursor_for_target(null, Vector2i.ZERO)
     TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "null target -> DEFAULT")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -72,9 +67,6 @@ func test_cursor_empty_weapons_returns_default():
     var target := _make_target(1)
     var cursor := cc.get_cursor_for_target(target, Vector2i.ZERO)
     TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "no weapons -> DEFAULT")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -87,9 +79,6 @@ func test_cursor_enemy_returns_attack():
     var target := _make_target(local_id + 1)
     var cursor := cc.get_cursor_for_target(target, Vector2i.ZERO)
     TestHelper.assert_eq(cursor, CursorState.Type.ATTACK, "enemy -> ATTACK")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -102,9 +91,6 @@ func test_cursor_friendly_returns_default():
     var target := _make_target(local_id)
     var cursor := cc.get_cursor_for_target(target, Vector2i.ZERO)
     TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "friendly -> DEFAULT")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -115,9 +101,6 @@ func test_cursor_neutral_target_returns_default():
     var target := _make_target(-1)
     var cursor := cc.get_cursor_for_target(target, Vector2i.ZERO)
     TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "neutral (player_id=-1) -> DEFAULT")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -131,9 +114,6 @@ func test_cursor_target_without_stats_returns_default():
     TestHelper.assert_eq(
         cursor, CursorState.Type.DEFAULT, "target without StatsComponent -> DEFAULT"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -146,9 +126,6 @@ func test_order_null_target_returns_null():
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var order := cc.get_order_for_target(null, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "null target -> null order")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -158,9 +135,6 @@ func test_order_empty_weapons_returns_null():
     var target := _make_target(1)
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "no weapons -> null order")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -176,9 +150,6 @@ func test_order_enemy_returns_attack_order():
     TestHelper.assert_eq(order.cursor, CursorState.Type.ATTACK, "enemy order cursor -> ATTACK")
     TestHelper.assert_eq(order.priority, 30, "enemy order priority -> 30")
     TestHelper.assert_true(order.execute.is_valid(), "enemy order has valid execute callable")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -191,9 +162,6 @@ func test_order_friendly_returns_null():
     var target := _make_target(local_id)
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "friendly -> null order")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -204,9 +172,6 @@ func test_order_neutral_returns_null():
     var target := _make_target(-1)
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "neutral -> null order")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -221,9 +186,6 @@ func test_order_force_attack_modifier_allows_friendly():
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, modifiers)
     TestHelper.assert_true(order != null, "force_attack on friendly -> order not null")
     TestHelper.assert_eq(order.cursor, CursorState.Type.ATTACK, "force_attack cursor -> ATTACK")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -238,9 +200,6 @@ func test_order_queued_modifier_sets_queued_flag():
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, modifiers)
     TestHelper.assert_true(order != null, "queued modifier -> order not null")
     TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -254,9 +213,6 @@ func test_order_no_queued_modifier_sets_queued_false():
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order != null, "no queued modifier -> order not null")
     TestHelper.assert_true(not order.queued, "no queued modifier -> order.queued = false")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -268,9 +224,6 @@ func test_order_target_without_stats_returns_null():
     target.name = "NoStatsTarget"
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "target without StatsComponent -> null order")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -283,9 +236,6 @@ func test_order_stores_target_reference():
     var target := _make_target(local_id + 1)
     var order := cc.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_eq(order.target, target, "order stores target reference")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -299,9 +249,6 @@ func test_order_stores_target_pos():
     var pos := Vector3(10.0, 0.0, 20.0)
     var order := cc.get_order_for_target(target, Vector2i.ZERO, pos, {})
     TestHelper.assert_eq(order.target_pos, pos, "order stores target_pos")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -318,9 +265,6 @@ func test_configure_sets_weapons():
     cc.configure(data)
     TestHelper.assert_eq(cc.weapons.size(), 1, "configure sets weapons array")
     TestHelper.assert_eq(cc.weapons[0].damage, 20, "configure copies weapon data")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -330,9 +274,6 @@ func test_get_current_weapon_with_weapons():
     var weapon := cc.get_current_weapon()
     TestHelper.assert_true(weapon != null, "get_current_weapon returns weapon when weapons exist")
     TestHelper.assert_eq(weapon.id, "TEST_WEAPON", "get_current_weapon returns correct weapon")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -341,9 +282,6 @@ func test_get_current_weapon_empty_weapons():
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var weapon := cc.get_current_weapon()
     TestHelper.assert_true(weapon == null, "get_current_weapon returns null when no weapons")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -359,9 +297,6 @@ func test_cycle_weapon_wraps_around():
     combat.cycle_weapon()
     current = combat.get_current_weapon()
     TestHelper.assert_eq(current.damage, 10, "cycle_weapon wraps around to first")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -370,9 +305,6 @@ func test_cycle_weapon_no_op_when_empty():
     var cc := entity.get_node("CombatComponent") as CombatComponent
     cc.cycle_weapon()
     TestHelper.assert_true(true, "cycle_weapon does not crash when weapons empty")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -383,9 +315,6 @@ func test_validate_no_weapons():
     data.id = "TEST_EMPTY"
     var errors := cc.validate(data)
     TestHelper.assert_true(errors.size() > 0, "validate reports error for no weapons")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -417,9 +346,6 @@ func test_set_target_stores_reference():
     cc.set_target(target)
     TestHelper.assert_eq(cc._target, target, "set_target stores reference")
     TestHelper.assert_true(cc._attack_active, "set_target sets _attack_active")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -432,9 +358,6 @@ func test_clear_target_clears_reference():
     cc.clear_target()
     TestHelper.assert_eq(cc._target, null, "clear_target nulls reference")
     TestHelper.assert_eq(cc._attack_active, false, "clear_target clears _attack_active")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -449,9 +372,6 @@ func test_cooldown_blocks_fire():
     cc._physics_process(0.1)
     var new_health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(new_health, old_health, "cooldown blocks fire — health unchanged")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -464,9 +384,6 @@ func test_fire_deals_damage_in_range():
     cc._fire_weapon(weapon, target)
     var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 100 - weapon.damage, "fire deals weapon.damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -483,9 +400,6 @@ func test_target_invalidated_no_crash():
     cc._physics_process(0.1)
     cc._physics_process(0.1)
     TestHelper.assert_eq(cc._target, null, "invalid target cleared")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     remove_child(entity)
     entity.free()
 
@@ -502,9 +416,6 @@ func test_target_death_clears_target():
     var weapon := cc.get_current_weapon()
     target.get_node("HealthComponent").take_damage(weapon.damage)
     TestHelper.assert_eq(cc._target, null, "dead target cleared via health_zero signal")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     remove_child(entity)
     remove_child(target)
     entity.free()
@@ -525,9 +436,6 @@ func test_weapon_fired_signal_emits():
     cc._fire_weapon(weapon, target)
     TestHelper.assert_true(result[0], "weapon_fired signal emitted")
     TestHelper.assert_eq(result[1], weapon, "signal passes weapon data")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
 
@@ -594,9 +502,6 @@ func test_armor_sa_vs_heavy():
     cc._fire_weapon(weapon, target)
     var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 1000 - 25, "SA vs heavy (0.25) deals 25 damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
     _restore_rules()
@@ -613,9 +518,6 @@ func test_armor_ap_vs_heavy_full():
     cc._fire_weapon(weapon, target)
     var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 1000 - 100, "AP vs heavy (1.0) deals full damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
     _restore_rules()
@@ -632,9 +534,6 @@ func test_armor_sa_vs_concrete_min_floor():
     cc._fire_weapon(weapon, target)
     var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 1000 - 1, "SA vs concrete (0.1*5=0.5) floors to min_damage 1")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
     _restore_rules()
@@ -651,9 +550,6 @@ func test_armor_zero_damage_pairing():
     cc._fire_weapon(weapon, target)
     var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 1000 - 0, "Mechanical vs none (0.0) deals 0 damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
     _restore_rules()
@@ -670,9 +566,6 @@ func test_armor_unknown_warhead_full():
     cc._fire_weapon(weapon, target)
     var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 1000 - 50, "unknown warhead deals full damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
     _restore_rules()
@@ -689,9 +582,6 @@ func test_armor_unknown_target_armor_full():
     cc._fire_weapon(weapon, target)
     var health: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health, 1000 - 50, "unknown armor deals full damage")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
     _restore_rules()
@@ -710,9 +600,6 @@ func test_armor_fire_overkill_caps_at_max():
     TestHelper.assert_eq(
         health, 100000 - 1000, "Fire vs none (6.0*500=3000) caps to max_damage 1000"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     target.free()
     _restore_rules()
@@ -743,9 +630,6 @@ func test_order_resolver_returns_attack_for_enemy_with_selection():
     TestHelper.assert_true(best.execute.is_valid(), "execute callable valid")
     if sm:
         sm.deselect_all()
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     remove_child(entity)
     remove_child(target)
     entity.free()
@@ -757,8 +641,7 @@ func test_order_resolver_returns_attack_for_enemy_with_selection():
 
 func test_player_move_clears_attack_target():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _ts.init_grid(32, 32)
     if SpatialHash.instance:
@@ -779,9 +662,6 @@ func test_player_move_clears_attack_target():
     mc.set_target_position(Vector3(5, 0, 5))
     TestHelper.assert_eq(cc._target, null, "target cleared after player move")
     TestHelper.assert_eq(cc._attack_active, false, "attack inactive after player move")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _ts.clear()
     remove_child(entity)
     remove_child(target)
@@ -791,8 +671,7 @@ func test_player_move_clears_attack_target():
 
 func test_combat_move_preserves_attack_target():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _ts.init_grid(32, 32)
     if SpatialHash.instance:
@@ -812,9 +691,6 @@ func test_combat_move_preserves_attack_target():
     mc.set_target_position(Vector3(5, 0, 5))
     TestHelper.assert_eq(cc._target, target, "target preserved after combat move")
     TestHelper.assert_true(cc._attack_active, "attack active after combat move")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _ts.clear()
     remove_child(entity)
     remove_child(target)
@@ -838,9 +714,6 @@ func test_range_ignores_vertical_separation():
     TestHelper.assert_true(
         new_health < old_health, "vertical separation does not block firing when XZ in range"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     root.remove_child(entity)
     root.remove_child(target)
     entity.free()
@@ -868,9 +741,6 @@ func test_range_horizontal_distance_used():
     var health_in: int = target.get_node("HealthComponent").current_health
     TestHelper.assert_eq(health_out, 100, "out of XZ range does not fire")
     TestHelper.assert_true(health_in < 100, "within XZ range fires")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     root.remove_child(entity)
     root.remove_child(target)
     entity.free()

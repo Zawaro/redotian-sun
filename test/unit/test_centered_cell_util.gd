@@ -3,8 +3,6 @@ extends Node
 # Coordinate-system tests use independent geometric invariants and gameplay lookups.
 
 var _ts: Node = null
-var _test_passed: int = 0
-var _test_failed: int = 0
 
 
 func test_world_origin_for_all_map_parities() -> void:
@@ -204,24 +202,22 @@ func test_terrain_lookup_at_world_origin_uses_centered_cell() -> void:
 
 
 func _assert_true(value: bool, message: String) -> void:
-    if value:
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: " + message)
+    TestHelper.assert_true(value, message)
 
 
 func _assert_eq(got: Variant, expected: Variant, message: String) -> void:
-    if got == expected:
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: %s — expected %s, got %s" % [message, expected, got])
+    TestHelper.assert_eq(got, expected, message)
 
 
 func _assert_vec3_approx(got: Vector3, expected: Vector3, message: String) -> void:
-    if got.is_equal_approx(expected):
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: %s — expected %s, got %s" % [message, expected, got])
+    (
+        TestHelper
+        . assert_true(
+            (
+                is_equal_approx(got.x, expected.x)
+                and is_equal_approx(got.y, expected.y)
+                and is_equal_approx(got.z, expected.z)
+            ),
+            message,
+        )
+    )

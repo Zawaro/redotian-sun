@@ -3,8 +3,6 @@ extends Node
 # BuildingManager tests — placement validation
 
 var _bm: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _setup_2x2_terrain(origin: Vector2i) -> void:
@@ -26,25 +24,20 @@ func _make_2x2_building() -> EntityData:
 
 func test_can_place_returns_true_on_valid_centered_cells() -> void:
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     var building_type := _make_2x2_building()
     var origin := Vector2i(64, 64)
     _setup_2x2_terrain(origin)
     var result: bool = _bm.can_place(building_type, origin)
-    if result == true:
-        _test_passed += 1
-        print("    PASS: can_place returns true on valid cells")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected true, got false")
+    TestHelper.assert_true(
+        result == true, "can_place returns true on valid cells: expected true, got false"
+    )
 
 
 func test_can_place_rejects_building_overlap() -> void:
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     SpatialHash.instance._building_cells.clear()
     var building_type := _make_2x2_building()
@@ -55,18 +48,18 @@ func test_can_place_rejects_building_overlap() -> void:
     SpatialHash.instance.register_building_cells(cells)
     var result: bool = _bm.can_place(building_type, origin)
     SpatialHash.instance._building_cells.clear()
-    if valid_before_overlap and result == false:
-        _test_passed += 1
-        print("    PASS: can_place rejects building overlap")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected false, got true")
+    (
+        TestHelper
+        . assert_true(
+            valid_before_overlap and result == false,
+            "can_place rejects building overlap: expected false, got true",
+        )
+    )
 
 
 func test_can_place_rejects_tiberium_cell() -> void:
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     SpatialHash.instance._building_cells.clear()
     var building_type := _make_2x2_building()
@@ -87,18 +80,18 @@ func test_can_place_rejects_tiberium_cell() -> void:
     SpatialHash.instance.unregister_resource_cell(world_cell)
     _bm.remove_child(tib_node)
     tib_node.queue_free()
-    if valid_before_resource and result == false:
-        _test_passed += 1
-        print("    PASS: can_place rejects tiberium cell")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected false, got true")
+    (
+        TestHelper
+        . assert_true(
+            valid_before_resource and result == false,
+            "can_place rejects tiberium cell: expected false, got true",
+        )
+    )
 
 
 func test_can_place_rejects_moving_unit() -> void:
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     SpatialHash.instance._building_cells.clear()
     SpatialHash.instance._blocked_cells.clear()
@@ -116,9 +109,10 @@ func test_can_place_rejects_moving_unit() -> void:
     SpatialHash.instance._grid.erase(unit_key)
     SpatialHash.instance._building_cells.clear()
     fake_mc.queue_free()
-    if valid_before_unit and result == false:
-        _test_passed += 1
-        print("    PASS: can_place rejects moving unit")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected false, got true")
+    (
+        TestHelper
+        . assert_true(
+            valid_before_unit and result == false,
+            "can_place rejects moving unit: expected false, got true",
+        )
+    )

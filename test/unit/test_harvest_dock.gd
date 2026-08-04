@@ -3,8 +3,6 @@ extends Node
 # HarvestComponent + DockHostComponent + DockUnloadComponent integration tests
 # Uses mock nodes — no autoloads required except what the runner injects.
 
-var _test_passed := 0
-var _test_failed := 0
 var _slot_emitted_flag := false
 var _timeout_emitted_flag := false
 var _timeout_docker_ref: Node = null
@@ -109,12 +107,13 @@ func test_harvest_initial_state_is_idle():
     var entity := _make_entity()
     add_child(entity)
     var harvest := _get_harvest(entity)
-    if harvest._state == HarvestComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: HarvestComponent starts in IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: initial state = %d (expected IDLE)" % harvest._state)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.IDLE,
+            "HarvestComponent starts in IDLE: initial state = %d (expected IDLE)" % harvest._state,
+        )
+    )
     entity.queue_free()
 
 
@@ -136,12 +135,16 @@ func test_harvest_cargo_full_transitions_to_delivering():
     # Actually, let's just call _deliver_cargo directly
     harvest._deliver_cargo(entity)
 
-    if harvest._state == HarvestComponent.State.DELIVERING:
-        _test_passed += 1
-        print("    PASS: cargo full transitions to DELIVERING")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected DELIVERING)" % harvest._state)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.DELIVERING,
+            (
+                "cargo full transitions to DELIVERING: state = %d (expected DELIVERING)"
+                % harvest._state
+            ),
+        )
+    )
     entity.queue_free()
 
 
@@ -153,12 +156,13 @@ func test_harvest_cancel_goes_to_idle():
 
     harvest.cancel_harvest()
 
-    if harvest._state == HarvestComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: cancel_harvest transitions to IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % harvest._state)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.IDLE,
+            "cancel_harvest transitions to IDLE: state = %d (expected IDLE)" % harvest._state,
+        )
+    )
     entity.queue_free()
 
 
@@ -173,12 +177,16 @@ func test_harvest_dock_undocked_goes_to_seek_node():
 
     harvest.on_dock_undocked(entity)
 
-    if harvest._state == HarvestComponent.State.HIBERNATE:
-        _test_passed += 1
-        print("    PASS: dock_undocked from DELIVERING → assesses next action")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected HIBERNATE)" % harvest._state)
+    TestHelper.assert_true(
+        harvest._state == HarvestComponent.State.HIBERNATE,
+        (
+            (
+                "dock_undocked from DELIVERING → assesses next action: "
+                + "state = %d (expected HIBERNATE)"
+            )
+            % harvest._state
+        )
+    )
     entity.queue_free()
 
 
@@ -192,12 +200,16 @@ func test_harvest_dock_slot_failed_schedules_retry():
     # synchronously (which recurses via dock_slot_failed → stack overflow).
     harvest._on_dock_slot_failed()
 
-    if harvest._state == HarvestComponent.State.DELIVERING and harvest._deliver_retry > 0.0:
-        _test_passed += 1
-        print("    PASS: dock_slot_failed schedules retry, no synchronous re-seek")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d retry=%f" % [harvest._state, harvest._deliver_retry])
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.DELIVERING and harvest._deliver_retry > 0.0,
+            (
+                "dock_slot_failed schedules retry, no synchronous re-seek: state=%d retry=%f"
+                % [harvest._state, harvest._deliver_retry]
+            ),
+        )
+    )
     entity.queue_free()
 
 
@@ -212,12 +224,16 @@ func test_harvest_dock_cancelled_goes_to_seek_node():
 
     harvest._on_dock_cancelled()
 
-    if harvest._state == HarvestComponent.State.HIBERNATE:
-        _test_passed += 1
-        print("    PASS: dock_cancelled from DELIVERING → assesses next action")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected HIBERNATE)" % harvest._state)
+    TestHelper.assert_true(
+        harvest._state == HarvestComponent.State.HIBERNATE,
+        (
+            (
+                "dock_cancelled from DELIVERING → assesses next action: "
+                + "state = %d (expected HIBERNATE)"
+            )
+            % harvest._state
+        )
+    )
     entity.queue_free()
 
 
@@ -232,12 +248,16 @@ func test_harvest_empty_no_resource_enters_hibernate():
     harvest._assess_next_action()
 
     # Empty + nothing to harvest → HIBERNATE (auto-retry), NOT IDLE (player-only).
-    if harvest._state == HarvestComponent.State.HIBERNATE:
-        _test_passed += 1
-        print("    PASS: empty + no resource → HIBERNATE, not IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d (expected HIBERNATE)" % harvest._state)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.HIBERNATE,
+            (
+                "empty + no resource → HIBERNATE, not IDLE: state=%d (expected HIBERNATE)"
+                % harvest._state
+            ),
+        )
+    )
     entity.queue_free()
 
 
@@ -250,15 +270,19 @@ func test_harvest_hibernate_ticks_research_timer():
 
     harvest._process(0.5)
 
-    if (
-        harvest._state == HarvestComponent.State.HIBERNATE
-        and is_equal_approx(harvest._hibernate_timer, 1.5)
-    ):
-        _test_passed += 1
-        print("    PASS: HIBERNATE ticks the re-search timer down")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d timer=%f" % [harvest._state, harvest._hibernate_timer])
+    (
+        TestHelper
+        . assert_true(
+            (
+                harvest._state == HarvestComponent.State.HIBERNATE
+                and is_equal_approx(harvest._hibernate_timer, 1.5)
+            ),
+            (
+                "HIBERNATE ticks the re-search timer down: state=%d timer=%f"
+                % [harvest._state, harvest._hibernate_timer]
+            ),
+        )
+    )
     entity.queue_free()
 
 
@@ -272,12 +296,16 @@ func test_harvest_change_state_noop_on_same_state():
     harvest.state_changed.connect(func(_s): emitted = true)
     harvest._change_state(HarvestComponent.State.IDLE)
 
-    if not emitted:
-        _test_passed += 1
-        print("    PASS: _change_state is a no-op for same state")
-    else:
-        _test_failed += 1
-        print("    FAIL: state_changed emitted for same-state transition")
+    (
+        TestHelper
+        . assert_true(
+            not emitted,
+            (
+                "_change_state is a no-op for same state: "
+                + "state_changed emitted for same-state transition"
+            ),
+        )
+    )
     entity.queue_free()
 
 
@@ -299,12 +327,13 @@ func test_harvest_set_target_node_transitions_to_seek_node():
 
     # State should have changed from IDLE (may be SEEK_NODE or redirected
     # by SpatialHash reservation failure in test env)
-    if harvest._state != HarvestComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: set_target_node changed state from IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: state still IDLE after set_target_node")
+    (
+        TestHelper
+        . assert_true(
+            harvest._state != HarvestComponent.State.IDLE,
+            "set_target_node changed state from IDLE: state still IDLE after set_target_node",
+        )
+    )
     resource.queue_free()
     entity.queue_free()
 
@@ -325,12 +354,16 @@ func test_harvest_set_target_refinery_enters_delivering():
     # (gated on DELIVERING) never resumes the harvest loop afterwards.
     harvest.set_target_refinery(dock_entity)
 
-    if harvest._state == HarvestComponent.State.DELIVERING:
-        _test_passed += 1
-        print("    PASS: set_target_refinery enters DELIVERING")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d (expected DELIVERING)" % harvest._state)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.DELIVERING,
+            (
+                "set_target_refinery enters DELIVERING: state=%d (expected DELIVERING)"
+                % harvest._state
+            ),
+        )
+    )
     dock_entity.queue_free()
     entity.queue_free()
 
@@ -351,12 +384,16 @@ func test_request_dock_succeeds_when_empty():
 
     var result: bool = dock_comp.request_dock(harvest)
 
-    if result and dock_comp.current_docker == harvest:
-        _test_passed += 1
-        print("    PASS: request_dock succeeds when dock is empty")
-    else:
-        _test_failed += 1
-        print("    FAIL: result=%s, current_docker=%s" % [result, dock_comp.current_docker])
+    (
+        TestHelper
+        . assert_true(
+            result and dock_comp.current_docker == harvest,
+            (
+                "request_dock succeeds when dock is empty: result=%s, current_docker=%s"
+                % [result, dock_comp.current_docker]
+            ),
+        )
+    )
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -380,12 +417,16 @@ func test_request_dock_fails_when_occupied():
     dock_comp.request_dock(harvest_a)
     var result: bool = dock_comp.request_dock(harvest_b)
 
-    if not result and dock_comp.current_docker == harvest_a:
-        _test_passed += 1
-        print("    PASS: request_dock fails when another docker is active")
-    else:
-        _test_failed += 1
-        print("    FAIL: result=%s, current_docker=%s" % [result, dock_comp.current_docker])
+    (
+        TestHelper
+        . assert_true(
+            not result and dock_comp.current_docker == harvest_a,
+            (
+                "request_dock fails when another docker is active: result=%s, current_docker=%s"
+                % [result, dock_comp.current_docker]
+            ),
+        )
+    )
 
     entity_a.queue_free()
     entity_b.queue_free()
@@ -406,12 +447,13 @@ func test_request_dock_returns_true_for_same_docker():
     dock_comp.request_dock(harvest)
     var result: bool = dock_comp.request_dock(harvest)
 
-    if result:
-        _test_passed += 1
-        print("    PASS: request_dock returns true for same docker (re-dock)")
-    else:
-        _test_failed += 1
-        print("    FAIL: re-dock returned false")
+    (
+        TestHelper
+        . assert_true(
+            result,
+            "request_dock returns true for same docker (re-dock): re-dock returned false",
+        )
+    )
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -435,12 +477,16 @@ func test_request_dock_queues_second_docker():
     dock_comp.request_dock(harvest_a)
     var result: bool = dock_comp.request_dock(harvest_b)
 
-    if not result and dock_comp.queue.has(harvest_b):
-        _test_passed += 1
-        print("    PASS: second docker is queued when dock is occupied")
-    else:
-        _test_failed += 1
-        print("    FAIL: result=%s, in_queue=%s" % [result, dock_comp.queue.has(harvest_b)])
+    (
+        TestHelper
+        . assert_true(
+            not result and dock_comp.queue.has(harvest_b),
+            (
+                "second docker is queued when dock is occupied: result=%s, in_queue=%s"
+                % [result, dock_comp.queue.has(harvest_b)]
+            ),
+        )
+    )
 
     entity_a.queue_free()
     entity_b.queue_free()
@@ -467,17 +513,19 @@ func test_leave_dock_releases_cell():
     var key: int = CellUtil.cell_key(dock_cell)
     var still_reserved: bool = SpatialHash.instance._reserved.has(key)
 
-    if not still_reserved and dock_comp.current_docker == null:
-        _test_passed += 1
-        print("    PASS: leave_dock releases dock cell and clears current_docker")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            not still_reserved and dock_comp.current_docker == null,
             (
-                "    FAIL: still_reserved=%s, current_docker=%s"
+                (
+                    "leave_dock releases dock cell and clears current_docker: "
+                    + "still_reserved=%s, current_docker=%s"
+                )
                 % [still_reserved, dock_comp.current_docker]
-            )
+            ),
         )
+    )
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -508,14 +556,16 @@ func test_leave_dock_reserves_cell_for_next_docker():
     var key: int = CellUtil.cell_key(dock_cell)
     var reserved_for_b: bool = SpatialHash.instance._reserved.has(key)
 
-    if reserved_for_b and dock_comp.current_docker == harvest_b:
-        _test_passed += 1
-        print("    PASS: leave_dock reserves dock cell for next queued docker")
-    else:
-        _test_failed += 1
-        print(
-            "    FAIL: reserved=%s, current_docker=%s" % [reserved_for_b, dock_comp.current_docker]
+    TestHelper.assert_true(
+        reserved_for_b and dock_comp.current_docker == harvest_b,
+        (
+            (
+                "leave_dock reserves dock cell for next queued docker: "
+                + "reserved=%s, current_docker=%s"
+            )
+            % [reserved_for_b, dock_comp.current_docker]
         )
+    )
 
     entity_a.queue_free()
     entity_b.queue_free()
@@ -546,12 +596,16 @@ func test_leave_dock_emits_slot_available():
     dock_comp.leave_dock(harvest_a)
     dock_comp._process(0.0)  # resolve vacate
 
-    if _slot_emitted_flag:
-        _test_passed += 1
-        print("    PASS: leave_dock emits slot_available when queue has next docker")
-    else:
-        _test_failed += 1
-        print("    FAIL: slot_available was not emitted")
+    (
+        TestHelper
+        . assert_true(
+            _slot_emitted_flag,
+            (
+                "leave_dock emits slot_available when queue has next docker: "
+                + "slot_available was not emitted"
+            ),
+        )
+    )
 
     entity_a.queue_free()
     entity_b.queue_free()
@@ -576,12 +630,16 @@ func test_leave_dock_no_slot_available_when_queue_empty():
 
     dock_comp.leave_dock(harvest)
 
-    if not slot_emitted:
-        _test_passed += 1
-        print("    PASS: leave_dock does not emit slot_available when queue is empty")
-    else:
-        _test_failed += 1
-        print("    FAIL: slot_available was emitted with empty queue")
+    (
+        TestHelper
+        . assert_true(
+            not slot_emitted,
+            (
+                "leave_dock does not emit slot_available when queue is empty: "
+                + "slot_available was emitted with empty queue"
+            ),
+        )
+    )
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -616,14 +674,19 @@ func test_full_dock_cycle_leave_transfers_to_next():
     var key: int = CellUtil.cell_key(dock_comp._dock_cell)
     var cell_reserved: bool = SpatialHash.instance._reserved.has(key)
 
-    if docked_a and queued_b and transferred and queue_empty and cell_reserved:
-        _test_passed += 1
-        print("    PASS: full dock cycle: A docks → B queued → A leaves → B docked + cell reserved")
-    else:
-        _test_failed += 1
-        var msg := "    FAIL: docked_a=%s queued_b=%s transferred=%s"
-        msg += " queue_empty=%s cell_reserved=%s"
-        print(msg % [docked_a, queued_b, transferred, queue_empty, cell_reserved])
+    (
+        TestHelper
+        . assert_true(
+            docked_a and queued_b and transferred and queue_empty and cell_reserved,
+            (
+                "full dock cycle: A docks → B queued → A leaves → B docked + cell reserved: "
+                + (
+                    "docked_a=%s queued_b=%s transferred=%s queue_empty=%s cell_reserved=%s"
+                    % [docked_a, queued_b, transferred, queue_empty, cell_reserved]
+                )
+            ),
+        )
+    )
 
     entity_a.queue_free()
     entity_b.queue_free()
@@ -643,12 +706,13 @@ func test_dock_unload_begin_unload_enables_processing():
     dock_unload.begin_unload()
     var is_after := dock_unload.is_processing()
 
-    if not was_before and is_after:
-        _test_passed += 1
-        print("    PASS: begin_unload() enables processing")
-    else:
-        _test_failed += 1
-        print("    FAIL: before=%s, after=%s" % [was_before, is_after])
+    (
+        TestHelper
+        . assert_true(
+            not was_before and is_after,
+            "begin_unload() enables processing: before=%s, after=%s" % [was_before, is_after],
+        )
+    )
 
     dock_entity.queue_free()
 
@@ -664,12 +728,13 @@ func test_dock_unload_stops_on_undocked():
     dock_unload._on_docker_undocked(dock_entity)
     var is_after := dock_unload.is_processing()
 
-    if was_processing and not is_after:
-        _test_passed += 1
-        print("    PASS: docker_undocked stops processing")
-    else:
-        _test_failed += 1
-        print("    FAIL: before=%s, after=%s" % [was_processing, is_after])
+    (
+        TestHelper
+        . assert_true(
+            was_processing and not is_after,
+            "docker_undocked stops processing: before=%s, after=%s" % [was_processing, is_after],
+        )
+    )
 
     dock_entity.queue_free()
 
@@ -684,12 +749,16 @@ func test_cargo_validation_accepts_matching_category():
     transport.cargo = {"tiberium": 100.0}
 
     var result: bool = dock_unload._validate_cargo(transport)
-    if result:
-        _test_passed += 1
-        print("    PASS: cargo validation accepts matching category")
-    else:
-        _test_failed += 1
-        print("    FAIL: cargo validation rejected matching category")
+    (
+        TestHelper
+        . assert_true(
+            result,
+            (
+                "cargo validation accepts matching category: "
+                + "cargo validation rejected matching category"
+            ),
+        )
+    )
 
     dock_entity.queue_free()
 
@@ -704,12 +773,16 @@ func test_cargo_validation_rejects_unaccepted():
     transport.cargo = {"vehicle_parts": 50.0}
 
     var result: bool = dock_unload._validate_cargo(transport)
-    if not result:
-        _test_passed += 1
-        print("    PASS: cargo validation rejects unaccepted category")
-    else:
-        _test_failed += 1
-        print("    FAIL: cargo validation accepted unaccepted category")
+    (
+        TestHelper
+        . assert_true(
+            not result,
+            (
+                "cargo validation rejects unaccepted category: "
+                + "cargo validation accepted unaccepted category"
+            ),
+        )
+    )
 
     dock_entity.queue_free()
 
@@ -724,12 +797,9 @@ func test_cargo_validation_empty_accepts_all():
     transport.cargo = {"anything": 100.0}
 
     var result: bool = dock_unload._validate_cargo(transport)
-    if result:
-        _test_passed += 1
-        print("    PASS: empty accepted_resource_categories accepts all")
-    else:
-        _test_failed += 1
-        print("    FAIL: empty categories rejected cargo")
+    TestHelper.assert_true(
+        result, "empty accepted_resource_categories accepts all: empty categories rejected cargo"
+    )
 
     dock_entity.queue_free()
 
@@ -744,16 +814,20 @@ func test_configure_copies_categories_from_entity_data():
 
     dock_unload.configure(data)
 
-    if (
-        dock_unload.accepted_resource_categories.size() == 2
-        and dock_unload.accepted_resource_categories.has("tiberium")
-        and dock_unload.accepted_resource_categories.has("minerals")
-    ):
-        _test_passed += 1
-        print("    PASS: configure copies accepted_resource_categories from EntityData")
-    else:
-        _test_failed += 1
-        print("    FAIL: categories = %s" % str(dock_unload.accepted_resource_categories))
+    (
+        TestHelper
+        . assert_true(
+            (
+                dock_unload.accepted_resource_categories.size() == 2
+                and dock_unload.accepted_resource_categories.has("tiberium")
+                and dock_unload.accepted_resource_categories.has("minerals")
+            ),
+            (
+                "configure copies accepted_resource_categories from EntityData: categories = %s"
+                % str(dock_unload.accepted_resource_categories)
+            ),
+        )
+    )
 
     dock_entity.queue_free()
 
@@ -776,12 +850,16 @@ func test_stale_eviction():
     dock_comp.request_dock(harvest)
     dock_comp._process(0.2)
 
-    if dock_comp.current_docker == null:
-        _test_passed += 1
-        print("    PASS: stale client evicted after stale_timeout")
-    else:
-        _test_failed += 1
-        print("    FAIL: current_docker=%s" % dock_comp.current_docker)
+    (
+        TestHelper
+        . assert_true(
+            dock_comp.current_docker == null,
+            (
+                "stale client evicted after stale_timeout: current_docker=%s"
+                % dock_comp.current_docker
+            ),
+        )
+    )
 
     entity.queue_free()
     dock_entity.queue_free()
@@ -807,12 +885,16 @@ func test_stale_eviction_emits_dock_timeout():
 
     dock_comp._process(0.2)
 
-    if _timeout_emitted_flag and _timeout_docker_ref == harvest:
-        _test_passed += 1
-        print("    PASS: stale eviction emits dock_timeout signal")
-    else:
-        _test_failed += 1
-        print("    FAIL: emitted=%s, docker=%s" % [_timeout_emitted_flag, _timeout_docker_ref])
+    (
+        TestHelper
+        . assert_true(
+            _timeout_emitted_flag and _timeout_docker_ref == harvest,
+            (
+                "stale eviction emits dock_timeout signal: emitted=%s, docker=%s"
+                % [_timeout_emitted_flag, _timeout_docker_ref]
+            ),
+        )
+    )
 
     entity.queue_free()
     dock_entity.queue_free()

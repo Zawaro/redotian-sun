@@ -26,7 +26,10 @@ func _ready() -> void:
     TerrainSystem.cell_changed.connect(_on_cell_changed)
     var existing := TerrainSystem.get_all_cells()
     var mesh_keys := _multimesh_meshes.keys()
-    print("[TerrainRenderer] _ready: mesh_names=", mesh_keys, " existing_cells=", existing.size())
+    if OS.is_stdout_verbose():
+        print(
+            "[TerrainRenderer] _ready: mesh_names=", mesh_keys, " existing_cells=", existing.size()
+        )
     for key in existing:
         _on_cell_changed(key, existing[key])
 
@@ -96,15 +99,16 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
     var variant: int = data.get("variant", 1)
     var mesh_name := _get_mesh_name(terrain_type, variant)
     if not _multimesh_meshes.has(mesh_name):
-        print(
-            "[TerrainRenderer] No mesh for ",
-            mesh_name,
-            " (type=",
-            terrain_type,
-            " variant=",
-            variant,
-            ")"
-        )
+        if OS.is_stdout_verbose():
+            print(
+                "[TerrainRenderer] No mesh for ",
+                mesh_name,
+                " (type=",
+                terrain_type,
+                " variant=",
+                variant,
+                ")"
+            )
         return
     var multimesh: MultiMesh = _multimesh_meshes[mesh_name]
     var idx: int = _active_counts[mesh_name]
@@ -179,7 +183,10 @@ func clear_all() -> void:
 
 func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
     _on_cell_changed_count += 1
-    if _on_cell_changed_count <= 3 or _on_cell_changed_count % 200 == 0:
+    if (
+        OS.is_stdout_verbose()
+        and (_on_cell_changed_count <= 3 or _on_cell_changed_count % 200 == 0)
+    ):
         var empty := cell_data.is_empty()
         print(
             "[TerrainRenderer] _on_cell_changed #",

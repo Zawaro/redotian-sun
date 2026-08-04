@@ -4,8 +4,6 @@ extends Node
 
 var _bm: Node = null
 var _sm: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _make_entity_with_health(health: int = 100) -> Node3D:
@@ -23,8 +21,7 @@ func _make_entity_with_health(health: int = 100) -> Node3D:
 
 func test_building_death_removes_entry_from_building_manager():
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     var building := _make_entity_with_health(100)
     var cells: Array[Vector2i] = [Vector2i(100, 100)]
@@ -45,9 +42,6 @@ func test_building_death_removes_entry_from_building_manager():
     _bm._on_building_destroyed(building)
     var idx_after: int = _bm._buildings.size()
     TestHelper.assert_eq(idx_after, idx_before - 1, "building entry removed from _buildings")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 # --- Task 3.2: Building death unregisters cells from SpatialHash ---
@@ -55,8 +49,7 @@ func test_building_death_removes_entry_from_building_manager():
 
 func test_building_death_unregisters_cells_from_spatial_hash():
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     var building := _make_entity_with_health(100)
     var cells: Array[Vector2i] = [Vector2i(200, 200)]
@@ -80,9 +73,6 @@ func test_building_death_unregisters_cells_from_spatial_hash():
     var registered_after: bool = SpatialHash.instance._building_cells.has(key)
     TestHelper.assert_true(registered_before, "cells registered before death")
     TestHelper.assert_eq(registered_after, false, "cells unregistered after death")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 # --- Task 3.3: Building death entry removed (PrerequisiteSystem test simplified) ---
@@ -90,8 +80,7 @@ func test_building_death_unregisters_cells_from_spatial_hash():
 
 func test_building_death_removes_entry_and_entity_freed():
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     var building := _make_entity_with_health(100)
     var data := EntityData.new()
@@ -118,9 +107,6 @@ func test_building_death_removes_entry_and_entity_freed():
             found = true
             break
     TestHelper.assert_eq(found, false, "building entry removed after death")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 # --- Task 3.4: Building death deselects from SelectionManager ---
@@ -128,8 +114,7 @@ func test_building_death_removes_entry_and_entity_freed():
 
 func test_building_death_deselects_from_selection_manager():
     if _bm == null or _sm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager or SelectionManager not injected")
+        TestHelper.fail("BuildingManager or SelectionManager not injected")
         return
     var building := _make_entity_with_health(100)
     var select_comp := SelectComponent.new()
@@ -143,9 +128,6 @@ func test_building_death_deselects_from_selection_manager():
     var selected_after: bool = select_comp in _sm.selected_entities
     TestHelper.assert_true(selected_before, "entity selected before death")
     TestHelper.assert_eq(selected_after, false, "deselect_entity removes from list")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 # --- Task 3.5: building_destroyed signal emitted with correct args ---
@@ -153,8 +135,7 @@ func test_building_death_deselects_from_selection_manager():
 
 func test_building_destroyed_signal_emitted():
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     var building := _make_entity_with_health(100)
     var signal_data: Array = []
@@ -179,9 +160,6 @@ func test_building_destroyed_signal_emitted():
     TestHelper.assert_eq(signal_data.size(), 1, "building_destroyed emitted once")
     if signal_data.size() > 0:
         TestHelper.assert_eq(signal_data[0], building, "signal passes correct building node")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 # --- Task 3.6: Entity health_zero triggers queue_free via signal ---
@@ -198,9 +176,6 @@ func test_health_zero_triggers_on_lethal_damage():
     hc.health_zero.connect(func() -> void: signal_fired = true)
     hc.take_damage(200)
     TestHelper.assert_eq(hc.current_health, 0, "health clamped to zero")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -209,8 +184,7 @@ func test_health_zero_triggers_on_lethal_damage():
 
 func test_entity_not_in_building_manager_handler_is_noop():
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     var building := _make_entity_with_health(100)
     # Do NOT register in BuildingManager
@@ -219,9 +193,6 @@ func test_entity_not_in_building_manager_handler_is_noop():
     _bm._on_building_destroyed(building)
     var size_after: int = _bm._buildings.size()
     TestHelper.assert_eq(size_after, size_before, "no change to _buildings for unregistered entity")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     building.free()
 
 
@@ -230,8 +201,7 @@ func test_entity_not_in_building_manager_handler_is_noop():
 
 func test_double_handler_call_safe():
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     var building := _make_entity_with_health(100)
     var cells: Array[Vector2i] = [Vector2i(500, 500)]
@@ -257,7 +227,4 @@ func test_double_handler_call_safe():
             found = true
             break
     TestHelper.assert_eq(found, false, "building entry removed after double call")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     building.free()

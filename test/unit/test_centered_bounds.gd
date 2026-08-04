@@ -5,8 +5,6 @@ extends Node
 const EDITOR_SCRIPT: GDScript = preload("res://scripts/editor/MapEditor.gd")
 
 var _ts: Node = null
-var _test_passed: int = 0
-var _test_failed: int = 0
 
 
 func test_diamond_vertices_enforce_mirrored_quadrants_and_right_angles() -> void:
@@ -246,17 +244,17 @@ func test_prefill_every_diamond_cell_exists() -> void:
                     if first_missing.x < 0:
                         first_missing = cell
         editor.free()
-        if missing_count == 0:
-            _test_passed += 1
-            print("    PASS: %s prefill has every diamond cell" % grid_cells)
-        else:
-            _test_failed += 1
-            print(
+        (
+            TestHelper
+            . assert_true(
+                missing_count == 0,
                 (
-                    "    FAIL: %s missing %d cells, first=%s"
-                    % [grid_cells, missing_count, first_missing]
-                )
+                    "%s prefill has every diamond cell" % grid_cells
+                    + ": "
+                    + "%s missing %d cells, first=%s" % [grid_cells, missing_count, first_missing]
+                ),
             )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -291,14 +289,17 @@ func test_prefill_no_cells_outside_diamond() -> void:
                 if first_ghost.is_empty():
                     first_ghost = key
         editor.free()
-        if ghost_count == 0:
-            _test_passed += 1
-            print("    PASS: %s prefill has no cells outside diamond" % grid_cells)
-        else:
-            _test_failed += 1
-            print(
-                "    FAIL: %s has %d ghost cells, first=%s" % [grid_cells, ghost_count, first_ghost]
+        (
+            TestHelper
+            . assert_true(
+                ghost_count == 0,
+                (
+                    "%s prefill has no cells outside diamond" % grid_cells
+                    + ": "
+                    + "%s has %d ghost cells, first=%s" % [grid_cells, ghost_count, first_ghost]
+                ),
             )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -336,12 +337,17 @@ func test_prefill_cell_world_roundtrip() -> void:
             if not all_roundtrip:
                 break
         editor.free()
-        if all_roundtrip:
-            _test_passed += 1
-            print("    PASS: %s every cell roundtrips through world space" % grid_cells)
-        else:
-            _test_failed += 1
-            print("    FAIL: %s cell %s -> world -> cell %s" % [grid_cells, bad_cell, bad_back])
+        (
+            TestHelper
+            . assert_true(
+                all_roundtrip,
+                (
+                    "%s every cell roundtrips through world space" % grid_cells
+                    + ": "
+                    + "%s cell %s -> world -> cell %s" % [grid_cells, bad_cell, bad_back]
+                ),
+            )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -375,12 +381,17 @@ func test_prefill_no_duplicate_world_positions() -> void:
                 break
             seen[pos_key] = cell
         editor.free()
-        if not duplicate_found:
-            _test_passed += 1
-            print("    PASS: %s no duplicate world positions" % grid_cells)
-        else:
-            _test_failed += 1
-            print("    FAIL: %s %s" % [grid_cells, dup_key])
+        (
+            TestHelper
+            . assert_true(
+                not duplicate_found,
+                (
+                    "%s no duplicate world positions" % grid_cells
+                    + ": "
+                    + "%s %s" % [grid_cells, dup_key]
+                ),
+            )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -435,12 +446,13 @@ func test_prefill_adjacent_cells_differ_by_cell_size() -> void:
             if not all_even:
                 break
         editor.free()
-        if all_even:
-            _test_passed += 1
-            print("    PASS: %s adjacent cells are CELL_SIZE apart" % grid_cells)
-        else:
-            _test_failed += 1
-            print("    FAIL: %s" % bad_msg)
+        (
+            TestHelper
+            . assert_true(
+                all_even,
+                "%s adjacent cells are CELL_SIZE apart" % grid_cells + ": " + "%s" % bad_msg,
+            )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -466,12 +478,17 @@ func test_prefill_cell_count_exactly_matches_formula() -> void:
         editor._prefill_terrain()
         var actual: int = _ts.get_all_cells().size()
         editor.free()
-        if actual == expected:
-            _test_passed += 1
-            print("    PASS: %s cell count = %d (2*W*H)" % [grid_cells, expected])
-        else:
-            _test_failed += 1
-            print("    FAIL: %s cell count = %d, expected %d" % [grid_cells, actual, expected])
+        (
+            TestHelper
+            . assert_true(
+                actual == expected,
+                (
+                    "%s cell count = %d (2*W*H)" % [grid_cells, expected]
+                    + ": "
+                    + "%s cell count = %d, expected %d" % [grid_cells, actual, expected]
+                ),
+            )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -509,17 +526,20 @@ func test_prefill_cell_spacing_minimum_is_cell_size() -> void:
                     bad_a = positions[i]
                     bad_b = positions[j]
         editor.free()
-        if is_equal_approx(min_gap, CellUtil.CELL_SIZE):
-            _test_passed += 1
-            print("    PASS: %s minimum cell spacing = CELL_SIZE (%.1f)" % [grid_cells, min_gap])
-        else:
-            _test_failed += 1
-            print(
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(min_gap, CellUtil.CELL_SIZE),
                 (
-                    "    FAIL: %s minimum spacing = %.4f (expected %.1f), cells at %s and %s"
-                    % [grid_cells, min_gap, CellUtil.CELL_SIZE, bad_a, bad_b]
-                )
+                    "%s minimum cell spacing = CELL_SIZE (%.1f)" % [grid_cells, min_gap]
+                    + ": "
+                    + (
+                        "%s minimum spacing = %.4f (expected %.1f), cells at %s and %s"
+                        % [grid_cells, min_gap, CellUtil.CELL_SIZE, bad_a, bad_b]
+                    )
+                ),
             )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -560,17 +580,20 @@ func test_prefill_no_half_cell_offset_positions() -> void:
                     first_bad_key = key
                     first_bad_pos = world_pos
         editor.free()
-        if half_cell_count == 0:
-            _test_passed += 1
-            print("    PASS: %s no half-cell offset positions" % grid_cells)
-        else:
-            _test_failed += 1
-            print(
+        (
+            TestHelper
+            . assert_true(
+                half_cell_count == 0,
                 (
-                    "    FAIL: %s has %d half-cell positions, first=%s at %s"
-                    % [grid_cells, half_cell_count, first_bad_key, first_bad_pos]
-                )
+                    "%s no half-cell offset positions" % grid_cells
+                    + ": "
+                    + (
+                        "%s has %d half-cell positions, first=%s at %s"
+                        % [grid_cells, half_cell_count, first_bad_key, first_bad_pos]
+                    )
+                ),
             )
+        )
         _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -606,17 +629,20 @@ func test_prefill_21x20_boundary_cells() -> void:
                 if first_ghost.is_empty():
                     first_ghost = CellUtil.cell_key_str(cell)
     editor.free()
-    if missing == 0 and ghost == 0:
-        _test_passed += 1
-        print("    PASS: 21x20 boundary cells match is_in_diamond exactly")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            missing == 0 and ghost == 0,
             (
-                "    FAIL: 21x20 missing=%d first=%s ghost=%d first=%s"
-                % [missing, first_missing, ghost, first_ghost]
-            )
+                "21x20 boundary cells match is_in_diamond exactly"
+                + ": "
+                + (
+                    "21x20 missing=%d first=%s ghost=%d first=%s"
+                    % [missing, first_missing, ghost, first_ghost]
+                )
+            ),
         )
+    )
     _ts.clear()
     _ts.init_grid(50, 50)
 
@@ -659,17 +685,17 @@ func test_apply_new_map_cell_count() -> void:
         var actual: int = _ts.get_all_cells().size()
         editor.free()
         _ts.clear()
-        if actual == expected:
-            _test_passed += 1
-            print("    PASS: apply_new_map %dx%d cell count = %d" % [w, h, expected])
-        else:
-            _test_failed += 1
-            print(
+        (
+            TestHelper
+            . assert_true(
+                actual == expected,
                 (
-                    "    FAIL: apply_new_map %dx%d cell count = %d, expected %d"
-                    % [w, h, actual, expected]
-                )
+                    "apply_new_map %dx%d cell count = %d" % [w, h, expected]
+                    + ": "
+                    + "apply_new_map %dx%d cell count = %d, expected %d" % [w, h, actual, expected]
+                ),
             )
+        )
     _ts.init_grid(50, 50)
 
 
@@ -703,17 +729,20 @@ func test_apply_new_map_no_ghost_cells() -> void:
                     first_ghost = key
         editor.free()
         _ts.clear()
-        if ghost_count == 0:
-            _test_passed += 1
-            print("    PASS: apply_new_map %dx%d no ghost cells" % [w, h])
-        else:
-            _test_failed += 1
-            print(
+        (
+            TestHelper
+            . assert_true(
+                ghost_count == 0,
                 (
-                    "    FAIL: apply_new_map %dx%d has %d ghost cells, first=%s"
-                    % [w, h, ghost_count, first_ghost]
-                )
+                    "apply_new_map %dx%d no ghost cells" % [w, h]
+                    + ": "
+                    + (
+                        "apply_new_map %dx%d has %d ghost cells, first=%s"
+                        % [w, h, ghost_count, first_ghost]
+                    )
+                ),
             )
+        )
     _ts.init_grid(50, 50)
 
 
@@ -755,17 +784,20 @@ func test_apply_new_map_spacing_minimum() -> void:
                     bad_b = positions[j]
         editor.free()
         _ts.clear()
-        if is_equal_approx(min_gap, CellUtil.CELL_SIZE):
-            _test_passed += 1
-            print("    PASS: apply_new_map %dx%d min spacing = CELL_SIZE" % [w, h])
-        else:
-            _test_failed += 1
-            print(
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(min_gap, CellUtil.CELL_SIZE),
                 (
-                    "    FAIL: apply_new_map %dx%d min spacing = %.4f (expected %.1f), at %s and %s"
-                    % [w, h, min_gap, CellUtil.CELL_SIZE, bad_a, bad_b]
-                )
+                    "apply_new_map %dx%d min spacing = CELL_SIZE" % [w, h]
+                    + ": "
+                    + (
+                        "apply_new_map %dx%d min spacing = %.4f (expected %.1f), at %s and %s"
+                        % [w, h, min_gap, CellUtil.CELL_SIZE, bad_a, bad_b]
+                    )
+                ),
             )
+        )
     _ts.init_grid(50, 50)
 
 
@@ -807,17 +839,20 @@ func test_apply_new_map_no_half_cell_offsets() -> void:
                     first_bad_pos = world_pos
         editor.free()
         _ts.clear()
-        if half_cell_count == 0:
-            _test_passed += 1
-            print("    PASS: apply_new_map %dx%d no half-cell offsets" % [w, h])
-        else:
-            _test_failed += 1
-            print(
+        (
+            TestHelper
+            . assert_true(
+                half_cell_count == 0,
                 (
-                    "    FAIL: apply_new_map %dx%d has %d half-cell positions, first=%s at %s"
-                    % [w, h, half_cell_count, first_bad_key, first_bad_pos]
-                )
+                    "apply_new_map %dx%d no half-cell offsets" % [w, h]
+                    + ": "
+                    + (
+                        "apply_new_map %dx%d has %d half-cell positions, first=%s at %s"
+                        % [w, h, half_cell_count, first_bad_key, first_bad_pos]
+                    )
+                ),
             )
+        )
     _ts.init_grid(50, 50)
 
 
@@ -834,24 +869,22 @@ func _get_bounds_system() -> Node:
 
 
 func _assert_true(value: bool, message: String) -> void:
-    if value:
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: " + message)
+    TestHelper.assert_true(value, message)
 
 
 func _assert_eq(got: Variant, expected: Variant, message: String) -> void:
-    if got == expected:
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: %s — expected %s, got %s" % [message, expected, got])
+    TestHelper.assert_eq(got, expected, message)
 
 
 func _assert_vec3_approx(got: Vector3, expected: Vector3, message: String) -> void:
-    if got.is_equal_approx(expected):
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: %s — expected %s, got %s" % [message, expected, got])
+    (
+        TestHelper
+        . assert_true(
+            (
+                is_equal_approx(got.x, expected.x)
+                and is_equal_approx(got.y, expected.y)
+                and is_equal_approx(got.z, expected.z)
+            ),
+            message,
+        )
+    )
