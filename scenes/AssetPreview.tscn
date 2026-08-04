@@ -1,0 +1,24 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/editor/AssetPreviewController.gd" id="1_ctrl"]
+[ext_resource type="Script" path="res://scripts/editor/OrbitCameraController.gd" id="2_orbit"]
+[ext_resource type="PackedScene" path="res://scenes/environment/DefaultSunLight01.tscn" id="3_sun"]
+[ext_resource type="PackedScene" path="res://scenes/environment/DefaultWorldEnvironment01.tscn" id="4_env"]
+[ext_resource type="PackedScene" path="res://scenes/hud/Camera01.tscn" id="5_cam"]
+
+[node name="AssetPreview" type="Node3D"]
+script = ExtResource("1_ctrl")
+
+[node name="LightPivot" parent="." instance=ExtResource("3_sun")]
+
+[node name="DefaultWorldEnvironment01" parent="." instance=ExtResource("4_env")]
+
+[node name="GameplayCamera" parent="." instance=ExtResource("5_cam")]
+
+[node name="OrbitRig" type="Node3D" parent="."]
+script = ExtResource("2_orbit")
+
+[node name="ObjectRoot" type="Node3D" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 100
