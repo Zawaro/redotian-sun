@@ -8,15 +8,6 @@ func _catalog_obj(object_id: String) -> TerrainObject:
     return load("res://resources/terrain_objects/%s.tres" % object_id) as TerrainObject
 
 
-var _theater: TheaterData = null
-
-
-func _temperate() -> TheaterData:
-    if _theater == null:
-        _theater = load("res://resources/theaters/temperate.tres") as TheaterData
-    return _theater
-
-
 func _cell_of(obj: TerrainObject, key: String) -> Dictionary:
     var entry: Variant = obj.cells.get(key, {})
     return entry if entry is Dictionary else {}
@@ -189,54 +180,29 @@ func test_connections_consistent_with_cells():
     _finish()
 
 
-func test_temperate_theater_registers_catalog():
-    var theater := _temperate()
-    TestHelper.assert_true(theater != null, "temperate.tres loads")
-    if theater == null:
-        _finish()
-        return
-    TestHelper.assert_eq(theater.id, "temperate", "temperate theater id")
-    TestHelper.assert_eq(theater.default_land_type, "clear", "temperate default land type")
-    TestHelper.assert_true(theater.art_data != null, "temperate has art_data")
-    # Count must match the generated catalog: every registered id is a
-    # directional variant (<base>_<dir>) and every variant is registered, so the
-    # count is derived rather than a hardcoded magic number.
-    var expected_count := 0
-    for object_id in theater.terrain_objects:
-        if String(object_id).ends_with("_n"):
-            expected_count += 4
-    TestHelper.assert_eq(
-        theater.terrain_objects.size(), expected_count, "variants registered in 4s"
-    )
-    TestHelper.assert_true(expected_count > 0, "expected_count derived from catalog is non-zero")
-    for tile_id in [
-        "cliff01_n",
-        "cliff01_e",
-        "cliff01_s",
-        "cliff01_w",
-        "ramp01_n",
-        "ramp02_n",
-        "wcliff01_n",
-        "slope01_n",
-        "clear01_n",
-        "dcliff01_n",
-    ]:
-        var obj := theater.get_terrain_object(tile_id)
-        TestHelper.assert_true(obj != null, "catalog variant registered: " + tile_id)
-    var missing := theater.get_terrain_object("not_a_tile")
-    TestHelper.assert_eq(missing, null, "unknown object id returns null")
-    _finish()
+func test_all_catalog_tiles_resolve_art():
+    var all: Dictionary = TerrainCatalog.get_all_objects()
+    TestHelper.assert_true(all.size() >= 144, "full directional catalog registered")
+    var missing_art := 0
+    var unresolvable := 0
+    for object_id in all:
+        var obj: TerrainObject = all[object_id]
+        if obj.art_data == null:
+            missing_art += 1
+            continue
+        var res := TerrainCatalog.resolve_art(String(object_id), "temperate")
+        if not res.valid:
+            unresolvable += 1
+    TestHelper.assert_eq(missing_art, 0, "every object references art_data")
+    TestHelper.assert_eq(unresolvable, 0, "every object resolves art for the active theater")
 
 
 func test_all_catalog_tiles_load_with_valid_cells():
-    var theater := _temperate()
-    TestHelper.assert_true(theater != null, "temperate.tres loads for full scan")
-    if theater == null:
-        _finish()
-        return
+    var all: Dictionary = TerrainCatalog.get_all_objects()
+    TestHelper.assert_true(all.size() >= 144, "full catalog for scan")
     var scanned := 0
-    for object_id in theater.terrain_objects:
-        var obj: TerrainObject = theater.get_terrain_object(String(object_id))
+    for object_id in all:
+        var obj: TerrainObject = all[object_id]
         TestHelper.assert_true(obj != null, "registered object loads: " + String(object_id))
         if obj == null:
             continue
@@ -253,33 +219,6 @@ func test_all_catalog_tiles_load_with_valid_cells():
             )
             scanned += 1
     TestHelper.assert_true(scanned > 0, "scanned at least one cell")
-    _finish()
-
-
-func test_art_seam_suffix_and_rotation():
-    var art: TerrainArtData = load("res://resources/art/terrain/placeholder_terrain_art.tres")
-    TestHelper.assert_true(art != null, "placeholder art loads")
-    if art == null:
-        _finish()
-        return
-    TestHelper.assert_true(art.is_placeholder, "placeholder art flagged as placeholder")
-    TestHelper.assert_eq(art.mesh_name("cliff01_n"), "cliff01", "_n strips suffix to base mesh")
-    TestHelper.assert_eq(art.mesh_name("cliff01_e"), "cliff01", "_e strips suffix to base mesh")
-    TestHelper.assert_eq(art.mesh_name("ramp01_s"), "ramp01", "_s strips suffix to base mesh")
-    TestHelper.assert_eq(art.mesh_name("wcliff23_w"), "wcliff23", "_w strips suffix to base mesh")
-    TestHelper.assert_eq(art.base_mesh_id("cliff01_n"), "cliff01", "base_mesh_id strips suffix")
-    TestHelper.assert_eq(art.base_mesh_id("cliff01"), "cliff01", "base_mesh_id passes through")
-    TestHelper.assert_eq(art.mesh_rotation("cliff01_n"), 0.0, "n rotation 0")
-    TestHelper.assert_eq(
-        art.mesh_rotation("cliff01_e"), 270.0, "e rotation 270 (CW to match catalog corners)"
-    )
-    TestHelper.assert_eq(art.mesh_rotation("cliff01_s"), 180.0, "s rotation 180")
-    TestHelper.assert_eq(
-        art.mesh_rotation("cliff01_w"), 90.0, "w rotation 90 (CCW to match catalog corners)"
-    )
-    TestHelper.assert_eq(art.mesh_rotation("cliff01"), 0.0, "non-directional rotation 0")
-    TestHelper.assert_eq(art.mesh_name("cliff12_n"), "cliff09", "fallback table resolves base id")
-    TestHelper.assert_eq(art.mesh_name("ramp06_e"), "ramp01", "fallback applies after suffix strip")
     _finish()
 
 

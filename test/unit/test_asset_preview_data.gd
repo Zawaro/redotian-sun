@@ -1,22 +1,16 @@
 extends Node
 
-# Asset preview data contracts: art seam resolves to existing GLB submeshes,
+# Asset preview data contracts: the art seam resolves to existing GLB submeshes,
 # mesh rotation matches the direction table, and footprint AABB math.
-
-var _theater: TheaterData = null
-
-
-func _temperate() -> TheaterData:
-    if _theater == null:
-        _theater = load("res://resources/theaters/temperate.tres") as TheaterData
-    return _theater
 
 
 func _glb_mesh_names() -> Array[String]:
-    var theater := _temperate()
-    if theater == null or theater.art_data == null:
+    var resolution := TerrainCatalog.resolve_art(
+        "cliff01_n", TerrainCatalog.get_active_theater_id()
+    )
+    if not resolution.valid or resolution.glb_path.is_empty():
         return []
-    var scene := load(theater.art_data.glb_path) as PackedScene
+    var scene := load(resolution.glb_path) as PackedScene
     if scene == null:
         return []
     var instance := scene.instantiate()
@@ -34,22 +28,15 @@ func _collect_glb_names(node: Node, names: Array[String]) -> void:
 
 
 func test_mesh_names_resolve_to_glb_submeshes():
-    var theater := _temperate()
-    TestHelper.assert_true(
-        theater != null and theater.art_data != null, "temperate theater + art load"
-    )
-    if theater == null or theater.art_data == null:
-        _finish()
-        return
     var names := _glb_mesh_names()
     TestHelper.assert_true(not names.is_empty(), "GLB has submesh node names")
     var missing: Array[String] = []
-    for object_id in theater.terrain_objects:
-        var resolved := theater.art_data.mesh_name(String(object_id))
-        if not names.has(resolved):
-            missing.append("%s -> %s" % [object_id, resolved])
+    for object_id in TerrainCatalog.get_all_objects():
+        var resolution := TerrainCatalog.resolve_art(String(object_id), "temperate")
+        if resolution.valid and not names.has(resolution.submesh_id):
+            missing.append("%s -> %s" % [object_id, resolution.submesh_id])
     TestHelper.assert_eq(
-        missing.size(), 0, "every theater variant resolves to an existing GLB submesh"
+        missing.size(), 0, "every catalog variant resolves to an existing GLB submesh"
     )
     for entry in missing:
         print("    missing: " + entry)
@@ -57,34 +44,20 @@ func test_mesh_names_resolve_to_glb_submeshes():
 
 
 func test_mesh_rotation_matches_direction_table():
-    var theater := _temperate()
-    TestHelper.assert_true(
-        theater != null and theater.art_data != null, "theater + art load for rotation"
-    )
-    if theater == null or theater.art_data == null:
-        _finish()
-        return
     # Ground truth from the catalog corner progression (see slope01):
     # _n keeps the base shape, _e rotates it -90 deg (CW) to the south edge,
     # _s by 180, _w by +90 (CCW) to the north edge.
     var want := {"n": 0.0, "e": 270.0, "s": 180.0, "w": 90.0}
     for id in ["cliff01_n", "cliff01_e", "cliff01_s", "cliff01_w"]:
         var suffix := String(id).right(1)
-        TestHelper.assert_eq(theater.art_data.mesh_rotation(id), want[suffix], "rotation for " + id)
-    TestHelper.assert_eq(
-        theater.art_data.mesh_rotation("cliff01"), 0.0, "non-directional id rotation 0"
-    )
-    TestHelper.assert_eq(
-        theater.art_data.mesh_name("cliff01_e"), "cliff01", "directional suffix stripped"
-    )
-    (
-        TestHelper
-        . assert_eq(
-            theater.art_data.mesh_name("cliff_straight_n"),
-            "cliff23",
-            "suffixed seed id resolves via fallback table",
-        )
-    )
+        var resolution := TerrainCatalog.resolve_art(String(id), "temperate")
+        TestHelper.assert_eq(resolution.rotation, want[suffix], "rotation for " + id)
+    var plain := TerrainCatalog.resolve_art("cliff01", "temperate")
+    TestHelper.assert_eq(plain.rotation, 0.0, "non-directional id rotation 0")
+    var e := TerrainCatalog.resolve_art("cliff01_e", "temperate")
+    TestHelper.assert_eq(e.submesh_id, "cliff01", "directional suffix strips to base submesh")
+    var alias := TerrainCatalog.resolve_art("cliff12_n", "temperate")
+    TestHelper.assert_eq(alias.submesh_id, "cliff09", "alias object resolves via art submesh")
     _finish()
 
 
