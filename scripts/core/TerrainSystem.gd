@@ -21,6 +21,56 @@ var _land_types: Dictionary = {}
 
 var _corner_to_dir: Array[String] = ["west", "north", "south", "east"]
 
+## Catalog slope tile families (TS slope01/05/09/13/17 + hand-authored saddle2).
+const SLOPE_FAMILIES: Array[String] = [
+    "slope01", "slope05", "slope09", "slope13", "slope17", "slope_saddle2"
+]
+
+static var _slope_lookup: Dictionary = {}
+static var _slope_lookup_built := false
+
+
+## Catalog slope object id (e.g. "slope01_n") for a cell's 4 corner heights in
+## map-editor order [NW, NE, SW, SE]. Matches the baked TS corner patterns, so
+## slope rendering uses the exact same object/rotation as the asset preview.
+## Diagonal saddles are 180°-degenerate in the catalog; the natural `_n` match
+## is preferred. Returns "" when no catalog tile matches (extreme steeps).
+static func slope_object_id(corners: Array) -> String:
+    if not _slope_lookup_built:
+        _build_slope_lookup()
+    if corners.size() != 4:
+        return ""
+    var catalog := [corners[0], corners[1], corners[3], corners[2]]
+    return _slope_lookup.get(_corners_key(catalog), "")
+
+
+static func _build_slope_lookup() -> void:
+    _slope_lookup_built = true
+    for id_str in SLOPE_FAMILIES:
+        for dir in ["n", "e", "s", "w"]:
+            var obj := TerrainCatalog.get_object("%s_%s" % [id_str, dir])
+            if obj == null:
+                continue
+            var corners := obj.corners_at("0,0")
+            if corners.size() != 4:
+                continue
+            var key := _corners_key(corners)
+            if not _slope_lookup.has(key):
+                _slope_lookup[key] = obj.id
+            elif dir == "n" and not String(_slope_lookup[key]).ends_with("_n"):
+                # Prefer the natural base orientation for degenerate (saddle) tiles.
+                _slope_lookup[key] = obj.id
+
+
+static func _corners_key(corners: Array) -> String:
+    var lo := 1 << 30
+    for c in corners:
+        lo = mini(lo, int(c))
+    var parts: Array[String] = []
+    for c in corners:
+        parts.append(str(int(c) - lo))
+    return ",".join(parts)
+
 
 func _init() -> void:
     _init_vertex_grid()
@@ -370,20 +420,20 @@ func _compute_cell_from_vertices(cell: Vector2i) -> Dictionary:
     elif raised_count == 4:
         result = _make_clear(h_min + 1)
     elif max_rel >= 2:
-        result = _make_slope(4, _rotate_dir_cw(_corner_to_dir[max_idx]), h_min)
+        result = _make_slope(4, _rotate_dir_cw(_corner_to_dir[max_idx]), h_min, h)
     elif raised_count == 1:
-        result = _make_slope(2, _corner_to_dir[raised_indices[0]], h_min)
+        result = _make_slope(2, _corner_to_dir[raised_indices[0]], h_min, h)
     elif raised_count == 3:
-        result = _make_slope(3, _corner_to_dir[low_index], h_min)
+        result = _make_slope(3, _corner_to_dir[low_index], h_min, h)
     else:
         var a := raised_indices[0]
         var b := raised_indices[1]
         if _is_adjacent_corners(a, b):
-            result = _make_slope(1, _edge_to_dir(a, b), h_min)
+            result = _make_slope(1, _edge_to_dir(a, b), h_min, h)
         elif (a == 0 and b == 3) or (a == 3 and b == 0):
-            result = _make_slope(5, "west", h_min)
+            result = _make_slope(5, "west", h_min, h)
         else:
-            result = _make_slope(6, "east", h_min)
+            result = _make_slope(6, "east", h_min, h)
 
     result["max_height"] = h_max
     return result
@@ -502,13 +552,18 @@ func _make_clear(height: int) -> Dictionary:
     return {"height": height, "type": "clear", "variant": 1, "direction": "", "rotation": 0.0}
 
 
-func _make_slope(variant: int, direction: String, height: int) -> Dictionary:
+func _make_slope(variant: int, direction: String, height: int, corners: Array) -> Dictionary:
+    var object_id := slope_object_id(corners)
+    var rotation := _direction_to_rotation(direction)
+    if not object_id.is_empty():
+        rotation = TerrainArtData.direction_rotation(object_id)
     return {
         "height": height,
         "type": "slope",
         "variant": variant,
         "direction": direction,
-        "rotation": _direction_to_rotation(direction)
+        "rotation": rotation,
+        "object_id": object_id,
     }
 
 
