@@ -7,8 +7,6 @@ const DEPLOY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/Depl
 var _sm: Node = null
 var _bm: Node = null
 var _pm: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func test_deploy_component_defaults():
@@ -19,12 +17,13 @@ func test_deploy_component_defaults():
     entity.add_child(component)
 
     var deploy := component as DeployComponent
-    if deploy.deploys_into == "" and deploy.undeploys_into == "":
-        _test_passed += 1
-        print("    PASS: DeployComponent defaults are empty strings")
-    else:
-        _test_failed += 1
-        print("    FAIL: DeployComponent defaults should be empty")
+    (
+        TestHelper
+        . assert_true(
+            deploy.deploys_into == "" and deploy.undeploys_into == "",
+            "DeployComponent defaults are empty strings: DeployComponent defaults should be empty",
+        )
+    )
 
     entity.free()
 
@@ -46,13 +45,17 @@ func test_deploy_component_configure():
     var deploy := component as DeployComponent
     deploy.configure(data)
 
-    if deploy.deploys_into == "GDI_CONSTRUCTION_YARD":
-        _test_passed += 1
-        print("    PASS: DeployComponent.configure sets deploys_into")
-    else:
-        _test_failed += 1
-        var msg := "Expected deploys_into='GDI_CONSTRUCTION_YARD'"
-        print("    FAIL: %s, got '%s'" % [msg, deploy.deploys_into])
+    (
+        TestHelper
+        . assert_true(
+            deploy.deploys_into == "GDI_CONSTRUCTION_YARD",
+            (
+                "DeployComponent.configure sets deploys_into: Expected deploys_into="
+                + "'GDI_CONSTRUCTION_YARD', "
+                + "got '%s'" % deploy.deploys_into
+            ),
+        )
+    )
 
     entity.free()
 
@@ -67,12 +70,16 @@ func test_can_deploy():
     var deploy := component as DeployComponent
     deploy.deploys_into = "GDI_CONSTRUCTION_YARD"
 
-    if deploy.can_deploy() and not deploy.can_undeploy():
-        _test_passed += 1
-        print("    PASS: can_deploy() returns true when deploys_into set")
-    else:
-        _test_failed += 1
-        print("    FAIL: can_deploy() should be true, can_undeploy() false")
+    (
+        TestHelper
+        . assert_true(
+            deploy.can_deploy() and not deploy.can_undeploy(),
+            (
+                "can_deploy() returns true when deploys_into set: can_deploy() should be true, "
+                + "can_undeploy() false"
+            ),
+        )
+    )
 
     entity.free()
 
@@ -87,12 +94,16 @@ func test_can_undeploy():
     var deploy := component as DeployComponent
     deploy.undeploys_into = "GDI_MCV"
 
-    if deploy.can_undeploy() and not deploy.can_deploy():
-        _test_passed += 1
-        print("    PASS: can_undeploy() returns true when undeploys_into set")
-    else:
-        _test_failed += 1
-        print("    FAIL: can_undeploy() should be true, can_deploy() false")
+    (
+        TestHelper
+        . assert_true(
+            deploy.can_undeploy() and not deploy.can_deploy(),
+            (
+                "can_undeploy() returns true when undeploys_into set: "
+                + "can_undeploy() should be true, can_deploy() false"
+            ),
+        )
+    )
 
     entity.free()
 
@@ -108,12 +119,16 @@ func test_deselect_entity_clears_both_selected_and_hovering():
 
     deploy._deselect_entity(entity)
 
-    if not select_component.is_selected and not select_component.is_hovering:
-        _test_passed += 1
-        print("    PASS: deselect_entity clears both is_selected and is_hovering")
-    else:
-        _test_failed += 1
-        print("    FAIL: deselect_entity should clear both flags")
+    (
+        TestHelper
+        . assert_true(
+            not select_component.is_selected and not select_component.is_hovering,
+            (
+                "deselect_entity clears both is_selected and is_hovering: "
+                + "deselect_entity should clear both flags"
+            ),
+        )
+    )
 
     entity.free()
 
@@ -124,8 +139,7 @@ func test_deselect_entity_noops_without_select_component():
 
     deploy._deselect_entity(entity)
 
-    _test_passed += 1
-    print("    PASS: deselect_entity does not crash without SelectComponent")
+    TestHelper.assert_true(true, "deselect_entity does not crash without SelectComponent")
 
     entity.free()
 
@@ -144,12 +158,16 @@ func test_snapshot_captures_health_ratio():
 
     var snap := deploy._snapshot_entity(entity)
 
-    if abs(snap["health_ratio"] - 0.5) < 0.001:
-        _test_passed += 1
-        print("    PASS: snapshot captures health_ratio = 0.5")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected health_ratio 0.5, got %s" % snap["health_ratio"])
+    (
+        TestHelper
+        . assert_true(
+            abs(snap["health_ratio"] - 0.5) < 0.001,
+            (
+                "snapshot captures health_ratio = 0.5: Expected health_ratio 0.5, got %s"
+                % snap["health_ratio"]
+            ),
+        )
+    )
 
     entity.free()
 
@@ -160,12 +178,16 @@ func test_snapshot_defaults_health_to_one_when_no_component():
 
     var snap := deploy._snapshot_entity(entity)
 
-    if abs(snap["health_ratio"] - 1.0) < 0.001:
-        _test_passed += 1
-        print("    PASS: snapshot defaults health_ratio to 1.0 without HealthComponent")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected default health_ratio 1.0, got %s" % snap["health_ratio"])
+    (
+        TestHelper
+        . assert_true(
+            abs(snap["health_ratio"] - 1.0) < 0.001,
+            (
+                "snapshot defaults health_ratio to 1.0 without HealthComponent: "
+                + "Expected default health_ratio 1.0, got %s" % snap["health_ratio"]
+            ),
+        )
+    )
 
     entity.free()
 
@@ -180,20 +202,20 @@ func test_snapshot_captures_player_id():
 
     var snap := deploy._snapshot_entity(entity)
 
-    if snap["player_id"] == 3:
-        _test_passed += 1
-        print("    PASS: snapshot captures player_id = 3")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected player_id 3, got %s" % snap["player_id"])
+    (
+        TestHelper
+        . assert_true(
+            snap["player_id"] == 3,
+            "snapshot captures player_id = 3: Expected player_id 3, got %s" % snap["player_id"],
+        )
+    )
 
     entity.free()
 
 
 func test_snapshot_captures_selection():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
 
     _sm.deselect_all()
@@ -207,12 +229,16 @@ func test_snapshot_captures_selection():
     _sm.add_entity(select_component)
     var snap := deploy._snapshot_entity(entity)
 
-    if snap["was_selected"] == true:
-        _test_passed += 1
-        print("    PASS: snapshot captures was_selected = true")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected was_selected true, got %s" % snap["was_selected"])
+    (
+        TestHelper
+        . assert_true(
+            snap["was_selected"] == true,
+            (
+                "snapshot captures was_selected = true: Expected was_selected true, got %s"
+                % snap["was_selected"]
+            ),
+        )
+    )
 
     _sm.deselect_all()
     entity.free()
@@ -233,12 +259,16 @@ func test_apply_snapshot_sets_health():
     var snap := {"health_ratio": 0.5, "was_selected": false, "player_id": 1}
     deploy._apply_snapshot(target, snap)
 
-    if health.current_health == 500:
-        _test_passed += 1
-        print("    PASS: apply_snapshot sets health to 500 (50%% of 1000)")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected current_health 500, got %d" % health.current_health)
+    TestHelper.assert_true(
+        health.current_health == 500,
+        (
+            (
+                "apply_snapshot sets health to 500 (50%% of 1000): "
+                + "Expected current_health 500, got %d"
+            )
+            % health.current_health
+        )
+    )
 
     target.free()
 
@@ -254,20 +284,20 @@ func test_apply_snapshot_sets_player_id():
     var snap := {"health_ratio": 1.0, "was_selected": false, "player_id": 2}
     deploy._apply_snapshot(target, snap)
 
-    if stats.player_id == 2:
-        _test_passed += 1
-        print("    PASS: apply_snapshot sets player_id = 2")
-    else:
-        _test_failed += 1
-        print("    FAIL: Expected player_id 2, got %d" % stats.player_id)
+    (
+        TestHelper
+        . assert_true(
+            stats.player_id == 2,
+            "apply_snapshot sets player_id = 2: Expected player_id 2, got %d" % stats.player_id,
+        )
+    )
 
     target.free()
 
 
 func test_apply_snapshot_restores_selection():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
 
     _sm.deselect_all()
@@ -281,12 +311,16 @@ func test_apply_snapshot_restores_selection():
     var snap := {"health_ratio": 1.0, "was_selected": true, "player_id": 1}
     deploy._apply_snapshot(target, snap)
 
-    if _sm.selected_entities.has(select_component) and select_component.is_selected:
-        _test_passed += 1
-        print("    PASS: apply_snapshot restores selection on target")
-    else:
-        _test_failed += 1
-        print("    FAIL: apply_snapshot should add target SelectComponent to SelectionManager")
+    (
+        TestHelper
+        . assert_true(
+            _sm.selected_entities.has(select_component) and select_component.is_selected,
+            (
+                "apply_snapshot restores selection on target: "
+                + "apply_snapshot should add target SelectComponent to SelectionManager"
+            ),
+        )
+    )
 
     _sm.deselect_all()
     target.free()
@@ -305,13 +339,16 @@ func test_apply_snapshot_respects_transfer_health_ratio_flag():
     var snap := {"health_ratio": 0.25, "was_selected": false, "player_id": 1}
     deploy._apply_snapshot(target, snap)
 
-    if health.current_health == 1000:
-        _test_passed += 1
-        print("    PASS: apply_snapshot skips health when transfer_health_ratio is false")
-    else:
-        _test_failed += 1
-        var msg := "health should remain 1000, got %d" % health.current_health
-        print("    FAIL: %s" % msg)
+    (
+        TestHelper
+        . assert_true(
+            health.current_health == 1000,
+            (
+                "apply_snapshot skips health when transfer_health_ratio is false: "
+                + "health should remain 1000, got %d" % health.current_health
+            ),
+        )
+    )
 
     target.free()
 
@@ -328,12 +365,16 @@ func test_undeploy_stores_pending_move_target():
     var target := Vector3(10.0, 0.0, 5.0)
     deploy.execute_undeploy(entity, target)
 
-    if deploy._has_pending_move and deploy._pending_move_target == target:
-        _test_passed += 1
-        print("    PASS: execute_undeploy stores pending move target")
-    else:
-        _test_failed += 1
-        print("    FAIL: _has_pending_move should be true, _pending_move_target should match")
+    (
+        TestHelper
+        . assert_true(
+            deploy._has_pending_move and deploy._pending_move_target == target,
+            (
+                "execute_undeploy stores pending move target: "
+                + "_has_pending_move should be true, _pending_move_target should match"
+            ),
+        )
+    )
 
     deploy._state = DeployComponent.DeployState.IDLE
     entity.free()
@@ -347,12 +388,16 @@ func test_undeploy_no_pending_move_when_no_target():
 
     deploy.execute_undeploy(entity)
 
-    if not deploy._has_pending_move:
-        _test_passed += 1
-        print("    PASS: execute_undeploy without target does not set pending move")
-    else:
-        _test_failed += 1
-        print("    FAIL: _has_pending_move should be false when no target given")
+    (
+        TestHelper
+        . assert_true(
+            not deploy._has_pending_move,
+            (
+                "execute_undeploy without target does not set pending move: "
+                + "_has_pending_move should be false when no target given"
+            ),
+        )
+    )
 
     deploy._state = DeployComponent.DeployState.IDLE
     entity.free()
@@ -372,9 +417,6 @@ func test_order_self_with_can_deploy():
     TestHelper.assert_eq(order.cursor, CursorState.Type.DEPLOY, "cursor -> DEPLOY")
     TestHelper.assert_eq(order.priority, 15, "priority -> 15")
     TestHelper.assert_true(order.execute.is_valid(), "has valid execute callable")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -388,9 +430,6 @@ func test_order_other_entity_returns_null():
     other.name = "Other"
     var order := deploy.get_order_for_target(other, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "click other entity -> null")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     other.free()
 
@@ -405,9 +444,6 @@ func test_order_no_target_can_undeploy():
     TestHelper.assert_true(order != null, "no target + can_undeploy -> order not null")
     TestHelper.assert_eq(order.cursor, CursorState.Type.MOVE, "cursor -> MOVE")
     TestHelper.assert_eq(order.priority, 5, "priority -> 5")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -418,9 +454,6 @@ func test_order_no_target_cannot_undeploy():
     entity.add_child(deploy)
     var order := deploy.get_order_for_target(null, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "no target + cannot undeploy -> null")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -431,9 +464,6 @@ func test_order_self_cannot_deploy():
     entity.add_child(deploy)
     var order := deploy.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_true(order == null, "click self + cannot deploy -> null")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -447,9 +477,6 @@ func test_order_queued_modifier():
     var order := deploy.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, modifiers)
     TestHelper.assert_true(order != null, "queued modifier -> order not null")
     TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
 
 
@@ -462,7 +489,4 @@ func test_order_undeploy_stores_target_pos():
     var pos := Vector3(15.0, 0.0, 25.0)
     var order := deploy.get_order_for_target(null, Vector2i.ZERO, pos, {})
     TestHelper.assert_eq(order.target_pos, pos, "order stores target_pos")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()

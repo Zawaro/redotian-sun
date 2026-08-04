@@ -2,9 +2,6 @@ extends Node
 
 # Locomotor/LandType registry validation and EntityData zone consistency checks
 
-var _test_passed := 0
-var _test_failed := 0
-
 var _saved_rules: GlobalRules = null
 var _entity_factory: Node = null
 
@@ -38,9 +35,6 @@ func test_validate_clean_registry():
     lm.terrain_speeds = {"clear": 1.0, "water": 0.0}
     rules.locomotors["Foot"] = lm
     TestHelper.assert_true(rules.validate_locomotor_keys().is_empty(), "valid keys -> no errors")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_validate_dangling_terrain_key():
@@ -52,9 +46,6 @@ func test_validate_dangling_terrain_key():
     var errors := rules.validate_locomotor_keys()
     TestHelper.assert_eq(errors.size(), 1, "one dangling key error")
     TestHelper.assert_true(errors[0].contains("lava"), "error names missing land type")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_movement_zone_compatible():
@@ -89,9 +80,6 @@ func test_movement_zone_compatible():
     TestHelper.assert_true(
         EntityData.is_movement_zone_compatible("Foot", ""), "empty zone always ok"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_entity_unknown_locomotor_validation():
@@ -111,9 +99,6 @@ func test_entity_unknown_locomotor_validation():
             hit = true
     _restore_rules()
     TestHelper.assert_true(hit, "unknown entity locomotor reported")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_entity_contradictory_zone_validation():
@@ -137,6 +122,3 @@ func test_entity_contradictory_zone_validation():
             hit = true
     _restore_rules()
     TestHelper.assert_true(hit, "contradictory zone reported")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

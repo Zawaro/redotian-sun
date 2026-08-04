@@ -6,8 +6,6 @@ extends Node
 const MAP_EDITOR_SCENE: PackedScene = preload("res://scenes/editor/MapEditor.tscn")
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 # ── helpers ──────────────────────────────────────────────────────────
 
@@ -232,16 +230,8 @@ func test_apply_new_map_bounds_and_grid_updated() -> void:
 
 
 func _assert_true(value: bool, message: String) -> void:
-    if value:
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: " + message)
+    TestHelper.assert_true(value, message)
 
 
 func _assert_eq(got: Variant, expected: Variant, message: String) -> void:
-    if got == expected:
-        _test_passed += 1
-        return
-    _test_failed += 1
-    print("    FAIL: %s — expected %s, got %s" % [message, expected, got])
+    TestHelper.assert_eq(got, expected, message)

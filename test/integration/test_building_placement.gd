@@ -3,14 +3,11 @@ extends Node
 # Building placement integration test — placement registers cells, pathfinder avoids them
 
 var _bm: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func test_centered_building_foundation_can_be_placed_and_registered() -> void:
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     SpatialHash.instance._building_cells.clear()
     TerrainSystem.init_grid(64, 64)
@@ -43,23 +40,24 @@ func test_centered_building_foundation_can_be_placed_and_registered() -> void:
     var has_south: bool = blocked.has(CellUtil.cell_key(Vector2i(64, 65)))
     var has_south_east: bool = blocked.has(CellUtil.cell_key(Vector2i(65, 65)))
     SpatialHash.instance._building_cells.clear()
-    if can_place and has_origin and has_east and has_south and has_south_east:
-        _test_passed += 1
-        print("    PASS: centered foundation placement registers its four real cells")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            can_place and has_origin and has_east and has_south and has_south_east,
             (
-                "    FAIL: can_place=%s, cells=%s%s%s%s"
-                % [can_place, has_origin, has_east, has_south, has_south_east]
-            )
+                "centered foundation placement registers its four real cells: "
+                + (
+                    "can_place=%s, cells=%s%s%s%s"
+                    % [can_place, has_origin, has_east, has_south, has_south_east]
+                )
+            ),
         )
+    )
 
 
 func test_pathfinder_routes_around_centered_building_cell() -> void:
     if _bm == null:
-        _test_failed += 1
-        print("    FAIL: BuildingManager not injected")
+        TestHelper.fail("BuildingManager not injected")
         return
     SpatialHash.instance._building_cells.clear()
     TerrainSystem.init_grid(64, 64)
@@ -85,14 +83,16 @@ func test_pathfinder_routes_around_centered_building_cell() -> void:
         if cell == end_cell:
             reaches_destination = true
     SpatialHash.instance._building_cells.clear()
-    if avoids_building and reaches_destination:
-        _test_passed += 1
-        print("    PASS: pathfinder reaches destination around centered building cell")
-    else:
-        _test_failed += 1
-        print(
-            "    FAIL: reaches=%s, blocked cell=%s, path=%s" % [reaches_destination, bad_cell, path]
+    (
+        TestHelper
+        . assert_true(
+            avoids_building and reaches_destination,
+            (
+                "pathfinder reaches destination around centered building cell: "
+                + "reaches=%s, blocked cell=%s, path=%s" % [reaches_destination, bad_cell, path]
+            ),
         )
+    )
 
 
 func test_building_foundation_registers_cells_on_ready():
@@ -118,17 +118,19 @@ func test_building_foundation_registers_cells_on_ready():
     var cleared: bool = not sh.get_blocked_cells().has(CellUtil.cell_key(origin))
     entity.free()
     SpatialHash.instance._building_cells.clear()
-    if has_origin and has_edge and cleared:
-        _test_passed += 1
-        print("    PASS: building FoundationComponent registers foundation cells on _ready")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            has_origin and has_edge and cleared,
             (
-                "    FAIL: has_origin=%s has_edge=%s cleared=%s (should all be true)"
-                % [has_origin, has_edge, cleared]
-            )
+                "building FoundationComponent registers foundation cells on _ready: "
+                + (
+                    "has_origin=%s has_edge=%s cleared=%s (should all be true)"
+                    % [has_origin, has_edge, cleared]
+                )
+            ),
         )
+    )
 
 
 func test_non_building_foundation_does_not_register_cells():
@@ -150,14 +152,16 @@ func test_non_building_foundation_does_not_register_cells():
     SpatialHash.instance.remove_child(entity)
     entity.free()
     SpatialHash.instance._building_cells.clear()
-    if building_cell_count == 0:
-        _test_passed += 1
-        print("    PASS: non-building FoundationComponent does not register cells")
-    else:
-        _test_failed += 1
-        print(
-            "    FAIL: FC registered %d cells for non-building (should be 0)" % building_cell_count
+    (
+        TestHelper
+        . assert_true(
+            building_cell_count == 0,
+            (
+                "non-building FoundationComponent does not register cells: "
+                + "FC registered %d cells for non-building (should be 0)" % building_cell_count
+            ),
         )
+    )
 
 
 func test_preview_building_does_not_register_cells():
@@ -180,12 +184,16 @@ func test_preview_building_does_not_register_cells():
     SpatialHash.instance.remove_child(entity)
     entity.free()
     SpatialHash.instance._building_cells.clear()
-    if building_cell_count == 0:
-        _test_passed += 1
-        print("    PASS: preview building FoundationComponent does not register cells")
-    else:
-        _test_failed += 1
-        print("    FAIL: preview FC registered %d cells (should be 0)" % building_cell_count)
+    (
+        TestHelper
+        . assert_true(
+            building_cell_count == 0,
+            (
+                "preview building FoundationComponent does not register cells: "
+                + "preview FC registered %d cells (should be 0)" % building_cell_count
+            ),
+        )
+    )
 
 
 func test_map_loaded_building_registers_foundation_cells():
@@ -193,8 +201,7 @@ func test_map_loaded_building_registers_foundation_cells():
     TerrainSystem.init_grid(64, 64)
     var building := EntityFactory.create_entity("GDI_CONSTRUCTION_YARD")
     if building == null:
-        _test_failed += 1
-        print("    FAIL: EntityFactory could not create GDI_CONSTRUCTION_YARD")
+        TestHelper.fail("EntityFactory could not create GDI_CONSTRUCTION_YARD")
         return
     var origin := Vector2i(60, 60)
     building.position = CellUtil.cell_origin_to_world(origin, Vector2i(3, 3))
@@ -207,17 +214,19 @@ func test_map_loaded_building_registers_foundation_cells():
     SpatialHash.instance.remove_child(building)
     building.free()
     SpatialHash.instance._building_cells.clear()
-    if has_origin and has_center and has_corner:
-        _test_passed += 1
-        print("    PASS: map-loaded building registers all 3x3 foundation cells")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            has_origin and has_center and has_corner,
             (
-                "    FAIL: origin=%s center=%s corner=%s (should all be true)"
-                % [has_origin, has_center, has_corner]
-            )
+                "map-loaded building registers all 3x3 foundation cells: "
+                + (
+                    "origin=%s center=%s corner=%s (should all be true)"
+                    % [has_origin, has_center, has_corner]
+                )
+            ),
         )
+    )
 
 
 func test_map_loaded_building_blocks_pathfinding():
@@ -225,8 +234,7 @@ func test_map_loaded_building_blocks_pathfinding():
     TerrainSystem.init_grid(64, 64)
     var building := EntityFactory.create_entity("GDI_CONSTRUCTION_YARD")
     if building == null:
-        _test_failed += 1
-        print("    FAIL: EntityFactory could not create GDI_CONSTRUCTION_YARD")
+        TestHelper.fail("EntityFactory could not create GDI_CONSTRUCTION_YARD")
         return
     var origin := Vector2i(60, 60)
     building.position = CellUtil.cell_origin_to_world(origin, Vector2i(3, 3))
@@ -246,12 +254,16 @@ func test_map_loaded_building_blocks_pathfinding():
     SpatialHash.instance.remove_child(building)
     building.free()
     SpatialHash.instance._building_cells.clear()
-    if avoids_building:
-        _test_passed += 1
-        print("    PASS: pathfinder routes around map-loaded building foundation")
-    else:
-        _test_failed += 1
-        print("    FAIL: path=%s bad_cell=%s (should route around building)" % [path, bad_cell])
+    (
+        TestHelper
+        . assert_true(
+            avoids_building,
+            (
+                "pathfinder routes around map-loaded building foundation: "
+                + "path=%s bad_cell=%s (should route around building)" % [path, bad_cell]
+            ),
+        )
+    )
 
 
 func test_map_loaded_refinery_bibs_not_building_blocked():
@@ -260,8 +272,7 @@ func test_map_loaded_refinery_bibs_not_building_blocked():
     TerrainSystem.init_grid(64, 64)
     var building := EntityFactory.create_entity("GDI_REFINERY")
     if building == null:
-        _test_failed += 1
-        print("    FAIL: EntityFactory could not create GDI_REFINERY")
+        TestHelper.fail("EntityFactory could not create GDI_REFINERY")
         return
     var origin := Vector2i(60, 60)
     building.position = CellUtil.cell_origin_to_world(origin, Vector2i(4, 3))
@@ -287,19 +298,17 @@ func test_map_loaded_refinery_bibs_not_building_blocked():
     var cleared: bool = not sh.get_blocked_cells().has(CellUtil.cell_key(origin))
     SpatialHash.instance._building_cells.clear()
     SpatialHash.instance._bib_cells.clear()
-    if bib_not_blocked and bib_tracked and non_bib_blocked and cleared:
-        _test_passed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            bib_not_blocked and bib_tracked and non_bib_blocked and cleared,
             (
-                "    PASS: refinery bib cells are bib-tracked, not building-blocked; "
-                + "non-bib foundation blocked; unregistered on exit"
-            )
+                "refinery bib cells are bib-tracked, not building-blocked; "
+                + "non-bib foundation blocked; unregistered on exit: "
+                + (
+                    "bib_not_blocked=%s bib_tracked=%s non_bib_blocked=%s cleared=%s"
+                    % [bib_not_blocked, bib_tracked, non_bib_blocked, cleared]
+                )
+            ),
         )
-    else:
-        _test_failed += 1
-        print(
-            (
-                "    FAIL: bib_not_blocked=%s bib_tracked=%s non_bib_blocked=%s cleared=%s"
-                % [bib_not_blocked, bib_tracked, non_bib_blocked, cleared]
-            )
-        )
+    )

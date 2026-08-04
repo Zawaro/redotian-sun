@@ -2,8 +2,6 @@ extends Node
 
 # BatchLoader unit tests — cache, batch loading, signal delivery.
 
-var _test_passed := 0
-var _test_failed := 0
 var _signal_path: String = ""
 
 
@@ -16,17 +14,11 @@ func test_is_loaded_returns_false_for_unknown_path():
         not BatchLoader.is_loaded("res://__nonexistent__.tscn"),
         "is_loaded returns false for unknown path"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_get_scene_returns_null_for_unknown_path():
     var scene: PackedScene = BatchLoader.get_scene("res://__nonexistent__.tscn")
     TestHelper.assert_true(scene == null, "get_scene returns null for unknown path")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_is_in_flight_returns_false_when_idle():
@@ -34,9 +26,6 @@ func test_is_in_flight_returns_false_when_idle():
         not BatchLoader.is_in_flight("res://__nonexistent__.tscn"),
         "is_in_flight returns false when no loads active"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_preload_batch_deduplicates():
@@ -47,9 +36,6 @@ func test_preload_batch_deduplicates():
     TestHelper.assert_true(
         in_queue or in_flight, "preload_batch processes the path (queue or in-flight)"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_preload_batch_skips_cached_paths():
@@ -61,9 +47,6 @@ func test_preload_batch_skips_cached_paths():
         BatchLoader._queue.size(), queue_before, "preload_batch skips paths already in cache"
     )
     BatchLoader._cache.erase(path)
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_preload_path_wraps_single_path():
@@ -75,6 +58,3 @@ func test_preload_path_wraps_single_path():
         ),
         "preload_path adds a single path to the load pipeline"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

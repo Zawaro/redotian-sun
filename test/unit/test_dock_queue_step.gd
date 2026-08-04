@@ -2,8 +2,6 @@ extends Node
 
 # Comprehensive queue step tests — every branch of seek→queue→promote→dock flow.
 
-var _test_passed := 0
-var _test_failed := 0
 var _cancelled_emitted := false
 var _undocked_emitted := false
 var _failed_emitted := false
@@ -78,12 +76,16 @@ func test_seek_dock_queues_when_host_occupied():
     _get_client(h2).seek_dock(h2, host)
 
     var c2 := _get_client(h2)
-    if c2.get_state() == DockClientComponent.State.QUEUED and c2._queued_host == host:
-        _test_passed += 1
-        print("    PASS: seek_dock queues when host occupied")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d queued_host=%s" % [c2.get_state(), c2._queued_host])
+    (
+        TestHelper
+        . assert_true(
+            c2.get_state() == DockClientComponent.State.QUEUED and c2._queued_host == host,
+            (
+                "seek_dock queues when host occupied: state=%d queued_host=%s"
+                % [c2.get_state(), c2._queued_host]
+            ),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -103,12 +105,13 @@ func test_seek_dock_queues_moves_to_wait_cell():
 
     # h2 should have some position set (moved to wait cell)
     var c2 := _get_client(h2)
-    if c2.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: seek_dock queues and moves to wait cell")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c2.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c2.get_state() == DockClientComponent.State.QUEUED,
+            "seek_dock queues and moves to wait cell: state=%d" % c2.get_state(),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -125,12 +128,13 @@ func test_seek_dock_skips_when_not_idle():
     c._state = DockClientComponent.State.MOVING
     c.seek_dock(h, host)
 
-    if c.get_state() == DockClientComponent.State.MOVING:
-        _test_passed += 1
-        print("    PASS: seek_dock skips when not idle")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.MOVING,
+            "seek_dock skips when not idle: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -146,12 +150,13 @@ func test_seek_dock_skips_on_retry_cooldown():
     c._retry_cooldown = 2.0
     c.seek_dock(h, host)
 
-    if c.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: seek_dock skips on retry cooldown")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.IDLE,
+            "seek_dock skips on retry cooldown: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -169,12 +174,16 @@ func test_seek_dock_specific_host_queues():
     _get_client(h2).seek_dock(h2, host)
 
     var c2 := _get_client(h2)
-    if c2.get_state() == DockClientComponent.State.QUEUED and c2._queued_host == host:
-        _test_passed += 1
-        print("    PASS: seek_dock with specific_host queues")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d queued_host=%s" % [c2.get_state(), c2._queued_host])
+    (
+        TestHelper
+        . assert_true(
+            c2.get_state() == DockClientComponent.State.QUEUED and c2._queued_host == host,
+            (
+                "seek_dock with specific_host queues: state=%d queued_host=%s"
+                % [c2.get_state(), c2._queued_host]
+            ),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -190,12 +199,16 @@ func test_seek_dock_specific_host_succeeds():
     _get_client(h).seek_dock(h, host)
 
     var c := _get_client(h)
-    if c.get_state() == DockClientComponent.State.MOVING and c._target_host == host:
-        _test_passed += 1
-        print("    PASS: seek_dock with specific_host succeeds immediately")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d target=%s" % [c.get_state(), c._target_host])
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.MOVING and c._target_host == host,
+            (
+                "seek_dock with specific_host succeeds immediately: state=%d target=%s"
+                % [c.get_state(), c._target_host]
+            ),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -216,12 +229,13 @@ func test_on_slot_available_transitions_to_moving():
 
     c.on_slot_available()
 
-    if c.get_state() == DockClientComponent.State.MOVING:
-        _test_passed += 1
-        print("    PASS: on_slot_available transitions to MOVING")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.MOVING,
+            "on_slot_available transitions to MOVING: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -249,12 +263,13 @@ func test_on_slot_available_bind_fails_stays_queued():
     # request_dock sees "already in queue" → returns false → bind fails
     c2.on_slot_available()
 
-    if c2.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: on_slot_available stays QUEUED when bind fails")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c2.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c2.get_state() == DockClientComponent.State.QUEUED,
+            "on_slot_available stays QUEUED when bind fails: state=%d" % c2.get_state(),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -269,12 +284,13 @@ func test_on_slot_available_ignored_when_not_queued():
     c._state = DockClientComponent.State.IDLE
     c.on_slot_available()
 
-    if c.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: on_slot_available ignored when not QUEUED")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.IDLE,
+            "on_slot_available ignored when not QUEUED: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
 
@@ -291,12 +307,16 @@ func test_on_slot_available_uses_reserved_host():
 
     c.on_slot_available()
 
-    if c.get_state() == DockClientComponent.State.MOVING and c._target_host == host:
-        _test_passed += 1
-        print("    PASS: on_slot_available uses _reserved_host")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d target=%s" % [c.get_state(), c._target_host])
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.MOVING and c._target_host == host,
+            (
+                "on_slot_available uses _reserved_host: state=%d target=%s"
+                % [c.get_state(), c._target_host]
+            ),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -314,12 +334,16 @@ func test_on_slot_available_uses_queued_host():
 
     c.on_slot_available()
 
-    if c.get_state() == DockClientComponent.State.MOVING and c._target_host == host:
-        _test_passed += 1
-        print("    PASS: on_slot_available uses _queued_host")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d target=%s" % [c.get_state(), c._target_host])
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.MOVING and c._target_host == host,
+            (
+                "on_slot_available uses _queued_host: state=%d target=%s"
+                % [c.get_state(), c._target_host]
+            ),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -344,12 +368,16 @@ func test_finish_vacate_promotes_first_queued():
     # Simulate vacate
     host_comp._finish_vacate()
 
-    if host_comp.current_docker == _get_client(h2) and host_comp.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: _finish_vacate promotes first queued")
-    else:
-        _test_failed += 1
-        print("    FAIL: current=%s queue=%d" % [host_comp.current_docker, host_comp.queue.size()])
+    (
+        TestHelper
+        . assert_true(
+            host_comp.current_docker == _get_client(h2) and host_comp.queue.is_empty(),
+            (
+                "_finish_vacate promotes first queued: current=%s queue=%d"
+                % [host_comp.current_docker, host_comp.queue.size()]
+            ),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -363,12 +391,16 @@ func test_finish_vacate_empty_queue_noop():
     var host_comp := host.get_node("DockHostComponent") as DockHostComponent
     host_comp._finish_vacate()
 
-    if host_comp.current_docker == null and host_comp.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: _finish_vacate noop on empty queue")
-    else:
-        _test_failed += 1
-        print("    FAIL: current=%s queue=%d" % [host_comp.current_docker, host_comp.queue.size()])
+    (
+        TestHelper
+        . assert_true(
+            host_comp.current_docker == null and host_comp.queue.is_empty(),
+            (
+                "_finish_vacate noop on empty queue: current=%s queue=%d"
+                % [host_comp.current_docker, host_comp.queue.size()]
+            ),
+        )
+    )
 
     host.queue_free()
 
@@ -387,22 +419,21 @@ func test_process_promotes_after_wait_ticks():
     host_comp._wait_seconds = 99.0
     host_comp._process(0.1)
 
-    if host_comp.current_docker == _get_client(h):
-        _test_passed += 1
-        print("    PASS: _process promotes after wait ticks")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            host_comp.current_docker == _get_client(h),
             (
-                "    FAIL: current=%s wait=%s queue=%d awaiting=%s"
+                "_process promotes after wait ticks: current=%s wait=%s queue=%d awaiting=%s"
                 % [
                     host_comp.current_docker,
                     host_comp._wait_seconds,
                     host_comp.queue.size(),
-                    host_comp._awaiting_vacate,
+                    host_comp._awaiting_vacate
                 ]
-            )
+            ),
         )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -422,12 +453,16 @@ func test_process_does_not_pop_when_current_active():
 
     host_comp._process(0.1)
 
-    if host_comp.queue.size() == 1 and host_comp.current_docker == _get_client(h1):
-        _test_passed += 1
-        print("    PASS: _process does not pop when current active")
-    else:
-        _test_failed += 1
-        print("    FAIL: queue=%d current=%s" % [host_comp.queue.size(), host_comp.current_docker])
+    (
+        TestHelper
+        . assert_true(
+            host_comp.queue.size() == 1 and host_comp.current_docker == _get_client(h1),
+            (
+                "_process does not pop when current active: queue=%d current=%s"
+                % [host_comp.queue.size(), host_comp.current_docker]
+            ),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -449,12 +484,13 @@ func test_queued_client_leave_dock_removes_from_queue():
 
     host_comp.leave_dock(c)
 
-    if host_comp.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: leave_dock removes from queue")
-    else:
-        _test_failed += 1
-        print("    FAIL: queue=%d" % host_comp.queue.size())
+    (
+        TestHelper
+        . assert_true(
+            host_comp.queue.is_empty(),
+            "leave_dock removes from queue: queue=%d" % host_comp.queue.size(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -475,12 +511,13 @@ func test_queued_client_exit_tree_releases():
     # Simulate exit_tree
     c._exit_tree()
 
-    if c.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: exit_tree clears queued state")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.IDLE,
+            "exit_tree clears queued state: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -498,21 +535,20 @@ func test_queued_client_dock_cancelled_clears_state():
 
     c.on_dock_cancelled()
 
-    if (
-        c.get_state() == DockClientComponent.State.IDLE
-        and c._queued_host == null
-        and c._reserved_host == null
-    ):
-        _test_passed += 1
-        print("    PASS: on_dock_cancelled clears queued state")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
             (
-                "    FAIL: state=%d queued=%s reserved=%s"
+                c.get_state() == DockClientComponent.State.IDLE
+                and c._queued_host == null
+                and c._reserved_host == null
+            ),
+            (
+                "on_dock_cancelled clears queued state: state=%d queued=%s reserved=%s"
                 % [c.get_state(), c._queued_host, c._reserved_host]
-            )
+            ),
         )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -530,12 +566,13 @@ func test_queued_client_dock_undocked_wrong_ignored():
 
     c.on_dock_undocked(Node.new())
 
-    if c.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: on_dock_undocked ignores wrong docker")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.QUEUED,
+            "on_dock_undocked ignores wrong docker: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -553,12 +590,13 @@ func test_queued_client_dock_undocked_self_clears():
 
     c.on_dock_undocked(c)
 
-    if c.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: on_dock_undocked(self) clears state")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.IDLE,
+            "on_dock_undocked(self) clears state: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -579,12 +617,13 @@ func test_queued_scatter_arrived_reroutes():
 
     c._on_arrived(Vector3(999, 0, 999))
 
-    if c.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: scatter arrived reroutes to wait cell")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.QUEUED,
+            "scatter arrived reroutes to wait cell: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -606,12 +645,13 @@ func test_queued_scatter_arrived_at_wait_cell_noop():
 
     c._on_arrived(h.global_position)
 
-    if c.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: scatter at wait cell does nothing")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.QUEUED,
+            "scatter at wait cell does nothing: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -626,12 +666,13 @@ func test_queued_scatter_arrived_no_host_noop():
 
     c._on_arrived(Vector3(999, 0, 999))
 
-    if c.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: scatter with no host does nothing")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.QUEUED,
+            "scatter with no host does nothing: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
 
@@ -648,12 +689,13 @@ func test_queued_pathfinding_failed_noop():
 
     c._on_pathfinding_failed()
 
-    if c.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: pathfinding failed in QUEUED does nothing")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.QUEUED,
+            "pathfinding failed in QUEUED does nothing: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
 
@@ -672,8 +714,7 @@ func test_full_cycle_seek_queue_promote_dock_undock():
     # Step 1: h1 docks immediately
     _get_client(h1).seek_dock(h1, host)
     if _get_client(h1).get_state() != DockClientComponent.State.MOVING:
-        _test_failed += 1
-        print("    FAIL: h1 should be MOVING after seek_dock")
+        TestHelper.fail("h1 should be MOVING after seek_dock")
         h1.queue_free()
         h2.queue_free()
         host.queue_free()
@@ -682,8 +723,7 @@ func test_full_cycle_seek_queue_promote_dock_undock():
     # Step 2: h2 queues
     _get_client(h2).seek_dock(h2, host)
     if _get_client(h2).get_state() != DockClientComponent.State.QUEUED:
-        _test_failed += 1
-        print("    FAIL: h2 should be QUEUED")
+        TestHelper.fail("h2 should be QUEUED")
         h1.queue_free()
         h2.queue_free()
         host.queue_free()
@@ -696,12 +736,13 @@ func test_full_cycle_seek_queue_promote_dock_undock():
     # Step 4: promote h2 via _finish_vacate
     host_comp._finish_vacate()
 
-    if host_comp.current_docker == _get_client(h2):
-        _test_passed += 1
-        print("    PASS: full cycle seek→queue→promote→dock→undock")
-    else:
-        _test_failed += 1
-        print("    FAIL: current=%s" % host_comp.current_docker)
+    (
+        TestHelper
+        . assert_true(
+            host_comp.current_docker == _get_client(h2),
+            "full cycle seek→queue→promote→dock→undock: current=%s" % host_comp.current_docker,
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -726,8 +767,7 @@ func test_multiple_clients_fifo_order():
     # Promote h1
     host_comp._process(0.1)
     if host_comp.current_docker != _get_client(h1):
-        _test_failed += 1
-        print("    FAIL: first should be h1")
+        TestHelper.fail("first should be h1")
         h1.queue_free()
         h2.queue_free()
         h3.queue_free()
@@ -738,8 +778,7 @@ func test_multiple_clients_fifo_order():
     host_comp.current_docker = null
     host_comp._process(0.1)
     if host_comp.current_docker != _get_client(h2):
-        _test_failed += 1
-        print("    FAIL: second should be h2")
+        TestHelper.fail("second should be h2")
         h1.queue_free()
         h2.queue_free()
         h3.queue_free()
@@ -749,12 +788,16 @@ func test_multiple_clients_fifo_order():
     # h2 leaves, promote h3
     host_comp.current_docker = null
     host_comp._process(0.1)
-    if host_comp.current_docker == _get_client(h3) and host_comp.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: FIFO order preserved through 3 promotions")
-    else:
-        _test_failed += 1
-        print("    FAIL: current=%s queue=%d" % [host_comp.current_docker, host_comp.queue.size()])
+    (
+        TestHelper
+        . assert_true(
+            host_comp.current_docker == _get_client(h3) and host_comp.queue.is_empty(),
+            (
+                "FIFO order preserved through 3 promotions: current=%s queue=%d"
+                % [host_comp.current_docker, host_comp.queue.size()]
+            ),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -777,12 +820,13 @@ func test_client_queued_then_host_freed():
     # Call _clear_queue directly — queue_free is deferred
     host_comp._clear_queue("test")
 
-    if c.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: host freed clears queued client state")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d" % c.get_state())
+    (
+        TestHelper
+        . assert_true(
+            c.get_state() == DockClientComponent.State.IDLE,
+            "host freed clears queued client state: state=%d" % c.get_state(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -804,12 +848,13 @@ func test_client_queued_then_entity_freed():
     # Call _exit_tree directly — queue_free is deferred
     c._exit_tree()
 
-    if host_comp.queue.is_empty():
-        _test_passed += 1
-        print("    PASS: client freed removes from host queue")
-    else:
-        _test_failed += 1
-        print("    FAIL: queue=%d" % host_comp.queue.size())
+    (
+        TestHelper
+        . assert_true(
+            host_comp.queue.is_empty(),
+            "client freed removes from host queue: queue=%d" % host_comp.queue.size(),
+        )
+    )
 
     h.queue_free()
     host.queue_free()
@@ -838,12 +883,16 @@ func test_concurrent_seek_same_host():
         and c1.get_state() == DockClientComponent.State.QUEUED
     )
 
-    if one_moving or other_moving:
-        _test_passed += 1
-        print("    PASS: concurrent seek — one moves, one queues")
-    else:
-        _test_failed += 1
-        print("    FAIL: c1=%d c2=%d" % [c1.get_state(), c2.get_state()])
+    (
+        TestHelper
+        . assert_true(
+            one_moving or other_moving,
+            (
+                "concurrent seek — one moves, one queues: c1=%d c2=%d"
+                % [c1.get_state(), c2.get_state()]
+            ),
+        )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -880,15 +929,13 @@ func test_rapid_queue_promote_cycle():
         host_comp._finish_vacate()
 
         if host_comp.current_docker != _get_client(h2):
-            _test_failed += 1
-            print("    FAIL: cycle %d — h2 not promoted" % i)
+            TestHelper.fail("cycle %d — h2 not promoted" % i)
             h1.queue_free()
             h2.queue_free()
             host.queue_free()
             return
 
-    _test_passed += 1
-    print("    PASS: rapid queue/promote cycle stable")
+    TestHelper.assert_true(true, "rapid queue/promote cycle stable")
 
     h1.queue_free()
     h2.queue_free()
@@ -914,22 +961,24 @@ func test_cancel_from_queued_leaves_queue_and_idles():
     c2.cancel()
 
     var out_of_queue := c2 not in host_comp.queue
-    if (
-        c2.get_state() == DockClientComponent.State.IDLE
-        and c2._queued_host == null
-        and c2._reserved_host == null
-        and out_of_queue
-    ):
-        _test_passed += 1
-        print("    PASS: cancel() from QUEUED leaves queue and idles")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
             (
-                "    FAIL: state=%d queued=%s reserved=%s in_queue=%s"
-                % [c2.get_state(), c2._queued_host, c2._reserved_host, not out_of_queue]
-            )
+                c2.get_state() == DockClientComponent.State.IDLE
+                and c2._queued_host == null
+                and c2._reserved_host == null
+                and out_of_queue
+            ),
+            (
+                "cancel() from QUEUED leaves queue and idles: state=%d queued=%s "
+                + (
+                    "reserved=%s in_queue=%s"
+                    % [c2.get_state(), c2._queued_host, c2._reserved_host, not out_of_queue]
+                )
+            ),
         )
+    )
 
     h1.queue_free()
     h2.queue_free()
@@ -948,22 +997,24 @@ func test_cancel_from_reserved_frees_slot_and_idles():
 
     c1.cancel()
 
-    if (
-        c1.get_state() == DockClientComponent.State.IDLE
-        and c1._target_host == null
-        and c1._reserved_host == null
-        and host_comp.current_docker == null
-    ):
-        _test_passed += 1
-        print("    PASS: cancel() from reserved frees slot and idles")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
             (
-                "    FAIL: state=%d target=%s reserved=%s current_docker=%s"
-                % [c1.get_state(), c1._target_host, c1._reserved_host, host_comp.current_docker]
-            )
+                c1.get_state() == DockClientComponent.State.IDLE
+                and c1._target_host == null
+                and c1._reserved_host == null
+                and host_comp.current_docker == null
+            ),
+            (
+                "cancel() from reserved frees slot and idles: state=%d target=%s "
+                + (
+                    "reserved=%s current_docker=%s"
+                    % [c1.get_state(), c1._target_host, c1._reserved_host, host_comp.current_docker]
+                )
+            ),
         )
+    )
 
     h1.queue_free()
     host.queue_free()

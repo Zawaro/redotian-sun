@@ -3,8 +3,6 @@ extends Node
 # Vehicle crush tests — SpatialHash crush query logic
 
 var _sh: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _make_infantry_entry(
@@ -52,80 +50,88 @@ func _cleanup_entries():
 
 func test_crushable_enemies_returns_enemy_infantry():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(10, 10)
     var entry := _make_infantry_entry(cell, 1, true)  # player 1, crushable
     var result: Array = _sh.get_crushable_enemies_on_cell(cell, 0)  # query from player 0
     _cleanup_entries()
-    if result.size() == 1 and result[0] == entry["node"]:
-        _test_passed += 1
-        print("    PASS: get_crushable_enemies returns enemy crushable infantry")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 1 enemy, got %d" % result.size())
+    (
+        TestHelper
+        . assert_true(
+            result.size() == 1 and result[0] == entry["node"],
+            (
+                "get_crushable_enemies returns enemy crushable infantry: expected 1 enemy, got %d"
+                % result.size()
+            ),
+        )
+    )
 
 
 func test_crushable_enemies_excludes_friendly():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(10, 10)
     _make_infantry_entry(cell, 0, true)  # player 0 (same as query), crushable
     var result: Array = _sh.get_crushable_enemies_on_cell(cell, 0)
     _cleanup_entries()
-    if result.size() == 0:
-        _test_passed += 1
-        print("    PASS: get_crushable_enemies excludes friendly infantry")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 0, got %d" % result.size())
+    (
+        TestHelper
+        . assert_true(
+            result.size() == 0,
+            "get_crushable_enemies excludes friendly infantry: expected 0, got %d" % result.size(),
+        )
+    )
 
 
 func test_crushable_enemies_excludes_non_crushable():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(10, 10)
     _make_infantry_entry(cell, 1, false)  # player 1, NOT crushable
     var result: Array = _sh.get_crushable_enemies_on_cell(cell, 0)
     _cleanup_entries()
-    if result.size() == 0:
-        _test_passed += 1
-        print("    PASS: get_crushable_enemies excludes non-crushable infantry")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 0, got %d" % result.size())
+    (
+        TestHelper
+        . assert_true(
+            result.size() == 0,
+            (
+                "get_crushable_enemies excludes non-crushable infantry: expected 0, got %d"
+                % result.size()
+            ),
+        )
+    )
 
 
 func test_crushable_enemies_excludes_vehicles():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(10, 10)
     _make_infantry_entry(cell, 1, true, 1)  # player 1, crushable, VEHICLE type
     var result: Array = _sh.get_crushable_enemies_on_cell(cell, 0)
     _cleanup_entries()
-    if result.size() == 0:
-        _test_passed += 1
-        print("    PASS: get_crushable_enemies excludes non-infantry entities")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 0, got %d" % result.size())
+    (
+        TestHelper
+        . assert_true(
+            result.size() == 0,
+            (
+                "get_crushable_enemies excludes non-infantry entities: expected 0, got %d"
+                % result.size()
+            ),
+        )
+    )
 
 
 func test_crusher_blocking_includes_friendly():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(10, 10)
@@ -133,18 +139,18 @@ func test_crusher_blocking_includes_friendly():
     var result: Dictionary = _sh.get_crusher_blocking_cells(0)
     _cleanup_entries()
     var key: int = CellUtil.cell_key(cell)
-    if result.has(key):
-        _test_passed += 1
-        print("    PASS: get_crusher_blocking_cells includes friendly infantry")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected cell in blocking dict")
+    (
+        TestHelper
+        . assert_true(
+            result.has(key),
+            "get_crusher_blocking_cells includes friendly infantry: expected cell in blocking dict",
+        )
+    )
 
 
 func test_crusher_blocking_includes_non_crushable():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(10, 10)
@@ -152,18 +158,21 @@ func test_crusher_blocking_includes_non_crushable():
     var result: Dictionary = _sh.get_crusher_blocking_cells(0)
     _cleanup_entries()
     var key: int = CellUtil.cell_key(cell)
-    if result.has(key):
-        _test_passed += 1
-        print("    PASS: get_crusher_blocking_cells includes non-crushable enemy")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected cell in blocking dict")
+    (
+        TestHelper
+        . assert_true(
+            result.has(key),
+            (
+                "get_crusher_blocking_cells includes non-crushable enemy: "
+                + "expected cell in blocking dict"
+            ),
+        )
+    )
 
 
 func test_crusher_blocking_excludes_crushable_enemy():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(10, 10)
@@ -171,26 +180,26 @@ func test_crusher_blocking_excludes_crushable_enemy():
     var result: Dictionary = _sh.get_crusher_blocking_cells(0)
     _cleanup_entries()
     var key: int = CellUtil.cell_key(cell)
-    if not result.has(key):
-        _test_passed += 1
-        print("    PASS: get_crusher_blocking_cells excludes crushable enemy")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected cell NOT in blocking dict")
+    (
+        TestHelper
+        . assert_true(
+            not result.has(key),
+            (
+                "get_crusher_blocking_cells excludes crushable enemy: "
+                + "expected cell NOT in blocking dict"
+            ),
+        )
+    )
 
 
 func test_empty_cell_returns_no_crushables():
     if _sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not injected")
+        TestHelper.fail("SpatialHash not injected")
         return
     _cleanup_entries()
     var cell := Vector2i(99, 99)
     var result: Array = _sh.get_crushable_enemies_on_cell(cell, 0)
     _cleanup_entries()
-    if result.size() == 0:
-        _test_passed += 1
-        print("    PASS: empty cell returns no crushables")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 0, got %d" % result.size())
+    TestHelper.assert_true(
+        result.size() == 0, "empty cell returns no crushables: expected 0, got %d" % result.size()
+    )

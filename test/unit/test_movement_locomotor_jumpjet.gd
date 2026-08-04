@@ -3,8 +3,6 @@ extends Node
 # MovementController jumpjet vertical state machine, booking, and attack holds
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _reset_terrain() -> void:
@@ -86,9 +84,6 @@ func test_jumpjet_move_order_walks_when_reachable():
     TestHelper.assert_eq(hybrid, false, "reachable move order walks on the ground")
     TestHelper.assert_true(waypoints >= 2, "clear walk path is a straight segment")
     TestHelper.assert_eq(zone, MovementController.VerticalState.GROUND, "default zone stays GROUND")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_move_order_flies_when_far():
@@ -115,9 +110,6 @@ func test_jumpjet_move_order_flies_when_far():
     TestHelper.assert_eq(waypoints, 2, "fly is a single straight segment")
     TestHelper.assert_eq(land, true, "fly move order lands on arrival")
     TestHelper.assert_eq(booked, true, "far landing move reserves a sub-slot")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_airborne_move_flies_then_lands():
@@ -146,9 +138,6 @@ func test_jumpjet_airborne_move_flies_then_lands():
     TestHelper.assert_true(
         dest.distance_to(sub_pos) < 0.7, "landing waypoint stays within the sub-slot cell"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_walk_books_sub_slot():
@@ -168,9 +157,6 @@ func test_jumpjet_walk_books_sub_slot():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_eq(booked, true, "grounded walk reserves an infantry sub-slot")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_move_order_same_cell_stays_grounded():
@@ -193,9 +179,6 @@ func test_jumpjet_move_order_same_cell_stays_grounded():
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, false, "same-cell move does not fly")
     TestHelper.assert_eq(zone, MovementController.VerticalState.GROUND, "stays grounded")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_landing_waypoint_is_exact_sub_slot():
@@ -222,9 +205,6 @@ func test_jumpjet_landing_waypoint_is_exact_sub_slot():
             "landing waypoint is exactly the booked sub-slot, no lateral offset",
         )
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_landing_move_relocates_occupied_cell():
@@ -253,9 +233,6 @@ func test_jumpjet_landing_move_relocates_occupied_cell():
         dest_cell != Vector2i(52, 50), "landing fly move relocates off an occupied cell"
     )
     TestHelper.assert_eq(booked, true, "relocated landing books a sub-slot at the free cell")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_airborne_hold_ignores_occupied_cell():
@@ -295,9 +272,6 @@ func test_jumpjet_airborne_hold_ignores_occupied_cell():
     )
     TestHelper.assert_eq(mc._vertical_state, MovementController.VerticalState.AIR, "hold stays air")
     TestHelper.assert_eq(mc._has_sub_slot, false, "airborne hold books no sub-slot")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_attack_move_has_no_spread():
@@ -319,9 +293,6 @@ func test_jumpjet_attack_move_has_no_spread():
     TestHelper.assert_true(
         dest.is_equal_approx(target), "attack waypoint keeps the stop position exactly"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_cancel_move_retains_air():
@@ -347,9 +318,6 @@ func test_jumpjet_cancel_move_retains_air():
     TestHelper.assert_eq(state, MovementController.State.IDLE, "cancel halts the move")
     TestHelper.assert_eq(zone, MovementController.VerticalState.AIR, "air zone retained")
     TestHelper.assert_eq(land, false, "pending landing cancelled")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_cancel_move_ignores_grounded():
@@ -366,9 +334,6 @@ func test_jumpjet_cancel_move_ignores_grounded():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_eq(state, MovementController.State.MOVING, "grounded move left alone")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_attack_after_cancel_flies():
@@ -396,9 +361,6 @@ func test_jumpjet_attack_after_cancel_flies():
     TestHelper.assert_eq(hybrid, true, "post-cancel attack takes the fly path")
     TestHelper.assert_eq(zone, MovementController.VerticalState.AIR, "attacks from the air")
     TestHelper.assert_eq(land, false, "attack does not land")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_wait_retarget_keeps_air_zone():
@@ -426,9 +388,6 @@ func test_jumpjet_wait_retarget_keeps_air_zone():
     TestHelper.assert_eq(zone, MovementController.VerticalState.AIR, "attack hold stays airborne")
     TestHelper.assert_eq(booked, false, "attack hold reserves no ground sub-slot")
     TestHelper.assert_eq(land, false, "attack hold does not land")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_wait_retarget_landing_lands():
@@ -454,9 +413,6 @@ func test_jumpjet_wait_retarget_landing_lands():
     pair[0].queue_free()
     TestHelper.assert_eq(land, true, "landing move still lands on re-target")
     TestHelper.assert_eq(booked, true, "landing move books a sub-slot on re-target")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_blocked_arrival_retargets_immediately():
@@ -482,9 +438,6 @@ func test_jumpjet_blocked_arrival_retargets_immediately():
         state != MovementController.State.WAIT, "jumpjet skips WAIT on blocked arrival"
     )
     TestHelper.assert_eq(land, true, "blocked arrival re-target keeps landing intent")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_distant_flies():
@@ -507,9 +460,6 @@ func test_jumpjet_distant_flies():
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, true, "distant target triggers flight")
     TestHelper.assert_eq(waypoints, 2, "flight is a single straight segment")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_target_height_default():
@@ -522,9 +472,6 @@ func test_jumpjet_target_height_default():
             "default target height = 6 terrain height units",
         )
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_target_height_override():
@@ -545,9 +492,6 @@ func test_jumpjet_target_height_override():
     TestHelper.assert_true(
         is_equal_approx(air_height, 3.0 * _ts.HEIGHT_STEP), "configured height honored"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_ascending_reaches_air():
@@ -574,9 +518,6 @@ func test_jumpjet_ascending_reaches_air():
     TestHelper.assert_true(is_equal_approx(mid_y - start_y, 1.0), "ascends at move_speed * delta")
     TestHelper.assert_true(is_equal_approx(end_y, 4.075), "reaches air height")
     TestHelper.assert_eq(state, MovementController.VerticalState.AIR, "state -> AIR")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_descending_reaches_ground():
@@ -601,9 +542,6 @@ func test_jumpjet_descending_reaches_ground():
     TestHelper.assert_true(is_equal_approx(4.075 - mid_y, 1.0), "descends at move_speed * delta")
     TestHelper.assert_true(end_y < 0.01, "reaches ground")
     TestHelper.assert_eq(state, MovementController.VerticalState.GROUND, "state -> GROUND")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_split_speed_ascend_and_forward():
@@ -626,9 +564,6 @@ func test_jumpjet_split_speed_ascend_and_forward():
     TestHelper.assert_eq(factor, 0.5, "ascending while moving splits speed in half")
     TestHelper.assert_eq(idle_factor, 1.0, "pure vertical transition keeps full speed")
     TestHelper.assert_eq(air_factor, 1.0, "cruising flight keeps full speed")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_fly_order_arrival_hovers():
@@ -648,9 +583,6 @@ func test_jumpjet_fly_order_arrival_hovers():
     entity.free()
     _reset_terrain()
     TestHelper.assert_true(is_equal_approx(y, 4.075), "airborne jumpjet hovers at air height")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_ground_snap_to_terrain():
@@ -670,9 +602,6 @@ func test_jumpjet_ground_snap_to_terrain():
     entity.free()
     _reset_terrain()
     TestHelper.assert_true(y < 0.01, "grounded jumpjet sits on terrain")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_new_order_while_descending_ascends():
@@ -696,9 +625,6 @@ func test_jumpjet_new_order_while_descending_ascends():
         state, MovementController.VerticalState.ASCENDING, "descending order -> ascend"
     )
     TestHelper.assert_eq(hybrid, true, "interrupt takes the fly path")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_keep_zone_airborne_flies():
@@ -720,9 +646,6 @@ func test_jumpjet_keep_zone_airborne_flies():
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, true, "airborne keep_zone attack flies")
     TestHelper.assert_eq(state, MovementController.VerticalState.AIR, "air zone retained")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_keep_zone_grounded_walks():
@@ -744,9 +667,6 @@ func test_jumpjet_keep_zone_grounded_walks():
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, false, "grounded keep_zone attack walks")
     TestHelper.assert_eq(state, MovementController.VerticalState.GROUND, "ground zone retained")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_keep_zone_descending_ascends():
@@ -770,15 +690,11 @@ func test_jumpjet_keep_zone_descending_ascends():
         state, MovementController.VerticalState.ASCENDING, "mid-transition attack ascends"
     )
     TestHelper.assert_eq(hybrid, true, "mid-transition attack flies")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_airborne_terrain_factor_is_one():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     var pair: Array = _make_mc(EntityData.EntityType.INFANTRY)
@@ -792,9 +708,6 @@ func test_jumpjet_airborne_terrain_factor_is_one():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_eq(factor, 1.0, "airborne jumpjet ignores terrain speed")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_short_approach_no_overshoot():
@@ -836,6 +749,3 @@ func test_jumpjet_short_approach_no_overshoot():
     TestHelper.assert_true(not overshot, "airborne approach never overshoots past the stop")
     TestHelper.assert_true(arrived, "airborne approach reaches IDLE")
     TestHelper.assert_true(prev_dist < 0.01, "airborne approach converges on the stop")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

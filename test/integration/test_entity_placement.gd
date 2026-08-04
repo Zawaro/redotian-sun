@@ -3,9 +3,6 @@ extends Node
 # Entity placement integration tests — end-to-end workflow
 # Tests the EntityPlacer sub-script with a real MapEditor instance.
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func _make_placer() -> Array:
     # Returns [EntityPlacer, editor]
@@ -24,8 +21,7 @@ func test_entity_placement_creates_node():
     var placer = result[0]
     var editor = result[1]
     if placer == null:
-        print("    FAIL: Cannot load scripts")
-        _test_failed += 1
+        TestHelper.fail("Cannot load scripts")
         return
     placer._selected_entity_id = "TIBERIUM_RIPARIUS"
     placer._selected_player_id = 0
@@ -33,16 +29,14 @@ func test_entity_placement_creates_node():
     var key := str(cell.x) + "," + str(cell.y)
     placer._place_entity_on_cell(cell)
     if editor._painted_entities.has(key):
-        print("    PASS: Entity placement creates node")
-        _test_passed += 1
+        TestHelper.assert_true(true, "Entity placement creates node")
         var entry: Dictionary = editor._painted_entities[key]
         var node: Node3D = entry.get("node")
         if node and is_instance_valid(node):
             node.queue_free()
         editor._painted_entities.erase(key)
     else:
-        print("    FAIL: Entity placement did not create entry")
-        _test_failed += 1
+        TestHelper.fail("Entity placement did not create entry")
 
 
 func test_entity_stored_with_player_id():
@@ -50,8 +44,7 @@ func test_entity_stored_with_player_id():
     var placer = result[0]
     var editor = result[1]
     if placer == null:
-        print("    FAIL: Cannot load scripts")
-        _test_failed += 1
+        TestHelper.fail("Cannot load scripts")
         return
     placer._selected_entity_id = "TIBERIUM_RIPARIUS"
     placer._selected_player_id = 1
@@ -60,19 +53,22 @@ func test_entity_stored_with_player_id():
     placer._place_entity_on_cell(cell)
     if editor._painted_entities.has(key):
         var data: Dictionary = editor._painted_entities[key].get("data", {})
-        if data.get("player_id") == 1:
-            print("    PASS: Entity stored with correct player_id")
-            _test_passed += 1
-        else:
-            print("    FAIL: Entity player_id is %s, expected 1" % str(data.get("player_id")))
-            _test_failed += 1
+        (
+            TestHelper
+            . assert_true(
+                data.get("player_id") == 1,
+                (
+                    "Entity stored with correct player_id: "
+                    + "Entity player_id is %s, expected 1" % str(data.get("player_id"))
+                ),
+            )
+        )
         var node: Node3D = editor._painted_entities[key].get("node")
         if node and is_instance_valid(node):
             node.queue_free()
         editor._painted_entities.erase(key)
     else:
-        print("    FAIL: Entity not found in painted_entities")
-        _test_failed += 1
+        TestHelper.fail("Entity not found in painted_entities")
 
 
 func test_cannot_place_on_occupied_cell():
@@ -80,8 +76,7 @@ func test_cannot_place_on_occupied_cell():
     var placer = result[0]
     var editor = result[1]
     if placer == null:
-        print("    FAIL: Cannot load scripts")
-        _test_failed += 1
+        TestHelper.fail("Cannot load scripts")
         return
     placer._selected_entity_id = "TIBERIUM_RIPARIUS"
     placer._selected_player_id = 0
@@ -91,12 +86,13 @@ func test_cannot_place_on_occupied_cell():
     var count_before: int = editor._painted_entities.size()
     placer._place_entity_on_cell(cell)
     var count_after: int = editor._painted_entities.size()
-    if count_before == count_after:
-        print("    PASS: Cannot place on occupied cell")
-        _test_passed += 1
-    else:
-        print("    FAIL: Second entity placed on occupied cell")
-        _test_failed += 1
+    (
+        TestHelper
+        . assert_true(
+            count_before == count_after,
+            "Cannot place on occupied cell: Second entity placed on occupied cell",
+        )
+    )
     if editor._painted_entities.has(key):
         var node: Node3D = editor._painted_entities[key].get("node")
         if node and is_instance_valid(node):
@@ -109,8 +105,7 @@ func test_empty_entity_id_blocked():
     var placer = result[0]
     var editor = result[1]
     if placer == null:
-        print("    FAIL: Cannot load scripts")
-        _test_failed += 1
+        TestHelper.fail("Cannot load scripts")
         return
     placer._selected_entity_id = ""
     placer._selected_player_id = 0
@@ -118,23 +113,10 @@ func test_empty_entity_id_blocked():
     placer._place_entity_on_cell(cell)
     var key := str(cell.x) + "," + str(cell.y)
     if not editor._painted_entities.has(key):
-        print("    PASS: Empty entity_id blocked")
-        _test_passed += 1
+        TestHelper.assert_true(true, "Empty entity_id blocked")
     else:
-        print("    FAIL: Entity placed with empty entity_id")
-        _test_failed += 1
+        TestHelper.fail("Entity placed with empty entity_id")
         var node: Node3D = editor._painted_entities[key].get("node")
         if node and is_instance_valid(node):
             node.queue_free()
         editor._painted_entities.erase(key)
-
-
-func print_summary():
-    print("\n=== Entity Placement Integration Test Summary ===")
-    print("Passed: %d" % _test_passed)
-    print("Failed: %d" % _test_failed)
-    print("Total: %d" % (_test_passed + _test_failed))
-    if _test_failed == 0:
-        print("ALL TESTS PASSED")
-    else:
-        print("SOME TESTS FAILED")

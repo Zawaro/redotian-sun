@@ -5,8 +5,6 @@ extends Node
 var _sm: Node = null
 var _pm: Node = null
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _make_weapon(damage: int = 10, range_cells: float = 5.0, warhead: String = "SA") -> WeaponData:
@@ -80,9 +78,6 @@ func test_jumpjet_weapon_targets_ground_and_air():
     var data := load("res://resources/entities/infantry/gdi_jumpjet_infantry.tres") as EntityData
     TestHelper.assert_true(data != null, "jumpjet data loads")
     if data == null:
-        _test_passed += TestHelper._passed
-        _test_failed += TestHelper._failed
-        TestHelper.reset()
         return
     TestHelper.assert_true(not data.weapons.is_empty(), "jumpjet has a weapon")
     var pm := get_node_or_null("/root/PlayerManager")
@@ -103,9 +98,6 @@ func test_jumpjet_weapon_targets_ground_and_air():
         air_target, Vector2i.ZERO, air_target.global_position, {}
     )
     TestHelper.assert_true(air_order != null, "jumpjet can order air target")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     entity.free()
     ground_target.free()
     air_target.free()
@@ -136,9 +128,6 @@ func test_jumpjet_attack_interrupts_airborne_move():
     TestHelper.assert_eq(state, MovementController.State.IDLE, "attack interrupts the move")
     TestHelper.assert_eq(zone, MovementController.VerticalState.AIR, "air zone retained")
     TestHelper.assert_eq(land, false, "pending landing cancelled")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_attack_approaches_nearest_point():
@@ -178,9 +167,6 @@ func test_jumpjet_attack_approaches_nearest_point():
     )
     TestHelper.assert_eq(hybrid, true, "attack keeps the fly path")
     TestHelper.assert_eq(zone, MovementController.VerticalState.AIR, "attacks from the air")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_air_repulsion_pushes_away():
@@ -202,9 +188,6 @@ func test_jumpjet_air_repulsion_pushes_away():
     TestHelper.assert_true(close_push.length() <= 1.5, "push is capped at MIN_AIR_SEPARATION")
     TestHelper.assert_eq(far_push, Vector3.ZERO, "neighbor beyond separation -> no push")
     TestHelper.assert_true(capped_push.length() <= 1.5, "combined push stays bounded")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_jumpjet_attack_repulsion_separates_two():
@@ -256,9 +239,6 @@ func test_jumpjet_attack_repulsion_separates_two():
     TestHelper.assert_true(
         dest1.distance_to(dest2) > 0.5, "two attackers nudge apart instead of stacking"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_grounded_jumpjet_far_attack_takes_off():
@@ -295,9 +275,6 @@ func test_grounded_jumpjet_far_attack_takes_off():
             "grounded jumpjet far attack takes off (ascends)",
         )
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_grounded_jumpjet_near_attack_walks():
@@ -330,6 +307,3 @@ func test_grounded_jumpjet_near_attack_walks():
     TestHelper.assert_eq(
         zone, MovementController.VerticalState.GROUND, "near attack stays grounded"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

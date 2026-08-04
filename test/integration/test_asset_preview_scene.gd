@@ -3,9 +3,6 @@ extends Node
 # Asset preview scene integration: headless load, mesh state matches the
 # resolved art, full 140-variant cycle, and camera/spin/state toggles.
 
-var _test_passed := 0
-var _test_failed := 0
-
 var _scene: Node = null
 var _controller: Node = null
 var _theater: TheaterData = null
@@ -190,6 +187,4 @@ func test_cleanup_frees_scene():
 
 
 func _finish() -> void:
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
+    pass

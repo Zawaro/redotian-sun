@@ -2,9 +2,6 @@ extends Node
 
 # CellSubPositions tests — deterministic sub-slot positioning
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func test_determinism():
     var cell := Vector2i(5, 10)
@@ -15,23 +12,24 @@ func test_determinism():
         if not a[i].is_equal_approx(b[i]):
             is_match = false
             break
-    if is_match:
-        _test_passed += 1
-        print("    PASS: get_sub_positions is deterministic")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_sub_positions returns different results for same cell")
+    (
+        TestHelper
+        . assert_true(
+            is_match,
+            (
+                "get_sub_positions is deterministic: "
+                + "get_sub_positions returns different results for same cell"
+            ),
+        )
+    )
 
 
 func test_slot_count():
     var cell := Vector2i(0, 0)
     var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
-    if positions.size() == 3:
-        _test_passed += 1
-        print("    PASS: returns 3 slots")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 3 slots, got %d" % positions.size())
+    TestHelper.assert_true(
+        positions.size() == 3, "returns 3 slots: expected 3 slots, got %d" % positions.size()
+    )
 
 
 func test_margin():
@@ -45,12 +43,9 @@ func test_margin():
         if pos.x < min_pos or pos.x > max_pos or pos.z < min_pos or pos.z > max_pos:
             all_in_bounds = false
             break
-    if all_in_bounds:
-        _test_passed += 1
-        print("    PASS: all positions within margin")
-    else:
-        _test_failed += 1
-        print("    FAIL: position outside margin bounds")
+    TestHelper.assert_true(
+        all_in_bounds, "all positions within margin: position outside margin bounds"
+    )
 
 
 func test_spacing():
@@ -63,12 +58,9 @@ func test_spacing():
             if positions[i].distance_to(positions[j]) < min_dist:
                 all_spaced = false
                 break
-    if all_spaced:
-        _test_passed += 1
-        print("    PASS: all slots at least %.1f apart" % min_dist)
-    else:
-        _test_failed += 1
-        print("    FAIL: slots too close together")
+    TestHelper.assert_true(
+        all_spaced, "all slots at least %.1f apart: slots too close together" % min_dist
+    )
 
 
 func test_get_sub_position():
@@ -76,13 +68,20 @@ func test_get_sub_position():
     var pos: Vector3 = CellSubPositions.get_sub_position(cell, 0)
     var cell_world: Vector3 = CellUtil.cell_to_world(cell)
     var radius: float = (CellUtil.CELL_SIZE * 0.5 - CellSubPositions.MARGIN) * 0.7
-    if pos.distance_to(cell_world) <= radius + 0.001:
-        _test_passed += 1
-        print("    PASS: get_sub_position returns position within cell slot radius")
-    else:
-        _test_failed += 1
-        var msg := "dist=%.2f, radius=%.2f" % [pos.distance_to(cell_world), radius]
-        print("    FAIL: get_sub_position too far from cell (%s)" % msg)
+    (
+        TestHelper
+        . assert_true(
+            pos.distance_to(cell_world) <= radius + 0.001,
+            (
+                "get_sub_position returns position within cell slot radius"
+                + ": "
+                + (
+                    "get_sub_position too far from cell (%s)"
+                    % ("dist=%.2f, radius=%.2f" % [pos.distance_to(cell_world), radius])
+                )
+            ),
+        )
+    )
 
 
 func test_different_cells_different_positions():
@@ -93,20 +92,22 @@ func test_different_cells_different_positions():
         if not a[i].is_equal_approx(b[i]):
             different = true
             break
-    if different:
-        _test_passed += 1
-        print("    PASS: different cells produce different positions")
-    else:
-        _test_failed += 1
-        print("    FAIL: different cells produced identical positions")
+    TestHelper.assert_true(
+        different,
+        "different cells produce different positions: different cells produced identical positions"
+    )
 
 
 func test_geometry_follows_capacity():
     var cell := Vector2i(1, 2)
     var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell, 4)
-    if positions.size() == 4:
-        _test_passed += 1
-        print("    PASS: get_sub_positions(cell, 4) returns 4 positions")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 4 positions, got %d" % positions.size())
+    (
+        TestHelper
+        . assert_true(
+            positions.size() == 4,
+            (
+                "get_sub_positions(cell, 4) returns 4 positions: expected 4 positions, got %d"
+                % positions.size()
+            ),
+        )
+    )

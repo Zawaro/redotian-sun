@@ -3,8 +3,6 @@ extends Node
 # PlayerManager unit tests — player registry, local player ID, team relationships
 
 var _pm: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _ready() -> void:
@@ -13,8 +11,7 @@ func _ready() -> void:
 
 func _guard() -> bool:
     if _pm == null:
-        print("    FAIL: PlayerManager not injected")
-        _test_failed += 1
+        TestHelper.fail("PlayerManager not injected")
         return false
     return true
 
@@ -29,24 +26,32 @@ func test_get_local_player_id():
     if not _guard():
         return
     var id: int = _pm.get_local_player_id()
-    if id == 0:
-        print("    PASS: get_local_player_id returns default 0")
-        _test_passed += 1
-    else:
-        print("    FAIL: get_local_player_id returned %d, expected 0" % id)
-        _test_failed += 1
+    (
+        TestHelper
+        . assert_true(
+            id == 0,
+            (
+                "get_local_player_id returns default 0: get_local_player_id returned %d, expected 0"
+                % id
+            ),
+        )
+    )
 
 
 func test_get_player_data_creates():
     if not _guard():
         return
     var data = _pm.get_player_data(99)
-    if data != null and data.player_id == 99:
-        print("    PASS: get_player_data lazy-creates with correct ID")
-        _test_passed += 1
-    else:
-        print("    FAIL: get_player_data did not create player 99")
-        _test_failed += 1
+    (
+        TestHelper
+        . assert_true(
+            data != null and data.player_id == 99,
+            (
+                "get_player_data lazy-creates with correct ID: "
+                + "get_player_data did not create player 99"
+            ),
+        )
+    )
     _cleanup()
 
 
@@ -55,12 +60,10 @@ func test_get_player_data_returns_same():
         return
     var a = _pm.get_player_data(42)
     var b = _pm.get_player_data(42)
-    if a == b:
-        print("    PASS: get_player_data returns same instance")
-        _test_passed += 1
-    else:
-        print("    FAIL: get_player_data returned different instances")
-        _test_failed += 1
+    TestHelper.assert_true(
+        a == b,
+        "get_player_data returns same instance: get_player_data returned different instances"
+    )
     _cleanup()
 
 
@@ -71,12 +74,16 @@ func test_is_enemy_different_teams():
     a.team_id = 1
     var b = _pm.get_player_data(11)
     b.team_id = 2
-    if _pm.is_enemy(10, 11):
-        print("    PASS: is_enemy returns true for different teams")
-        _test_passed += 1
-    else:
-        print("    FAIL: is_enemy returned false for different teams")
-        _test_failed += 1
+    (
+        TestHelper
+        . assert_true(
+            _pm.is_enemy(10, 11),
+            (
+                "is_enemy returns true for different teams: "
+                + "is_enemy returned false for different teams"
+            ),
+        )
+    )
     _cleanup()
 
 
@@ -87,12 +94,13 @@ func test_is_enemy_same_team():
     a.team_id = 1
     var b = _pm.get_player_data(21)
     b.team_id = 1
-    if not _pm.is_enemy(20, 21):
-        print("    PASS: is_enemy returns false for same team")
-        _test_passed += 1
-    else:
-        print("    FAIL: is_enemy returned true for same team")
-        _test_failed += 1
+    (
+        TestHelper
+        . assert_true(
+            not _pm.is_enemy(20, 21),
+            "is_enemy returns false for same team: is_enemy returned true for same team",
+        )
+    )
     _cleanup()
 
 
@@ -102,12 +110,19 @@ func test_get_all_players():
     _pm.get_player_data(30)
     _pm.get_player_data(31)
     var all = _pm.get_all_players()
-    if all.size() == 4:
-        print("    PASS: get_all_players returns all 4 players (2 default + 2 created)")
-        _test_passed += 1
-    else:
-        print("    FAIL: get_all_players returned %d players, expected 4" % all.size())
-        _test_failed += 1
+    (
+        TestHelper
+        . assert_true(
+            all.size() == 4,
+            (
+                (
+                    "get_all_players returns all 4 players (2 default + 2 created): "
+                    + "get_all_players returned %d players, expected 4"
+                )
+                % all.size()
+            ),
+        )
+    )
     _cleanup()
 
 
@@ -121,10 +136,17 @@ func test_get_players_by_team():
     var c = _pm.get_player_data(42)
     c.team_id = 6
     var team5 = _pm.get_players_by_team(5)
-    if team5.size() == 2:
-        print("    PASS: get_players_by_team returns exactly 2 players for team 5")
-        _test_passed += 1
-    else:
-        print("    FAIL: get_players_by_team returned %d players, expected 2" % team5.size())
-        _test_failed += 1
+    (
+        TestHelper
+        . assert_true(
+            team5.size() == 2,
+            (
+                (
+                    "get_players_by_team returns exactly 2 players for team 5: "
+                    + "get_players_by_team returned %d players, expected 2"
+                )
+                % team5.size()
+            ),
+        )
+    )
     _cleanup()

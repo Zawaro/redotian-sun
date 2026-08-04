@@ -2,9 +2,6 @@ extends Node
 
 # Resource type hierarchy tests — get_resource_category, get_subtypes
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func _make_global_rules() -> GlobalRules:
     var rules := GlobalRules.new()
@@ -41,42 +38,55 @@ func _make_global_rules() -> GlobalRules:
 func test_get_resource_type():
     var rules := _make_global_rules()
     var rt := rules.get_resource_type("tiberium_green")
-    if rt and rt.id == "tiberium_green" and rt.value == 1.0:
-        _test_passed += 1
-        print("    PASS: get_resource_type returns correct type")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_resource_type returned wrong type")
+    (
+        TestHelper
+        . assert_true(
+            rt and rt.id == "tiberium_green" and rt.value == 1.0,
+            "get_resource_type returns correct type: get_resource_type returned wrong type",
+        )
+    )
 
 
 func test_get_resource_category():
     var rules := _make_global_rules()
     var category := rules.get_resource_category("tiberium_green")
-    if category == "tiberium":
-        _test_passed += 1
-        print("    PASS: get_resource_category returns parent category")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_resource_category returned '%s'" % category)
+    (
+        TestHelper
+        . assert_true(
+            category == "tiberium",
+            (
+                "get_resource_category returns parent category: get_resource_category returned '%s'"
+                % category
+            ),
+        )
+    )
 
 
 func test_get_resource_category_top_level():
     var rules := _make_global_rules()
     var category := rules.get_resource_category("tiberium")
-    if category == "tiberium":
-        _test_passed += 1
-        print("    PASS: get_resource_category returns self for top-level")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_resource_category returned '%s'" % category)
+    (
+        TestHelper
+        . assert_true(
+            category == "tiberium",
+            (
+                (
+                    "get_resource_category returns self for top-level: "
+                    + "get_resource_category returned '%s'"
+                )
+                % category
+            ),
+        )
+    )
 
 
 func test_get_subtypes():
     var rules := _make_global_rules()
     var subtypes := rules.get_subtypes("tiberium")
-    if subtypes.has("tiberium_green") and subtypes.has("tiberium_blue"):
-        _test_passed += 1
-        print("    PASS: get_subtypes returns all sub-types")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_subtypes missing entries: %s" % subtypes)
+    (
+        TestHelper
+        . assert_true(
+            subtypes.has("tiberium_green") and subtypes.has("tiberium_blue"),
+            "get_subtypes returns all sub-types: get_subtypes missing entries: %s" % subtypes,
+        )
+    )

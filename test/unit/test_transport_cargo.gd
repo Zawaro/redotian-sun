@@ -4,9 +4,6 @@ extends Node
 
 const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/SelectComponent.tscn")
 
-var _test_passed := 0
-var _test_failed := 0
-
 
 func _make_transport(capacity: int = 28) -> TransportComponent:
     var transport := TransportComponent.new()
@@ -32,59 +29,67 @@ func _make_rules() -> GlobalRules:
 func test_add_cargo():
     var transport := _make_transport(28)
     var actual := transport.add_cargo("tiberium_green", 10.5)
-    if actual == 10.5 and transport.cargo.get("tiberium_green") == 10.5:
-        _test_passed += 1
-        print("    PASS: add_cargo adds correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: add_cargo mismatch")
+    (
+        TestHelper
+        . assert_true(
+            actual == 10.5 and transport.cargo.get("tiberium_green") == 10.5,
+            "add_cargo adds correctly: add_cargo mismatch",
+        )
+    )
 
 
 func test_add_cargo_respects_capacity():
     var transport := _make_transport(10)
     var actual := transport.add_cargo("tiberium_green", 15.0)
-    if actual == 10.0 and transport.get_cargo_total() == 10.0:
-        _test_passed += 1
-        print("    PASS: add_cargo respects capacity")
-    else:
-        _test_failed += 1
-        print("    FAIL: add_cargo did not respect capacity")
+    (
+        TestHelper
+        . assert_true(
+            actual == 10.0 and transport.get_cargo_total() == 10.0,
+            "add_cargo respects capacity: add_cargo did not respect capacity",
+        )
+    )
 
 
 func test_remove_cargo():
     var transport := _make_transport(28)
     transport.add_cargo("tiberium_green", 10.0)
     var actual := transport.remove_cargo("tiberium_green", 3.5)
-    if actual == 3.5 and transport.cargo.get("tiberium_green") == 6.5:
-        _test_passed += 1
-        print("    PASS: remove_cargo removes correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: remove_cargo mismatch")
+    (
+        TestHelper
+        . assert_true(
+            actual == 3.5 and transport.cargo.get("tiberium_green") == 6.5,
+            "remove_cargo removes correctly: remove_cargo mismatch",
+        )
+    )
 
 
 func test_remove_cargo_erases_at_zero():
     var transport := _make_transport(28)
     transport.add_cargo("tiberium_green", 10.0)
     transport.remove_cargo("tiberium_green", 10.0)
-    if transport.cargo.is_empty():
-        _test_passed += 1
-        print("    PASS: remove_cargo erases at zero")
-    else:
-        _test_failed += 1
-        print("    FAIL: remove_cargo did not erase at zero")
+    (
+        TestHelper
+        . assert_true(
+            transport.cargo.is_empty(),
+            "remove_cargo erases at zero: " + "remove_cargo did not erase at zero",
+        )
+    )
 
 
 func test_get_cargo_total():
     var transport := _make_transport(28)
     transport.add_cargo("tiberium_green", 14.5)
     transport.add_cargo("tiberium_blue", 7.5)
-    if transport.get_cargo_total() == 22.0:
-        _test_passed += 1
-        print("    PASS: get_cargo_total sums correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_cargo_total returned %f" % transport.get_cargo_total())
+    (
+        TestHelper
+        . assert_true(
+            transport.get_cargo_total() == 22.0,
+            (
+                "get_cargo_total sums correctly: get_cargo_total returned %f"
+                % transport.get_cargo_total()
+            ),
+        )
+    )
 
 
 func test_get_cargo_value():
@@ -93,12 +98,9 @@ func test_get_cargo_value():
     transport.add_cargo("tiberium_blue", 7.0)
     var rules := _make_rules()
     var value := transport.get_cargo_value(rules)
-    if value == 630:
-        _test_passed += 1
-        print("    PASS: get_cargo_value calculates correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_cargo_value returned %d" % value)
+    TestHelper.assert_true(
+        value == 630, "get_cargo_value calculates correctly: get_cargo_value returned %d" % value
+    )
 
 
 # --- get_cursor_for_target tests ---

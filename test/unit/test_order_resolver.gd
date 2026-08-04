@@ -6,8 +6,6 @@ const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/Sel
 
 var _sm: Node = null
 var _pm: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _make_weapon(damage: int = 10, range_cells: float = 5.0) -> WeaponData:
@@ -85,8 +83,7 @@ func _teardown_selection(entities: Array[Node3D]) -> void:
 
 func test_resolve_all_empty_selection():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     _sm.deselect_all()
     var target := _make_target(1)
@@ -94,16 +91,12 @@ func test_resolve_all_empty_selection():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, {}
     )
     TestHelper.assert_eq(results.size(), 0, "empty selection -> no orders")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     target.free()
 
 
 func test_resolve_all_entity_without_combat():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -114,17 +107,13 @@ func test_resolve_all_entity_without_combat():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, {}
     )
     TestHelper.assert_eq(results.size(), 0, "entity without CombatComponent -> no orders")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([entity])
     target.free()
 
 
 func test_resolve_all_combat_entity_vs_enemy():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -138,17 +127,13 @@ func test_resolve_all_combat_entity_vs_enemy():
     )
     TestHelper.assert_eq(results.size(), 1, "combat entity vs enemy -> 1 order")
     TestHelper.assert_eq(results[0].cursor, CursorState.Type.ATTACK, "order cursor -> ATTACK")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([entity])
     target.free()
 
 
 func test_resolve_all_combat_entity_vs_friendly():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -161,17 +146,13 @@ func test_resolve_all_combat_entity_vs_friendly():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, {}
     )
     TestHelper.assert_eq(results.size(), 0, "combat entity vs friendly -> no orders")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([entity])
     target.free()
 
 
 func test_resolve_all_multiple_entities_mixed():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -187,17 +168,13 @@ func test_resolve_all_multiple_entities_mixed():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, {}
     )
     TestHelper.assert_eq(results.size(), 1, "mixed selection vs enemy -> 1 order (only combat)")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([combat_entity, non_combat_entity])
     target.free()
 
 
 func test_resolve_all_invalid_select_component_skipped():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -212,9 +189,6 @@ func test_resolve_all_invalid_select_component_skipped():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, {}
     )
     TestHelper.assert_eq(results.size(), 0, "invalid select_component -> skipped")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _sm.deselect_all()
     target.free()
 
@@ -224,8 +198,7 @@ func test_resolve_all_invalid_select_component_skipped():
 
 func test_resolve_single_empty_selection():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     _sm.deselect_all()
     var target := _make_target(1)
@@ -233,16 +206,12 @@ func test_resolve_single_empty_selection():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, {}
     )
     TestHelper.assert_true(result == null, "empty selection -> null")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     target.free()
 
 
 func test_resolve_single_combat_vs_enemy():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -256,17 +225,13 @@ func test_resolve_single_combat_vs_enemy():
     )
     TestHelper.assert_true(result != null, "combat vs enemy -> order not null")
     TestHelper.assert_eq(result.cursor, CursorState.Type.ATTACK, "cursor -> ATTACK")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([entity])
     target.free()
 
 
 func test_resolve_single_combat_vs_friendly():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -279,17 +244,13 @@ func test_resolve_single_combat_vs_friendly():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, {}
     )
     TestHelper.assert_true(result == null, "combat vs friendly -> null")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([entity])
     target.free()
 
 
 func test_resolve_single_picks_highest_priority():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -306,17 +267,13 @@ func test_resolve_single_picks_highest_priority():
     )
     TestHelper.assert_true(result != null, "mixed selection -> order not null")
     TestHelper.assert_eq(result.cursor, CursorState.Type.ATTACK, "best order -> ATTACK from combat")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([entity1, entity2])
     target.free()
 
 
 func test_resolve_single_force_attack_allows_friendly():
     if _sm == null:
-        _test_failed += 1
-        print("    FAIL: SelectionManager not injected")
+        TestHelper.fail("SelectionManager not injected")
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
@@ -330,9 +287,6 @@ func test_resolve_single_force_attack_allows_friendly():
         _sm.selected_entities, target, Vector2i.ZERO, Vector3.ZERO, modifiers
     )
     TestHelper.assert_true(result != null, "force_attack vs friendly -> order not null")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
     _teardown_selection([entity])
     target.free()
 
@@ -345,9 +299,6 @@ func test_is_better_higher_priority_wins():
     var low := OrderResult.new(CursorState.Type.MOVE, 5)
     var result := OrderResolver._is_better(high, low)
     TestHelper.assert_true(result, "higher priority is better")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_is_better_lower_priority_loses():
@@ -355,9 +306,6 @@ func test_is_better_lower_priority_loses():
     var low := OrderResult.new(CursorState.Type.MOVE, 5)
     var result := OrderResolver._is_better(low, high)
     TestHelper.assert_true(not result, "lower priority is not better")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_is_better_equal_priority_not_better():
@@ -365,6 +313,3 @@ func test_is_better_equal_priority_not_better():
     var b := OrderResult.new(CursorState.Type.ATTACK, 30)
     var result := OrderResolver._is_better(a, b)
     TestHelper.assert_true(not result, "equal priority is not better")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

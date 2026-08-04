@@ -3,15 +3,12 @@ extends Node
 # MovementController tests — crush mechanics, cursor resolution, and order generation
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func test_crush_kills_enemy():
     var sh := SpatialHash.instance
     if sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not available")
+        TestHelper.fail("SpatialHash not available")
         return
     sh._grid.clear()
     var cell := Vector2i(5, 5)
@@ -34,12 +31,16 @@ func test_crush_kills_enemy():
     # get_crushable_enemies returns the enemy for a crusher on player 0
     var enemies: Array = sh.get_crushable_enemies_on_cell(cell, 0)
     sh._grid.erase(key)
-    if enemies.size() == 1 and enemies[0] == enemy:
-        _test_passed += 1
-        print("    PASS: crusher identifies enemy infantry for crush")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 1 enemy, got %d" % enemies.size())
+    (
+        TestHelper
+        . assert_true(
+            enemies.size() == 1 and enemies[0] == enemy,
+            (
+                "crusher identifies enemy infantry for crush: expected 1 enemy, got %d"
+                % enemies.size()
+            ),
+        )
+    )
     remove_child(enemy)
     enemy.free()
 
@@ -47,8 +48,7 @@ func test_crush_kills_enemy():
 func test_crush_does_not_kill_friendly():
     var sh := SpatialHash.instance
     if sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not available")
+        TestHelper.fail("SpatialHash not available")
         return
     sh._grid.clear()
     var cell := Vector2i(5, 5)
@@ -68,20 +68,23 @@ func test_crush_does_not_kill_friendly():
     sh._grid[key] = [entry]
     var enemies: Array = sh.get_crushable_enemies_on_cell(cell, 0)
     sh._grid.erase(key)
-    if enemies.is_empty():
-        _test_passed += 1
-        print("    PASS: crusher does not identify friendly infantry as crushable")
-    else:
-        _test_failed += 1
-        print("    FAIL: friendly infantry returned as crushable enemy")
+    (
+        TestHelper
+        . assert_true(
+            enemies.is_empty(),
+            (
+                "crusher does not identify friendly infantry as crushable: "
+                + "friendly infantry returned as crushable enemy"
+            ),
+        )
+    )
     friendly.free()
 
 
 func test_crush_does_not_affect_non_crushable():
     var sh := SpatialHash.instance
     if sh == null:
-        _test_failed += 1
-        print("    FAIL: SpatialHash not available")
+        TestHelper.fail("SpatialHash not available")
         return
     sh._grid.clear()
     var cell := Vector2i(5, 5)
@@ -101,12 +104,16 @@ func test_crush_does_not_affect_non_crushable():
     sh._grid[key] = [entry]
     var enemies: Array = sh.get_crushable_enemies_on_cell(cell, 0)
     sh._grid.erase(key)
-    if enemies.is_empty():
-        _test_passed += 1
-        print("    PASS: crush does not affect non-crushable infantry")
-    else:
-        _test_failed += 1
-        print("    FAIL: non-crushable infantry returned as crushable enemy")
+    (
+        TestHelper
+        . assert_true(
+            enemies.is_empty(),
+            (
+                "crush does not affect non-crushable infantry: "
+                + "non-crushable infantry returned as crushable enemy"
+            ),
+        )
+    )
     enemy.free()
 
 
@@ -382,8 +389,7 @@ func test_non_infantry_sharer_books_sub_slot():
     var cr := CellReservation.instance
     var sh := SpatialHash.instance
     if cr == null or sh == null or _ts == null:
-        _test_failed += 1
-        print("    FAIL: CellReservation/SpatialHash/TerrainSystem not available")
+        TestHelper.fail("CellReservation/SpatialHash/TerrainSystem not available")
         return
     cr.clear()
     _ts.init_grid(50, 50)
@@ -402,19 +408,22 @@ func test_non_infantry_sharer_books_sub_slot():
     cr.clear()
     _ts.remove_child(entity)
     entity.queue_free()
-    if claim >= 1:
-        _test_passed += 1
-        print("    PASS: non-infantry shares_cell unit books a sub-slot")
-    else:
-        _test_failed += 1
-        print("    FAIL: non-infantry shares_cell unit books a sub-slot")
+    (
+        TestHelper
+        . assert_true(
+            claim >= 1,
+            (
+                "non-infantry shares_cell unit books a sub-slot: "
+                + "non-infantry shares_cell unit books a sub-slot"
+            ),
+        )
+    )
 
 
 func test_non_sharing_vehicle_does_not_book():
     var cr := CellReservation.instance
     if cr == null or SpatialHash.instance == null or _ts == null:
-        _test_failed += 1
-        print("    FAIL: CellReservation/SpatialHash/TerrainSystem not available")
+        TestHelper.fail("CellReservation/SpatialHash/TerrainSystem not available")
         return
     cr.clear()
     _ts.init_grid(50, 50)
@@ -429,9 +438,6 @@ func test_non_sharing_vehicle_does_not_book():
     cr.clear()
     _ts.remove_child(entity)
     entity.queue_free()
-    if claim == 0:
-        _test_passed += 1
-        print("    PASS: non-sharing vehicle books no sub-slot")
-    else:
-        _test_failed += 1
-        print("    FAIL: expected 0 claims, got %d" % claim)
+    TestHelper.assert_true(
+        claim == 0, "non-sharing vehicle books no sub-slot: expected 0 claims, got %d" % claim
+    )

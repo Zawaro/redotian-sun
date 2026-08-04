@@ -2,8 +2,6 @@ extends Node
 
 # ExitComponent tests — positioning, facing, signal emission, free cell search
 
-var _test_passed := 0
-var _test_failed := 0
 var _unit_spawned_received := false
 var _spawned_unit: Node3D = null
 
@@ -33,42 +31,28 @@ func _on_unit_spawned(unit: Node3D) -> void:
 
 func test_exit_offset():
     var exit := _make_exit(Vector3(0, 0, 3))
-    if exit.exit_offset == Vector3(0, 0, 3):
-        _test_passed += 1
-        print("    PASS: exit_offset set correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: exit_offset not set")
+    TestHelper.assert_true(
+        exit.exit_offset == Vector3(0, 0, 3), "exit_offset set correctly: exit_offset not set"
+    )
 
 
 func test_spawn_offset():
     var exit := _make_exit(Vector3(0, 0, 2), Vector3(1, 0, 0))
-    if exit.spawn_offset == Vector3(1, 0, 0):
-        _test_passed += 1
-        print("    PASS: spawn_offset set correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: spawn_offset not set")
+    TestHelper.assert_true(
+        exit.spawn_offset == Vector3(1, 0, 0), "spawn_offset set correctly: spawn_offset not set"
+    )
 
 
 func test_exit_facing():
     var exit := _make_exit(Vector3(0, 0, 2), Vector3.ZERO, 180)
-    if exit.exit_facing == 180:
-        _test_passed += 1
-        print("    PASS: exit_facing set correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: exit_facing not set")
+    TestHelper.assert_true(
+        exit.exit_facing == 180, "exit_facing set correctly: exit_facing not set"
+    )
 
 
 func test_exit_delay():
     var exit := _make_exit(Vector3.ZERO, Vector3.ZERO, 0, 1.5)
-    if exit.exit_delay == 1.5:
-        _test_passed += 1
-        print("    PASS: exit_delay set correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: exit_delay not set")
+    TestHelper.assert_true(exit.exit_delay == 1.5, "exit_delay set correctly: exit_delay not set")
 
 
 func test_signal_emitted():
@@ -90,12 +74,13 @@ func test_signal_emitted():
 
     exit.on_unit_produced(unit)
 
-    if _unit_spawned_received and _spawned_unit == unit:
-        _test_passed += 1
-        print("    PASS: unit_spawned signal emitted correctly")
-    else:
-        _test_failed += 1
-        print("    FAIL: unit_spawned signal not emitted")
+    (
+        TestHelper
+        . assert_true(
+            _unit_spawned_received and _spawned_unit == unit,
+            "unit_spawned signal emitted correctly: unit_spawned signal not emitted",
+        )
+    )
 
     building.remove_child(exit)
     remove_child(building)
@@ -110,17 +95,18 @@ func test_configure_from_entity_data():
     data.exit_facing = 270
     data.exit_delay = 2.0
     exit.configure(data)
-    if (
-        exit.spawn_offset == Vector3(2, 0, 0)
-        and exit.exit_offset == Vector3(0, 0, 4)
-        and exit.exit_facing == 270
-        and exit.exit_delay == 2.0
-    ):
-        _test_passed += 1
-        print("    PASS: configure() copies fields from EntityData")
-    else:
-        _test_failed += 1
-        print("    FAIL: configure() did not copy fields")
+    (
+        TestHelper
+        . assert_true(
+            (
+                exit.spawn_offset == Vector3(2, 0, 0)
+                and exit.exit_offset == Vector3(0, 0, 4)
+                and exit.exit_facing == 270
+                and exit.exit_delay == 2.0
+            ),
+            "configure() copies fields from EntityData: configure() did not copy fields",
+        )
+    )
 
 
 # --- Free cell tests ---
@@ -131,12 +117,16 @@ func test_is_cell_available_clear():
     add_child(exit)
     # A cell far from any building should be available
     var cell := Vector2i(999, 999)
-    if exit._is_cell_available(cell):
-        _test_passed += 1
-        print("    PASS: _is_cell_available returns true for clear cell")
-    else:
-        _test_failed += 1
-        print("    FAIL: _is_cell_available returned false for clear cell")
+    (
+        TestHelper
+        . assert_true(
+            exit._is_cell_available(cell),
+            (
+                "_is_cell_available returns true for clear cell: "
+                + "_is_cell_available returned false for clear cell"
+            ),
+        )
+    )
     remove_child(exit)
 
 
@@ -145,10 +135,14 @@ func test_find_free_near_returns_input_when_available():
     add_child(exit)
     var cell := Vector2i(999, 999)
     var result: Vector2i = exit._find_free_near(cell)
-    if result == cell:
-        _test_passed += 1
-        print("    PASS: _find_free_near returns input when cell is available")
-    else:
-        _test_failed += 1
-        print("    FAIL: _find_free_near changed an available cell")
+    (
+        TestHelper
+        . assert_true(
+            result == cell,
+            (
+                "_find_free_near returns input when cell is available: "
+                + "_find_free_near changed an available cell"
+            ),
+        )
+    )
     remove_child(exit)

@@ -2,8 +2,6 @@ extends Node
 
 # DockClientComponent tests — state machine, dock sequence, thin client behavior
 
-var _test_passed := 0
-var _test_failed := 0
 var _cancelled_emitted := false
 var _undocked_emitted := false
 var _failed_emitted := false
@@ -62,42 +60,43 @@ func _on_failed() -> void:
 
 func test_configure_sets_can_dock_with():
     var client := _make_dock_client("GDI_REFINERY")
-    if client.can_dock_with.has("GDI_REFINERY") and client.get_dock_id() == "GDI_REFINERY":
-        _test_passed += 1
-        print("    PASS: configure sets can_dock_with")
-    else:
-        _test_failed += 1
-        print("    FAIL: configure did not set can_dock_with")
+    (
+        TestHelper
+        . assert_true(
+            client.can_dock_with.has("GDI_REFINERY") and client.get_dock_id() == "GDI_REFINERY",
+            "configure sets can_dock_with: configure did not set can_dock_with",
+        )
+    )
 
 
 func test_get_dock_id():
     var client := _make_dock_client("REFN")
-    if client.get_dock_id() == "REFN":
-        _test_passed += 1
-        print("    PASS: get_dock_id returns correct id")
-    else:
-        _test_failed += 1
-        print("    FAIL: get_dock_id returned wrong id")
+    TestHelper.assert_true(
+        client.get_dock_id() == "REFN",
+        "get_dock_id returns correct id: get_dock_id returned wrong id"
+    )
 
 
 func test_is_reserved():
     var client := _make_dock_client()
-    if not client.is_reserved():
-        _test_passed += 1
-        print("    PASS: is_reserved returns false when no host")
-    else:
-        _test_failed += 1
-        print("    FAIL: is_reserved returned true with no host")
+    (
+        TestHelper
+        . assert_true(
+            not client.is_reserved(),
+            "is_reserved returns false when no host: is_reserved returned true with no host",
+        )
+    )
 
 
 func test_initial_state_is_idle():
     var client := _make_dock_client()
-    if client.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: initial state is IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: initial state = %d (expected IDLE)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.IDLE,
+            "initial state is IDLE: initial state = %d (expected IDLE)" % client.get_state(),
+        )
+    )
 
 
 # --- State transitions ---
@@ -118,17 +117,16 @@ func test_seek_dock_transitions_to_queued_when_host_occupied():
     client._queued_host = host_entity
     client._state = DockClientComponent.State.QUEUED
 
-    if client.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: client can be in QUEUED state")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.QUEUED,
             (
-                "    FAIL: state = %d (expected QUEUED=%d)"
+                "client can be in QUEUED state: state = %d (expected QUEUED=%d)"
                 % [client.get_state(), DockClientComponent.State.QUEUED]
-            )
+            ),
         )
+    )
 
 
 func test_seek_dock_emits_failed_when_no_host():
@@ -141,12 +139,16 @@ func test_seek_dock_emits_failed_when_no_host():
 
     client.seek_dock(entity)
 
-    if _failed_emitted and client.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: seek_dock emits dock_slot_failed when no host")
-    else:
-        _test_failed += 1
-        print("    FAIL: emitted=%s, state=%d" % [_failed_emitted, client.get_state()])
+    (
+        TestHelper
+        . assert_true(
+            _failed_emitted and client.get_state() == DockClientComponent.State.IDLE,
+            (
+                "seek_dock emits dock_slot_failed when no host: emitted=%s, state=%d"
+                % [_failed_emitted, client.get_state()]
+            ),
+        )
+    )
 
 
 func test_on_slot_available_moves_to_docked_when_queued():
@@ -163,15 +165,19 @@ func test_on_slot_available_moves_to_docked_when_queued():
 
     client.on_slot_available()
 
-    if (
-        client.get_state() == DockClientComponent.State.MOVING
-        and client._target_host == host_entity
-    ):
-        _test_passed += 1
-        print("    PASS: on_slot_available transitions QUEUED → MOVING")
-    else:
-        _test_failed += 1
-        print("    FAIL: state=%d, target=%s" % [client.get_state(), client._target_host])
+    (
+        TestHelper
+        . assert_true(
+            (
+                client.get_state() == DockClientComponent.State.MOVING
+                and client._target_host == host_entity
+            ),
+            (
+                "on_slot_available transitions QUEUED → MOVING: state=%d, target=%s"
+                % [client.get_state(), client._target_host]
+            ),
+        )
+    )
 
 
 func test_on_slot_available_ignores_non_queued():
@@ -183,12 +189,16 @@ func test_on_slot_available_ignores_non_queued():
 
     client.on_slot_available()
 
-    if client.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: on_slot_available is a no-op when not QUEUED")
-    else:
-        _test_failed += 1
-        print("    FAIL: state changed to %d" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.IDLE,
+            (
+                "on_slot_available is a no-op when not QUEUED: state changed to %d"
+                % client.get_state()
+            ),
+        )
+    )
 
 
 # --- on_dock_undocked handler ---
@@ -211,27 +221,29 @@ func test_on_dock_undocked_clears_state():
     # on_dock_undocked checks docker != self, so pass the client itself
     client.on_dock_undocked(client)
 
-    if (
-        client._reserved_host == null
-        and client._target_host == null
-        and client.get_state() == DockClientComponent.State.IDLE
-        and _undocked_emitted
-    ):
-        _test_passed += 1
-        print("    PASS: on_dock_undocked clears state and emits signal")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
             (
-                "    FAIL: reserved=%s, target=%s, state=%d, emitted=%s"
+                client._reserved_host == null
+                and client._target_host == null
+                and client.get_state() == DockClientComponent.State.IDLE
+                and _undocked_emitted
+            ),
+            (
+                (
+                    "on_dock_undocked clears state and emits signal: reserved=%s, target=%s, "
+                    + "state=%d, emitted=%s"
+                )
                 % [
                     client._reserved_host,
                     client._target_host,
                     client.get_state(),
                     _undocked_emitted
                 ]
-            )
+            ),
         )
+    )
 
 
 func test_on_dock_undocked_ignores_other_docker():
@@ -244,12 +256,13 @@ func test_on_dock_undocked_ignores_other_docker():
     var other := Node.new()
     client.on_dock_undocked(other)
 
-    if client.get_state() == DockClientComponent.State.UNLOADING:
-        _test_passed += 1
-        print("    PASS: on_dock_undocked ignores other docker")
-    else:
-        _test_failed += 1
-        print("    FAIL: state changed to %d" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.UNLOADING,
+            "on_dock_undocked ignores other docker: state changed to %d" % client.get_state(),
+        )
+    )
 
 
 # --- Retry cooldown ---
@@ -259,12 +272,16 @@ func test_retry_cooldown_decrements():
     var client := _make_dock_client()
     client._retry_cooldown = 2.0
     client._process(1.0)
-    if client._retry_cooldown == 1.0:
-        _test_passed += 1
-        print("    PASS: _retry_cooldown decrements by delta")
-    else:
-        _test_failed += 1
-        print("    FAIL: _retry_cooldown = %f (expected 1.0)" % client._retry_cooldown)
+    (
+        TestHelper
+        . assert_true(
+            client._retry_cooldown == 1.0,
+            (
+                "_retry_cooldown decrements by delta: _retry_cooldown = %f (expected 1.0)"
+                % client._retry_cooldown
+            ),
+        )
+    )
 
 
 # --- Exit tree cleanup ---
@@ -283,12 +300,13 @@ func test_exit_tree_clears_reservation():
     # Simulate exit_tree by calling the method directly
     client._exit_tree()
 
-    if client.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: _exit_tree clears state to IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.IDLE,
+            "_exit_tree clears state to IDLE: state = %d (expected IDLE)" % client.get_state(),
+        )
+    )
 
 
 func test_exit_tree_noop_when_idle():
@@ -300,12 +318,13 @@ func test_exit_tree_noop_when_idle():
 
     client._exit_tree()
 
-    if client.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: _exit_tree is no-op when IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.IDLE,
+            "_exit_tree is no-op when IDLE: state = %d (expected IDLE)" % client.get_state(),
+        )
+    )
 
 
 # --- Pathfinding failure retry ---
@@ -324,12 +343,19 @@ func test_pathfinding_failed_retries_when_moving():
     client._on_pathfinding_failed()
 
     # Should NOT cancel — should set retry cooldown and stay in MOVING
-    if client._retry_cooldown == 1.0 and client.get_state() == DockClientComponent.State.MOVING:
-        _test_passed += 1
-        print("    PASS: pathfinding failure during MOVING sets retry cooldown")
-    else:
-        _test_failed += 1
-        print("    FAIL: cooldown=%f, state=%d" % [client._retry_cooldown, client.get_state()])
+    (
+        TestHelper
+        . assert_true(
+            (
+                client._retry_cooldown == 1.0
+                and client.get_state() == DockClientComponent.State.MOVING
+            ),
+            (
+                "pathfinding failure during MOVING sets retry cooldown: cooldown=%f, state=%d"
+                % [client._retry_cooldown, client.get_state()]
+            ),
+        )
+    )
 
 
 func test_pathfinding_failed_stays_queued():
@@ -345,17 +371,16 @@ func test_pathfinding_failed_stays_queued():
     client._on_pathfinding_failed()
 
     # Should stay QUEUED — wait cell is just a convenience
-    if client.get_state() == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: pathfinding failure during QUEUED stays queued")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.QUEUED,
             (
-                "    FAIL: state = %d (expected QUEUED=%d)"
+                "pathfinding failure during QUEUED stays queued: state = %d (expected QUEUED=%d)"
                 % [client.get_state(), DockClientComponent.State.QUEUED]
-            )
+            ),
         )
+    )
 
 
 # --- on_dock_cancelled (queue purge callback) ---
@@ -373,12 +398,16 @@ func test_on_dock_cancelled_clears_queued_state():
 
     client.on_dock_cancelled()
 
-    if client.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: on_dock_cancelled clears QUEUED state to IDLE")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client.get_state() == DockClientComponent.State.IDLE,
+            (
+                "on_dock_cancelled clears QUEUED state to IDLE: state = %d (expected IDLE)"
+                % client.get_state()
+            ),
+        )
+    )
 
 
 func test_on_dock_cancelled_clears_moving_state():
@@ -394,21 +423,23 @@ func test_on_dock_cancelled_clears_moving_state():
 
     client.on_dock_cancelled()
 
-    if (
-        client.get_state() == DockClientComponent.State.IDLE
-        and client._reserved_host == null
-        and client._target_host == null
-    ):
-        _test_passed += 1
-        print("    PASS: on_dock_cancelled clears MOVING state and all references")
-    else:
-        _test_failed += 1
-        print(
+    (
+        TestHelper
+        . assert_true(
             (
-                "    FAIL: state=%d reserved=%s target=%s"
+                client.get_state() == DockClientComponent.State.IDLE
+                and client._reserved_host == null
+                and client._target_host == null
+            ),
+            (
+                (
+                    "on_dock_cancelled clears MOVING state and all references: state=%d "
+                    + "reserved=%s target=%s"
+                )
                 % [client.get_state(), client._reserved_host, client._target_host]
-            )
+            ),
         )
+    )
 
 
 func test_on_dock_cancelled_does_not_emit_signal():
@@ -425,12 +456,16 @@ func test_on_dock_cancelled_does_not_emit_signal():
     # on_dock_cancelled() is safe for teardown — no signals
     client.on_dock_cancelled()
 
-    if not _cancelled_emitted and client.get_state() == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: on_dock_cancelled cleans state without signal")
-    else:
-        _test_failed += 1
-        print("    FAIL: emitted=%s state=%d" % [_cancelled_emitted, client.get_state()])
+    (
+        TestHelper
+        . assert_true(
+            not _cancelled_emitted and client.get_state() == DockClientComponent.State.IDLE,
+            (
+                "on_dock_cancelled cleans state without signal: emitted=%s state=%d"
+                % [_cancelled_emitted, client.get_state()]
+            ),
+        )
+    )
 
 
 # --- Scatter recovery ---
@@ -450,12 +485,16 @@ func test_queued_arrived_reroutes_to_wait_cell():
     client._on_arrived(Vector3.ZERO)
 
     # Should have issued a move to the wait cell
-    if client._state == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: queued _on_arrived re-routes to wait cell")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected QUEUED)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client._state == DockClientComponent.State.QUEUED,
+            (
+                "queued _on_arrived re-routes to wait cell: state = %d (expected QUEUED)"
+                % client.get_state()
+            ),
+        )
+    )
 
 
 func test_queued_arrived_stays_at_wait_cell():
@@ -476,12 +515,16 @@ func test_queued_arrived_stays_at_wait_cell():
 
     client._on_arrived(entity.global_position)
 
-    if client._state == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: queued _on_arrived stays when already at wait cell")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected QUEUED)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client._state == DockClientComponent.State.QUEUED,
+            (
+                "queued _on_arrived stays when already at wait cell: state = %d (expected QUEUED)"
+                % client.get_state()
+            ),
+        )
+    )
 
 
 func test_queued_arrived_no_host_does_nothing():
@@ -494,12 +537,16 @@ func test_queued_arrived_no_host_does_nothing():
 
     client._on_arrived(Vector3.ZERO)
 
-    if client._state == DockClientComponent.State.QUEUED:
-        _test_passed += 1
-        print("    PASS: queued _on_arrived does nothing with no host")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected QUEUED)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client._state == DockClientComponent.State.QUEUED,
+            (
+                "queued _on_arrived does nothing with no host: state = %d (expected QUEUED)"
+                % client.get_state()
+            ),
+        )
+    )
 
 
 func test_moving_arrived_unchanged_by_scatter():
@@ -519,12 +566,19 @@ func test_moving_arrived_unchanged_by_scatter():
 
     client._on_arrived(entity.global_position)
 
-    if client._state == DockClientComponent.State.ROTATING:
-        _test_passed += 1
-        print("    PASS: MOVING _on_arrived transitions to ROTATING normally")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected ROTATING)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client._state == DockClientComponent.State.ROTATING,
+            (
+                (
+                    "MOVING _on_arrived transitions to ROTATING normally: state = %d "
+                    + "(expected ROTATING)"
+                )
+                % client.get_state()
+            ),
+        )
+    )
 
 
 func test_idle_arrived_ignored():
@@ -536,12 +590,13 @@ func test_idle_arrived_ignored():
 
     client._on_arrived(Vector3.ZERO)
 
-    if client._state == DockClientComponent.State.IDLE:
-        _test_passed += 1
-        print("    PASS: IDLE _on_arrived does nothing")
-    else:
-        _test_failed += 1
-        print("    FAIL: state = %d (expected IDLE)" % client.get_state())
+    (
+        TestHelper
+        . assert_true(
+            client._state == DockClientComponent.State.IDLE,
+            "IDLE _on_arrived does nothing: state = %d (expected IDLE)" % client.get_state(),
+        )
+    )
 
 
 ## Builds a dock host entity configured to report `_entity_id`, attached to the
@@ -581,12 +636,19 @@ func test_find_nearest_host_finds_map_rooted_host():
     _remove_scene_dock_host(host_entity)
     entity.free()
 
-    if found == host_entity:
-        _test_passed += 1
-        print("    PASS: find_nearest_host finds a host not under a Buildings node")
-    else:
-        _test_failed += 1
-        print("    FAIL: found=%s (expected map-rooted host)" % [found])
+    (
+        TestHelper
+        . assert_true(
+            found == host_entity,
+            (
+                (
+                    "find_nearest_host finds a host not under a Buildings node: found=%s "
+                    + "(expected map-rooted host)"
+                )
+                % [found]
+            ),
+        )
+    )
 
 
 func test_find_nearest_host_skips_incompatible_dock_type():
@@ -601,12 +663,19 @@ func test_find_nearest_host_skips_incompatible_dock_type():
     _remove_scene_dock_host(right_host)
     entity.free()
 
-    if found == right_host:
-        _test_passed += 1
-        print("    PASS: find_nearest_host skips incompatible dock type, finds compatible")
-    else:
-        _test_failed += 1
-        print("    FAIL: found=%s (expected compatible GDI host)" % [found])
+    (
+        TestHelper
+        . assert_true(
+            found == right_host,
+            (
+                (
+                    "find_nearest_host skips incompatible dock type, finds compatible: found=%s "
+                    + "(expected compatible GDI host)"
+                )
+                % [found]
+            ),
+        )
+    )
 
 
 func test_find_nearest_host_occupancy_ranking():
@@ -624,12 +693,19 @@ func test_find_nearest_host_occupancy_ranking():
     _remove_scene_dock_host(busy_host)
     entity.free()
 
-    if found == empty_host:
-        _test_passed += 1
-        print("    PASS: find_nearest_host ranks less-occupied host first")
-    else:
-        _test_failed += 1
-        print("    FAIL: found=%s (expected less-occupied host)" % [found])
+    (
+        TestHelper
+        . assert_true(
+            found == empty_host,
+            (
+                (
+                    "find_nearest_host ranks less-occupied host first: found=%s "
+                    + "(expected less-occupied host)"
+                )
+                % [found]
+            ),
+        )
+    )
 
 
 func test_find_nearest_host_no_host():
@@ -640,9 +716,13 @@ func test_find_nearest_host_no_host():
     var found := client.find_nearest_host(entity)
     entity.free()
 
-    if found == null:
-        _test_passed += 1
-        print("    PASS: find_nearest_host returns null when no compatible host")
-    else:
-        _test_failed += 1
-        print("    FAIL: found=%s (expected null)" % [found])
+    (
+        TestHelper
+        . assert_true(
+            found == null,
+            (
+                "find_nearest_host returns null when no compatible host: found=%s (expected null)"
+                % [found]
+            ),
+        )
+    )

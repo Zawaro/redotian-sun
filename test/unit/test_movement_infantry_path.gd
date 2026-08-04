@@ -6,8 +6,6 @@ extends Node
 # The initial segment must be projected onto the start→destination line.
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _reset_terrain() -> void:
@@ -66,9 +64,6 @@ func test_first_segment_points_at_destination():
         angle_deg < 5.0,
         "first movement segment is aligned with the straight line to the destination"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_clear_path_collapses_to_straight_segment():
@@ -95,9 +90,6 @@ func test_clear_path_collapses_to_straight_segment():
             "clear path collapses to a single straight start→destination segment",
         )
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_blocked_path_keeps_intermediate_waypoints():
@@ -148,9 +140,6 @@ func test_blocked_path_keeps_intermediate_waypoints():
         if CellUtil.world_to_cell(mc._waypoints[i]) == Vector2i(54, 50):
             passes_through = true
     TestHelper.assert_true(not passes_through, "path avoids the blocked cell")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_blocked_path_intermediates_use_consistent_lane_offset():
@@ -209,9 +198,6 @@ func test_blocked_path_intermediates_use_consistent_lane_offset():
         "blocked-path intermediate waypoints share the same lane offset (got %s)" % bad_wp
     )
     TestHelper.assert_true(stays_in_cell, "lane-offset waypoints stay inside their own cells")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_destination_sub_slot_still_applied():
@@ -235,6 +221,3 @@ func test_destination_sub_slot_still_applied():
     TestHelper.assert_true(
         dest.distance_to(sub_pos) < 0.05, "destination waypoint still lands on the booked sub-slot"
     )
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()

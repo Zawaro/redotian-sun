@@ -3,8 +3,6 @@ extends Node
 # MovementController terrain speed factor, hover float, hybrids, and slope probe
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _reset_terrain() -> void:
@@ -42,8 +40,7 @@ func _make_mc(entity_type: int) -> Array:
 
 func test_terrain_speed_factor():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
@@ -54,15 +51,11 @@ func test_terrain_speed_factor():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(factor, 0.5), "wheel on rough -> 0.5 speed")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_amphibious_water_factor():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
@@ -75,9 +68,6 @@ func test_amphibious_water_factor():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(factor, 0.6), "amphibious on water -> 0.6 speed")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_hover_floats_above_terrain():
@@ -95,9 +85,6 @@ func test_hover_floats_above_terrain():
     root.remove_child(entity)
     entity.free()
     TestHelper.assert_true(y > 1.5, "hover unit floats ~2 units above terrain")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_ground_unit_snaps_to_terrain():
@@ -113,9 +100,6 @@ func test_ground_unit_snaps_to_terrain():
     root.remove_child(entity)
     entity.free()
     TestHelper.assert_true(y < 0.5, "ground unit snaps down to terrain")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_subterranean_distant_digs():
@@ -134,9 +118,6 @@ func test_subterranean_distant_digs():
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, true, "distant target triggers digging")
     TestHelper.assert_eq(waypoints, 2, "dig is a single straight segment")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_subterranean_nearby_stays_surface():
@@ -153,9 +134,6 @@ func test_subterranean_nearby_stays_surface():
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, false, "nearby reachable target stays on surface")
     TestHelper.assert_true(waypoints > 2, "surface path has intermediate waypoints")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_hybrid_reset_on_arrival():
@@ -172,15 +150,11 @@ func test_hybrid_reset_on_arrival():
     pair[0].queue_free()
     TestHelper.assert_eq(hybrid, false, "arrival resets hybrid flag")
     TestHelper.assert_true(idle, "arrival reaches IDLE")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_slope_probe_uphill():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     var rules := GlobalRules.new()
@@ -198,15 +172,11 @@ func test_slope_probe_uphill():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(coeff, 0.5), "tracked uphill -> 0.5")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_slope_probe_downhill():
     if _ts == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem not injected")
+        TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
     var rules := GlobalRules.new()
@@ -224,9 +194,6 @@ func test_slope_probe_downhill():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(coeff, 1.1), "tracked downhill -> 1.1")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
 func test_slope_probe_flat():
@@ -244,6 +211,3 @@ func test_slope_probe_flat():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(coeff, 1.0), "flat segment -> no coefficient")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
