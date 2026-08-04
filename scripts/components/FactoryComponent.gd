@@ -18,6 +18,14 @@ var is_busy: bool = false
 ## Emitted when a unit is exiting (factory is busy).
 signal exit_in_progress
 
+## Known production queue types the `factory` field may reference.
+const KNOWN_FACTORY_TYPES: PackedStringArray = [
+    "BuildingType",
+    "InfantryType",
+    "VehicleType",
+    "AircraftType",
+]
+
 
 func _ready() -> void:
     add_to_group("factories")
@@ -27,6 +35,15 @@ func configure(data: EntityData) -> void:
     if not data.factory.is_empty():
         produces = [data.factory]
     call_deferred("_sync_player_id")
+
+
+func validate(data: EntityData) -> PackedStringArray:
+    var errors: PackedStringArray = []
+    if not data.factory.is_empty() and not KNOWN_FACTORY_TYPES.has(data.factory):
+        errors.append(
+            "FactoryComponent: '%s' has unknown factory type '%s'" % [data.id, data.factory]
+        )
+    return errors
 
 
 func _sync_player_id() -> void:
