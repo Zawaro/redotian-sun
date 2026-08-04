@@ -14,6 +14,10 @@ class_name TerrainObject extends Resource
 @export var cell_type: String = "clear"
 ## Human-readable name shown in editor tooltips.
 @export var display_name: String = ""
+## Shared art entry that renders this object. Mirrors EntityData.art_data:
+## gameplay data links to the art that draws it. Multiple objects SHALL
+## reference the same entry (e.g. all four directional variants of a base).
+@export var art_data: TerrainArtData = null
 ## Per-cell surface data keyed by object-local "x,z" -> {"land": land_type_id,
 ## "corners": [nw, ne, se, sw] (absolute vertex heights), "crease": "flat"|"x"|"y",
 ## "slope": int (optional TS RampType provenance), "connections": {edge: role}}.
