@@ -1,7 +1,5 @@
 extends Node
 
-const TERRAIN_GLB_PATH: String = "res://assets/models/terrain/placeholder_terrain01.glb"
-
 var _collision_bodies: Dictionary = {}
 var _collision_parent: Node3D
 var _terrain_scene: PackedScene
@@ -9,7 +7,7 @@ var _mesh_cache: Dictionary = {}
 
 
 func _ready() -> void:
-    _terrain_scene = load(TERRAIN_GLB_PATH) as PackedScene
+    _terrain_scene = TerrainCatalog.load_terrain_scene()
     _build_mesh_cache()
     _collision_parent = Node3D.new()
     _collision_parent.name = "TerrainCollision"
@@ -40,7 +38,7 @@ func _exit_tree() -> void:
     clear_all()
 
 
-func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh) -> void:
+func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh, rotation: float = 0.0) -> void:
     var key := CellUtil.cell_key_str(cell)
     remove_collision(cell)
     var static_body := StaticBody3D.new()
@@ -50,12 +48,16 @@ func create_collision(cell: Vector2i, data: Dictionary, mesh: Mesh) -> void:
     var collision_shape_node := CollisionShape3D.new()
     collision_shape_node.shape = mesh.create_trimesh_shape()
     static_body.add_child(collision_shape_node)
-    var world_pos := CellUtil.cell_to_world(cell)
+    var center := CellUtil.cell_to_world(cell)
     var height: int = data.get("height", 0)
-    world_pos.y = height * TerrainSystem.HEIGHT_STEP
-    var rotation: float = data.get("rotation", 0.0)
-    static_body.rotation.y = deg_to_rad(rotation)
-    static_body.position = world_pos
+    center.y = height * TerrainSystem.HEIGHT_STEP
+    var body_rotation: float = data.get("rotation", rotation)
+    # Mirror the renderer: corner-pivot tiles rotate about the foundation center,
+    # so offset the body by the rotated pivot -> foundation-center vector.
+    var aabb := mesh.get_aabb()
+    var half := Vector3(aabb.size.x * 0.5, 0.0, aabb.size.z * 0.5)
+    static_body.position = CellUtil.tile_transform(center, body_rotation, half).origin
+    static_body.rotation.y = deg_to_rad(body_rotation)
     _collision_parent.add_child(static_body)
     _collision_bodies[key] = static_body
 
@@ -88,27 +90,22 @@ func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
             var mesh_data := cell_data
             if not mesh_data.has("type"):
                 mesh_data = TerrainSystem.calculate_cell_mesh(cell)
-            var terrain_type: String = mesh_data.get("type", "clear")
-            var variant: int = mesh_data.get("variant", 1)
-            var mesh := _get_cached_mesh(terrain_type, variant)
+            var resolution: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(
+                mesh_data
+            )
+            if not resolution.valid:
+                push_warning(
+                    (
+                        "TerrainCollision: no art for family '%s' at %s; skipping body"
+                        % [mesh_data.get("object_id", ""), cell_key]
+                    )
+                )
+                remove_collision(cell)
+                return
+            var mesh := _get_cached_mesh(resolution.submesh_id)
             if mesh:
-                create_collision(cell, mesh_data, mesh)
+                create_collision(cell, mesh_data, mesh, resolution.rotation)
 
 
-func _get_cached_mesh(terrain_type: String, variant: int) -> Mesh:
-    var mesh_name := _get_mesh_name(terrain_type, variant)
+func _get_cached_mesh(mesh_name: String) -> Mesh:
     return _mesh_cache.get(mesh_name, null)
-
-
-func _get_mesh_name(terrain_type: String, variant: int) -> String:
-    var prefix := ""
-    match terrain_type:
-        "clear":
-            prefix = "clear"
-        "slope":
-            prefix = "slope"
-        "cliff":
-            prefix = "cliff"
-        _:
-            prefix = "clear"
-    return prefix + str(variant).pad_zeros(2)

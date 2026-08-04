@@ -81,6 +81,17 @@ static func get_max_height(origin: Vector2i, footprint: Vector2i, get_height: Ca
     return max_h
 
 
+## Transform for a corner-pivot tile: positions the mesh so its footprint is
+## centered on `center` and rotation happens about that center, not the mesh's
+## corner pivot. `half` is the pivot -> foundation-center vector (the horizontal
+## half-size of the tile's AABB). Corner-pivot tiles place the mesh origin at a
+## footprint corner, so the instance origin must be offset by the *rotated*
+## half-size to keep the footprint anchored on `center`.
+static func tile_transform(center: Vector3, rotation_deg: float, half: Vector3) -> Transform3D:
+    var basis := Basis(Vector3.UP, deg_to_rad(rotation_deg))
+    return Transform3D(basis, center - basis * half)
+
+
 static func spiral_first_free(center: Vector2i, max_radius: int, is_occupied: Callable) -> Vector2i:
     if not is_occupied.call(center):
         return center

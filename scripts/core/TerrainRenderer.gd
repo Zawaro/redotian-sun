@@ -1,6 +1,5 @@
 extends Node
 
-const TERRAIN_GLB_PATH: String = "res://assets/models/terrain/placeholder_terrain01.glb"
 const MAX_INSTANCES_PER_MESH: int = 10000
 
 var _terrain_scene: PackedScene
@@ -14,10 +13,14 @@ var _index_to_key: Dictionary = {}
 var _terrain_parent: Node3D
 var _glb_instance: Node = null
 var _on_cell_changed_count: int = 0
+var _pink_multimesh: MultiMesh = null
+var _pink_mmi: MultiMeshInstance3D = null
+var _pink_counts: int = 0
+var _pink_data: Dictionary = {}
 
 
 func _ready() -> void:
-    _terrain_scene = load(TERRAIN_GLB_PATH) as PackedScene
+    _terrain_scene = TerrainCatalog.load_terrain_scene()
     _terrain_parent = Node3D.new()
     _terrain_parent.name = "Terrain"
     add_child(_terrain_parent)
@@ -65,7 +68,14 @@ func _find_all_meshes(node: Node) -> void:
                     mat = mat.duplicate()
                     mesh_dupe.surface_set_material(i, mat)
                 mats.append(mat)
-            _mesh_cache[clean_name] = {"mesh": mesh_dupe, "materials": mats}
+            # Corner-pivot convention: the mesh origin is a footprint corner, so
+            # the horizontal half-size is the pivot -> foundation-center vector.
+            var aabb := mesh_dupe.get_aabb()
+            _mesh_cache[clean_name] = {
+                "mesh": mesh_dupe,
+                "materials": mats,
+                "half": Vector3(aabb.size.x * 0.5, 0.0, aabb.size.z * 0.5),
+            }
     for child in node.get_children():
         _find_all_meshes(child)
 
@@ -93,46 +103,40 @@ func _setup_multimesh_nodes() -> void:
 
 func render_cell(cell: Vector2i, data: Dictionary) -> void:
     var key := CellUtil.cell_key_str(cell)
-    if _instance_data.has(key):
+    if _instance_data.has(key) or _pink_data.has(key):
         remove_cell(cell)
-    var terrain_type: String = data.get("type", "clear")
-    var variant: int = data.get("variant", 1)
-    var mesh_name := _get_mesh_name(terrain_type, variant)
-    if not _multimesh_meshes.has(mesh_name):
-        if OS.is_stdout_verbose():
-            print(
-                "[TerrainRenderer] No mesh for ",
-                mesh_name,
-                " (type=",
-                terrain_type,
-                " variant=",
-                variant,
-                ")"
-            )
+    var resolution: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(data)
+    var object_id: String = data.get("object_id", "")
+    if not resolution.valid or not _multimesh_meshes.has(resolution.submesh_id):
+        _render_pink_placeholder(cell, data, object_id)
         return
+    var mesh_name: String = resolution.submesh_id
     var multimesh: MultiMesh = _multimesh_meshes[mesh_name]
     var idx: int = _active_counts[mesh_name]
     if idx >= MAX_INSTANCES_PER_MESH:
         return
     _active_counts[mesh_name] = idx + 1
     multimesh.visible_instance_count = idx + 1
-    var world_pos := CellUtil.cell_to_world(cell)
+    var center := CellUtil.cell_to_world(cell)
     var height: int = data.get("height", 0)
-    world_pos.y = height * TerrainSystem.HEIGHT_STEP
-    var rotation: float = data.get("rotation", 0.0)
-    var transform := Transform3D(Basis(), world_pos)
-    transform.basis = Basis(Vector3.UP, deg_to_rad(rotation))
-    multimesh.set_instance_transform(idx, transform)
+    center.y = height * TerrainSystem.HEIGHT_STEP
+    var rotation: float = data.get("rotation", resolution.rotation)
+    # Corner-pivot tiles rotate about the foundation center: the pivot (mesh
+    # origin) is a footprint corner, so offset the instance by the rotated
+    # pivot -> foundation-center vector to keep the footprint centered.
+    var half: Vector3 = _mesh_cache[mesh_name]["half"]
+    multimesh.set_instance_transform(idx, CellUtil.tile_transform(center, rotation, half))
     _instance_data[key] = {"mesh_name": mesh_name, "index": idx}
     _index_to_key[mesh_name + ":" + str(idx)] = key
-    _update_multimesh_aabb(mesh_name, multimesh, world_pos)
+    _update_multimesh_aabb(mesh_name, multimesh, center, half)
 
 
-func _update_multimesh_aabb(mesh_name: String, multimesh: MultiMesh, world_pos: Vector3) -> void:
-    var half_size := CellUtil.CELL_SIZE * 0.5
-    var cell_min := world_pos - Vector3(half_size, 0.0, half_size)
+func _update_multimesh_aabb(
+    mesh_name: String, multimesh: MultiMesh, world_pos: Vector3, half: Vector3
+) -> void:
     var step := maxf(TerrainSystem.HEIGHT_STEP, 0.1)
-    var cell_size := Vector3(CellUtil.CELL_SIZE, step, CellUtil.CELL_SIZE)
+    var cell_min := world_pos - half
+    var cell_size := Vector3(half.x * 2.0, step, half.z * 2.0)
     var cell_aabb := AABB(cell_min, cell_size)
     if not _multimesh_aabb.has(mesh_name):
         _multimesh_aabb[mesh_name] = cell_aabb
@@ -147,6 +151,7 @@ func remove_cell(cell: Vector2i) -> void:
     var key := CellUtil.cell_key_str(cell)
     var entry: Dictionary = _instance_data.get(key, {})
     if entry.is_empty():
+        _remove_pink(key)
         return
     var mesh_name: String = entry["mesh_name"]
     var idx: int = entry["index"]
@@ -176,7 +181,11 @@ func clear_all() -> void:
         _active_counts[mesh_name] = 0
         var multimesh: MultiMesh = _multimesh_meshes[mesh_name]
         multimesh.visible_instance_count = 0
+    _pink_counts = 0
+    if _pink_multimesh:
+        _pink_multimesh.visible_instance_count = 0
     _instance_data.clear()
+    _pink_data.clear()
     _index_to_key.clear()
     _multimesh_aabb.clear()
 
@@ -208,15 +217,58 @@ func _on_cell_changed(cell_key: String, cell_data: Dictionary) -> void:
             render_cell(cell, mesh_data)
 
 
-func _get_mesh_name(terrain_type: String, variant: int) -> String:
-    var prefix := ""
-    match terrain_type:
-        "clear":
-            prefix = "clear"
-        "slope":
-            prefix = "slope"
-        "cliff":
-            prefix = "cliff"
-        _:
-            prefix = "clear"
-    return prefix + str(variant).pad_zeros(2)
+func _ensure_pink_mesh() -> void:
+    if _pink_mmi:
+        return
+    var box := BoxMesh.new()
+    box.size = Vector3(CellUtil.CELL_SIZE, TerrainSystem.HEIGHT_STEP, CellUtil.CELL_SIZE)
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = Color(1.0, 0.0, 1.0)
+    var multimesh := MultiMesh.new()
+    multimesh.mesh = box
+    multimesh.transform_format = MultiMesh.TRANSFORM_3D
+    multimesh.instance_count = MAX_INSTANCES_PER_MESH
+    multimesh.visible_instance_count = 0
+    multimesh.mesh.surface_set_material(0, mat)
+    var mmi := MultiMeshInstance3D.new()
+    mmi.multimesh = multimesh
+    mmi.name = "MM_PINK"
+    _terrain_parent.add_child(mmi)
+    _pink_multimesh = multimesh
+    _pink_mmi = mmi
+
+
+func _render_pink_placeholder(cell: Vector2i, data: Dictionary, family: String) -> void:
+    push_warning(
+        "TerrainRenderer: no art for family '%s' at %s" % [family, CellUtil.cell_key_str(cell)]
+    )
+    _ensure_pink_mesh()
+    var idx := _pink_counts
+    if idx >= MAX_INSTANCES_PER_MESH:
+        return
+    _pink_counts = idx + 1
+    _pink_multimesh.visible_instance_count = idx + 1
+    var world_pos := CellUtil.cell_to_world(cell)
+    world_pos.y = int(data.get("height", 0)) * TerrainSystem.HEIGHT_STEP
+    _pink_multimesh.set_instance_transform(idx, Transform3D(Basis(), world_pos))
+    _pink_data[CellUtil.cell_key_str(cell)] = idx
+
+
+func _remove_pink(key: String) -> void:
+    if not _pink_data.has(key) or _pink_multimesh == null:
+        return
+    var idx: int = _pink_data[key]
+    var last_idx := _pink_counts - 1
+    if idx != last_idx:
+        var last_transform: Transform3D = _pink_multimesh.get_instance_transform(last_idx)
+        _pink_multimesh.set_instance_transform(idx, last_transform)
+        for k in _pink_data:
+            if int(_pink_data[k]) == last_idx:
+                _pink_data[k] = idx
+                break
+    _pink_counts = last_idx
+    _pink_multimesh.visible_instance_count = last_idx
+    _pink_multimesh.set_instance_transform(
+        last_idx, Transform3D(Basis(), Vector3(-9999, -9999, -9999))
+    )
+    _pink_data.erase(key)
