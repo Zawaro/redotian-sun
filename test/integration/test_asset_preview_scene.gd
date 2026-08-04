@@ -39,8 +39,7 @@ func test_mesh_state_matches_resolved_art():
         _finish()
         return
     var id: String = _controller.current_object_id()
-    var art: TerrainArtData = _theater.art_data
-    var expected := art.mesh_name(id)
+    var resolution := TerrainCatalog.resolve_art(id, TerrainCatalog.get_active_theater_id())
     var mesh_node := _controller.get_mesh_node() as MeshInstance3D
     TestHelper.assert_true(mesh_node != null, "mesh state yields a MeshInstance3D for " + id)
     if mesh_node != null:
@@ -56,7 +55,7 @@ func test_mesh_state_matches_resolved_art():
             TestHelper
             . assert_eq(
                 pivot.rotation_degrees.y,
-                art.mesh_rotation(id),
+                resolution.rotation,
                 "pivot rotates mesh to variant facing around the footprint center",
             )
         )
@@ -101,12 +100,10 @@ func test_all_variants_cycle_without_errors():
     if not _ensure_scene():
         _finish()
         return
-    var theater := _theater
+    var all_objects: Dictionary = TerrainCatalog.get_all_objects()
     var visited: Array[String] = []
     var family_count: int = _controller.get_family_count()
-    TestHelper.assert_eq(
-        family_count * 4, theater.terrain_objects.size(), "families x 4 == registered variants"
-    )
+    TestHelper.assert_eq(family_count * 4, all_objects.size(), "families x 4 == catalog variants")
     for f in family_count:
         _controller.select_family(f)
         for d in ["n", "e", "s", "w"]:
@@ -115,13 +112,13 @@ func test_all_variants_cycle_without_errors():
             (
                 TestHelper
                 . assert_true(
-                    theater.terrain_objects.has(id),
-                    "variant registered in theater: " + id,
+                    all_objects.has(id),
+                    "variant in catalog: " + id,
                 )
             )
             if not visited.has(id):
                 visited.append(id)
-    TestHelper.assert_eq(visited.size(), theater.terrain_objects.size(), "all variants reachable")
+    TestHelper.assert_eq(visited.size(), all_objects.size(), "all variants reachable")
     _finish()
 
 

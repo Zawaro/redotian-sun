@@ -70,10 +70,9 @@ var _cached_materials: Dictionary = {}
 
 func _ready() -> void:
     _theater = load(THEATER_PATH) as TheaterData
-    if _theater == null or _theater.art_data == null:
-        push_error("AssetPreview: theater or art_data missing at " + THEATER_PATH)
+    if _theater == null:
+        push_error("AssetPreview: theater missing at " + THEATER_PATH)
         return
-    _cache_glb_meshes()
     _build_families()
     _object_root = get_node("ObjectRoot")
     _mesh_pivot = Node3D.new()
@@ -234,7 +233,7 @@ func cycle_state() -> void:
 
 
 func _build_families() -> void:
-    var variants: Dictionary = _theater.terrain_objects
+    var variants: Dictionary = TerrainCatalog.get_all_objects()
     var by_base: Dictionary = {}
     for object_id in variants:
         var id_str := String(object_id)
@@ -255,27 +254,36 @@ func _build_families() -> void:
         _families.append(by_base[b])
 
 
-func _cache_glb_meshes() -> void:
-    var glb_path: String = _theater.art_data.glb_path
-    if glb_path.is_empty():
+func _ensure_glb(glb_path: String) -> void:
+    if glb_path.is_empty() or _glb_mesh_cache.has(glb_path):
         return
     var scene := load(glb_path) as PackedScene
     if scene == null:
         push_error("AssetPreview: cannot load GLB " + glb_path)
         return
     var instance := scene.instantiate()
-    _collect_glb_meshes(instance)
+    _collect_glb_meshes(instance, glb_path)
     instance.free()
 
 
-func _collect_glb_meshes(node: Node) -> void:
+func _collect_glb_meshes(node: Node, glb_path: String) -> void:
     if node is MeshInstance3D:
         var mesh_instance := node as MeshInstance3D
         var clean_name := (mesh_instance.name as String).trim_suffix("_3D")
-        if not _glb_mesh_cache.has(clean_name) and mesh_instance.mesh != null:
-            _glb_mesh_cache[clean_name] = mesh_instance.mesh
+        var cache: Dictionary = _glb_mesh_cache.get(glb_path, {})
+        if not cache.has(clean_name) and mesh_instance.mesh != null:
+            cache[clean_name] = mesh_instance.mesh
+            _glb_mesh_cache[glb_path] = cache
     for child in node.get_children():
-        _collect_glb_meshes(child)
+        _collect_glb_meshes(child, glb_path)
+
+
+func _resolved_art() -> TerrainArtData.ArtResolution:
+    return TerrainCatalog.resolve_art(current_object_id(), TerrainCatalog.get_active_theater_id())
+
+
+func _art_rotation() -> float:
+    return _resolved_art().rotation
 
 
 func _line_material(name: String, color: Color) -> ORMMaterial3D:
@@ -286,12 +294,6 @@ func _line_material(name: String, color: Color) -> ORMMaterial3D:
     mat.albedo_color = color
     _cached_materials[name] = mat
     return mat
-
-
-func _art_rotation() -> float:
-    if _theater == null or _theater.art_data == null:
-        return 0.0
-    return _theater.art_data.mesh_rotation(current_object_id())
 
 
 # --- Display selection / rebuild ---
@@ -362,7 +364,12 @@ func _clear_object_children() -> void:
 
 
 func _build_mesh_state() -> void:
-    var mesh: Mesh = _glb_mesh_cache.get(_resolved_mesh_name(), null)
+    var resolution := _resolved_art()
+    if not resolution.valid or resolution.glb_path.is_empty():
+        return
+    _ensure_glb(resolution.glb_path)
+    var meshes: Dictionary = _glb_mesh_cache.get(resolution.glb_path, {})
+    var mesh: Mesh = meshes.get(resolution.submesh_id, null)
     if mesh == null:
         return
     var mesh_instance := MeshInstance3D.new()
@@ -377,9 +384,7 @@ func _build_mesh_state() -> void:
 
 
 func _resolved_mesh_name() -> String:
-    if _theater == null or _theater.art_data == null:
-        return ""
-    return _theater.art_data.mesh_name(current_object_id())
+    return _resolved_art().submesh_id
 
 
 func _build_vector_state() -> void:
@@ -486,18 +491,9 @@ func _build_collision_state() -> void:
 
 
 func _build_theater_state() -> void:
-    var art := _theater.art_data
     var label := Label3D.new()
     label.name = "TheaterContext"
-    label.text = (
-        "Theater: %s\nArt: %s (%s)\nDefault land: %s"
-        % [
-            _theater.id,
-            art.id,
-            "placeholder" if art.is_placeholder else "real",
-            _theater.default_land_type,
-        ]
-    )
+    label.text = ("Theater: %s" % [_theater.id])
     label.pixel_size = 0.01
     label.font_size = 64
     label.no_depth_test = true
@@ -792,18 +788,18 @@ func _update_info_box() -> void:
             ]
         )
     )
-    var art := _theater.art_data
-    var base := art.base_mesh_id(id)
+    var resolution := _resolved_art()
+    var glb_file := resolution.glb_path.get_file() if resolution.valid else "-"
+    var submesh := resolution.submesh_id if resolution.valid else "-"
+    var base := current_object_id()
     var fallback := ""
-    if TerrainArtData.FALLBACK_MESHES.has(base):
-        fallback = " (fallback -> %s)" % String(TerrainArtData.FALLBACK_MESHES[base])
+    if resolution.valid and submesh != base and resolution.submesh_id != base:
+        fallback = " (submesh -> %s)" % submesh
     _info_context.text = (
-        ("Theater: %s\nArt: %s (%s)\nDefault land: %s\n" + "Mesh: %s%s\nRotation: %d deg")
+        ("Theater: %s\nArt: %s\n" + "Mesh: %s%s\nRotation: %d deg")
         % [
             _theater.id,
-            art.id,
-            "placeholder" if art.is_placeholder else "real",
-            _theater.default_land_type,
+            glb_file,
             _resolved_mesh_name(),
             fallback,
             int(_art_rotation()),
