@@ -273,9 +273,13 @@ func test_art_seam_suffix_and_rotation():
     TestHelper.assert_eq(art.base_mesh_id("cliff01_n"), "cliff01", "base_mesh_id strips suffix")
     TestHelper.assert_eq(art.base_mesh_id("cliff01"), "cliff01", "base_mesh_id passes through")
     TestHelper.assert_eq(art.mesh_rotation("cliff01_n"), 0.0, "n rotation 0")
-    TestHelper.assert_eq(art.mesh_rotation("cliff01_e"), 90.0, "e rotation 90")
+    TestHelper.assert_eq(
+        art.mesh_rotation("cliff01_e"), 270.0, "e rotation 270 (CW to match catalog corners)"
+    )
     TestHelper.assert_eq(art.mesh_rotation("cliff01_s"), 180.0, "s rotation 180")
-    TestHelper.assert_eq(art.mesh_rotation("cliff01_w"), 270.0, "w rotation 270")
+    TestHelper.assert_eq(
+        art.mesh_rotation("cliff01_w"), 90.0, "w rotation 90 (CCW to match catalog corners)"
+    )
     TestHelper.assert_eq(art.mesh_rotation("cliff01"), 0.0, "non-directional rotation 0")
     TestHelper.assert_eq(art.mesh_name("cliff12_n"), "cliff09", "fallback table resolves base id")
     TestHelper.assert_eq(art.mesh_name("ramp06_e"), "ramp01", "fallback applies after suffix strip")

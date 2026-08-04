@@ -39,3 +39,41 @@ func corners_at(local_key: String) -> Array[int]:
         if corners.size() == 4:
             return [int(corners[0]), int(corners[1]), int(corners[2]), int(corners[3])]
     return []
+
+
+## Axis-aligned bounds of the whole footprint in lattice units: position holds
+## the min cell index (x/z) and min corner height (y); size holds the span
+## across cells and the min..max height range. Pure — no scene dependencies.
+static func footprint_bounds(obj: TerrainObject) -> AABB:
+    var keys: Array = obj.cells.keys()
+    if keys.is_empty():
+        return AABB(Vector3.ZERO, Vector3.ZERO)
+    var min_x := 1 << 30
+    var min_z := 1 << 30
+    var max_x := -(1 << 30)
+    var max_z := -(1 << 30)
+    var min_h := 1 << 30
+    var max_h := -(1 << 30)
+    for key in keys:
+        var parts: PackedStringArray = String(key).split(",")
+        if parts.size() != 2:
+            continue
+        var x := int(parts[0])
+        var z := int(parts[1])
+        min_x = mini(min_x, x)
+        max_x = maxi(max_x, x)
+        min_z = mini(min_z, z)
+        max_z = maxi(max_z, z)
+        var entry: Variant = obj.cells.get(String(key), {})
+        if entry is Dictionary:
+            var corners: Array = entry.get("corners", [])
+            for c in corners:
+                var h := int(c)
+                min_h = mini(min_h, h)
+                max_h = maxi(max_h, h)
+    if min_h == 1 << 30:
+        min_h = 0
+        max_h = 0
+    return AABB(
+        Vector3(min_x, min_h, min_z), Vector3(max_x - min_x + 1, max_h - min_h, max_z - min_z + 1)
+    )

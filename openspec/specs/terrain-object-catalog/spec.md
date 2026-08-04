@@ -26,7 +26,7 @@ The `terrain_objects/` catalog SHALL contain four directional variants per base 
 - **THEN** each has its own `_n/_e/_s/_w` variant set and they are not merged
 
 ### Requirement: Suffix-aware art seam
-`TerrainArtData.mesh_name(tile_id)` SHALL strip a directional suffix (`_n`/`_e`/`_s`/`_w`) from the tile id before resolving the GLB submesh, so one mesh per family serves all four variants. The renderer SHALL derive the mesh instance rotation from the suffix (`n`→0°, `e`→90°, `s`→180°, `w`→270°). Tile ids absent from the GLB SHALL resolve through the existing fallback mesh table.
+`TerrainArtData.mesh_name(tile_id)` SHALL strip a directional suffix (`_n`/`_e`/`_s`/`_w`) from the tile id before resolving the GLB submesh, so one mesh per family serves all four variants. The renderer SHALL derive the mesh instance rotation from the suffix (`n`→0°, `e`→270°, `s`→180°, `w`→90°), applied about the tile's footprint origin so rotation is footprint-aware. Tile ids absent from the GLB SHALL resolve through the existing fallback mesh table.
 
 #### Scenario: Directional variant maps to base mesh
 - **WHEN** `mesh_name("cliff01_e")` is called

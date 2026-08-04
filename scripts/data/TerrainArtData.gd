@@ -10,16 +10,16 @@ class_name TerrainArtData extends Resource
 ## family mesh so one GLB submesh serves all four authored variants.
 const DIRECTION_ROTATIONS: Dictionary = {
     "n": 0.0,
-    "e": 90.0,
+    "e": 270.0,
     "s": 180.0,
-    "w": 270.0,
+    "w": 90.0,
 }
 
 @export_group("Terrain Art")
 ## Unique identifier (e.g. "placeholder", "temperate", "snow").
 @export var id: String = ""
 ## Path to the GLB/PackedScene whose submeshes are named after tile ids
-## (e.g. "res://assets/models/terrain/placeholder_terrain01.glb").
+## (e.g. "res://assets/models/theater/placeholder/placeholder_terrain01.gltf").
 @export var glb_path: String = ""
 ## True when this entry renders the colored placeholder meshes, false when it
 ## is the proper theater art. Drives the editor's two render modes.
@@ -36,13 +36,22 @@ const FALLBACK_MESHES: Dictionary = {
     "cliff26": "cliff24",
     "cliff27": "cliff14",
     "dcliff01": "cliff02",
+    "ramp05": "ramp01",
     "ramp06": "ramp01",
     "ramp07": "ramp01",
-    "slope17": "slope01",
+    "ramp08": "ramp01",
+    "ramp09": "ramp01",
+    "ramp10": "ramp01",
+    "slope01": "slope_edge",
+    "slope05": "slope_corner",
+    "slope09": "slope_tri",
+    "slope13": "slope_steep",
+    "slope17": "slope_saddle",
     "wcliff12": "wcliff01",
+    "wcliff28": "wcliff01",
     "clear": "clear01",
     "ramp_n": "ramp01",
-    "slope": "slope01",
+    "slope": "slope_edge",
     "cliff_straight_n": "cliff23",
     "cliff_straight_e": "cliff24",
     "cliff_straight_s": "cliff23",
@@ -60,10 +69,13 @@ func base_mesh_id(tile_id: String) -> String:
     return tile_id
 
 
-## GLB submesh name for a catalog tile id. Strips the directional suffix so one
-## submesh per family serves all four variants; then resolves the fallback
-## table when the base id has no matching submesh.
+## GLB submesh name for a catalog tile id. Exact (suffixed seed) ids resolve
+## through the fallback table first; otherwise the directional suffix is stripped
+## so one submesh per family serves all four variants, then the fallback table is
+## consulted for the base id.
 func mesh_name(tile_id: String) -> String:
+    if FALLBACK_MESHES.has(tile_id):
+        return String(FALLBACK_MESHES[tile_id])
     var base := base_mesh_id(tile_id)
     return String(FALLBACK_MESHES.get(base, base))
 
