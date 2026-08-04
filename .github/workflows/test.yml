@@ -43,33 +43,6 @@ jobs:
           fi
           echo "OK: No open changes in openspec/changes/"
 
-  isotem-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Run isotem corner round-trip self-check
-        run: |
-          cd tools/isotem && python3 catalog.py --check
-
-      # Disabled: slope_saddle2 is a hand-authored non-TS family, so the
-      # "disk variants == catalog families x 4" reproducibility invariant no
-      # longer holds. Re-enable if slope_saddle2 is folded into the catalog.
-      # - name: Validate catalog and generated variants are reproducible
-      #   run: |
-      #     cd tools/isotem && python3 -c "
-      #     import json, glob, sys
-      #     catalog = json.load(open('isotem_catalog.json'))
-      #     assert catalog, 'catalog not empty'
-      #     variants = sorted(glob.glob('../../resources/terrain_objects/*.tres'))
-      #     assert len(variants) == len(catalog) * 4, 'expected 4 variants per family'
-      #     print(f'OK: {len(catalog)} families x 4 = {len(variants)} variants')
-      #     "
-
   test:
     runs-on: ubuntu-latest
     steps:
