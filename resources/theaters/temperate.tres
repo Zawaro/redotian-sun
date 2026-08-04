@@ -142,6 +142,10 @@
 [ext_resource type="Resource" path="res://resources/terrain_objects/wcliff28_n.tres" id="140_obj"]
 [ext_resource type="Resource" path="res://resources/terrain_objects/wcliff28_s.tres" id="141_obj"]
 [ext_resource type="Resource" path="res://resources/terrain_objects/wcliff28_w.tres" id="142_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope_saddle2_n.tres" id="143_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope_saddle2_e.tres" id="144_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope_saddle2_s.tres" id="145_obj"]
+[ext_resource type="Resource" path="res://resources/terrain_objects/slope_saddle2_w.tres" id="146_obj"]
 
 [resource]
 script = ExtResource("1_script")
@@ -287,7 +291,11 @@ terrain_objects = {
 "wcliff28_e": ExtResource("139_obj"),
 "wcliff28_n": ExtResource("140_obj"),
 "wcliff28_s": ExtResource("141_obj"),
-"wcliff28_w": ExtResource("142_obj")
+"wcliff28_w": ExtResource("142_obj"),
+"slope_saddle2_e": ExtResource("144_obj"),
+"slope_saddle2_n": ExtResource("143_obj"),
+"slope_saddle2_s": ExtResource("145_obj"),
+"slope_saddle2_w": ExtResource("146_obj")
 }
 art_data = ExtResource("2_art")
 default_land_type = "clear"
