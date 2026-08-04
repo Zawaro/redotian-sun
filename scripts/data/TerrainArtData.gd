@@ -1,10 +1,10 @@
 class_name TerrainArtData extends Resource
 
-## The art seam for terrain. A theater references a TerrainArtData to say which
-## GLB holds its tile meshes and how catalog tile ids map to GLB submeshes.
-## The placeholder GLB (with textures) ships as one entry so the MapEditor can
-## render either placeholder or proper art for the same theater; proper TS art
-## swaps in as a second TerrainArtData without touching gameplay data.
+## The art seam for one terrain element (a mesh family). Owns art acquisition
+## and orientation: which GLB holds the element's mesh, which submesh to render
+## (with alias fallbacks), and per-theater overrides so one element can swap art
+## by theater (e.g. snow). One entry serves all four directional variants of its
+## family; orientation is derived from the object id's directional suffix.
 
 ## Directional suffix -> Y-axis rotation in degrees, applied to the shared
 ## family mesh so one GLB submesh serves all four authored variants.
@@ -16,75 +16,72 @@ const DIRECTION_ROTATIONS: Dictionary = {
 }
 
 @export_group("Terrain Art")
-## Unique identifier (e.g. "placeholder", "temperate", "snow").
+## Unique identifier — the element base id this art serves (e.g. "cliff01").
 @export var id: String = ""
 ## Path to the GLB/PackedScene whose submeshes are named after tile ids
 ## (e.g. "res://assets/models/theater/placeholder/placeholder_terrain01.gltf").
-@export var glb_path: String = ""
-## True when this entry renders the colored placeholder meshes, false when it
-## is the proper theater art. Drives the editor's two render modes.
-@export var is_placeholder: bool = false
-
-## Catalog tile ids that have no GLB submesh of their own, mapped to the closest
-## submesh that approximates them. Art knowledge — lives here, not in gameplay
-## data. Tile ids absent from this table resolve to themselves (after the
-## directional suffix is stripped). One entry per base family; directional
-## variants share it.
-const FALLBACK_MESHES: Dictionary = {
-    "clat01": "cliff02",
-    "cliff12": "cliff09",
-    "cliff26": "cliff24",
-    "cliff27": "cliff14",
-    "dcliff01": "cliff02",
-    "ramp05": "ramp01",
-    "ramp06": "ramp01",
-    "ramp07": "ramp01",
-    "ramp08": "ramp01",
-    "ramp09": "ramp01",
-    "ramp10": "ramp01",
-    "slope01": "slope_edge",
-    "slope05": "slope_corner",
-    "slope09": "slope_tri",
-    "slope13": "slope_steep",
-    "slope17": "slope_saddle",
-    "wcliff12": "wcliff01",
-    "wcliff28": "wcliff01",
-    "clear": "clear01",
-    "ramp_n": "ramp01",
-    "slope": "slope_edge",
-    "cliff_straight_n": "cliff23",
-    "cliff_straight_e": "cliff24",
-    "cliff_straight_s": "cliff23",
-    "cliff_straight_w": "cliff24",
-}
+@export var model_path: String = ""
+## GLB submesh to render. Empty = the element's own base id. Alias families
+## set this to the closest authored submesh (e.g. "cliff12" art → "cliff09").
+@export var submesh_id: String = ""
+## Per-theater art override: theater id -> alternative GLB path. Theaters not
+## listed use `model_path`.
+@export var theater_overrides: Dictionary = {}
 
 
-## Strips a directional suffix ("_n"/"_e"/"_s"/"_w") from a tile id, returning
-## the base family id. Ids without a suffix return unchanged.
-func base_mesh_id(tile_id: String) -> String:
-    for dir in DIRECTION_ROTATIONS:
-        var suffix := "_" + String(dir)
-        if tile_id.ends_with(suffix):
-            return tile_id.substr(0, tile_id.length() - suffix.length())
-    return tile_id
+## Result of resolving art for a specific object id + theater.
+class ArtResolution:
+    var glb_path: String
+    var submesh_id: String
+    var rotation: float
+    var valid: bool
+
+    func _init(
+        p_glb: String = "", p_submesh: String = "", p_rotation: float = 0.0, p_valid: bool = false
+    ) -> void:
+        glb_path = p_glb
+        submesh_id = p_submesh
+        rotation = p_rotation
+        valid = p_valid
 
 
-## GLB submesh name for a catalog tile id. Exact (suffixed seed) ids resolve
-## through the fallback table first; otherwise the directional suffix is stripped
-## so one submesh per family serves all four variants, then the fallback table is
-## consulted for the base id.
-func mesh_name(tile_id: String) -> String:
-    if FALLBACK_MESHES.has(tile_id):
-        return String(FALLBACK_MESHES[tile_id])
-    var base := base_mesh_id(tile_id)
-    return String(FALLBACK_MESHES.get(base, base))
-
-
-## Y-axis rotation in degrees for a directional tile id, so the shared family
+## Y-axis rotation in degrees for a directional object id, so the shared family
 ## mesh is oriented to the variant's facing. 0 for non-directional ids.
-func mesh_rotation(tile_id: String) -> float:
+func mesh_rotation(object_id: String) -> float:
+    return direction_rotation(object_id)
+
+
+## Static suffix lookup: `_n`/`_e`/`_s`/`_w` -> rotation in degrees, 0 for ids
+## without a directional suffix. Available without an art instance so the
+## gameplay model can bake facing without touching the catalog.
+static func direction_rotation(object_id: String) -> float:
     for dir in DIRECTION_ROTATIONS:
         var suffix := "_" + String(dir)
-        if tile_id.ends_with(suffix):
+        if object_id.ends_with(suffix):
             return float(DIRECTION_ROTATIONS[dir])
     return 0.0
+
+
+## Resolves the concrete art for an object id in a theater: the override glb
+## (or the default model), the submesh to render, and the facing rotation.
+## Returns an invalid resolution when no model is available.
+func resolve(object_id: String, theater_id: String) -> ArtResolution:
+    if model_path.is_empty():
+        return ArtResolution.new()
+    var glb := model_path
+    if not theater_id.is_empty() and theater_overrides.has(theater_id):
+        glb = String(theater_overrides[theater_id])
+    var submesh := submesh_id
+    if submesh.is_empty():
+        submesh = _base_id(object_id)
+    return ArtResolution.new(glb, submesh, mesh_rotation(object_id), true)
+
+
+## Strips a directional suffix ("_n"/"_e"/"_s"/"_w") from an object id, returning
+## the element base id. Ids without a suffix return unchanged.
+func _base_id(object_id: String) -> String:
+    for dir in DIRECTION_ROTATIONS:
+        var suffix := "_" + String(dir)
+        if object_id.ends_with(suffix):
+            return object_id.substr(0, object_id.length() - suffix.length())
+    return object_id
