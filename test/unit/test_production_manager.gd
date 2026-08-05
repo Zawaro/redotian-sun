@@ -5,6 +5,9 @@ extends Node
 # Injected by test runner (see run_tests.gd:_inject_autoloads)
 var _em: Node = null
 
+# FactoryComponent nodes created by speed-cache tests (cleaned up per test)
+var _test_factories: Array = []
+
 # Unique player ID to avoid state leakage
 const PID := 200
 
@@ -61,6 +64,162 @@ func _cleanup_queue(pm: Node, queue_key: String) -> void:
             pq.is_paused = false
     pm._queues.erase(queue_key)
     pm._active_index.erase(queue_key)
+
+
+# --- production speed cache (D5) ---
+
+
+## Create a real FactoryComponent in the scene tree so _ready joins the group.
+func _make_factory_node() -> FactoryComponent:
+    var factory := FactoryComponent.new()
+    factory.name = "TestFactory"
+    factory.produces = ["InfantryType"]
+    factory.player_id = PID
+    _em.get_tree().root.add_child(factory)
+    _test_factories.append(factory)
+    return factory
+
+
+func _free_test_factories() -> void:
+    for factory in _test_factories:
+        if is_instance_valid(factory):
+            factory.free()
+    _test_factories.clear()
+
+
+## Expected speed for a given factory count per the multiple-factory rule.
+func _expected_speed(factory_count: int) -> float:
+    var multiple_factory: float = 0.5
+    var rules := GlobalRules.get_current()
+    if rules:
+        multiple_factory = rules.multiple_factory
+    return 1.0 + (factory_count - 1) * multiple_factory
+
+
+func test_production_speed_cached_until_invalidated():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    pm._speed_cache.clear()
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    _make_factory_node()
+    var speed_one: float = pm._get_production_speed(key)
+    if not pm._speed_cache.has(key):
+        TestHelper.fail("first speed lookup should populate the cache")
+        _free_test_factories()
+        return
+    # No invalidation -> cache hit reuses the value instead of re-scanning the group
+    _make_factory_node()
+    var cached_speed: float = pm._get_production_speed(key)
+    var cache_size: int = pm._speed_cache.size()
+    pm._on_factories_changed()
+    var cache_cleared: bool = pm._speed_cache.is_empty()
+    var recomputed_speed: float = pm._get_production_speed(key)
+    (
+        TestHelper
+        . assert_true(
+            (
+                speed_one == _expected_speed(1)
+                and cached_speed == speed_one
+                and cache_size == 1
+                and cache_cleared
+                and recomputed_speed == _expected_speed(2)
+            ),
+            (
+                "cached speed reused until factories_changed clears it: expected %f then %f, "
+                + (
+                    "got %f then %f"
+                    % [_expected_speed(1), _expected_speed(2), cached_speed, recomputed_speed]
+                )
+            ),
+        )
+    )
+    _free_test_factories()
+
+
+func test_production_speed_recomputed_after_factory_added():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    pm._speed_cache.clear()
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    _make_factory_node()
+    var speed_before: float = pm._get_production_speed(key)
+    _make_factory_node()
+    # Factories are buildings placed via BuildingManager, which unblocks the queue
+    pm.clear_waiting_for_placement(PID)
+    var speed_after: float = pm._get_production_speed(key)
+    (
+        TestHelper
+        . assert_true(
+            speed_before == _expected_speed(1) and speed_after == _expected_speed(2),
+            (
+                "speed recomputed when a factory is placed: expected %f/%f, got %f/%f"
+                % [_expected_speed(1), _expected_speed(2), speed_before, speed_after]
+            ),
+        )
+    )
+    _free_test_factories()
+
+
+func test_production_speed_recomputed_after_factory_destroyed():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    pm._speed_cache.clear()
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    _make_factory_node()
+    var factory_b := _make_factory_node()
+    var speed_before: float = pm._get_production_speed(key)
+    factory_b.free()
+    var cache_cleared: bool = pm._speed_cache.is_empty()
+    var speed_after: float = pm._get_production_speed(key)
+    (
+        TestHelper
+        . assert_true(
+            (
+                speed_before == _expected_speed(2)
+                and cache_cleared
+                and speed_after == _expected_speed(1)
+            ),
+            (
+                "destroying a factory invalidates the cache: expected %f then %f, "
+                + (
+                    "got %f then %f"
+                    % [_expected_speed(2), _expected_speed(1), speed_before, speed_after]
+                )
+            ),
+        )
+    )
+    _free_test_factories()
+
+
+func test_set_primary_invalidates_speed_cache():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    pm._speed_cache.clear()
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    var factory_a := _make_factory_node()
+    _make_factory_node()
+    pm._get_production_speed(key)
+    if pm._speed_cache.is_empty():
+        TestHelper.fail("cache should be populated")
+        _free_test_factories()
+        return
+    factory_a.set_primary()
+    (
+        TestHelper
+        . assert_true(
+            pm._speed_cache.is_empty(),
+            "set_primary emits factories_changed and clears the speed cache",
+        )
+    )
+    _free_test_factories()
 
 
 # --- start_production count parameter ---

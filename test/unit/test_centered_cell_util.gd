@@ -201,6 +201,21 @@ func test_terrain_lookup_at_world_origin_uses_centered_cell() -> void:
     _ts.init_grid(50, 50)
 
 
+func test_grid_cache_invalidates_on_init() -> void:
+    if _ts == null:
+        _assert_true(false, "TerrainSystem is injected")
+        return
+    _ts.init_grid(51, 50)
+    var origin_odd: Vector2i = CellUtil.world_to_cell(Vector3.ZERO)
+    _assert_eq(origin_odd, Vector2i(50, 50), "51x50 grid centers origin at cell (50, 50)")
+
+    _ts.init_grid(20, 20)
+    var origin_even: Vector2i = CellUtil.world_to_cell(Vector3.ZERO)
+    _assert_eq(origin_even, Vector2i(20, 20), "20x20 grid centers origin at cell (20, 20)")
+    _ts.clear()
+    _ts.init_grid(50, 50)
+
+
 func _assert_true(value: bool, message: String) -> void:
     TestHelper.assert_true(value, message)
 

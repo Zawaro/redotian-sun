@@ -8,6 +8,7 @@ static var instance: CellReservation
 
 var _claims: Dictionary = {}
 var _connected_owners: Dictionary = {}
+var _claimant_cells: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -31,38 +32,25 @@ func reserve_sub_slot(cell: Vector2i, claimant: Node3D, preferred_slot: int = -1
         cell_claims.append(null)
     cell_claims[slot] = claimant
     _claims[key] = cell_claims
+    _track_cell(claimant, key)
     _connect_cleanup(claimant)
     return slot
 
 
 func release_sub_slot(cell: Vector2i, claimant: Node3D) -> void:
-    var key := CellUtil.cell_key(cell)
-    if not _claims.has(key):
-        return
-    var cell_claims: Array = _claims[key]
-    var changed := false
-    for i in cell_claims.size():
-        if cell_claims[i] == claimant:
-            cell_claims[i] = null
-            changed = true
-    if changed and not _has_valid_claim(cell_claims):
-        _claims.erase(key)
+    _remove_claimant_from_cell(CellUtil.cell_key(cell), claimant)
 
 
 func release_all(claimant: Node3D) -> void:
-    for key in _claims.keys():
-        var cell_claims: Array = _claims[key]
-        var changed := false
-        for i in cell_claims.size():
-            if cell_claims[i] == claimant:
-                cell_claims[i] = null
-                changed = true
-        if changed and not _has_valid_claim(cell_claims):
-            _claims.erase(key)
+    var cells: Dictionary = _claimant_cells.get(claimant, {})
+    for key in cells.keys():
+        _remove_claimant_from_cell(key, claimant)
+    _claimant_cells.erase(claimant)
 
 
 func clear() -> void:
     _claims.clear()
+    _claimant_cells.clear()
 
 
 func get_slot_owner(cell: Vector2i, slot: int) -> Node3D:
@@ -132,6 +120,36 @@ func _has_valid_claim(cell_claims: Array) -> bool:
         if claimant and is_instance_valid(claimant):
             return true
     return false
+
+
+func _remove_claimant_from_cell(key: int, claimant: Node3D) -> void:
+    if not _claims.has(key):
+        return
+    var cell_claims: Array = _claims[key]
+    var changed := false
+    for i in cell_claims.size():
+        if cell_claims[i] == claimant:
+            cell_claims[i] = null
+            changed = true
+    if changed:
+        if not _has_valid_claim(cell_claims):
+            _claims.erase(key)
+        _forget_cell(claimant, key)
+
+
+func _track_cell(claimant: Node3D, key: int) -> void:
+    if not _claimant_cells.has(claimant):
+        _claimant_cells[claimant] = {}
+    _claimant_cells[claimant][key] = true
+
+
+func _forget_cell(claimant: Node3D, key: int) -> void:
+    if not _claimant_cells.has(claimant):
+        return
+    var cells: Dictionary = _claimant_cells[claimant]
+    cells.erase(key)
+    if cells.is_empty():
+        _claimant_cells.erase(claimant)
 
 
 func _connect_cleanup(claimant: Node3D) -> void:

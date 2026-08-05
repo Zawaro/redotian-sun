@@ -78,6 +78,7 @@ func _init() -> void:
 
 func init_grid(cells_x: int, cells_z: int) -> void:
     grid_cells = Vector2i(cells_x, cells_z)  # setter calls _init_vertex_grid()
+    CellUtil.notify_grid_changed()
     grid_initialized.emit()
 
 
@@ -93,7 +94,12 @@ func _init_vertex_grid() -> void:
         _vertex_grid[vx] = row
 
 
+func _enter_tree() -> void:
+    CellUtil.notify_grid_changed()
+
+
 func _exit_tree() -> void:
+    CellUtil.notify_grid_changed()
     clear()
 
 

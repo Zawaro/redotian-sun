@@ -24,16 +24,30 @@ static func cell_to_world(cell: Vector2i, grid_cells: Vector2i = Vector2i.ZERO) 
     return Vector3(cx, 0.0, cz)
 
 
+static var _cached_grid_cells: Vector2i = Vector2i.ZERO
+static var _grid_cache_valid := false
+
+
 static func _resolve_grid_cells(grid_cells: Vector2i) -> Vector2i:
     if grid_cells != Vector2i.ZERO:
         return grid_cells
+    if _grid_cache_valid:
+        return _cached_grid_cells
     var tree: SceneTree = Engine.get_main_loop() as SceneTree
     if not tree:
-        return Vector2i(50, 50)
+        _cached_grid_cells = Vector2i(50, 50)
+        _grid_cache_valid = true
+        return _cached_grid_cells
     var ts: Node = tree.root.get_node_or_null("TerrainSystem")
-    if ts:
-        return ts.grid_cells
-    return Vector2i(50, 50)
+    _cached_grid_cells = ts.grid_cells if ts else Vector2i(50, 50)
+    _grid_cache_valid = true
+    return _cached_grid_cells
+
+
+## Invalidates the cached grid size. Called by TerrainSystem when the grid is
+## (re)initialized or the terrain node enters/leaves the tree.
+static func notify_grid_changed() -> void:
+    _grid_cache_valid = false
 
 
 static func cell_key(cell: Vector2i) -> int:

@@ -221,3 +221,30 @@ func test_destination_sub_slot_still_applied():
     TestHelper.assert_true(
         dest.distance_to(sub_pos) < 0.05, "destination waypoint still lands on the booked sub-slot"
     )
+
+
+func test_idle_unit_does_not_rewrite_y_on_same_cell():
+    _reset_terrain()
+    var pair: Array = _make_mc()
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    var root: Node = Engine.get_main_loop().root
+    root.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(Vector2i(50, 50))
+    mc._state = MovementController.State.IDLE
+    mc._idle_snapped = false
+    mc._physics_process(0.016)
+    var snapped_y: float = entity.global_position.y
+    entity.global_position.y = snapped_y + 5.0
+    mc._physics_process(0.016)
+    var unchanged: bool = is_equal_approx(entity.global_position.y, snapped_y + 5.0)
+    var cell: Vector2i = CellUtil.world_to_cell(entity.global_position)
+    entity.global_position = CellUtil.cell_to_world(cell + Vector2i(4, 0))
+    mc._idle_snapped = true
+    mc._idle_snap_cell = cell
+    mc._physics_process(0.016)
+    var re_snapped: bool = not is_equal_approx(entity.global_position.y, snapped_y + 5.0)
+    root.remove_child(entity)
+    entity.free()
+    TestHelper.assert_true(unchanged, "idle unit on the same cell does not rewrite y every tick")
+    TestHelper.assert_true(re_snapped, "idle unit re-snaps after moving to a new cell")

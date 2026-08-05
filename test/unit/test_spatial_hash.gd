@@ -438,3 +438,138 @@ func test_vehicle_sharer_counted_when_idle():
             ),
         )
     )
+
+
+func _make_grid_entity(entity_name: String) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = entity_name
+    entity.add_to_group("entities")
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.entity_type = EntityData.EntityType.VEHICLE
+    stats.player_id = 0
+    entity.add_child(stats)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    return entity
+
+
+func test_reconcile_moves_entry_on_cell_change():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entity := _make_grid_entity("ReconcileMover")
+    _sh.add_child(entity)
+    _sh.rebuild()
+    var cell_a := CellUtil.world_to_cell(entity.global_position)
+    var cell_b := cell_a + Vector2i(2, 0)
+    entity.global_position = CellUtil.cell_to_world(cell_b)
+    _sh._reconcile()
+    var moved: bool = (
+        _sh.is_cell_blocked(cell_b)
+        and not _sh.is_cell_blocked(cell_a)
+        and not _sh.is_any_entity_on_cell(cell_a)
+    )
+    _sh.remove_child(entity)
+    entity.free()
+    _sh.rebuild()
+    TestHelper.assert_true(
+        moved, "reconcile moves an entry to its new cell: expected blocked at B, empty at A"
+    )
+
+
+func test_reconcile_flips_blocked_on_state_change():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entity := _make_grid_entity("ReconcileStater")
+    _sh.add_child(entity)
+    _sh.rebuild()
+    var cell := CellUtil.world_to_cell(entity.global_position)
+    var blocked_idle: bool = _sh.is_cell_blocked(cell)
+    var mc: MovementController = entity.get_node("MovementController") as MovementController
+    mc._state = MovementController.State.MOVING
+    _sh._reconcile()
+    var blocked_moving: bool = _sh.is_cell_blocked(cell)
+    mc._state = MovementController.State.IDLE
+    _sh._reconcile()
+    var blocked_again: bool = _sh.is_cell_blocked(cell)
+    _sh.remove_child(entity)
+    entity.free()
+    _sh.rebuild()
+    TestHelper.assert_true(
+        blocked_idle and not blocked_moving and blocked_again,
+        "reconcile flips blocked on IDLE/MOVING transitions: idle=%s moving=%s idle2=%s"
+        % [str(blocked_idle), str(blocked_moving), str(blocked_again)],
+    )
+
+
+func test_reconcile_preserves_entry_order():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var e1 := _make_grid_entity("OrderFirst")
+    var e2 := _make_grid_entity("OrderSecond")
+    _sh.add_child(e1)
+    _sh.add_child(e2)
+    _sh.rebuild()
+    var cell := CellUtil.world_to_cell(e1.global_position)
+    e2.global_position = CellUtil.cell_to_world(cell + Vector2i(3, 3))
+    _sh._reconcile()
+    var after_away: Array = _sh.get_entries(cell).duplicate()
+    e2.global_position = CellUtil.cell_to_world(cell)
+    _sh._reconcile()
+    var after_back: Array = _sh.get_entries(cell).duplicate()
+    var order_ok: bool = (
+        after_away.size() == 1
+        and after_away[0]["node"] == e1
+        and after_back.size() == 2
+        and after_back[0]["node"] == e1
+        and after_back[1]["node"] == e2
+    )
+    _sh.remove_child(e1)
+    _sh.remove_child(e2)
+    e1.free()
+    e2.free()
+    _sh.rebuild()
+    TestHelper.assert_true(
+        order_ok, "reconcile keeps remaining order and appends re-arrivals at the end"
+    )
+
+
+func test_reconcile_query_parity_with_rebuild():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entity := _make_grid_entity("Parity")
+    _sh.add_child(entity)
+    _sh.rebuild()
+    var cell_b := CellUtil.world_to_cell(entity.global_position) + Vector2i(1, 1)
+    entity.global_position = CellUtil.cell_to_world(cell_b)
+    _sh._reconcile()
+    var reconciled_size: int = _sh.get_entries(cell_b).size()
+    _sh.rebuild()
+    var rebuilt_size: int = _sh.get_entries(cell_b).size()
+    _sh.remove_child(entity)
+    entity.free()
+    _sh.rebuild()
+    TestHelper.assert_eq(
+        reconciled_size, rebuilt_size, "reconcile and rebuild agree on entry count at moved cell"
+    )

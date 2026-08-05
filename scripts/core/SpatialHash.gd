@@ -10,14 +10,47 @@ var _reserved: Dictionary = {}
 var _resource_cells: Dictionary = {}
 var _shared_cell_counts: Dictionary = {}
 var _ice_cells: Dictionary = {}
+## Pooled per-entity entries (entity root -> entry dict). Shared with `_grid`.
+var _entry_map: Dictionary = {}
+var _rebuild_pending := false
 
 
 func _enter_tree() -> void:
     instance = self
 
 
+func _ready() -> void:
+    get_tree().node_added.connect(_on_node_added)
+    get_tree().node_removed.connect(_on_node_removed)
+
+
+func _on_node_added(node: Node) -> void:
+    if _is_membership_node(node):
+        _rebuild_pending = true
+
+
+func _on_node_removed(node: Node) -> void:
+    if _is_membership_node(node):
+        _rebuild_pending = true
+
+
+func _is_membership_node(node: Node) -> bool:
+    if node.is_in_group("entities") or node.is_in_group("ice"):
+        return true
+    var parent := node.get_parent()
+    return parent != null and (parent.is_in_group("entities") or parent.is_in_group("ice"))
+
+
+## Forces a full rebuild on the next physics tick (e.g. after map load).
+func refresh() -> void:
+    _rebuild_pending = true
+
+
 func _physics_process(_delta: float) -> void:
-    rebuild()
+    if _rebuild_pending:
+        rebuild()
+    else:
+        _reconcile()
 
 
 func rebuild() -> void:
@@ -25,11 +58,12 @@ func rebuild() -> void:
     _blocked_cells.clear()
     _shared_cell_counts.clear()
     _ice_cells.clear()
+    _entry_map.clear()
     # ponytail: ice spawned mid-game by EntityFactory._add_ice_component only
-    # joins _ice_cells on the next rebuild (rebuild() runs every physics frame),
-    # so a freshly spawned ice block has a 1-frame window without passability
-    # override / weight damage. Map ice is scene-placed before the first rebuild,
-    # so this only matters for runtime ice spawning.
+    # joins _ice_cells on the next membership rebuild, so a freshly spawned ice
+    # block has a short window without passability override / weight damage. Map
+    # ice is scene-placed before the first rebuild, so this only matters for
+    # runtime ice spawning.
     for ice in get_tree().get_nodes_in_group("ice"):
         var ice_root := ice as Node3D
         if not is_instance_valid(ice_root):
@@ -50,29 +84,127 @@ func rebuild() -> void:
         var stats := entity_root.get_node_or_null("StatsComponent") as StatsComponent
         var cell := CellUtil.world_to_cell(entity_root.global_position)
         var key := CellUtil.cell_key(cell)
-        if not _grid.has(key):
-            _grid[key] = []
         var etype: int = stats.entity_type if stats else -1
         var pid: int = stats.player_id if stats else -1
-        (
-            _grid[key]
-            . append(
-                {
-                    "node": entity_root,
-                    "mc": mc,
-                    "entity_type": etype,
-                    "player_id": pid,
-                }
-            )
-        )
-        if mc and mc._state == MovementController.State.IDLE:
-            # ponytail: only count IDLE sharers. Moving sharers can stack
-            # beyond capacity transiently, but crush clears them. Counting
-            # MOVING would block pathfinding for all cells with moving sharers.
-            if mc.shares_cell():
+        var state: int = mc._state if mc else -1
+        var shares: bool = mc.shares_cell() if mc else false
+        var entry := {
+            "node": entity_root,
+            "mc": mc,
+            "stats": stats,
+            "entity_type": etype,
+            "player_id": pid,
+            "cell_key": key,
+            "state": state,
+            "shares": shares,
+        }
+        _entry_map[entity_root] = entry
+        _add_entry_to_grid(entry, key)
+        # ponytail: only count IDLE sharers. Moving sharers can stack
+        # beyond capacity transiently, but crush clears them. Counting
+        # MOVING would block pathfinding for all cells with moving sharers.
+        if mc and state == MovementController.State.IDLE:
+            if shares:
                 _shared_cell_counts[key] = _shared_cell_counts.get(key, 0) + 1
             else:
                 _blocked_cells[key] = true
+    _rebuild_pending = false
+
+
+## Allocation-free drift correction. Reads cached node/MC refs and only mutates
+## the grid when a cell or state actually changed. No group scans, no node
+## lookups, no per-entity dictionary allocations.
+func _reconcile() -> void:
+    var stale: Array = []
+    for entity_root in _entry_map:
+        var entry: Dictionary = _entry_map[entity_root]
+        var node: Node3D = entry["node"]
+        if not is_instance_valid(node):
+            stale.append(entity_root)
+            continue
+        var mc: MovementController = entry["mc"]
+        var state: int = -1
+        var shares := false
+        if mc and is_instance_valid(mc):
+            state = mc._state
+            shares = mc.shares_cell()
+        var key: int = CellUtil.cell_key(CellUtil.world_to_cell(node.global_position))
+        var cached_key: int = entry["cell_key"]
+        if key == cached_key and state == entry["state"] and shares == entry["shares"]:
+            continue
+        var was_blocking: bool = (
+            entry["state"] == MovementController.State.IDLE and not entry["shares"]
+        )
+        var was_sharing: bool = entry["state"] == MovementController.State.IDLE and entry["shares"]
+        _remove_entry_from_grid(entry, cached_key)
+        if was_sharing:
+            _decrement_shared(cached_key)
+        elif was_blocking and not _has_blocking_entity(cached_key):
+            # _blocked_cells is a set (key -> true), so only erase when the
+            # last blocking occupant leaves.
+            _blocked_cells.erase(cached_key)
+        entry["cell_key"] = key
+        entry["state"] = state
+        entry["shares"] = shares
+        _add_entry_to_grid(entry, key)
+        if state == MovementController.State.IDLE:
+            if shares:
+                _shared_cell_counts[key] = _shared_cell_counts.get(key, 0) + 1
+            else:
+                _blocked_cells[key] = true
+    for root in stale:
+        _drop_entry(root)
+
+
+func _add_entry_to_grid(entry: Dictionary, key: int) -> void:
+    var arr: Variant = _grid.get(key)
+    if arr == null:
+        arr = []
+        _grid[key] = arr
+    arr.append(entry)
+
+
+func _remove_entry_from_grid(entry: Dictionary, key: int) -> void:
+    var arr: Variant = _grid.get(key)
+    if arr == null:
+        return
+    arr.erase(entry)
+    if arr.is_empty():
+        _grid.erase(key)
+
+
+func _decrement_shared(key: int) -> void:
+    var count: int = int(_shared_cell_counts.get(key, 0)) - 1
+    if count <= 0:
+        _shared_cell_counts.erase(key)
+    else:
+        _shared_cell_counts[key] = count
+
+
+## True when at least one entry on the cell still blocks it (IDLE + non-shaver).
+func _has_blocking_entity(key: int) -> bool:
+    var arr: Variant = _grid.get(key)
+    if arr == null:
+        return false
+    for entry in arr:
+        if entry["state"] == MovementController.State.IDLE and not entry["shares"]:
+            return true
+    return false
+
+
+func _drop_entry(entity_root: Node) -> void:
+    var entry: Dictionary = _entry_map.get(entity_root) as Dictionary
+    if entry.is_empty():
+        return
+    var cached_key: int = entry["cell_key"]
+    var was_blocking: bool = entry["state"] == MovementController.State.IDLE and not entry["shares"]
+    var was_sharing: bool = entry["state"] == MovementController.State.IDLE and entry["shares"]
+    _remove_entry_from_grid(entry, cached_key)
+    if was_sharing:
+        _decrement_shared(cached_key)
+    elif was_blocking and not _has_blocking_entity(cached_key):
+        _blocked_cells.erase(cached_key)
+    _entry_map.erase(entity_root)
 
 
 func get_entries(cell: Vector2i) -> Array:
