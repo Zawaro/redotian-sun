@@ -38,6 +38,16 @@ func _ready() -> void:
     var bm := get_node_or_null("/root/BuildingManager")
     if bm:
         bm.build_mode_changed.connect(_on_build_mode_changed)
+    get_tree().node_added.connect(_on_node_added)
+
+
+func _on_node_added(node: Node) -> void:
+    # Any factory entering the tree — placement, debug, or spawn path — must
+    # invalidate the cached speed before its `_ready` re-emits factories_changed
+    # (node_added fires before _ready). Previously only the building-placement
+    # path cleared the cache, leaving stale speeds for debug/spawned factories.
+    if node is FactoryComponent:
+        _connect_factory(node)
 
 
 func _on_build_mode_changed(is_active: bool) -> void:

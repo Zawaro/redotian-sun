@@ -8,6 +8,14 @@ const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/Sel
 var _sm: Node = null
 var _ts: Node = null
 
+var _emit_count := 0
+var _last_selection_arg: Array[SelectComponent] = []
+
+
+func _on_selection_changed_counter(selected: Array[SelectComponent]) -> void:
+    _emit_count += 1
+    _last_selection_arg = selected
+
 
 func test_deselect_all_clears():
     if _sm == null:
@@ -392,6 +400,39 @@ func test_find_sharer_cell_at_capacity():
                 + "should have spiraled away from full cell"
             ),
         )
+    )
+
+
+func test_deselect_all_emits_selection_changed_once():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _sm.deselect_all()
+    var entities: Array[Node3D] = []
+    for i in 5:
+        var entity := Node3D.new()
+        entity.name = "EmitCounter%d" % i
+        entity.add_to_group("selectable")
+        var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+        sc.name = "SelectComponent"
+        entity.add_child(sc)
+        _sm.add_child(entity)
+        entities.append(entity)
+        _sm.add_entity(sc)
+    _emit_count = 0
+    _last_selection_arg = []
+    _sm.selection_changed.connect(_on_selection_changed_counter)
+    _sm.deselect_all()
+    _sm.selection_changed.disconnect(_on_selection_changed_counter)
+    for e in entities:
+        _sm.remove_child(e)
+        e.free()
+    TestHelper.assert_eq(_emit_count, 1, "deselect_all emits selection_changed exactly once")
+    TestHelper.assert_true(
+        _last_selection_arg.is_empty(), "the single emit carries an empty selection"
+    )
+    TestHelper.assert_true(
+        _sm.selected_entities.is_empty(), "selected_entities is empty after deselect_all"
     )
 
 

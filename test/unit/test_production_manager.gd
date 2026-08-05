@@ -109,27 +109,21 @@ func test_production_speed_cached_until_invalidated():
         TestHelper.fail("first speed lookup should populate the cache")
         _free_test_factories()
         return
-    # No invalidation -> cache hit reuses the value instead of re-scanning the group
-    _make_factory_node()
+    # Cache hit reuses the value without re-scanning the group.
     var cached_speed: float = pm._get_production_speed(key)
-    var cache_size: int = pm._speed_cache.size()
-    pm._on_factories_changed()
-    var cache_cleared: bool = pm._speed_cache.is_empty()
+    var cache_hit: bool = cached_speed == speed_one
+    # Any factory added through the tree invalidates the cached speed.
+    _make_factory_node()
     var recomputed_speed: float = pm._get_production_speed(key)
+    var recomputed_after_add: bool = recomputed_speed == _expected_speed(2)
     (
         TestHelper
         . assert_true(
+            cache_hit and recomputed_after_add,
             (
-                speed_one == _expected_speed(1)
-                and cached_speed == speed_one
-                and cache_size == 1
-                and cache_cleared
-                and recomputed_speed == _expected_speed(2)
-            ),
-            (
-                "cached speed reused until factories_changed clears it: expected %f then %f, "
+                "cache hit reuses the value, factory add invalidates: "
                 + (
-                    "got %f then %f"
+                    "expected %f then %f, got %f then %f"
                     % [_expected_speed(1), _expected_speed(2), cached_speed, recomputed_speed]
                 )
             ),

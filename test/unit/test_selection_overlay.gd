@@ -149,6 +149,7 @@ func test_collect_entities_tracks_hovered():
     _assert_collected(overlay, 1, "collect_entities renders the hovered entity")
 
     _sm.clear_hover_preview()
+    _assert_tracked(overlay, 0, "clearing hover preview untracks the entity")
     _assert_collected(overlay, 0, "collect_entities drops a cleared hover")
     fixture["entity"].free()
     cam.free()

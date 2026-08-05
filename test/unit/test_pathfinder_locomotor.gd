@@ -68,6 +68,17 @@ func _raise_wall() -> void:
             _ts.compute_and_emit_cell(Vector2i(cx, cz))
 
 
+## Raises a full-width wall of the given vertex height spanning the whole grid.
+func _raise_step(height: int) -> void:
+    for z in range(0, 100):
+        for vx in [50, 51]:
+            for vz in [z, z + 1]:
+                _ts._vertex_grid[vx][vz] = height
+    for cx in range(48, 54):
+        for cz in range(48, 54):
+            _ts.compute_and_emit_cell(Vector2i(cx, cz))
+
+
 func test_cost_multiplier_formula():
     var wheel := _wheel()
     (
@@ -180,6 +191,34 @@ func test_cliff_blocks_foot():
     TestHelper.assert_eq(crossed, false, "foot cannot cross the cliff wall")
 
 
+func test_two_step_wall_blocks_foot():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _reset_terrain()
+    _raise_step(2)
+    var start := CellUtil.cell_to_world(Vector2i(49, 50))
+    var end := CellUtil.cell_to_world(Vector2i(52, 50))
+    var path := Pathfinder.find_path(start, end, {}, _foot())
+    var crossed := _path_cells(path).has(Vector2i(50, 50))
+    _reset_terrain()
+    TestHelper.assert_eq(crossed, false, "foot cannot climb a 2-step wall")
+
+
+func test_one_step_terrace_walkable():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _reset_terrain()
+    _raise_step(1)
+    var start := CellUtil.cell_to_world(Vector2i(49, 50))
+    var end := CellUtil.cell_to_world(Vector2i(52, 50))
+    var path := Pathfinder.find_path(start, end, {}, _foot())
+    var crosses := _path_cells(path).has(Vector2i(50, 50))
+    _reset_terrain()
+    TestHelper.assert_true(crosses, "foot climbs a 1-step terrace")
+
+
 func test_fly_ignores_cliffs():
     if _ts == null:
         TestHelper.fail("TerrainSystem not injected")
@@ -220,7 +259,7 @@ func test_cell_height_flat_matches_min_corner():
             for vx in [cell.x, cell.x + 1]:
                 for vz in [cell.y, cell.y + 1]:
                     _ts._vertex_grid[vx][vz] = height
-            var got: float = Pathfinder._cell_height(_ts, cell, _ts.grid_cells)
+            var got: float = Pathfinder._cell_height(_ts, cell)
             var expected: float = float(height) * _ts.HEIGHT_STEP
             (
                 TestHelper
@@ -235,7 +274,7 @@ func test_cell_height_flat_matches_min_corner():
     _reset_terrain()
 
 
-func test_cell_height_slope_matches_corner_average():
+func test_cell_height_slope_matches_min_corner():
     if _ts == null:
         TestHelper.fail("TerrainSystem not injected")
         return
@@ -246,21 +285,19 @@ func test_cell_height_slope_matches_corner_average():
     _ts._vertex_grid[cell.x + 1][cell.y] = corners[1]
     _ts._vertex_grid[cell.x][cell.y + 1] = corners[2]
     _ts._vertex_grid[cell.x + 1][cell.y + 1] = corners[3]
-    var expected: float = (
-        float(corners[0] + corners[1] + corners[2] + corners[3]) / 4.0 * _ts.HEIGHT_STEP
-    )
-    var got: float = Pathfinder._cell_height(_ts, cell, _ts.grid_cells)
+    var expected: float = float(corners.min()) * _ts.HEIGHT_STEP
+    var got: float = Pathfinder._cell_height(_ts, cell)
     _reset_terrain()
     (
         TestHelper
         . assert_true(
             is_equal_approx(got, expected),
-            "slope cell center = corner average: expected %s, got %s" % [expected, got],
+            "slope cell reads at its lowest corner: expected %s, got %s" % [expected, got],
         )
     )
 
 
-func test_cell_height_parity_with_smooth_read():
+func test_cell_height_parity_with_cell_height_read():
     if _ts == null:
         TestHelper.fail("TerrainSystem not injected")
         return
@@ -286,15 +323,20 @@ func test_cell_height_parity_with_smooth_read():
         Vector2i(-5, -5),
     ]
     for cell: Vector2i in cells:
-        var expected: float = _ts.get_height_at_world_smooth(
-            CellUtil.cell_to_world(cell, _ts.grid_cells)
-        )
-        var got: float = Pathfinder._cell_height(_ts, cell, _ts.grid_cells)
+        var expected: float
+        if patch.has(cell):
+            expected = float((patch[cell] as Array).min()) * _ts.HEIGHT_STEP
+        else:
+            expected = 0.0
+        var got: float = Pathfinder._cell_height(_ts, cell)
         (
             TestHelper
             . assert_true(
                 is_equal_approx(got, expected),
-                "height parity for cell %s: expected %s, got %s" % [cell, expected, got],
+                (
+                    "height parity with cell-height read for cell %s: expected %s, got %s"
+                    % [cell, expected, got]
+                ),
             )
         )
     _reset_terrain()
