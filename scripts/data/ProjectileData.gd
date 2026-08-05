@@ -45,6 +45,9 @@ class_name ProjectileData extends Resource
 # ponytail: schema-first, no consumer yet
 ## Homes toward target over distance (guided).
 @export var is_guided: bool = false
+# ponytail: schema-first, no consumer yet
+## Limited to weapon range, then detonates (range-based targeting).
+@export var is_ranged: bool = false
 
 ## Behavior — physical properties during flight.
 @export_group("Behavior")
@@ -68,6 +71,12 @@ class_name ProjectileData extends Resource
 ## Graphic or animation name for the projectile model (e.g., "120MM", "DRAGON").
 # ponytail: schema-first, no consumer yet
 @export var graphic_name: String = ""
+# ponytail: schema-first, no consumer yet
+## Sprite rotates to face its travel direction (missiles, shells, lobbed rounds).
+@export var rotates_to_face: bool = false
+# ponytail: schema-first, no consumer yet
+## Tint applied to the projectile/beam graphic. Opaque white = no tint.
+@export var tint_color: Color = Color(1, 1, 1, 1)
 
 
 func validate() -> PackedStringArray:
