@@ -54,6 +54,8 @@ var _assigned_slot: int = -1
 var _sub_slot_position: Vector3 = Vector3.ZERO
 var _has_sub_slot: bool = false
 var _last_position: Vector3 = Vector3.ZERO
+var _idle_snap_cell: Vector2i = Vector2i.ZERO
+var _idle_snapped := false
 var _veteran_speed_mult: float = 1.0
 var _rules: GlobalRules = null
 var _locomotor_data: Locomotor = null
@@ -245,6 +247,7 @@ func _finish_stop() -> void:
     _hybrid_active = false
     _land_on_arrival = false
     _state = State.IDLE
+    _idle_snapped = false
     SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
     CellReservation.instance.release_all(_parent)
     if debug_show_path:
@@ -490,8 +493,7 @@ func _physics_process(delta: float) -> void:
             if _is_jumpjet:
                 _update_vertical(delta)
             else:
-                var idle_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
-                _parent.global_position.y = idle_y + (_hover_height if _is_floating() else 0.0)
+                _snap_if_idle_cell_changed()
 
 
 func _handle_rotating(delta: float) -> void:
@@ -664,6 +666,7 @@ func _handle_moving_movement(delta: float) -> void:
             _has_sub_slot = false
             _hybrid_active = false
             _state = State.IDLE
+            _idle_snapped = false
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
             # visually broken.
@@ -744,6 +747,7 @@ func _handle_wait(delta: float) -> void:
             _has_sub_slot = false
             _hybrid_active = false
             _state = State.IDLE
+            _idle_snapped = false
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
             # visually broken.
@@ -927,6 +931,16 @@ func nudge_from_cell(blocking_cell: Vector2i) -> bool:
             )
             return true
     return false
+
+
+func _snap_if_idle_cell_changed() -> void:
+    var cell := CellUtil.world_to_cell(_parent.global_position)
+    if _idle_snapped and cell == _idle_snap_cell:
+        return
+    var idle_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    _parent.global_position.y = idle_y + (_hover_height if _is_floating() else 0.0)
+    _idle_snap_cell = cell
+    _idle_snapped = true
 
 
 func _snap_to_terrain(delta: float = 0.0) -> void:

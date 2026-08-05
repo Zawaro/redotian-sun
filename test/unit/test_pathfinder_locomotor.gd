@@ -207,3 +207,111 @@ func test_no_locomotor_keeps_old_behavior():
     var crosses := _path_cells(path).has(water_cell)
     _reset_terrain()
     TestHelper.assert_true(crosses, "no locomotor -> terrain ignored, water crossed")
+
+
+func test_cell_height_flat_matches_min_corner():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _reset_terrain()
+    var cells: Array[Vector2i] = [Vector2i(10, 10), Vector2i(15, 12), Vector2i(20, 20)]
+    for height: int in [0, 1, 3, 5]:
+        for cell: Vector2i in cells:
+            for vx in [cell.x, cell.x + 1]:
+                for vz in [cell.y, cell.y + 1]:
+                    _ts._vertex_grid[vx][vz] = height
+            var got: float = Pathfinder._cell_height(_ts, cell, _ts.grid_cells)
+            var expected: float = float(height) * _ts.HEIGHT_STEP
+            (
+                TestHelper
+                . assert_true(
+                    is_equal_approx(got, expected),
+                    (
+                        "flat cell %s at height %d: expected %s, got %s"
+                        % [cell, height, expected, got]
+                    ),
+                )
+            )
+    _reset_terrain()
+
+
+func test_cell_height_slope_matches_corner_average():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _reset_terrain()
+    var cell := Vector2i(10, 10)
+    var corners: Array[int] = [0, 3, 0, 3]
+    _ts._vertex_grid[cell.x][cell.y] = corners[0]
+    _ts._vertex_grid[cell.x + 1][cell.y] = corners[1]
+    _ts._vertex_grid[cell.x][cell.y + 1] = corners[2]
+    _ts._vertex_grid[cell.x + 1][cell.y + 1] = corners[3]
+    var expected: float = (
+        float(corners[0] + corners[1] + corners[2] + corners[3]) / 4.0 * _ts.HEIGHT_STEP
+    )
+    var got: float = Pathfinder._cell_height(_ts, cell, _ts.grid_cells)
+    _reset_terrain()
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(got, expected),
+            "slope cell center = corner average: expected %s, got %s" % [expected, got],
+        )
+    )
+
+
+func test_cell_height_parity_with_smooth_read():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _reset_terrain()
+    var patch: Dictionary = {
+        Vector2i(10, 10): [0, 0, 0, 0],
+        Vector2i(12, 10): [2, 2, 2, 2],
+        Vector2i(10, 12): [0, 3, 0, 3],
+        Vector2i(12, 12): [1, 3, 3, 1],
+    }
+    for cell: Vector2i in patch:
+        var corners: Array = patch[cell]
+        _ts._vertex_grid[cell.x][cell.y] = corners[0]
+        _ts._vertex_grid[cell.x + 1][cell.y] = corners[1]
+        _ts._vertex_grid[cell.x][cell.y + 1] = corners[2]
+        _ts._vertex_grid[cell.x + 1][cell.y + 1] = corners[3]
+    var cells: Array[Vector2i] = [
+        Vector2i(10, 10),
+        Vector2i(12, 10),
+        Vector2i(10, 12),
+        Vector2i(12, 12),
+        Vector2i(200, 200),
+        Vector2i(-5, -5),
+    ]
+    for cell: Vector2i in cells:
+        var expected: float = _ts.get_height_at_world_smooth(
+            CellUtil.cell_to_world(cell, _ts.grid_cells)
+        )
+        var got: float = Pathfinder._cell_height(_ts, cell, _ts.grid_cells)
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(got, expected),
+                "height parity for cell %s: expected %s, got %s" % [cell, expected, got],
+            )
+        )
+    _reset_terrain()
+
+
+func test_foot_routes_around_raised_cell():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _reset_terrain()
+    var bump := Vector2i(50, 50)
+    for vx in [50, 51]:
+        for vz in [50, 51]:
+            _ts._vertex_grid[vx][vz] = 3
+    var start := CellUtil.cell_to_world(Vector2i(49, 50))
+    var end := CellUtil.cell_to_world(Vector2i(51, 50))
+    var path := Pathfinder.find_path(start, end, {}, _foot())
+    var avoids := not _path_cells(path).has(bump)
+    _reset_terrain()
+    TestHelper.assert_true(avoids, "foot path routes around a raised cell")

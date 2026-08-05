@@ -28,6 +28,9 @@ var _ready_to_place: Dictionary = {}
 ## Each dict: { "entity_data": EntityData, "player_id": int, "queue_key": String }
 var _ready_to_spawn: Dictionary = {}
 
+## queue_key → float (cached production speed, invalidated on factory changes)
+var _speed_cache: Dictionary = {}
+
 const MAX_STACK: int = 25
 
 
@@ -283,6 +286,7 @@ func _find_factories(player_id: int, factory_type: String) -> Dictionary:
         if not f is FactoryComponent:
             continue
         var fc := f as FactoryComponent
+        _connect_factory(fc)
         if fc.player_id != player_id:
             continue
         if not factory_type in fc.produces:
@@ -314,6 +318,8 @@ func _find_exit_cell(factory: Node3D) -> Vector2i:
 
 
 func _get_production_speed(queue_key: String) -> float:
+    if _speed_cache.has(queue_key):
+        return _speed_cache[queue_key]
     var player_id := int(queue_key.get_slice(":", 0))
     var factory_type := queue_key.get_slice(":", 1)
     var result := _find_factories(player_id, factory_type)
@@ -321,7 +327,21 @@ func _get_production_speed(queue_key: String) -> float:
     var rules := GlobalRules.get_current()
     if rules:
         multiple_factory = rules.multiple_factory
-    return 1.0 + (result.count - 1) * multiple_factory
+    var speed: float = 1.0 + (result.count - 1) * multiple_factory
+    _speed_cache[queue_key] = speed
+    return speed
+
+
+## Connect a factory's change signal once so any add/remove/primary change
+## invalidates the cached speeds.
+func _connect_factory(factory: FactoryComponent) -> void:
+    if factory.factories_changed.is_connected(_on_factories_changed):
+        return
+    factory.factories_changed.connect(_on_factories_changed)
+
+
+func _on_factories_changed() -> void:
+    _speed_cache.clear()
 
 
 func _get_build_speed() -> float:
@@ -385,6 +405,9 @@ func cancel_ready_building(player_id: int, entity_id: String) -> bool:
 
 
 func clear_waiting_for_placement(player_id: int) -> void:
+    # A placed building may be a new factory — drop cached speeds so the next
+    # lookup re-scans and picks up the added factory.
+    _speed_cache.clear()
     for key in _waiting_for_placement.keys():
         if key.begins_with("%d:" % player_id):
             _waiting_for_placement[key] = false

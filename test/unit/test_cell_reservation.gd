@@ -149,6 +149,78 @@ func test_re_reserve_different_cell_releases_prior():
     )
 
 
+func test_release_all_only_touches_claimants_cells():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.fail("CellReservation not available")
+        return
+    var a := _make_owner()
+    var b := _make_owner()
+    cr.clear()
+    var cell_shared := Vector2i(10, 10)
+    cr.reserve_sub_slot(cell_shared, a)
+    cr.reserve_sub_slot(cell_shared, b)
+    cr.release_all(a)
+    var shared_count: int = cr.get_claim_count(cell_shared)
+    var slot0_owner: Node3D = cr.get_slot_owner(cell_shared, 0)
+    var slot1_owner: Node3D = cr.get_slot_owner(cell_shared, 1)
+    cr.clear()
+    var cell_a := Vector2i(20, 20)
+    var cell_b := Vector2i(30, 30)
+    cr.reserve_sub_slot(cell_a, a)
+    cr.reserve_sub_slot(cell_b, b)
+    cr.release_all(a)
+    var a_count: int = cr.get_claim_count(cell_a)
+    var b_count: int = cr.get_claim_count(cell_b)
+    var b_owner: Node3D = cr.get_slot_owner(cell_b, 0)
+    cr.clear()
+    a.queue_free()
+    b.queue_free()
+    (
+        TestHelper
+        . assert_true(
+            shared_count == 1 and slot0_owner == null and slot1_owner == b,
+            (
+                "release_all keeps other claimant's shared-cell claim: shared=%d "
+                + "slot0=%s slot1=%s" % [shared_count, slot0_owner, slot1_owner]
+            ),
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            a_count == 0 and b_count == 1 and b_owner == b,
+            (
+                "release_all only releases claimant's own cells: cell_a=%d cell_b=%d "
+                + "b_owner=%s" % [a_count, b_count, b_owner]
+            ),
+        )
+    )
+
+
+func test_release_all_clears_claimant_index():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.fail("CellReservation not available")
+        return
+    cr.clear()
+    var cell := Vector2i(10, 10)
+    var a := _make_owner()
+    cr.reserve_sub_slot(cell, a)
+    var indexed_before: bool = cr._claimant_cells.has(a)
+    cr.release_all(a)
+    var indexed_after: bool = cr._claimant_cells.has(a)
+    cr.clear()
+    a.queue_free()
+    TestHelper.assert_true(
+        indexed_before and not indexed_after,
+        (
+            "release_all clears claimant index entry: before=%s after=%s"
+            % [indexed_before, indexed_after]
+        )
+    )
+
+
 func test_present_occupant_slot_counts_toward_capacity():
     var cr := CellReservation.instance
     var sh := SpatialHash.instance

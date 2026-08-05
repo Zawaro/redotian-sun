@@ -3,6 +3,10 @@ class_name FactoryComponent extends Node
 ## Building-level production interface. Declares what queue types this
 ## building produces and manages primary building selection.
 
+## Emitted when this factory joins/leaves the "factories" group or when its
+## primary state changes, so consumers can invalidate cached factory counts.
+signal factories_changed
+
 ## Queue types this building handles (e.g., ["infantry"], ["vehicle"]).
 @export var produces: Array[String] = []
 
@@ -21,6 +25,12 @@ signal exit_in_progress
 
 func _ready() -> void:
     add_to_group("factories")
+    factories_changed.emit()
+
+
+func _exit_tree() -> void:
+    remove_from_group("factories")
+    factories_changed.emit()
 
 
 func configure(data: EntityData) -> void:
@@ -49,6 +59,7 @@ func set_primary() -> void:
         if other.produces != produces:
             continue
         other.is_primary = false
+    factories_changed.emit()
 
 
 func on_unit_produced(entity_data: EntityData, owner_player_id: int) -> void:

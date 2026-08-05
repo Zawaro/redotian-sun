@@ -9,10 +9,16 @@ static func _get_terrain_system() -> Node:
     return tree.root.get_node_or_null("TerrainSystem")
 
 
-static func _cell_height(terrain: Node, cell: Vector2i) -> float:
+## Pure-arithmetic terrain height read for a cell: cell -> world -> vertex-grid
+## bilinear sample. No dict/string lookups (see D7). `grid_cells` is resolved
+## once per find_path call and threaded through instead of re-resolving per probe.
+static func _cell_height(
+    terrain: Node, cell: Vector2i, grid_cells: Vector2i = Vector2i.ZERO
+) -> float:
     if terrain == null:
         return 0.0
-    return terrain.get_height_at_world(CellUtil.cell_to_world(cell))
+    var world := CellUtil.cell_to_world(cell, grid_cells)
+    return terrain.get_height_at_world_smooth(world)
 
 
 ## Terrain passability for a unit's locomotor. Fly/hover pass everything; others
@@ -57,6 +63,7 @@ static func find_path(
         return PackedVector3Array()
 
     var terrain: Node = _get_terrain_system()
+    var grid_cells: Vector2i = terrain.grid_cells if terrain else Vector2i.ZERO
 
     # Bib cells are walkable but penalized — dockers (harvesters) path onto the
     # dock pad, but ordinary traffic detours around it. Null-safe: no penalty in
@@ -68,7 +75,13 @@ static func find_path(
         0.0 if ignore_bib_penalty else (rules.bib_cost_penalty if rules else 0.0)
     )
 
-    var open_heap: Array = [{"cell": start_cell, "f": CellUtil.heuristic(start_cell, end_cell)}]
+    var open_heap: Array = [
+        {
+            "cell": start_cell,
+            "f": CellUtil.heuristic(start_cell, end_cell),
+            "height": _cell_height(terrain, start_cell, grid_cells),
+        }
+    ]
     var open_lookup: Dictionary = {}
     open_lookup[CellUtil.cell_key(start_cell)] = true
     var closed_set: Dictionary = {}
@@ -132,7 +145,9 @@ static func find_path(
         if stagnant > STAGNANT_LIMIT or iter > MAX_ITER:
             return _path_or_fallback(came_from, start_cell, best_cell)
 
-        var current_height := _cell_height(terrain, current)
+        # Height was already computed when this node was relaxed as a neighbor
+        # and stored in its heap entry (see _heap_push) — no re-probe here.
+        var current_height: float = current_entry["height"]
 
         for i in 8:
             var neighbor: Vector2i = current + neighbor_dirs[i]
@@ -141,7 +156,7 @@ static func find_path(
             if blocked_cells.has(nkey):
                 continue
 
-            var neighbor_height: float = _cell_height(terrain, neighbor)
+            var neighbor_height: float = _cell_height(terrain, neighbor, grid_cells)
             var cost_multiplier: float = 1.0
             if terrain and locomotor:
                 if not ignores_height and absf(neighbor_height - current_height) > climb_limit:
@@ -170,7 +185,7 @@ static func find_path(
                 var nf: float = tentative_g + CellUtil.heuristic(neighbor, end_cell) * 1.2
                 f_score[nkey] = nf
                 if not open_lookup.has(nkey):
-                    _heap_push(open_heap, neighbor, nf)
+                    _heap_push(open_heap, neighbor, nf, neighbor_height)
                     open_lookup[nkey] = true
 
     return _path_or_fallback(came_from, start_cell, best_cell)
@@ -203,8 +218,8 @@ static func _path_or_fallback(
     return _reconstruct_path(came_from, best, start)
 
 
-static func _heap_push(heap: Array, cell: Vector2i, f: float) -> void:
-    heap.append({"cell": cell, "f": f})
+static func _heap_push(heap: Array, cell: Vector2i, f: float, height: float) -> void:
+    heap.append({"cell": cell, "f": f, "height": height})
     var idx: int = heap.size() - 1
     while idx > 0:
         var parent_idx := floori(float(idx - 1) / 2.0)
