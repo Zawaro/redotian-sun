@@ -32,6 +32,11 @@ var _draw_node: Node2D
 var _health_bar_node: Node2D
 var _entities: Array[Dictionary] = []
 var _tracked: Array[SelectComponent] = []
+## Perf-guard counter: the per-frame `_collect_entities()` must never scan the
+## "selectable" group (test/unit/test_perf_guard.gd asserts it stays 0).
+## ponytail: catches a regression that reintroduces a scan through this counter
+## only; a raw `get_nodes_in_group` in `_collect_entities` escapes it.
+var perf_group_scans: int = 0
 
 
 func _ready():
