@@ -257,6 +257,14 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
     var center: float = float(grid_cells.x + grid_cells.y) * 0.5
     var vx: float = world_pos.x / CellUtil.CELL_SIZE + center
     var vz: float = world_pos.z / CellUtil.CELL_SIZE + center
+    return _sample_heightfield_at(vx, vz) * HEIGHT_STEP
+
+
+## Bilinear height sample at vertex-space coordinates (vx, vz), in raw height
+## units (0..MAX_HEIGHT, not scaled by HEIGHT_STEP). Shared by the smooth height
+## query, segment intersection, and the HeightMapShape3D builder so all answer
+## surfaces sample the same surface.
+func _sample_heightfield_at(vx: float, vz: float) -> float:
     var x0 := floori(vx)
     var x1 := x0 + 1
     var z0 := floori(vz)
@@ -269,7 +277,7 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
     var h11: float = float(get_vertex(x1, z1))
     var h0: float = h00 + (h10 - h00) * fx
     var h1: float = h01 + (h11 - h01) * fx
-    return (h0 + (h1 - h0) * fz) * HEIGHT_STEP
+    return h0 + (h1 - h0) * fz
 
 
 func get_normal_at_world(world_pos: Vector3) -> Vector3:
@@ -286,6 +294,156 @@ func get_normal_at_world(world_pos: Vector3) -> Vector3:
     var edge_x := Vector3(CellUtil.CELL_SIZE, h10 - h00, 0.0)
     var edge_z := Vector3(0.0, h01 - h00, CellUtil.CELL_SIZE)
     return edge_z.cross(edge_x).normalized()
+
+
+## First point where a segment crosses the terrain surface, descending.
+## Contract:
+## - Returns the first t in [0,1] where the segment transitions from above the
+##   bilinear heightfield surface to below it (a downward crossing).
+## - Returns `{"point": Vector3, "cell": Vector2i}` on hit, or `{}` on no hit.
+## - Segments fully above terrain return `{}` (never descend into it).
+## - Segments starting below terrain return `{}` unless they rise above the
+##   surface and descend again; the initial up-crossing is never reported.
+## - Cells outside the playable diamond produce no hits.
+## Pure math — no physics server involvement. Deterministic and headless-safe.
+func intersect_heightfield_segment(from: Vector3, to: Vector3) -> Dictionary:
+    var center: float = float(grid_cells.x + grid_cells.y) * 0.5
+    var avx: float = from.x / CellUtil.CELL_SIZE + center
+    var avz: float = from.z / CellUtil.CELL_SIZE + center
+    var bvx: float = to.x / CellUtil.CELL_SIZE + center
+    var bvz: float = to.z / CellUtil.CELL_SIZE + center
+    var du: float = bvx - avx
+    var dw: float = bvz - avz
+    var dy: float = to.y - from.y
+    var t := 0.0
+    var cx := floori(avx)
+    var cz := floori(avz)
+    var step_x := 1 if du > 0.0 else (-1 if du < 0.0 else 0)
+    var step_z := 1 if dw > 0.0 else (-1 if dw < 0.0 else 0)
+    var t_delta_x := 1.0 / absf(du) if du != 0.0 else INF
+    var t_delta_z := 1.0 / absf(dw) if dw != 0.0 else INF
+    var t_max_x := _t_to_boundary(avx, cx, du)
+    var t_max_z := _t_to_boundary(avz, cz, dw)
+    while true:
+        var t_exit := minf(minf(t_max_x, t_max_z), 1.0)
+        if CellUtil.is_in_diamond(Vector2i(cx, cz), grid_cells):
+            var hit := _intersect_cell_bilinear(from, to, cx, cz, t, t_exit)
+            if not hit.is_empty():
+                return hit
+        if t_exit >= 1.0:
+            break
+        t = t_exit
+        if t_max_x <= t_max_z:
+            cx += step_x
+            t_max_x += t_delta_x
+        else:
+            cz += step_z
+            t_max_z += t_delta_z
+    return {}
+
+
+## Parameter t at which the segment crosses the next grid boundary on one axis,
+## starting from vertex-space coordinate `v` inside cell index `c`. INF when the
+## segment does not move along that axis.
+static func _t_to_boundary(v: float, c: int, d: float) -> float:
+    if d > 0.0:
+        return (float(c) + 1.0 - v) / d
+    if d < 0.0:
+        return (float(c) - v) / d
+    return INF
+
+
+## Tests a single grid cell (cx, cz) over segment parameter range [t0, t1] for a
+## downward crossing of the cell's bilinear surface. The surface height within
+## the cell is a quadratic in t (bilinear composed with the linear XZ motion),
+## solved exactly. Returns {"point", "cell", "t"} or {}.
+func _intersect_cell_bilinear(
+    from: Vector3, to: Vector3, cx: int, cz: int, t0: float, t1: float
+) -> Dictionary:
+    var center: float = float(grid_cells.x + grid_cells.y) * 0.5
+    var avx: float = from.x / CellUtil.CELL_SIZE + center
+    var avz: float = from.z / CellUtil.CELL_SIZE + center
+    var du: float = (to.x - from.x) / CellUtil.CELL_SIZE
+    var dw: float = (to.z - from.z) / CellUtil.CELL_SIZE
+    var dy: float = to.y - from.y
+    var h00: float = float(get_vertex(cx, cz)) * HEIGHT_STEP
+    var h10: float = float(get_vertex(cx + 1, cz)) * HEIGHT_STEP
+    var h01: float = float(get_vertex(cx, cz + 1)) * HEIGHT_STEP
+    var h11: float = float(get_vertex(cx + 1, cz + 1)) * HEIGHT_STEP
+    var c10 := h10 - h00
+    var c01 := h01 - h00
+    var c11 := h00 - h10 - h01 + h11
+    var u0 := avx - float(cx)
+    var w0 := avz - float(cz)
+    var h0 := h00 + c10 * u0 + c01 * w0 + c11 * u0 * w0
+    var h1 := c10 * du + c01 * dw + c11 * (u0 * dw + du * w0)
+    var h2 := c11 * du * dw
+    var f0 := from.y - h0
+    var f1 := dy - h1
+    var f2 := -h2
+    for r in _quadratic_roots(f2, f1, f0):
+        var rt := float(r)
+        if rt < t0 - 1e-6 or rt > t1 + 1e-6:
+            continue
+        var f_prime := 2.0 * f2 * rt + f1
+        if f_prime < 0.0:
+            return {
+                "point": from.lerp(to, rt),
+                "cell": Vector2i(cx, cz),
+                "t": rt,
+            }
+    return {}
+
+
+## Real roots of a*t^2 + b*t + c = 0, ascending order, or empty when none.
+static func _quadratic_roots(a: float, b: float, c: float) -> Array[float]:
+    if absf(a) < 1e-9:
+        if absf(b) < 1e-9:
+            return []
+        return [(-c) / b]
+    var disc := b * b - 4.0 * a * c
+    if disc < 0.0:
+        return []
+    var sq := sqrt(disc)
+    return [((-b) - sq) / (2.0 * a), ((-b) + sq) / (2.0 * a)]
+
+
+## Native heightfield collision shape mirroring the vertex heightfield, for
+## consumers that need the physics server (e.g. knockback collision response).
+## `map_data` holds `height * HEIGHT_STEP` per in-diamond vertex and `NAN` for
+## vertices outside the playable diamond (holes), so map corners never collide.
+## Returns a shape resource only — no nodes are mounted. Purely opt-in; query
+## consumers should prefer `intersect_heightfield_segment` instead.
+func build_heightfield_shape() -> HeightMapShape3D:
+    var extent: Vector2i = CellUtil.get_diamond_extent(grid_cells)
+    var v_count := extent.x + 1
+    var shape := HeightMapShape3D.new()
+    shape.map_width = v_count
+    shape.map_depth = v_count
+    var data := PackedFloat32Array()
+    data.resize(v_count * v_count)
+    for vx in v_count:
+        for vz in v_count:
+            var idx := vz * v_count + vx
+            if _is_vertex_in_diamond(vx, vz):
+                data[idx] = float(_vertex_grid[vx][vz]) * HEIGHT_STEP
+            else:
+                data[idx] = NAN
+    shape.map_data = data
+    return shape
+
+
+## A vertex is in the playable diamond when it is a corner of at least one
+## in-diamond cell.
+func _is_vertex_in_diamond(vx: int, vz: int) -> bool:
+    var extent: Vector2i = CellUtil.get_diamond_extent(grid_cells)
+    if vx < 0 or vx > extent.x or vz < 0 or vz > extent.y:
+        return false
+    for cx in [vx - 1, vx]:
+        for cz in [vz - 1, vz]:
+            if CellUtil.is_in_diamond(Vector2i(cx, cz), grid_cells):
+                return true
+    return false
 
 
 func get_all_cells() -> Dictionary:
