@@ -112,15 +112,19 @@ Before issuing move commands, SelectionManager SHALL clear all existing reservat
 - **THEN** `RallyPointComponent.set_rally_point(cell)` is called with the target cell
 
 ### Requirement: Visual selection synchronization
-SelectionManager SHALL synchronize its internal selection list with the visual `is_selected` state on SelectComponents every frame via `_synchronize_visual_selection()`. This handles cases where selection state is modified externally.
+SelectionManager SHALL synchronize its internal selection list with the visual `is_selected` state on SelectComponents. The primary path SHALL be event-driven: `SelectComponent.set_is_selected()` emits a selection-state signal and SelectionManager reconciles that entity immediately. A low-frequency reconcile (at most 10 Hz) SHALL remain as a safety net for external direct writes to `is_selected`. The list SHALL NOT be rescanning the "selectable" group every frame.
 
-#### Scenario: Visual selection out of sync
-- **WHEN** a SelectComponent has `is_selected = true` but is not in `selected_entities`
-- **THEN** it is added to `selected_entities`
+#### Scenario: Visual selection out of sync (event-driven)
+- **WHEN** a SelectComponent sets `is_selected = true` via `set_is_selected()` and is not in `selected_entities`
+- **THEN** it is added to `selected_entities` on the same frame
 
-#### Scenario: List contains visually unselected
-- **WHEN** a SelectComponent is in `selected_entities` but has `is_selected = false`
-- **THEN** it is removed from `selected_entities`
+#### Scenario: List contains visually unselected (event-driven)
+- **WHEN** a SelectComponent sets `is_selected = false` via `set_is_selected()` while in `selected_entities`
+- **THEN** it is removed from `selected_entities` on the same frame
+
+#### Scenario: External mutation reconciled at low frequency
+- **WHEN** a SelectComponent's `is_selected` is written directly (not via `set_is_selected()`)
+- **THEN** `selected_entities` is reconciled within 100 ms
 
 ### Requirement: Sharers distribute by capacity
 The system SHALL separate sharers from non-sharers when processing a group move command. Units whose MovementController `shares_cell()` returns true SHALL be distributed to cells near the target with at most `CellSubPositions.get_slot_count()` per cell, using `CellReservation` combined capacity. Each sharer SHALL be assigned a sub-slot at movement start inside `MovementController.set_target_position`; SelectionManager SHALL NOT pre-assign slots. Non-sharers SHALL use the existing offset-based vehicle formation.

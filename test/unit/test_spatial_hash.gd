@@ -506,10 +506,15 @@ func test_reconcile_flips_blocked_on_state_change():
     _sh.remove_child(entity)
     entity.free()
     _sh.rebuild()
-    TestHelper.assert_true(
-        blocked_idle and not blocked_moving and blocked_again,
-        "reconcile flips blocked on IDLE/MOVING transitions: idle=%s moving=%s idle2=%s"
-        % [str(blocked_idle), str(blocked_moving), str(blocked_again)],
+    (
+        TestHelper
+        . assert_true(
+            blocked_idle and not blocked_moving and blocked_again,
+            (
+                "reconcile flips blocked on IDLE/MOVING transitions: idle=%s moving=%s idle2=%s"
+                % [str(blocked_idle), str(blocked_moving), str(blocked_again)]
+            ),
+        )
     )
 
 
