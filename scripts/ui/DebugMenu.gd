@@ -49,6 +49,10 @@ var _selection_overlay: CanvasLayer = null
 
 
 func _ready() -> void:
+    # Debug panel never exists in a non-debug (release) build.
+    if not OS.is_debug_build():
+        queue_free()
+        return
     add_to_group("debug_menu")
     set_process_input(true)
     set_process(true)

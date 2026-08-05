@@ -77,6 +77,7 @@ func configure(data: EntityData) -> void:
 
 func _ready() -> void:
     _parent = get_parent() as Node3D
+    debug_show_path = OS.is_debug_build() and debug_show_path
     _resolve_rotation_target()
     _speed_jitter = randf_range(0.95, 1.0)
     _wait_threshold = randf_range(WAIT_MIN_SECONDS, WAIT_MAX_SECONDS)
