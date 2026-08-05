@@ -39,7 +39,7 @@ Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Re
 | Directory | Purpose |
 |-----------|---------|
 | `scripts/components/` | 23 reusable entity behaviors (Health, Hitbox, Select, Combat, Movement, Art, Factory, Harvest, Transport, Deploy, DockHost/Client/Unload, etc.) |
-| `scripts/core/` | Engine-level systems: SelectionManager, BoundsSystem, Pathfinder, SpatialHash, TerrainSystem, TerrainCollision, TerrainRenderer, CellUtil, CellSubPositions, ResourceGrowthSystem, PlayerManager, DebugVisualizer, EntityMaskManager, PixelArtManager, SplineUtil |
+| `scripts/core/` | Engine-level systems: SelectionManager, BoundsSystem, Pathfinder, SpatialHash, TerrainSystem, TerrainRenderer, CellUtil, CellSubPositions, ResourceGrowthSystem, PlayerManager, DebugVisualizer, EntityMaskManager, PixelArtManager, SplineUtil |
 | `scripts/data/` | Resource type definitions: EntityData, WeaponData, ArtData, WarheadData, ProjectileData, ResourceType, GlobalRules, MapConfig, PlayerData, MapOverride, ActiveAnimData |
 | `scripts/entities/` | EntityFactory autoload — creates entities from data resources |
 | `scripts/buildings/` | BuildingManager — build mode, placement, preview system |

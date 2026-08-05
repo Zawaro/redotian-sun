@@ -3,11 +3,10 @@ extends Node
 # Corner-pivot terrain tiles must be placed and rotated about the foundation
 # center, not the mesh's corner pivot. Verifies CellUtil.tile_transform keeps a
 # tile's footprint centered on its cell at any rotation (pure math — MultiMesh
-# instance transforms aren't readable in headless), that the renderer routes
-# through it, and that the collision body mirrors the same transform.
+# instance transforms aren't readable in headless), and that the renderer routes
+# through it.
 
 const RENDERER_SCRIPT := "res://scripts/core/TerrainRenderer.gd"
-const COLLISION_SCRIPT := "res://scripts/core/TerrainCollision.gd"
 
 
 func _tree() -> SceneTree:
@@ -81,30 +80,6 @@ func test_renderer_resolves_corner_pivot_submesh():
     if entry.has("mesh_name"):
         TestHelper.assert_eq(String(entry["mesh_name"]), "clear01", "resolves clear01 submesh")
     _cleanup(renderer)
-    _finish()
-
-
-func test_collision_body_mirrors_renderer_transform():
-    var collision := _make_node(COLLISION_SCRIPT)
-    collision.clear_all()
-    var cell := Vector2i(1, 1)
-    var mesh: Mesh = collision._mesh_cache["clear01"]
-    collision.create_collision(cell, {"height": 0}, mesh, 90.0)
-    var key := CellUtil.cell_key_str(cell)
-    var body: StaticBody3D = collision._collision_bodies.get(key)
-    TestHelper.assert_true(body != null, "collision body created")
-    if body != null:
-        var expected_center := CellUtil.cell_to_world(cell)
-        var aabb := mesh.get_aabb()
-        var half := Vector3(aabb.size.x * 0.5, 0.0, aabb.size.z * 0.5)
-        var expected_pos := CellUtil.tile_transform(expected_center, 90.0, half).origin
-        TestHelper.assert_true(
-            body.position.distance_to(expected_pos) < 0.01, "collision body offset by rotated half"
-        )
-        TestHelper.assert_true(
-            absf(rad_to_deg(body.rotation.y) - 90.0) < 0.01, "collision body rotated 90 deg"
-        )
-    _cleanup(collision)
     _finish()
 
 
