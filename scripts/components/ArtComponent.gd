@@ -11,6 +11,9 @@ var _animation_player: AnimationPlayer
 var _foundation: Vector2i = Vector2i(1, 1)
 var _configured: bool = false
 var _waiting_for_path: String = ""
+var _entity_type: int = -1
+var _is_remappable: bool = false
+var _registered: bool = false
 
 
 func _ready() -> void:
@@ -26,6 +29,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+    _unregister_with_renderer()
     if not _waiting_for_path.is_empty():
         if BatchLoader.model_loaded.is_connected(_on_batch_model_loaded):
             BatchLoader.model_loaded.disconnect(_on_batch_model_loaded)
@@ -35,6 +39,8 @@ func _exit_tree() -> void:
 func configure(data: EntityData) -> void:
     art_data = data.art_data
     _foundation = data.foundation
+    _entity_type = data.entity_type
+    _is_remappable = data.art_data.is_remappable if data.art_data else false
     _configured = true
     if art_data and not art_data.model_path.is_empty():
         _try_load_model()
@@ -129,6 +135,55 @@ func _finalize_model(scene: PackedScene) -> void:
     # Deferred so a consumer connecting right after configure() (cache-hit path) still
     # receives it; the async path is already post-connection but stays uniform this way.
     model_loaded.emit.call_deferred()
+    _request_registration(instance)
+
+
+## Unit-type entities render through the UnitMeshRenderer MultiMesh buckets
+## instead of their GLB node tree. Registration is deferred so the entity is in
+## the scene tree (register needs global_position and the autoload).
+func _request_registration(instance: Node3D) -> void:
+    if Engine.is_editor_hint():
+        return
+    if not _eligible_for_instancing():
+        return
+    call_deferred("_register_with_renderer", instance)
+
+
+func _eligible_for_instancing() -> bool:
+    return (
+        _entity_type == EntityData.EntityType.INFANTRY
+        or _entity_type == EntityData.EntityType.VEHICLE
+        or _entity_type == EntityData.EntityType.AIRCRAFT
+    )
+
+
+func _register_with_renderer(instance: Node3D) -> void:
+    if not is_instance_valid(self) or _registered:
+        return
+    if not is_instance_valid(instance) or not is_instance_valid(get_parent()):
+        return
+    var tree := get_tree()
+    if tree == null:
+        return
+    var renderer := tree.root.get_node_or_null("UnitMeshRenderer")
+    if renderer == null:
+        return
+    var entity_root := get_parent() as Node3D
+    var model_offset := transform * instance.transform
+    if renderer.register(entity_root, art_data.model_path, instance, model_offset, _is_remappable):
+        _registered = true
+
+
+func _unregister_with_renderer() -> void:
+    if not _registered:
+        return
+    _registered = false
+    var tree := get_tree()
+    if tree == null or not is_instance_valid(get_parent()):
+        return
+    var renderer := tree.root.get_node_or_null("UnitMeshRenderer")
+    if renderer != null:
+        renderer.unregister(get_parent())
 
 
 func _apply_material(node: Node, mat: StandardMaterial3D) -> void:
