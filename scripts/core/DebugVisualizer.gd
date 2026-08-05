@@ -2,7 +2,7 @@ extends Node
 
 ## Pathfinding overlay
 @export_group("Debug")
-@export var enabled: bool = true
+@export var enabled: bool = OS.is_debug_build()
 
 ## Overlay toggles
 @export var show_spatial_hash: bool = false
@@ -25,6 +25,9 @@ var _active_entity_ids: Dictionary = {}
 
 
 func _process(_delta: float) -> void:
+    # Debug overlays never run in a non-debug (release) build.
+    if not OS.is_debug_build():
+        return
     if show_spatial_hash:
         _draw_spatial_hash()
     else:
@@ -456,7 +459,7 @@ func _hide_all_entity_ids() -> void:
 
 
 func reset_overlays() -> void:
-    enabled = true
+    enabled = OS.is_debug_build()
     show_spatial_hash = false
     show_entity_bounds = false
     show_health_bars = false
