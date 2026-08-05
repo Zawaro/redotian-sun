@@ -14,6 +14,7 @@ var _waiting_for_path: String = ""
 var _entity_type: int = -1
 var _is_remappable: bool = false
 var _registered: bool = false
+var _entity_root: Node3D = null
 
 
 func _ready() -> void:
@@ -40,6 +41,7 @@ func configure(data: EntityData) -> void:
     art_data = data.art_data
     _foundation = data.foundation
     _entity_type = data.entity_type
+    _entity_root = get_parent() as Node3D
     _is_remappable = data.art_data.is_remappable if data.art_data else false
     _configured = true
     if art_data and not art_data.model_path.is_empty():
@@ -160,7 +162,7 @@ func _eligible_for_instancing() -> bool:
 func _register_with_renderer(instance: Node3D) -> void:
     if not is_instance_valid(self) or _registered:
         return
-    if not is_instance_valid(instance) or not is_instance_valid(get_parent()):
+    if not is_instance_valid(instance) or not is_instance_valid(_entity_root):
         return
     var tree := get_tree()
     if tree == null:
@@ -168,9 +170,8 @@ func _register_with_renderer(instance: Node3D) -> void:
     var renderer := tree.root.get_node_or_null("UnitMeshRenderer")
     if renderer == null:
         return
-    var entity_root := get_parent() as Node3D
     var model_offset := transform * instance.transform
-    if renderer.register(entity_root, art_data.model_path, instance, model_offset, _is_remappable):
+    if renderer.register(_entity_root, art_data.model_path, instance, model_offset, _is_remappable):
         _registered = true
 
 
@@ -179,11 +180,11 @@ func _unregister_with_renderer() -> void:
         return
     _registered = false
     var tree := get_tree()
-    if tree == null or not is_instance_valid(get_parent()):
+    if tree == null or not is_instance_valid(_entity_root):
         return
     var renderer := tree.root.get_node_or_null("UnitMeshRenderer")
     if renderer != null:
-        renderer.unregister(get_parent())
+        renderer.unregister(_entity_root)
 
 
 func _apply_material(node: Node, mat: StandardMaterial3D) -> void:
