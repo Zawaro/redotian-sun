@@ -20,41 +20,41 @@
 
 ## 4. SelectionManager event-driven sync (D3)
 
-- [ ] 4.1 Emit a `selection_state_changed` signal from `SelectComponent.set_is_selected()`.
-- [ ] 4.2 Connect it in SelectionManager for tracked entities and reconcile that single entity on signal; remove the per-frame `_synchronize_visual_selection()` call from `_process`.
-- [ ] 4.3 Keep `_synchronize_visual_selection()` as a ≤10 Hz safety net for direct `is_selected` writes.
-- [ ] 4.4 Verify existing `test/unit` selection-manager tests pass; add tests for event-driven sync (same-frame add/remove) and the ≤100 ms external-mutation reconcile.
+- [x] 4.1 Emit a `selection_state_changed` signal from `SelectComponent.set_is_selected()`.
+- [x] 4.2 Connect it in SelectionManager for tracked entities and reconcile that single entity on signal; remove the per-frame `_synchronize_visual_selection()` call from `_process`.
+- [x] 4.3 Keep `_synchronize_visual_selection()` as a ≤10 Hz safety net for direct `is_selected` writes.
+- [x] 4.4 Verify existing `test/unit` selection-manager tests pass; add tests for event-driven sync (same-frame add/remove) and the ≤100 ms external-mutation reconcile.
 
 ## 5. SelectionOverlay tracked entity list (D6)
 
-- [ ] 5.1 Maintain the overlay's `_entities` list from SelectionManager `selection_changed`/`hover_changed` signals and HealthComponent health-changed signals instead of scanning the `"selectable"` group each frame; keep per-frame `queue_redraw()` for the small selected set.
-- [ ] 5.2 Verify brackets, pips, and health bars still render for selected/hovered entities; add a test that the overlay no longer scans the whole group per frame.
+- [x] 5.1 Maintain the overlay's `_entities` list from SelectionManager `selection_changed`/`hover_changed` signals and HealthComponent health-changed signals instead of scanning the `"selectable"` group each frame; keep per-frame `queue_redraw()` for the small selected set.
+- [x] 5.2 Verify brackets, pips, and health bars still render for selected/hovered entities; add a test that the overlay no longer scans the whole group per frame.
 
 ## 6. ProductionManager cached per-queue speed (D5)
 
-- [ ] 6.1 Add add/remove/`set_primary` signals to `FactoryComponent` (emit on ready, exit, and primary change).
-- [ ] 6.2 Cache production speed per `queue_key` in `ProductionManager`; invalidate the affected player/factory-type cache entries on those signals; keep `_find_factories()` for the spawn path only.
-- [ ] 6.3 Verify existing `test/unit` production-manager tests pass (speed formula unchanged); add a cache-invalidation test (factory destroyed → speed recomputed).
+- [x] 6.1 Add add/remove/`set_primary` signals to `FactoryComponent` (emit on ready, exit, and primary change).
+- [x] 6.2 Cache production speed per `queue_key` in `ProductionManager`; invalidate the affected player/factory-type cache entries on those signals; keep `_find_factories()` for the spawn path only.
+- [x] 6.3 Verify existing `test/unit` production-manager tests pass (speed formula unchanged); add a cache-invalidation test (factory destroyed → speed recomputed).
 
 ## 7. Pathfinder terrain height fast path (D7)
 
-- [ ] 7.1 Resolve `terrain` and `grid_cells` once per `find_path`; replace `_cell_height` per-probe scene-tree/dict/string lookups with `CellUtil.cell_to_world(cell, grid_cells)` + `terrain.get_height_at_world_smooth()`.
-- [ ] 7.2 Cache the current node's height across A* iterations (computed once, reused as current from previous neighbor pass).
-- [ ] 7.3 Verify existing `test/unit` pathfinder tests pass unchanged (cost/heuristic results identical); add a fast-path equality test vs the old lookup.
+- [x] 7.1 Resolve `terrain` and `grid_cells` once per `find_path`; replace `_cell_height` per-probe scene-tree/dict/string lookups with `CellUtil.cell_to_world(cell, grid_cells)` + `terrain.get_height_at_world_smooth()`.
+- [x] 7.2 Cache the current node's height across A* iterations (computed once, reused as current from previous neighbor pass).
+- [x] 7.3 Verify existing `test/unit` pathfinder tests pass unchanged (cost/heuristic results identical); add a fast-path equality test vs the old lookup.
 
 ## 8. CellReservation per-claimant index (D8)
 
-- [ ] 8.1 Maintain `_claimant_cells: Dictionary[claimant, Dictionary[cell_key, bool]]` in `reserve_sub_slot`/`release_sub_slot`; `release_all(claimant)` iterates only the claimant's own cells and prunes empty entries.
-- [ ] 8.2 Verify existing `test/unit` cell-reservation tests pass unchanged; add a test that `release_all` only touches the claimant's cells.
+- [x] 8.1 Maintain `_claimant_cells: Dictionary[claimant, Dictionary[cell_key, bool]]` in `reserve_sub_slot`/`release_sub_slot`; `release_all(claimant)` iterates only the claimant's own cells and prunes empty entries.
+- [x] 8.2 Verify existing `test/unit` cell-reservation tests pass unchanged; add a test that `release_all` only touches the claimant's cells.
 
 ## 9. Perf guard
 
 - [ ] 9.1 Add a `test/unit` perf-guard test asserting the per-frame SpatialHash reconcile performs no group-array allocations / child-node lookups for N entities (deterministic counters, not wall-clock).
 - [ ] 9.2 Add the same scan/alloc guard for SelectionManager and SelectionOverlay (no per-frame `get_nodes_in_group`).
-- [ ] 9.3 Run the full suite via `redot --headless -s test/run_tests.gd` and confirm all pass.
+- [x] 9.3 Run the full suite via `redot --headless -s test/run_tests.gd` and confirm all pass.
 
 ## 10. Final verification
 
-- [ ] 10.1 Run `gdlint scripts/**/*.gd test/**/*.gd` and `gdformat --check scripts/**/*.gd test/**/*.gd`; fix issues; check for tabs after format.
+- [x] 10.1 Run `gdlint scripts/**/*.gd test/**/*.gd` and `gdformat --check scripts/**/*.gd test/**/*.gd`; fix issues; check for tabs after format.
 - [ ] 10.2 Launch in the Redot editor on TestMap01 and eyeball selection/brackets/movement; confirm no regression.
 - [ ] 10.3 Update the OpenSpec change status and prepare for archive after merge.
