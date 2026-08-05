@@ -3,7 +3,7 @@ class_name MouseHandler
 
 @export var camera_controller: CameraController
 @export var raycast_distance: float = 500.0
-@export var selection_manager: SelectionManager
+var selection_manager: SelectionManager
 
 @onready var selection_rect: ReferenceRect = $SelectionRect
 
@@ -24,6 +24,7 @@ var _hovered_entity: Node3D = null
 
 func _ready():
     selection_rect.hide()
+    selection_manager = get_node_or_null("/root/SelectionManager") as SelectionManager
 
     # Debug logging for raycasting infrastructure
     if not camera_controller:

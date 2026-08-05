@@ -9,6 +9,7 @@ var hovered_entity: SelectComponent = null
 
 var _pending_moves: Array[Array] = []
 var _pending_index: int = 0
+var _selection_sync_counter: int = 0
 
 
 func _ready():
@@ -37,7 +38,7 @@ func deselect_entity(entity: SelectComponent):
 
 func deselect_all():
     clear_hover_preview()
-    for entity in selected_entities:
+    for entity in selected_entities.duplicate():
         if is_instance_valid(entity) and entity.has_method("set_is_selected"):
             entity.set_is_selected(false)
     var tree := get_tree()
@@ -47,7 +48,7 @@ func deselect_all():
             if select_comp and select_comp.is_selected:
                 select_comp.set_is_selected(false)
     selected_entities.clear()
-    emit_signal("selection_changed", [])
+    selection_changed.emit([] as Array[SelectComponent])
 
 
 func add_entity(entity: SelectComponent):
@@ -199,7 +200,9 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
 
 
 func _process(_delta: float) -> void:
-    _synchronize_visual_selection()
+    _selection_sync_counter += 1
+    if _selection_sync_counter % 6 == 0:
+        _synchronize_visual_selection()
     var batch: int = 8
     while _pending_index < _pending_moves.size() and batch > 0:
         var data: Array = _pending_moves[_pending_index]
@@ -218,12 +221,25 @@ func _synchronize_visual_selection() -> void:
         var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
         if not select_comp:
             continue
+        if not select_comp.selection_state_changed.is_connected(_on_selection_state_changed):
+            select_comp.selection_state_changed.connect(_on_selection_state_changed)
         # Add entities that are visually selected but not in the list
         if select_comp.is_selected and not selected_entities.has(select_comp):
             add_entity(select_comp)
         # Remove entities that are not visually selected but are in the list
         elif not select_comp.is_selected and selected_entities.has(select_comp):
             remove_entity(select_comp)
+
+
+func _on_selection_state_changed(select_comp: SelectComponent) -> void:
+    if not is_instance_valid(select_comp):
+        return
+    if select_comp.is_selected and not selected_entities.has(select_comp):
+        selected_entities.append(select_comp)
+        selection_changed.emit(selected_entities.duplicate())
+    elif not select_comp.is_selected and selected_entities.has(select_comp):
+        selected_entities.erase(select_comp)
+        selection_changed.emit(selected_entities.duplicate())
 
 
 func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:

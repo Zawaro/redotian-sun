@@ -1,6 +1,8 @@
 @tool
 class_name SelectComponent extends Area3D
 
+signal selection_state_changed(select_comp: SelectComponent)
+
 @export_group("Selection")
 @export var health_component: HealthComponent
 @export var is_selectable: bool = true
@@ -314,6 +316,7 @@ func set_is_selected(value: bool):
     is_selected = value
     _update_visibility()
     _update_move_line_on_select()
+    selection_state_changed.emit(self)
 
 
 func _process(_delta: float) -> void:

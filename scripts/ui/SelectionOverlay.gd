@@ -31,6 +31,7 @@ class HealthBarNode:
 var _draw_node: Node2D
 var _health_bar_node: Node2D
 var _entities: Array[Dictionary] = []
+var _tracked: Array[SelectComponent] = []
 
 
 func _ready():
@@ -41,6 +42,35 @@ func _ready():
 
     _draw_node = DrawNode.new()
     add_child(_draw_node)
+
+    _connect_to_selection_manager()
+
+
+func _connect_to_selection_manager():
+    var sm := get_node_or_null("/root/SelectionManager")
+    if not sm:
+        return
+    if not sm.selection_changed.is_connected(_on_selection_changed):
+        sm.selection_changed.connect(_on_selection_changed)
+    if not sm.hover_changed.is_connected(_on_hover_changed):
+        sm.hover_changed.connect(_on_hover_changed)
+
+
+func _on_selection_changed(selected: Array[SelectComponent]):
+    _rebuild_tracked(selected)
+
+
+func _on_hover_changed(_h: SelectComponent):
+    var sm := get_node_or_null("/root/SelectionManager")
+    var selected: Array[SelectComponent] = sm.selected_entities if sm else []
+    _rebuild_tracked(selected)
+
+
+func _rebuild_tracked(selected: Array[SelectComponent]):
+    var sm := get_node_or_null("/root/SelectionManager")
+    _tracked = selected.duplicate()
+    if sm and is_instance_valid(sm.hovered_entity) and not _tracked.has(sm.hovered_entity):
+        _tracked.append(sm.hovered_entity)
 
 
 func _process(_delta):
@@ -92,15 +122,10 @@ func _collect_entities():
     if not camera:
         return
 
-    var tree := get_tree()
-    if not tree:
-        return
-
-    for ent_node in tree.get_nodes_in_group("selectable"):
-        if not is_instance_valid(ent_node):
+    for ent in _tracked:
+        if not is_instance_valid(ent):
             continue
-        var ent := ent_node.get_node_or_null("SelectComponent") as SelectComponent
-        if not ent or not (ent.is_selected or ent.is_hovering):
+        if not (ent.is_selected or ent.is_hovering):
             continue
         if ent.select_box_type == 2:
             continue

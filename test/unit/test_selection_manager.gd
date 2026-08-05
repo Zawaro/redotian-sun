@@ -18,6 +18,87 @@ func test_deselect_all_clears():
     TestHelper.assert_true(count == 0, "deselect_all clears selection: expected 0, got %d" % count)
 
 
+func test_external_set_is_selected_reconciles_same_frame():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _sm.deselect_all()
+    var entity := Node3D.new()
+    entity.add_to_group("selectable")
+    var select_comp := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    select_comp.name = "SelectComponent"
+    entity.add_child(select_comp)
+    _sm.add_child(entity)
+
+    _sm._synchronize_visual_selection()
+
+    select_comp.set_is_selected(true)
+    (
+        TestHelper
+        . assert_true(
+            _sm.selected_entities.size() == 1 and _sm.selected_entities[0] == select_comp,
+            (
+                "external set_is_selected(true) reconciles same frame: "
+                + "expected component in selection after external select"
+            ),
+        )
+    )
+    select_comp.set_is_selected(false)
+    (
+        TestHelper
+        . assert_true(
+            not _sm.selected_entities.has(select_comp),
+            (
+                "external set_is_selected(false) reconciles same frame: "
+                + "expected component removed after external deselect"
+            ),
+        )
+    )
+
+    _sm.deselect_all()
+    entity.free()
+
+
+func test_throttled_sync_not_every_frame():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _sm.deselect_all()
+    _sm._selection_sync_counter = 0
+    var entity := Node3D.new()
+    entity.add_to_group("selectable")
+    var select_comp := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    select_comp.name = "SelectComponent"
+    select_comp.set_is_selected(true)
+    entity.add_child(select_comp)
+    _sm.add_child(entity)
+
+    for i in 5:
+        _sm._process(0.016)
+    (
+        TestHelper
+        . assert_true(
+            _sm.selected_entities.is_empty(),
+            "throttled sync skips frames: not reconciled before 6th frame",
+        )
+    )
+
+    _sm._process(0.016)
+    (
+        TestHelper
+        . assert_true(
+            _sm.selected_entities.size() == 1,
+            (
+                "throttled sync runs on 6th frame: expected reconciliation, got %d"
+                % _sm.selected_entities.size()
+            ),
+        )
+    )
+
+    _sm.deselect_all()
+    entity.free()
+
+
 func test_select_entity_ignores_null():
     if _sm == null:
         TestHelper.fail("SelectionManager not injected")
