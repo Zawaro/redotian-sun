@@ -1,6 +1,5 @@
 [gd_scene load_steps=12 format=3 uid="uid://ce077cqvy5f6p"]
 
-[ext_resource type="Script" uid="uid://3rhaj8dqrwil" path="res://scripts/core/SelectionManager.gd" id="1_drtgo"]
 [ext_resource type="PackedScene" uid="uid://b53rjho7dyptw" path="res://scenes/hud/Camera01.tscn" id="1_uw0ss"]
 [ext_resource type="PackedScene" uid="uid://c0blgqnig6dyh" path="res://scenes/hud/MouseHandler.tscn" id="2_cuur3"]
 [ext_resource type="PackedScene" uid="uid://crhsfehgv36e0" path="res://scenes/ui/FPSCounter01.tscn" id="2_drtgo"]
@@ -18,12 +17,8 @@
 
 [node name="Buildings" type="Node3D" parent="."]
 
-[node name="SelectionManager" type="Node" parent="."]
-script = ExtResource("1_drtgo")
-
-[node name="MouseHandler" parent="." node_paths=PackedStringArray("camera_controller", "selection_manager") instance=ExtResource("2_cuur3")]
+[node name="MouseHandler" parent="." node_paths=PackedStringArray("camera_controller") instance=ExtResource("2_cuur3")]
 camera_controller = NodePath("../Camera")
-selection_manager = NodePath("../SelectionManager")
 
 [node name="Camera" parent="." instance=ExtResource("1_uw0ss")]
 
