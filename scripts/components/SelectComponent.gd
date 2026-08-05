@@ -18,6 +18,9 @@ signal selection_state_changed(select_comp: SelectComponent)
 enum SelectBoxType { Infantry, Vehicle, Structure }
 
 const HEALTH_BAR_CUBE_SIZE = 0.33333333
+## Shared white unshaded material for building select boxes — one per game
+## instead of one fresh material per building.
+static var _shared_select_box_material: ORMMaterial3D = null
 var health_bar: MeshInstance3D
 var _building_select_box: MeshInstance3D
 var _health_bar_grid: MeshInstance3D
@@ -74,9 +77,11 @@ func _ready():
         var y_line_length = min((max_y - min_y) / 4, 0.5)
         var z_line_length = min((max_z - min_z) / 4, 1)
 
-        var select_box_material = ORMMaterial3D.new()
-        select_box_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-        select_box_material.albedo_color = Color.WHITE
+        if _shared_select_box_material == null:
+            _shared_select_box_material = ORMMaterial3D.new()
+            _shared_select_box_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+            _shared_select_box_material.albedo_color = Color.WHITE
+        var select_box_material: ORMMaterial3D = _shared_select_box_material
 
         # Create a 3D select box for buildings
         var building_select_box = MeshInstance3D.new()
