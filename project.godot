@@ -36,6 +36,7 @@ SelectionOverlay="*res://scripts/ui/SelectionOverlay.gd"
 PrerequisiteSystem="*res://scripts/production/PrerequisiteSystem.gd"
 ProductionManager="*res://scripts/production/ProductionManager.gd"
 BoundsSystem="*res://scripts/core/BoundsSystem.gd"
+UnitMeshRenderer="*res://scripts/core/UnitMeshRenderer.gd"
 
 [display]
 
