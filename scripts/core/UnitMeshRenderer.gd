@@ -11,10 +11,8 @@ const MAX_INSTANCES_PER_REGION: int = 512
 const HIDDEN_POSITION := Vector3(-9999.0, -9999.0, -9999.0)
 
 ## entity_root(Node3D) -> entry
-## entry: {model_path, model_root, region, slot, offset}
+## entry: {model_path, model_root, region, slot, offset, is_remappable}
 var _registry: Dictionary = {}
-## model_path -> baked ArrayMesh
-var _mesh_cache: Dictionary = {}
 ## region_key(Vector2i) -> {model_path -> bucket}
 ## bucket: {mmi, multimesh, active_count}
 var _buckets: Dictionary = {}
@@ -22,6 +20,9 @@ var _active_count: int = 0
 
 
 func _ready() -> void:
+    # Sync after gameplay nodes move (higher priority runs later), so instance
+    # transforms reflect the current physics step rather than the previous one.
+    process_physics_priority = 100
     set_physics_process(false)
 
 
@@ -61,6 +62,7 @@ func register(
         "region": region,
         "slot": slot,
         "offset": model_offset,
+        "is_remappable": is_remappable,
     }
     model_root.visible = false
     _active_count += 1
@@ -79,10 +81,6 @@ func unregister(entity_root: Node3D) -> void:
         set_physics_process(false)
 
 
-func get_bucket_count() -> int:
-    return _buckets.size()
-
-
 func _can_register(entity_root: Node3D) -> bool:
     if entity_root.process_mode == Node.PROCESS_MODE_DISABLED:
         return false
@@ -95,14 +93,11 @@ func _can_register(entity_root: Node3D) -> bool:
 
 
 func _ensure_mesh(model_path: String, is_remappable: bool) -> ArrayMesh:
-    if _mesh_cache.has(model_path):
-        return _mesh_cache[model_path]
+    # ModelBaker caches the baked mesh per path internally.
     var result := ModelBaker.bake_model(model_path, is_remappable)
     if result.is_empty():
         return null
-    var mesh: ArrayMesh = result.get("mesh")
-    _mesh_cache[model_path] = mesh
-    return mesh
+    return result.get("mesh") as ArrayMesh
 
 
 func _region_key(pos: Vector3) -> Vector2i:
@@ -200,6 +195,9 @@ func _physics_process(_delta: float) -> void:
         )
         if preview:
             _set_model_visible(model_root, true)
+            # ponytail: a parked preview keeps its slot counted toward region
+            # capacity (one transient preview at a time, negligible under 512);
+            # eject the slot too if previews ever outnumber region headroom.
             var parked: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
             if parked and entry["slot"] >= 0:
                 parked.set_instance_transform(entry["slot"], Transform3D(Basis(), HIDDEN_POSITION))
@@ -209,9 +207,16 @@ func _physics_process(_delta: float) -> void:
         if region != entry["region"]:
             _release_slot(entry["model_path"], entry["region"], entry["slot"])
             entry["region"] = region
-            entry["slot"] = _alloc_slot(
-                entry["model_path"], region, _mesh_cache.get(entry["model_path"]) as ArrayMesh
-            )
+            var migrated_mesh: ArrayMesh = _ensure_mesh(entry["model_path"], entry["is_remappable"])
+            entry["slot"] = _alloc_slot(entry["model_path"], region, migrated_mesh)
+            if entry["slot"] < 0:
+                push_warning(
+                    (
+                        "UnitMeshRenderer: region %s full for %s; falling back to node-tree"
+                        % [region, entry["model_path"]]
+                    )
+                )
+                _set_model_visible(model_root, true)
         if entry["slot"] >= 0:
             var multimesh: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
             if multimesh:
