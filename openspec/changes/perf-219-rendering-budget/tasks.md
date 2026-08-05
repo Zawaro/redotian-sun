@@ -19,7 +19,7 @@
 ## 4. UnitMeshRenderer
 
 - [x] 4.1 Create `scripts/core/UnitMeshRenderer.gd` (autoload): per-model baked mesh cache, per-region `MultiMeshInstance3D` buckets (`REGION_SIZE` ≈ 32 world units, `MAX_INSTANCES` 512, `custom_aabb` = region box, `physics_interpolation_mode = OFF`), slot allocation and swap-remove with `visible_instance_count`
-- [x] 4.2 Add `register(entity_root: Node3D, model_path: String, model_offset: Transform3D, is_remappable: bool)` and `unregister(entity_root)`; hide the caller's GLB node tree on register
+- [x] 4.2 Add `register(entity_root: Node3D, model_path: String, model_root: Node3D, model_offset: Transform3D, is_remappable: bool)` and `unregister(entity_root)`; hide the caller's GLB node tree on register
 - [x] 4.3 Implement per-frame sync in `_physics_process`: compute region key from entity position, migrate slots across region boundaries, write `set_instance_transform(slot, entity.global_transform * model_offset)`; guard `Engine.is_editor_hint()`; process only while registrations exist
 - [x] 4.4 Register `UnitMeshRenderer` autoload in `project.godot`
 - [x] 4.5 Add `test/unit/test_unit_mesh_renderer.gd`: register N units via `EntityFactory.create_entity("NOD_ATTACK_BUGGY")` and assert GLB hidden, slots/visible count grow, transform sync matches entity×offset, swap-remove compacts, cross-region move migrates buckets
