@@ -9,16 +9,20 @@ static func _get_terrain_system() -> Node:
     return tree.root.get_node_or_null("TerrainSystem")
 
 
-## Pure-arithmetic terrain height read for a cell: cell -> world -> vertex-grid
-## bilinear sample. No dict/string lookups (see D7). `grid_cells` is resolved
-## once per find_path call and threaded through instead of re-resolving per probe.
-static func _cell_height(
-    terrain: Node, cell: Vector2i, grid_cells: Vector2i = Vector2i.ZERO
-) -> float:
+## Pure-arithmetic terrain height read for a cell: the minimum of its 4 corner
+## vertices, matching TerrainSystem._compute_cell_from_vertices (a slope cell
+## reads at its lowest corner). No dict/string lookups. This preserves the
+## pre-D7 per-cell semantics so a 2-step cliff still blocks foot units — the
+## bilinear-average read made transition cells read high enough that 2-step
+## walls became climbable.
+static func _cell_height(terrain: Node, cell: Vector2i) -> float:
     if terrain == null:
         return 0.0
-    var world := CellUtil.cell_to_world(cell, grid_cells)
-    return terrain.get_height_at_world_smooth(world)
+    var h := mini(
+        mini(terrain.get_vertex(cell.x, cell.y), terrain.get_vertex(cell.x + 1, cell.y)),
+        mini(terrain.get_vertex(cell.x, cell.y + 1), terrain.get_vertex(cell.x + 1, cell.y + 1)),
+    )
+    return float(h) * terrain.HEIGHT_STEP
 
 
 ## Terrain passability for a unit's locomotor. Fly/hover pass everything; others
@@ -63,7 +67,6 @@ static func find_path(
         return PackedVector3Array()
 
     var terrain: Node = _get_terrain_system()
-    var grid_cells: Vector2i = terrain.grid_cells if terrain else Vector2i.ZERO
 
     # Bib cells are walkable but penalized — dockers (harvesters) path onto the
     # dock pad, but ordinary traffic detours around it. Null-safe: no penalty in
@@ -79,7 +82,7 @@ static func find_path(
         {
             "cell": start_cell,
             "f": CellUtil.heuristic(start_cell, end_cell),
-            "height": _cell_height(terrain, start_cell, grid_cells),
+            "height": _cell_height(terrain, start_cell),
         }
     ]
     var open_lookup: Dictionary = {}
@@ -156,7 +159,7 @@ static func find_path(
             if blocked_cells.has(nkey):
                 continue
 
-            var neighbor_height: float = _cell_height(terrain, neighbor, grid_cells)
+            var neighbor_height: float = _cell_height(terrain, neighbor)
             var cost_multiplier: float = 1.0
             if terrain and locomotor:
                 if not ignores_height and absf(neighbor_height - current_height) > climb_limit:

@@ -45,11 +45,6 @@ func _is_membership_node(node: Node) -> bool:
     return parent != null and (parent.is_in_group("entities") or parent.is_in_group("ice"))
 
 
-## Forces a full rebuild on the next physics tick (e.g. after map load).
-func refresh() -> void:
-    _rebuild_pending = true
-
-
 func _physics_process(_delta: float) -> void:
     if _rebuild_pending:
         rebuild()
@@ -121,13 +116,9 @@ func rebuild() -> void:
 ## the grid when a cell or state actually changed. No group scans, no node
 ## lookups, no per-entity dictionary allocations.
 func _reconcile() -> void:
-    var stale: Array = []
     for entity_root in _entry_map:
         var entry: Dictionary = _entry_map[entity_root]
         var node: Node3D = entry["node"]
-        if not is_instance_valid(node):
-            stale.append(entity_root)
-            continue
         var mc: MovementController = entry["mc"]
         var state: int = -1
         var shares := false
@@ -158,8 +149,6 @@ func _reconcile() -> void:
                 _shared_cell_counts[key] = _shared_cell_counts.get(key, 0) + 1
             else:
                 _blocked_cells[key] = true
-    for root in stale:
-        _drop_entry(root)
 
 
 func _add_entry_to_grid(entry: Dictionary, key: int) -> void:
@@ -196,21 +185,6 @@ func _has_blocking_entity(key: int) -> bool:
         if entry["state"] == MovementController.State.IDLE and not entry["shares"]:
             return true
     return false
-
-
-func _drop_entry(entity_root: Node) -> void:
-    var entry: Dictionary = _entry_map.get(entity_root) as Dictionary
-    if entry.is_empty():
-        return
-    var cached_key: int = entry["cell_key"]
-    var was_blocking: bool = entry["state"] == MovementController.State.IDLE and not entry["shares"]
-    var was_sharing: bool = entry["state"] == MovementController.State.IDLE and entry["shares"]
-    _remove_entry_from_grid(entry, cached_key)
-    if was_sharing:
-        _decrement_shared(cached_key)
-    elif was_blocking and not _has_blocking_entity(cached_key):
-        _blocked_cells.erase(cached_key)
-    _entry_map.erase(entity_root)
 
 
 func get_entries(cell: Vector2i) -> Array:

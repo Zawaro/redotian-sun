@@ -42,7 +42,12 @@ func deselect_entity(entity: SelectComponent):
 
 func deselect_all():
     clear_hover_preview()
-    for entity in selected_entities.duplicate():
+    # Snapshot then clear first so the set_is_selected(false) cascade
+    # (_on_selection_state_changed) sees each entity already gone and skips its
+    # emits — deselecting N units fires exactly one selection_changed, not N+1.
+    var snapshot := selected_entities.duplicate()
+    selected_entities.clear()
+    for entity in snapshot:
         if is_instance_valid(entity) and entity.has_method("set_is_selected"):
             entity.set_is_selected(false)
     var tree := get_tree()
@@ -51,7 +56,6 @@ func deselect_all():
             var select_comp := entity.get_node_or_null("SelectComponent") as SelectComponent
             if select_comp and select_comp.is_selected:
                 select_comp.set_is_selected(false)
-    selected_entities.clear()
     selection_changed.emit([] as Array[SelectComponent])
 
 
@@ -88,14 +92,20 @@ func set_hover_preview(enabled: bool, entity: SelectComponent = null):
 
     is_hovering = enabled
 
+    var cleared := false
     if hovered_entity and is_instance_valid(hovered_entity) and hovered_entity != entity:
         hovered_entity.set_is_hovering(false)
         hovered_entity = null
+        cleared = true
 
     if enabled and entity and is_instance_valid(entity):
         hovered_entity = entity
         hovered_entity.set_is_hovering(true)
-        emit_signal("hover_changed", entity)
+        hover_changed.emit(entity)
+    elif cleared:
+        # Notify consumers (SelectionOverlay) so their tracked hovered ref is
+        # dropped instead of lingering until the next selection/hover event.
+        hover_changed.emit(null)
 
 
 func clear_hover_preview():

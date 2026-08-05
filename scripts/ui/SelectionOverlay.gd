@@ -37,6 +37,7 @@ var _tracked: Array[SelectComponent] = []
 ## ponytail: catches a regression that reintroduces a scan through this counter
 ## only; a raw `get_nodes_in_group` in `_collect_entities` escapes it.
 var perf_group_scans: int = 0
+var _selection_manager: SelectionManager = null
 
 
 func _ready():
@@ -52,9 +53,13 @@ func _ready():
 
 
 func _connect_to_selection_manager():
-    var sm := get_node_or_null("/root/SelectionManager")
+    var sm := get_node_or_null("/root/SelectionManager") as SelectionManager
     if not sm:
+        # Autoload ordering normally guarantees SelectionManager exists at
+        # _ready; retry once on the next idle if it does not.
+        call_deferred("_connect_to_selection_manager")
         return
+    _selection_manager = sm
     if not sm.selection_changed.is_connected(_on_selection_changed):
         sm.selection_changed.connect(_on_selection_changed)
     if not sm.hover_changed.is_connected(_on_hover_changed):
@@ -66,16 +71,20 @@ func _on_selection_changed(selected: Array[SelectComponent]):
 
 
 func _on_hover_changed(_h: SelectComponent):
-    var sm := get_node_or_null("/root/SelectionManager")
-    var selected: Array[SelectComponent] = sm.selected_entities if sm else []
+    var selected: Array[SelectComponent] = (
+        _selection_manager.selected_entities if _selection_manager else []
+    )
     _rebuild_tracked(selected)
 
 
 func _rebuild_tracked(selected: Array[SelectComponent]):
-    var sm := get_node_or_null("/root/SelectionManager")
     _tracked = selected.duplicate()
-    if sm and is_instance_valid(sm.hovered_entity) and not _tracked.has(sm.hovered_entity):
-        _tracked.append(sm.hovered_entity)
+    if (
+        _selection_manager
+        and is_instance_valid(_selection_manager.hovered_entity)
+        and not _tracked.has(_selection_manager.hovered_entity)
+    ):
+        _tracked.append(_selection_manager.hovered_entity)
 
 
 func _process(_delta):
