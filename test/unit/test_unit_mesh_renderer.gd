@@ -176,5 +176,34 @@ func test_bucket_sets_aabb_and_disables_interpolation():
     _finish()
 
 
+func test_migration_into_full_region_keeps_entity_visible():
+    _setup()
+    # Fill region (0,0) with MAX_INSTANCES entities.
+    var max_instances := UnitMeshRenderer.MAX_INSTANCES_PER_REGION
+    var fill_a: Array[Node3D] = []
+    for i in max_instances:
+        var e := _make_unit(Vector3(float(i % 32), 0.0, float(i / 32)))
+        fill_a.append(e)
+        TestHelper.assert_true(_register(e), "register a %d" % i)
+    TestHelper.assert_eq(_renderer._active_count, max_instances, "region A full")
+    # Fill region (1,1) with MAX_INSTANCES entities (x,z within [32,64)).
+    var fill_b: Array[Node3D] = []
+    for i in max_instances:
+        var e := _make_unit(Vector3(32.0 + float(i % 32), 0.0, 32.0 + float(i / 32)))
+        fill_b.append(e)
+        TestHelper.assert_true(_register(e), "register b %d" % i)
+    TestHelper.assert_eq(_renderer._active_count, max_instances * 2, "both regions full")
+    # Move one entity from region A into the full region B.
+    var mover := fill_a[0]
+    var model_root := mover.get_node("ModelRoot") as Node3D
+    mover.global_position = Vector3(50.0, 0.0, 50.0)
+    _renderer._physics_process(0.0)
+    var entry: Dictionary = _renderer._registry[mover]
+    TestHelper.assert_eq(entry["slot"], -1, "no slot in full target region")
+    TestHelper.assert_true(model_root.visible, "GLB shown when no MultiMesh slot available")
+    _teardown()
+    _finish()
+
+
 func _finish() -> void:
     pass
