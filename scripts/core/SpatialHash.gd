@@ -13,6 +13,10 @@ var _ice_cells: Dictionary = {}
 ## Pooled per-entity entries (entity root -> entry dict). Shared with `_grid`.
 var _entry_map: Dictionary = {}
 var _rebuild_pending := false
+## Perf-guard counter: group scans performed by the rebuild path. The per-frame
+## `_reconcile()` must never increment it (test/unit/test_perf_guard.gd asserts
+## this). ponytail: only catches scans routed through these scan sites.
+var perf_group_scans: int = 0
 
 
 func _enter_tree() -> void:
@@ -64,6 +68,7 @@ func rebuild() -> void:
     # block has a short window without passability override / weight damage. Map
     # ice is scene-placed before the first rebuild, so this only matters for
     # runtime ice spawning.
+    perf_group_scans += 1
     for ice in get_tree().get_nodes_in_group("ice"):
         var ice_root := ice as Node3D
         if not is_instance_valid(ice_root):
@@ -72,6 +77,7 @@ func rebuild() -> void:
         if not _ice_cells.has(ice_key):
             _ice_cells[ice_key] = []
         _ice_cells[ice_key].append(ice_root)
+    perf_group_scans += 1
     for entity in get_tree().get_nodes_in_group("entities"):
         # ponytail: scene-placed units add SelectComponent (Node) to group,
         # not the root Node3D. Resolve root for MC lookup + position.

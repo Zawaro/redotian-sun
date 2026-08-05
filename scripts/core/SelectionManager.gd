@@ -10,6 +10,10 @@ var hovered_entity: SelectComponent = null
 var _pending_moves: Array[Array] = []
 var _pending_index: int = 0
 var _selection_sync_counter: int = 0
+## Perf-guard counter: "selectable"-group scans by the throttled sync. The
+## per-frame path must only scan every 6th frame (test/unit/test_perf_guard.gd).
+## ponytail: only catches scans routed through this scan site.
+var perf_group_scans: int = 0
 
 
 func _ready():
@@ -215,6 +219,7 @@ func _synchronize_visual_selection() -> void:
     var tree := get_tree()
     if not tree:
         return
+    perf_group_scans += 1
     for entity in tree.get_nodes_in_group("selectable"):
         if not is_instance_valid(entity):
             continue
