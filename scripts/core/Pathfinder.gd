@@ -60,13 +60,14 @@ static func find_path(
     locomotor: Locomotor = null,
     ignore_bib_penalty: bool = false,
 ) -> PackedVector3Array:
-    var start_cell := CellUtil.world_to_cell(start_world)
-    var end_cell := CellUtil.world_to_cell(end_world)
+    # Resolve TerrainSystem once per path, not per neighbour.
+    var terrain: Node = _get_terrain_system()
+    var grid_cells: Vector2i = terrain.grid_cells if terrain else Vector2i(32, 32)
+    var start_cell := CellUtil.world_to_cell(start_world, grid_cells)
+    var end_cell := CellUtil.world_to_cell(end_world, grid_cells)
 
     if start_cell == end_cell:
         return PackedVector3Array()
-
-    var terrain: Node = _get_terrain_system()
 
     # Bib cells are walkable but penalized — dockers (harvesters) path onto the
     # dock pad, but ordinary traffic detours around it. Null-safe: no penalty in

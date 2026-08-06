@@ -37,6 +37,7 @@
 [ext_resource type="Resource" path="res://resources/land_types/road.tres" id="35_lt_road"]
 [ext_resource type="Resource" path="res://resources/land_types/water.tres" id="36_lt_water"]
 [ext_resource type="Resource" path="res://resources/land_types/cliff.tres" id="37_lt_cliff"]
+[ext_resource type="Resource" path="res://resources/land_types/resource.tres" id="38_lt_resource"]
 [ext_resource type="Resource" path="res://resources/locomotors/Foot.tres" id="38_lm_foot"]
 [ext_resource type="Resource" path="res://resources/locomotors/Track.tres" id="39_lm_track"]
 [ext_resource type="Resource" path="res://resources/locomotors/Wheel.tres" id="40_lm_wheel"]
@@ -97,7 +98,8 @@ land_types = {
 "rough": ExtResource("34_lt_rough"),
 "road": ExtResource("35_lt_road"),
 "water": ExtResource("36_lt_water"),
-"cliff": ExtResource("37_lt_cliff")
+"cliff": ExtResource("37_lt_cliff"),
+"resource": ExtResource("38_lt_resource")
 }
 locomotors = {
 "Foot": ExtResource("38_lm_foot"),
