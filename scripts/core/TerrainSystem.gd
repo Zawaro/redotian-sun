@@ -8,6 +8,8 @@ const MAX_HEIGHT: int = 10
 const DEFAULT_GRID_CELLS: Vector2i = Vector2i(50, 50)
 ## Default land type for cells with no explicit surface assignment.
 const DEFAULT_LAND_TYPE: String = "clear"
+## Land type reported for cells occupied by a resource crystal.
+const RESOURCE_LAND_TYPE: String = "resource"
 
 var grid_cells: Vector2i = DEFAULT_GRID_CELLS:
     set(value):
@@ -199,8 +201,12 @@ func get_cell_type(cell: Vector2i) -> String:
     return data.get("type", "")
 
 
-## Land type id for a cell (defaults to "clear" when unassigned).
+## Land type id for a cell. Resource-occupied cells resolve to `resource`
+## (derived from the SpatialHash registry, so it tracks growth and harvest);
+## otherwise the painted overlay applies, defaulting to "clear".
 func get_land_type(cell: Vector2i) -> String:
+    if SpatialHash.instance and SpatialHash.instance.has_resource_cell(cell):
+        return RESOURCE_LAND_TYPE
     return _land_types.get(CellUtil.cell_key(cell), DEFAULT_LAND_TYPE)
 
 

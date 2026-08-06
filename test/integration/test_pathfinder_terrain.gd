@@ -4,6 +4,8 @@ extends Node
 
 var _ts: Node = null
 var _sh: Node = null
+var _test_passed := 0
+var _test_failed := 0
 
 
 func test_find_path_returns_array():
@@ -22,6 +24,125 @@ func test_find_path_returns_array():
             "find_path returns %d waypoints: expected waypoints, got empty array" % path.size(),
         )
     )
+
+
+func test_wheeled_detours_around_resource_cell():
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    var wheel := Locomotor.new()
+    wheel.terrain_speeds = {"clear": 1.0, "resource": 0.5, "road": 1.25, "rough": 0.5}
+    var start := Vector3(2.0, 0.0, 2.0)
+    var end := Vector3(10.0, 0.0, 10.0)
+    var mid_cell := CellUtil.world_to_cell(Vector3(6.0, 0.0, 6.0), _ts.grid_cells)
+    SpatialHash.instance.register_resource_cell(mid_cell)
+    var path: PackedVector3Array = Pathfinder.find_path(start, end, {}, wheel)
+    SpatialHash.instance.unregister_resource_cell(mid_cell)
+    var crossed_resource := false
+    for wp in path:
+        if CellUtil.world_to_cell(wp, _ts.grid_cells) == mid_cell:
+            crossed_resource = true
+            break
+    _ts.clear()
+    # Crossing costs 2.0×; a one-cell detour is cheaper, so wheeled routes around.
+    if path.size() > 0 and not crossed_resource:
+        _test_passed += 1
+        print("    PASS: wheeled unit detours around resource cell (%d waypoints)" % path.size())
+    else:
+        _test_failed += 1
+        print("    FAIL: crossed_resource=%s, size=%d" % [crossed_resource, path.size()])
+
+
+func test_hover_crosses_resource_cell():
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    var hover := Locomotor.new()
+    hover.terrain_speeds = {"clear": 1.0, "resource": 1.0}
+    var start := Vector3(2.0, 0.0, 2.0)
+    var end := Vector3(10.0, 0.0, 10.0)
+    var mid_cell := CellUtil.world_to_cell(Vector3(6.0, 0.0, 6.0), _ts.grid_cells)
+    SpatialHash.instance.register_resource_cell(mid_cell)
+    var path: PackedVector3Array = Pathfinder.find_path(start, end, {}, hover)
+    SpatialHash.instance.unregister_resource_cell(mid_cell)
+    var crossed_resource := false
+    for wp in path:
+        if CellUtil.world_to_cell(wp, _ts.grid_cells) == mid_cell:
+            crossed_resource = true
+            break
+    _ts.clear()
+    # Hover takes no resource penalty (1.0), so the straight line crosses the cell.
+    if path.size() > 0 and crossed_resource:
+        _test_passed += 1
+        print(
+            "    PASS: hover unit crosses resource cell at no penalty (%d waypoints)" % path.size()
+        )
+    else:
+        _test_failed += 1
+        print("    FAIL: crossed_resource=%s, size=%d" % [crossed_resource, path.size()])
+
+
+func test_foot_blocked_by_water():
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    # Water wall at grid-index x=19, z in 14..21 (gap at z>=22 so a route exists).
+    for z in range(14, 22):
+        _ts.set_land_type(Vector2i(19, z), "water")
+    var foot := Locomotor.new()
+    foot.terrain_speeds = {"clear": 1.0, "road": 1.11, "rough": 0.89}
+    var start := Vector3(2.0, 0.0, 2.0)
+    var end := Vector3(12.0, 0.0, 12.0)
+    var path: PackedVector3Array = Pathfinder.find_path(start, end, {}, foot)
+    var crossed_water := false
+    for wp in path:
+        var c := CellUtil.world_to_cell(wp, _ts.grid_cells)
+        if _ts.get_land_type(c) == "water":
+            crossed_water = true
+            break
+    for z in range(14, 22):
+        _ts.set_land_type(Vector2i(19, z), "clear")
+    _ts.clear()
+    # Foot has no water speed -> water is impassable, the path routes around it.
+    if path.size() > 0 and not crossed_water:
+        _test_passed += 1
+        print("    PASS: foot unit routes around impassable water (%d waypoints)" % path.size())
+    else:
+        _test_failed += 1
+        print("    FAIL: crossed_water=%s, size=%d" % [crossed_water, path.size()])
+
+
+func test_bib_cell_does_not_block_path():
+    if _ts == null:
+        _test_failed += 1
+        print("    FAIL: TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    var start := Vector3(2.0, 0.0, 2.0)
+    var end := Vector3(10.0, 0.0, 10.0)
+    var end_cell := CellUtil.world_to_cell(end, _ts.grid_cells)
+    # Register a bib on a cell along the route; bibs must never block movement.
+    var mid_cell := CellUtil.world_to_cell(Vector3(6.0, 0.0, 6.0), _ts.grid_cells)
+    SpatialHash.instance.register_bib_cells([mid_cell])
+    var with_bib: PackedVector3Array = Pathfinder.find_path(start, end)
+    SpatialHash.instance._bib_cells.clear()
+    var reached: bool = (
+        with_bib.size() > 0
+        and CellUtil.world_to_cell(with_bib[with_bib.size() - 1], _ts.grid_cells) == end_cell
+    )
+    _ts.clear()
+    if reached:
+        _test_passed += 1
+        print("    PASS: bib cell does not block movement")
+    else:
+        _test_failed += 1
+        print("    FAIL: reached=%s, size=%d" % [reached, with_bib.size()])
 
 
 func test_find_path_empty_for_same_cell():

@@ -70,6 +70,25 @@ func test_amphibious_water_factor():
     TestHelper.assert_true(is_equal_approx(factor, 0.6), "amphibious on water -> 0.6 speed")
 
 
+func test_resource_cell_slows_movement():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _reset_terrain()
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var mc: MovementController = pair[1]
+    var wheel := Locomotor.new()
+    wheel.terrain_speeds = {"clear": 1.0, "resource": 0.5}
+    mc._locomotor_data = wheel
+    var cell := CellUtil.world_to_cell(Vector3.ZERO, _ts.grid_cells)
+    SpatialHash.instance.register_resource_cell(cell)
+    var factor: float = mc._terrain_speed_factor()
+    SpatialHash.instance.unregister_resource_cell(cell)
+    _reset_terrain()
+    pair[0].queue_free()
+    TestHelper.assert_true(is_equal_approx(factor, 0.5), "wheel on resource cell -> 0.5 speed")
+
+
 func test_hover_floats_above_terrain():
     _reset_terrain()
     var root: Node = Engine.get_main_loop().root
