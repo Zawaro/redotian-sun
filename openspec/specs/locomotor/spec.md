@@ -68,16 +68,24 @@ MovementController SHALL multiply its per-frame step by the terrain speed multip
 - **WHEN** a unit's current cell has a land type absent from its `terrain_speeds` and passability was already allowed
 - **THEN** the terrain speed factor is 1.0
 
-### Requirement: Resource terrain speeds
-Every ground `Locomotor` SHALL declare a `"resource"` entry in `terrain_speeds` for resource-occupied crystal fields, using the TS tiberium percentages: `Foot`/`Jumpjet` `0.9`, `Track`/`Subterranean` `0.7`, `Wheel`/`Amphibious` `0.5`, `Hover` `1.0`. `Ship` and `Fly` SHALL declare none. The `resource` entry SHALL drive both pathing cost (via the pathfinder's per-locomotor multiplier) and movement speed (via `MovementController`).
+### Requirement: Resource terrain speed per ground locomotor
+Every ground `Locomotor` SHALL declare a `"resource"` entry in `terrain_speeds` using the TS tiberium percentages: `Foot` and `Jumpjet` at `0.9`, `Track` and `Subterranean` at `0.7`, `Wheel` and `Amphibious` at `0.5`. `Hover` SHALL declare `"resource": 1.0`. `Ship` SHALL declare no `"resource"` entry (impassable, TS Float = 0%). `Fly` SHALL declare none (airborne). The existing `is_passable` and `get_speed_multiplier` methods SHALL consume these entries unchanged. The `resource` entry SHALL drive both pathing cost (via the pathfinder's per-locomotor multiplier) and movement speed (via `MovementController`).
 
 #### Scenario: Wheeled unit slows in a crystal field
-- **WHEN** a wheeled unit (`resource = 0.5`) moves over a resource-occupied cell
-- **THEN** its terrain speed factor is `0.5` and pathing into that cell costs `2.0×` the base step
+- **WHEN** a wheeled unit (`resource = 0.5`) enters a resource-occupied cell
+- **THEN** its terrain speed multiplier is `0.5`
 
 #### Scenario: Hover is unaffected by crystal fields
-- **WHEN** a hover unit (`resource = 1.0`) moves over a resource-occupied cell
-- **THEN** its terrain speed factor is `1.0`
+- **WHEN** a hover unit (`resource = 1.0`) enters a resource-occupied cell
+- **THEN** its terrain speed multiplier is `1.0`
+
+#### Scenario: Ship cannot cross crystal fields
+- **WHEN** `is_passable("resource")` is called on a Ship locomotor
+- **THEN** it returns `false`
+
+#### Scenario: Validation accepts the resource key
+- **WHEN** `GlobalRules.validate_locomotor_keys()` runs after the `resource` land type is registered
+- **THEN** it returns no errors for the `resource` terrain speed keys
 
 ### Requirement: Hover locomotion
 MovementController SHALL treat a `Hover` locomotor as ignoring slope coefficients (uphill/downhill never apply) and floating at a hover height above terrain: the unit's Y is set to terrain height + hover height (from `hover_height_override` or `GlobalRules.hover_height`) instead of snapping to terrain.

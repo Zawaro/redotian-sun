@@ -27,3 +27,10 @@ GlobalRules SHALL contain a `land_types: Dictionary` mapping land type id string
 #### Scenario: Unknown land type lookup
 - **WHEN** `get_land_type("unknown")` is called for an id not in the registry
 - **THEN** it returns `null`
+
+### Requirement: Resource land type registered in GlobalRules
+`GlobalRules.land_types` SHALL register a `"resource"` land type (id `resource`, display name `"Resource"`), so per-locomotor `resource` terrain speeds pass `validate_locomotor_keys()` and modders can repaint it.
+
+#### Scenario: Resource land type available
+- **WHEN** GlobalRules is loaded
+- **THEN** `get_land_type("resource")` returns the `resource` LandType resource
