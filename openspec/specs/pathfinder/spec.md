@@ -123,6 +123,14 @@ Pathfinder SHALL weight neighbor transitions by the inverse of the unit's terrai
 - **WHEN** a wheeled unit (`rough = 0.5`, `road = 1.25`) has equal-length routes over rough and road
 - **THEN** the road route has lower total cost and is preferred
 
+#### Scenario: Crystal field slows per-locomotor
+- **WHEN** a wheeled unit (`resource = 0.5`) pathfinds across a resource-occupied cell
+- **THEN** the transition costs `base / 0.5 = 2.0×`, biasing the path around it when a cheaper detour exists
+
+#### Scenario: Hover crosses crystal fields
+- **WHEN** a hover unit (`resource = 1.0`) pathfinds across the same resource cells
+- **THEN** the transition costs the same as clear ground
+
 #### Scenario: Water with zero speed is blocked
 - **WHEN** a unit's terrain speed multiplier for a cell is `0.0`
 - **THEN** the cell is treated as impassable regardless of pathing cost

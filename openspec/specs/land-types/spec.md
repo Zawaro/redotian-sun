@@ -2,7 +2,7 @@
 
 ## Purpose
 
-LandType is the surface-identity registry: each terrain surface type (clear, rough, road, water, cliff, and modder-defined types) has an id, display name, and editor color. LandTypes carry no movement behavior — speed and passability per surface live in the Locomotor registry.
+LandType is the surface-identity registry: each terrain surface type (clear, rough, road, water, cliff, resource, and modder-defined types) has an id, display name, and editor color. LandTypes carry no movement behavior — speed and passability per surface live in the Locomotor registry. The `resource` type marks resource-occupied crystal fields; `TerrainSystem.get_land_type()` resolves those cells dynamically.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ GlobalRules SHALL contain a `land_types: Dictionary` mapping land type id string
 
 #### Scenario: Default land types
 - **WHEN** GlobalRules is loaded
-- **THEN** `land_types` contains at least "clear", "rough", "road", "water", and "cliff"
+- **THEN** `land_types` contains at least "clear", "rough", "road", "water", "cliff", and "resource"
 
 #### Scenario: Custom land type registration
 - **WHEN** a mod adds a "lava" LandType and registers it in `land_types`
