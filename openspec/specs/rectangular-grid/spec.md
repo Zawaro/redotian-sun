@@ -66,13 +66,23 @@ owned-cell edges.
 - **THEN** the effective dimensions are `(23.5, 19.5)` and the vertices are `N(3, 0, -43)`, `E(42, 0, -4)`, `S(-5, 0, 43)`, `W(-44, 0, 4)`
 
 ### Requirement: Blue visible bounds
-The blue visible bounds diamond SHALL use effective dimensions
-`(W - visible_offset_x - 0.5, H - visible_offset_z - 0.5)`. Default visible
-offsets SHALL be `Vector2i(5, 4)`.
+The blue visible bounds diamond SHALL be the red map diamond shrunk independently
+by four per-edge insets in cell units: `left_inset`, `right_inset`, `top_inset`,
+`bottom_inset`. Defaults SHALL be `left=right=5, top=bottom=4`. In the sum/diff
+frame the visible diamond is a rectangle bounded by `sum ∈ [-h+top, h-bottom]`
+and `diff ∈ [-w+left, w-right]`.
 
 #### Scenario: Blue bounds for 24×20 map
-- **WHEN** blue bounds are computed with default offsets
-- **THEN** the effective dimensions are `(18.5, 15.5)` and the vertices are `N(2, 0, -34)`, `E(33, 0, -3)`, `S(-4, 0, 34)`, `W(-35, 0, 3)`
+- **WHEN** blue bounds are computed on a 24×20 map with defaults left=right=5, top=bottom=4
+- **THEN** the visible diamond spans `sum ∈ [-16, 15]` and `diff ∈ [-19, 18]`
+
+#### Scenario: Asymmetric insets shift the visible diamond
+- **WHEN** insets are `left=8, right=2, top=2, bottom=6` on a 24×20 map
+- **THEN** the visible diamond spans `sum ∈ [-18, 13]` and `diff ∈ [-16, 21]`, off the map center
+
+#### Scenario: Zero insets equal the map diamond
+- **WHEN** all four insets are `0`
+- **THEN** `is_in_play_area(cell)` matches `is_in_map_bounds(cell)` for every cell
 
 ### Requirement: BoundsSystem clamp uses centered constraints
 BoundsSystem SHALL clamp gameplay and camera points around world origin using

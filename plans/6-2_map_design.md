@@ -78,9 +78,9 @@ func save_map(path):
 
 ### Map Editor Toolbar
 The MapEditor toolbar provides:
-- **Save/Load** — JSON map format (v4 with `map_size`/`visible_bounds_size`)
+- **Save/Load** — JSON map format (v4 with `map_size`/`visible_bounds`)
 - **New Map** — dialog to set map dimensions, reinitializes grid (default 128×128)
-- **Offset SpinBox fields** — X Offset and Z Offset (cell units) for live editing of visible bounds
+- **Inset SpinBox fields** — Left/Right/Top/Bottom insets (cell units) for live editing of the visible bounds; each max is dynamically capped so the visible diamond never exceeds the map or becomes empty
 - **Tool buttons** — Paint Height, Paint Resource, Place Tree, Erase
 - **Strength/Radius** controls for painting tools
 - **Grid toggle** and height label
