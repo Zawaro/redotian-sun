@@ -26,8 +26,8 @@ The JSON currently declares `"version": 4` but only carries `grid_cells`. Older 
 The previous symmetric `visible_offset_x/z` model (one inset per half-axis) could only shrink the visible diamond evenly; it could not move the play area off the map center. The dialogs now expose **Left / Right / Top / Bottom** insets in cells:
 - `left_inset` shrinks the west edge (`difference >= -w + left`),
 - `right_inset` shrinks the east edge (`difference < w - right`),
-- `bottom_inset` shrinks the south edge (`sum >= -h + bottom`),
-- `top_inset` shrinks the north edge (`sum < h - top`).
+- `top_inset` shrinks the north edge (`sum >= -h + top`),
+- `bottom_inset` shrinks the south edge (`sum < h - bottom`).
 
 Asymmetric pairs shift the diamond center (e.g. `left != right` moves it along the X axis), replacing the earlier center-offset idea without any coupling rules — each edge is independent. Defaults are `left=right=5, top=bottom=4` (the previous editor look). Dialog spinbox maxes are dynamic: `top_max = 2h - bottom - 1`, `left_max = 2w - right - 1`, etc., so the visible bounds can never exceed the map or become empty.
 
