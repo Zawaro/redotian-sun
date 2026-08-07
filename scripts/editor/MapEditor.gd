@@ -290,7 +290,7 @@ func _show_new_map_dialog() -> void:
     var dialog := PopupPanel.new()
     dialog.name = "NewMapDialog"
     dialog.title = "New Map"
-    dialog.size = Vector2i(400, 520)
+    dialog.size = Vector2i(400, 680)
 
     var vbox := VBoxContainer.new()
     vbox.add_theme_constant_override("separation", 8)
@@ -348,50 +348,74 @@ func _show_new_map_dialog() -> void:
     players_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(players_spin)
 
-    var offset_x_label := Label.new()
-    offset_x_label.text = "Visible Bounds Width:"
-    vbox.add_child(offset_x_label)
-    var offset_x_spin := SpinBox.new()
-    offset_x_spin.min_value = 0.0
-    offset_x_spin.max_value = 512.0
-    offset_x_spin.step = 1.0
-    offset_x_spin.value = width_spin.value - 10.0
-    offset_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    vbox.add_child(offset_x_spin)
+    var left_label := Label.new()
+    left_label.text = "Left Inset:"
+    vbox.add_child(left_label)
+    var left_spin := SpinBox.new()
+    left_spin.min_value = 0.0
+    left_spin.step = 1.0
+    left_spin.value = 5.0
+    left_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(left_spin)
 
-    var offset_z_label := Label.new()
-    offset_z_label.text = "Visible Bounds Height:"
-    vbox.add_child(offset_z_label)
-    var offset_z_spin := SpinBox.new()
-    offset_z_spin.min_value = 0.0
-    offset_z_spin.max_value = 512.0
-    offset_z_spin.step = 1.0
-    offset_z_spin.value = height_spin.value - 8.0
-    offset_z_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    vbox.add_child(offset_z_spin)
+    var right_label := Label.new()
+    right_label.text = "Right Inset:"
+    vbox.add_child(right_label)
+    var right_spin := SpinBox.new()
+    right_spin.min_value = 0.0
+    right_spin.step = 1.0
+    right_spin.value = 5.0
+    right_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(right_spin)
+
+    var top_label := Label.new()
+    top_label.text = "Top Inset:"
+    vbox.add_child(top_label)
+    var top_spin := SpinBox.new()
+    top_spin.min_value = 0.0
+    top_spin.step = 1.0
+    top_spin.value = 4.0
+    top_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(top_spin)
+
+    var bottom_label := Label.new()
+    bottom_label.text = "Bottom Inset:"
+    vbox.add_child(bottom_label)
+    var bottom_spin := SpinBox.new()
+    bottom_spin.min_value = 0.0
+    bottom_spin.step = 1.0
+    bottom_spin.value = 4.0
+    bottom_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(bottom_spin)
 
     var bounds_label := Label.new()
     vbox.add_child(bounds_label)
 
     var update_bounds := func() -> void:
-        var _w: int = int(width_spin.value)
-        var _h: int = int(height_spin.value)
-        var ox: int = int(offset_x_spin.value)
-        var oz: int = int(offset_z_spin.value)
-        bounds_label.text = "Visible Bounds: %d × %d" % [ox, oz]
+        var w: int = int(width_spin.value)
+        var h: int = int(height_spin.value)
+        var l: int = int(left_spin.value)
+        var r: int = int(right_spin.value)
+        var t: int = int(top_spin.value)
+        var b: int = int(bottom_spin.value)
+        left_spin.max_value = maxf(2.0 * w - r - 1.0, 0.0)
+        right_spin.max_value = maxf(2.0 * w - l - 1.0, 0.0)
+        top_spin.max_value = maxf(2.0 * h - b - 1.0, 0.0)
+        bottom_spin.max_value = maxf(2.0 * h - t - 1.0, 0.0)
+        left_spin.value = minf(left_spin.value, left_spin.max_value)
+        right_spin.value = minf(right_spin.value, right_spin.max_value)
+        top_spin.value = minf(top_spin.value, top_spin.max_value)
+        bottom_spin.value = minf(bottom_spin.value, bottom_spin.max_value)
+        var vw: int = maxi(w - l - r, 1)
+        var vh: int = maxi(h - t - b, 1)
+        bounds_label.text = "Visible Bounds: %d × %d" % [vw, vh]
 
-    width_spin.value_changed.connect(
-        func(_v: float) -> void:
-            offset_x_spin.value = width_spin.value - 10.0
-            update_bounds.call()
-    )
-    height_spin.value_changed.connect(
-        func(_v: float) -> void:
-            offset_z_spin.value = height_spin.value - 8.0
-            update_bounds.call()
-    )
-    offset_x_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
-    offset_z_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    width_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    height_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    left_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    right_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    top_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    bottom_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
     update_bounds.call()
 
     var btn_row := HBoxContainer.new()
@@ -412,15 +436,17 @@ func _show_new_map_dialog() -> void:
             var h: int = int(height_spin.value)
             var start_h: int = int(start_h_spin.value)
             var players: int = int(players_spin.value)
-            var ox: int = int(offset_x_spin.value)
-            var oz: int = int(offset_z_spin.value)
-            _apply_new_map(w, h, start_h, players, ox, oz)
+            var l: int = int(left_spin.value)
+            var r: int = int(right_spin.value)
+            var t: int = int(top_spin.value)
+            var b: int = int(bottom_spin.value)
+            _apply_new_map(w, h, start_h, players, l, r, t, b)
             dialog.queue_free()
     )
     btn_row.add_child(create_btn)
 
     get_node("EditorUI").add_child(dialog)
-    dialog.popup_centered(Vector2i(400, 520))
+    dialog.popup_centered(Vector2i(400, 680))
 
 
 func _apply_new_map(
@@ -428,13 +454,18 @@ func _apply_new_map(
     height: int,
     _start_height: int,
     _player_count: int,
-    offset_x: int = 0,
-    offset_z: int = 0
+    left: int = 5,
+    right: int = 5,
+    top: int = 4,
+    bottom: int = 4
 ) -> void:
     _clear_terrain_renderer()
     TerrainSystem.clear()
     TerrainSystem.init_grid(width, height)
-    BoundsSystem.set_visible_bounds_size(Vector2i(offset_x, offset_z))
+    BoundsSystem.left_inset = left
+    BoundsSystem.right_inset = right
+    BoundsSystem.top_inset = top
+    BoundsSystem.bottom_inset = bottom
     _prefill_terrain()
     _grid._draw_grid()
 
@@ -448,7 +479,7 @@ func _show_map_settings_dialog() -> void:
     var dialog := PopupPanel.new()
     dialog.name = "MapSettingsDialog"
     dialog.title = "Map Settings"
-    dialog.size = Vector2i(400, 480)
+    dialog.size = Vector2i(400, 620)
 
     var vbox := VBoxContainer.new()
     vbox.add_theme_constant_override("separation", 8)
@@ -476,27 +507,45 @@ func _show_map_settings_dialog() -> void:
     height_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     vbox.add_child(height_spin)
 
-    var offset_x_label := Label.new()
-    offset_x_label.text = "Visible Bounds Width:"
-    vbox.add_child(offset_x_label)
-    var offset_x_spin := SpinBox.new()
-    offset_x_spin.min_value = 0.0
-    offset_x_spin.max_value = 512.0
-    offset_x_spin.step = 1.0
-    offset_x_spin.value = float(BoundsSystem.visible_bounds_size.x)
-    offset_x_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    vbox.add_child(offset_x_spin)
+    var left_label := Label.new()
+    left_label.text = "Left Inset:"
+    vbox.add_child(left_label)
+    var left_spin := SpinBox.new()
+    left_spin.min_value = 0.0
+    left_spin.step = 1.0
+    left_spin.value = float(BoundsSystem.left_inset)
+    left_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(left_spin)
 
-    var offset_z_label := Label.new()
-    offset_z_label.text = "Visible Bounds Height:"
-    vbox.add_child(offset_z_label)
-    var offset_z_spin := SpinBox.new()
-    offset_z_spin.min_value = 0.0
-    offset_z_spin.max_value = 512.0
-    offset_z_spin.step = 1.0
-    offset_z_spin.value = float(BoundsSystem.visible_bounds_size.y)
-    offset_z_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    vbox.add_child(offset_z_spin)
+    var right_label := Label.new()
+    right_label.text = "Right Inset:"
+    vbox.add_child(right_label)
+    var right_spin := SpinBox.new()
+    right_spin.min_value = 0.0
+    right_spin.step = 1.0
+    right_spin.value = float(BoundsSystem.right_inset)
+    right_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(right_spin)
+
+    var top_label := Label.new()
+    top_label.text = "Top Inset:"
+    vbox.add_child(top_label)
+    var top_spin := SpinBox.new()
+    top_spin.min_value = 0.0
+    top_spin.step = 1.0
+    top_spin.value = float(BoundsSystem.top_inset)
+    top_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(top_spin)
+
+    var bottom_label := Label.new()
+    bottom_label.text = "Bottom Inset:"
+    vbox.add_child(bottom_label)
+    var bottom_spin := SpinBox.new()
+    bottom_spin.min_value = 0.0
+    bottom_spin.step = 1.0
+    bottom_spin.value = float(BoundsSystem.bottom_inset)
+    bottom_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    vbox.add_child(bottom_spin)
 
     var bounds_label := Label.new()
     vbox.add_child(bounds_label)
@@ -504,22 +553,28 @@ func _show_map_settings_dialog() -> void:
     var update_bounds := func() -> void:
         var w: int = int(width_spin.value)
         var h: int = int(height_spin.value)
-        var ox: int = int(offset_x_spin.value)
-        var oz: int = int(offset_z_spin.value)
-        bounds_label.text = "Visible Bounds: %d × %d" % [ox, oz]
+        var l: int = int(left_spin.value)
+        var r: int = int(right_spin.value)
+        var t: int = int(top_spin.value)
+        var b: int = int(bottom_spin.value)
+        left_spin.max_value = maxf(2.0 * w - r - 1.0, 0.0)
+        right_spin.max_value = maxf(2.0 * w - l - 1.0, 0.0)
+        top_spin.max_value = maxf(2.0 * h - b - 1.0, 0.0)
+        bottom_spin.max_value = maxf(2.0 * h - t - 1.0, 0.0)
+        left_spin.value = minf(left_spin.value, left_spin.max_value)
+        right_spin.value = minf(right_spin.value, right_spin.max_value)
+        top_spin.value = minf(top_spin.value, top_spin.max_value)
+        bottom_spin.value = minf(bottom_spin.value, bottom_spin.max_value)
+        var vw: int = maxi(w - l - r, 1)
+        var vh: int = maxi(h - t - b, 1)
+        bounds_label.text = "Visible Bounds: %d × %d" % [vw, vh]
 
-    width_spin.value_changed.connect(
-        func(_v: float) -> void:
-            offset_x_spin.value = width_spin.value - 10.0
-            update_bounds.call()
-    )
-    height_spin.value_changed.connect(
-        func(_v: float) -> void:
-            offset_z_spin.value = height_spin.value - 8.0
-            update_bounds.call()
-    )
-    offset_x_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
-    offset_z_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    width_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    height_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    left_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    right_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    top_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
+    bottom_spin.value_changed.connect(func(_v: float) -> void: update_bounds.call())
     update_bounds.call()
 
     var btn_row := HBoxContainer.new()
@@ -538,22 +593,29 @@ func _show_map_settings_dialog() -> void:
         func() -> void:
             var w: int = int(width_spin.value)
             var h: int = int(height_spin.value)
-            var ox: int = int(offset_x_spin.value)
-            var oz: int = int(offset_z_spin.value)
-            _apply_map_settings(w, h, ox, oz)
+            var l: int = int(left_spin.value)
+            var r: int = int(right_spin.value)
+            var t: int = int(top_spin.value)
+            var b: int = int(bottom_spin.value)
+            _apply_map_settings(w, h, l, r, t, b)
             dialog.queue_free()
     )
     btn_row.add_child(apply_btn)
 
     get_node("EditorUI").add_child(dialog)
-    dialog.popup_centered(Vector2i(400, 480))
+    dialog.popup_centered(Vector2i(400, 620))
 
 
-func _apply_map_settings(width: int, height: int, offset_x: int = 0, offset_z: int = 0) -> void:
+func _apply_map_settings(
+    width: int, height: int, left: int = 5, right: int = 5, top: int = 4, bottom: int = 4
+) -> void:
     _clear_terrain_renderer()
     TerrainSystem.clear()
     TerrainSystem.init_grid(width, height)
-    BoundsSystem.set_visible_bounds_size(Vector2i(offset_x, offset_z))
+    BoundsSystem.left_inset = left
+    BoundsSystem.right_inset = right
+    BoundsSystem.top_inset = top
+    BoundsSystem.bottom_inset = bottom
     _prefill_terrain()
     _grid._draw_grid()
 

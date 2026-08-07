@@ -661,9 +661,12 @@ func export_to_json(path: String, extra_data: Dictionary = {}) -> void:
     }
     var bounds: Node = get_node_or_null("/root/BoundsSystem")
     if bounds:
-        var vw: int = grid_cells.x - 2 * int(bounds.visible_offset_x)
-        var vh: int = grid_cells.y - 2 * int(bounds.visible_offset_z)
-        data["visible_bounds_size"] = [vw, vh]
+        data["visible_bounds"] = [
+            int(bounds.left_inset),
+            int(bounds.right_inset),
+            int(bounds.top_inset),
+            int(bounds.bottom_inset),
+        ]
     for key in extra_data:
         data[key] = extra_data[key]
     var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)

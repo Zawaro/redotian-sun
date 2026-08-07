@@ -4,14 +4,15 @@ extends Node3D
 ## Gameplay API — cell units
 var grid_cells: Vector2i = Vector2i(64, 64)
 
-const DEFAULT_VISIBLE_BOUNDS_REDUCTION: Vector2i = Vector2i(10, 8)
-
-## Inner (visible) bounds inset from the map edge, in cells.
-@export var visible_offset_x: int = 5:
-    set = _set_visible_offset_x
-@export var visible_offset_z: int = 4:
-    set = _set_visible_offset_z
-var visible_bounds_size: Vector2i = Vector2i.ZERO
+## Visible-bounds insets from each map edge, in cells.
+@export var left_inset: int = 5:
+    set = _set_left_inset
+@export var right_inset: int = 5:
+    set = _set_right_inset
+@export var top_inset: int = 4:
+    set = _set_top_inset
+@export var bottom_inset: int = 4:
+    set = _set_bottom_inset
 
 ## Visual properties
 @export var line_color: Color = Color.RED:
@@ -35,8 +36,6 @@ var visible_bounds_mesh_instance: MeshInstance3D
 var immediate_map_mesh: ImmediateMesh
 var immediate_visible_mesh: ImmediateMesh
 
-var _syncing_visible_bounds: bool = false
-
 
 func _ready() -> void:
     create_bounds_nodes()
@@ -59,9 +58,6 @@ func _on_grid_initialized() -> void:
     var ts: Node = get_node_or_null("/root/TerrainSystem")
     if ts:
         grid_cells = ts.grid_cells
-    visible_bounds_size = Vector2i(
-        maxi(grid_cells.x - visible_offset_x * 2, 1), maxi(grid_cells.y - visible_offset_z * 2, 1)
-    )
     create_bounds_edges()
     if camera_pivot:
         _center_camera_on_diamond()
@@ -84,16 +80,18 @@ func _center_camera_on_diamond() -> void:
 
 ## Restore visible-bounds insets from loaded map data (JSON v4), with a v3 fallback.
 func apply_saved_bounds(data: Dictionary) -> void:
-    var vbs: Variant = data.get("visible_bounds_size")
-    if vbs is Array and vbs.size() == 2:
-        # Lossless round-trip is guaranteed only for app-authored (even) sizes; a
-        # hand-authored odd visible_bounds_size may re-quantize by 1 cell here.
-        visible_offset_x = maxi((grid_cells.x - int(vbs[0])) / 2, 0)
-        visible_offset_z = maxi((grid_cells.y - int(vbs[1])) / 2, 0)
+    var vb: Variant = data.get("visible_bounds")
+    if vb is Array and vb.size() == 4:
+        left_inset = maxi(int(vb[0]), 0)
+        right_inset = maxi(int(vb[1]), 0)
+        top_inset = maxi(int(vb[2]), 0)
+        bottom_inset = maxi(int(vb[3]), 0)
         return
     # v3 fallback: no persisted bounds — use the standard default insets.
-    visible_offset_x = 10
-    visible_offset_z = 8
+    left_inset = 5
+    right_inset = 5
+    top_inset = 4
+    bottom_inset = 4
 
 
 # ========================================
@@ -101,20 +99,26 @@ func apply_saved_bounds(data: Dictionary) -> void:
 # ========================================
 
 
-func _set_visible_offset_x(value: int) -> void:
-    visible_offset_x = maxi(value, 0)
-    if _syncing_visible_bounds:
-        return
-    visible_bounds_size.x = maxi(grid_cells.x - visible_offset_x * 2, 1)
+func _set_left_inset(value: int) -> void:
+    left_inset = maxi(value, 0)
     if is_inside_tree():
         create_bounds_edges()
 
 
-func _set_visible_offset_z(value: int) -> void:
-    visible_offset_z = maxi(value, 0)
-    if _syncing_visible_bounds:
-        return
-    visible_bounds_size.y = maxi(grid_cells.y - visible_offset_z * 2, 1)
+func _set_right_inset(value: int) -> void:
+    right_inset = maxi(value, 0)
+    if is_inside_tree():
+        create_bounds_edges()
+
+
+func _set_top_inset(value: int) -> void:
+    top_inset = maxi(value, 0)
+    if is_inside_tree():
+        create_bounds_edges()
+
+
+func _set_bottom_inset(value: int) -> void:
+    bottom_inset = maxi(value, 0)
     if is_inside_tree():
         create_bounds_edges()
 
@@ -168,46 +172,26 @@ func is_in_play_area_with_margin(cell: Vector2i) -> bool:
     return _in_play_diamond(cell, 1.0)
 
 
-func get_default_visible_bounds_size() -> Vector2i:
-    return Vector2i(
-        maxi(grid_cells.x - DEFAULT_VISIBLE_BOUNDS_REDUCTION.x, 1),
-        maxi(grid_cells.y - DEFAULT_VISIBLE_BOUNDS_REDUCTION.y, 1)
-    )
-
-
-func set_visible_bounds_size(value: Vector2i) -> void:
-    var clamped_size: Vector2i = Vector2i(
-        clampi(value.x, 1, grid_cells.x), clampi(value.y, 1, grid_cells.y)
-    )
-    _syncing_visible_bounds = true
-    visible_offset_x = floori(float(grid_cells.x - clamped_size.x) * 0.5)
-    visible_offset_z = floori(float(grid_cells.y - clamped_size.y) * 0.5)
-    _syncing_visible_bounds = false
-    visible_bounds_size = Vector2i(
-        grid_cells.x - visible_offset_x * 2, grid_cells.y - visible_offset_z * 2
-    )
-    if is_inside_tree():
-        create_bounds_edges()
-
-
 # Uses the same half-open raster ownership as CellUtil.is_in_diamond.
 func _in_play_diamond(cell: Vector2i, extra_inset: float) -> bool:
     var w: float = float(grid_cells.x)
     var h: float = float(grid_cells.y)
     if w <= 0.0 or h <= 0.0:
         return false
-    var ox: float = float(visible_offset_x) + extra_inset
-    var oz: float = float(visible_offset_z) + extra_inset
+    var t: float = float(top_inset) + extra_inset
+    var b: float = float(bottom_inset) + extra_inset
+    var l: float = float(left_inset) + extra_inset
+    var r: float = float(right_inset) + extra_inset
     var center: float = (w + h) * 0.5
     var cx: float = float(cell.x) + 0.5 - center
     var cz: float = float(cell.y) + 0.5 - center
     var sum_axis: float = cx + cz
     var difference_axis: float = cx - cz
     return (
-        sum_axis >= -h + oz
-        and sum_axis < h - oz
-        and difference_axis >= -w + ox
-        and difference_axis < w - ox
+        sum_axis >= -h + t
+        and sum_axis < h - b
+        and difference_axis >= -w + l
+        and difference_axis < w - r
     )
 
 
@@ -223,8 +207,20 @@ func clamp_to_map_diamond(p: Vector3) -> Vector3:
 
 
 func clamp_to_visible_diamond(p: Vector3) -> Vector3:
-    var cells: Vector2 = _get_visible_draw_cells()
-    return _clamp_to_diamond(p, Vector2i(int(cells.x), int(cells.y)))
+    var cs: float = CellUtil.CELL_SIZE
+    var w: float = float(grid_cells.x)
+    var h: float = float(grid_cells.y)
+    if w <= 0.0 or h <= 0.0:
+        return p
+    # Visible diamond is a rectangle in the sum/diff frame with per-edge insets:
+    # sum ∈ [-h + top, h - bottom], diff ∈ [-w + left, w - right].
+    var ux: float = p.x / cs
+    var uz: float = p.z / cs
+    var a: float = clampf(ux + uz, -h + top_inset, h - bottom_inset)
+    var b: float = clampf(ux - uz, -w + left_inset, w - right_inset)
+    ux = (a + b) * 0.5
+    uz = (a - b) * 0.5
+    return Vector3(ux * cs, p.y, uz * cs)
 
 
 func _clamp_to_diamond(p: Vector3, cells: Vector2i) -> Vector3:
@@ -279,18 +275,11 @@ func create_bounds_edges() -> void:
 
     # Red outer bounds: (W-0.5, H-0.5) — inside the cell diamond
     var outer_cells := Vector2(grid_cells.x - 0.5, grid_cells.y - 0.5)
-    _draw_diamond_mesh(immediate_map_mesh, outer_cells, line_color)
+    _draw_diamond_mesh(immediate_map_mesh, _compute_diamond_vertices(outer_cells), line_color)
 
-    # Blue visible bounds: red shrunk by visible offset
-    var play_cells := Vector2(
-        grid_cells.x - visible_offset_x - 0.5, grid_cells.y - visible_offset_z - 0.5
-    )
-    _draw_diamond_mesh(immediate_visible_mesh, play_cells, visible_bounds_color)
-
-
-func _get_visible_draw_cells() -> Vector2:
-    return Vector2(
-        maxi(grid_cells.x - visible_offset_x, 1), maxi(grid_cells.y - visible_offset_z, 1)
+    # Blue visible bounds: red shrunk by the four edge insets.
+    _draw_diamond_mesh(
+        immediate_visible_mesh, _compute_visible_diamond_vertices(), visible_bounds_color
     )
 
 
@@ -306,7 +295,7 @@ func _position_cloud_overlay() -> void:
     cloud_overlay.global_position.z = camera.global_position.z * 0.5
 
 
-func _draw_diamond_mesh(mesh: ImmediateMesh, cells: Vector2, color: Color) -> void:
+func _draw_diamond_mesh(mesh: ImmediateMesh, vertices: Array[Vector3], color: Color) -> void:
     var mat: ORMMaterial3D = ORMMaterial3D.new()
     mat.albedo_color = color
     mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -315,7 +304,6 @@ func _draw_diamond_mesh(mesh: ImmediateMesh, cells: Vector2, color: Color) -> vo
 
     mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, mat)
 
-    var vertices: Array[Vector3] = _compute_diamond_vertices(cells)
     var count: int = vertices.size()
 
     for i in count:
@@ -347,6 +335,31 @@ func _compute_diamond_vertices(cells: Vector2) -> Array[Vector3]:
     var south: Vector3 = Vector3(small + offset_x, 0.0, long)
     var west: Vector3 = Vector3(-long + offset_x, 0.0, -small)
     return [north, east, south, west]
+
+
+# Visible (blue) diamond with four independent edge insets. The diamond is a
+# rectangle in the sum/diff frame bounded by sum ∈ [-h+top, h-bottom] and
+# diff ∈ [-w+left, w-right]; the -1 on the upper bounds matches the half-open
+# cell raster used by the red map diamond.
+func _compute_visible_diamond_vertices() -> Array[Vector3]:
+    var w: float = float(grid_cells.x)
+    var h: float = float(grid_cells.y)
+    var cs: float = CellUtil.CELL_SIZE
+    var sum_lo: float = -h + top_inset
+    var sum_hi: float = h - bottom_inset - 1.0
+    var diff_lo: float = -w + left_inset
+    var diff_hi: float = w - right_inset - 1.0
+    var north := _sum_diff_to_world(sum_lo, diff_hi, cs)
+    var east := _sum_diff_to_world(sum_hi, diff_hi, cs)
+    var south := _sum_diff_to_world(sum_hi, diff_lo, cs)
+    var west := _sum_diff_to_world(sum_lo, diff_lo, cs)
+    return [north, east, south, west]
+
+
+func _sum_diff_to_world(sum_axis: float, diff_axis: float, cs: float) -> Vector3:
+    var cx: float = (sum_axis + diff_axis) * 0.5
+    var cz: float = (sum_axis - diff_axis) * 0.5
+    return Vector3(cx * cs, 0.0, cz * cs)
 
 
 func _sample_terrain_height(world_pos: Vector3) -> float:
