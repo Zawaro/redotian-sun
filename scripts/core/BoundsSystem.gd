@@ -4,14 +4,16 @@ extends Node3D
 ## Gameplay API — cell units
 var grid_cells: Vector2i = Vector2i(64, 64)
 
+const DEFAULT_VISIBLE_INSETS := Vector4i(5, 5, 4, 4)
+
 ## Visible-bounds insets from each map edge, in cells.
-@export var left_inset: int = 5:
+@export var left_inset: int = DEFAULT_VISIBLE_INSETS.x:
     set = _set_left_inset
-@export var right_inset: int = 5:
+@export var right_inset: int = DEFAULT_VISIBLE_INSETS.y:
     set = _set_right_inset
-@export var top_inset: int = 4:
+@export var top_inset: int = DEFAULT_VISIBLE_INSETS.z:
     set = _set_top_inset
-@export var bottom_inset: int = 4:
+@export var bottom_inset: int = DEFAULT_VISIBLE_INSETS.w:
     set = _set_bottom_inset
 
 ## Visual properties
@@ -82,16 +84,16 @@ func _center_camera_on_diamond() -> void:
 func apply_saved_bounds(data: Dictionary) -> void:
     var vb: Variant = data.get("visible_bounds")
     if vb is Array and vb.size() == 4:
-        left_inset = maxi(int(vb[0]), 0)
-        right_inset = maxi(int(vb[1]), 0)
-        top_inset = maxi(int(vb[2]), 0)
-        bottom_inset = maxi(int(vb[3]), 0)
+        left_inset = clampi(int(vb[0]), 0, grid_cells.x - 1)
+        right_inset = clampi(int(vb[1]), 0, grid_cells.x - 1)
+        top_inset = clampi(int(vb[2]), 0, grid_cells.y - 1)
+        bottom_inset = clampi(int(vb[3]), 0, grid_cells.y - 1)
         return
     # v3 fallback: no persisted bounds — use the standard default insets.
-    left_inset = 5
-    right_inset = 5
-    top_inset = 4
-    bottom_inset = 4
+    left_inset = DEFAULT_VISIBLE_INSETS.x
+    right_inset = DEFAULT_VISIBLE_INSETS.y
+    top_inset = DEFAULT_VISIBLE_INSETS.z
+    bottom_inset = DEFAULT_VISIBLE_INSETS.w
 
 
 # ========================================
