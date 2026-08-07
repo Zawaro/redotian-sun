@@ -205,10 +205,15 @@ func test_apply_new_map_bounds_and_grid_updated() -> void:
     _ts.clear()
     _ts.init_grid(50, 50)
     var editor: Node3D = _create_map_editor()
-    editor._apply_new_map(21, 20, 0, 0, 11, 12)
+    editor._apply_new_map(21, 20, 0, 0, 5, 5, 4, 4)
     var gc: Vector2i = _ts.grid_cells
-    var vbs: Vector2i = BoundsSystem.visible_bounds_size
-    var bounds_ok: bool = gc == Vector2i(21, 20) and vbs.x <= 21 and vbs.y <= 20
+    var bounds_ok: bool = (
+        gc == Vector2i(21, 20)
+        and BoundsSystem.left_inset == 5
+        and BoundsSystem.right_inset == 5
+        and BoundsSystem.top_inset == 4
+        and BoundsSystem.bottom_inset == 4
+    )
     var grid_node: Node = editor.get_node_or_null("EditorGrid")
     var has_grid: bool = grid_node != null
     var grid_has_mesh: bool = false
@@ -219,9 +224,7 @@ func test_apply_new_map_bounds_and_grid_updated() -> void:
     _cleanup_map_editor(editor)
     _ts.clear()
     _ts.init_grid(50, 50)
-    _assert_true(
-        bounds_ok, "BoundsSystem updated to 21x20 grid_cells and valid visible_bounds_size"
-    )
+    _assert_true(bounds_ok, "BoundsSystem updated to 21x20 grid_cells and valid visible insets")
     _assert_true(has_grid, "EditorGrid child exists")
     _assert_true(grid_has_mesh, "EditorGrid has a grid mesh after _apply_new_map")
 
