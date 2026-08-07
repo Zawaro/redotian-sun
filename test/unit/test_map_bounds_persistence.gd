@@ -1,6 +1,6 @@
 extends Node
 
-# Map dimension persistence — JSON v4 map_size / visible_bounds_size round-trip
+# Map dimension persistence — JSON v4 map_size / visible_bounds round-trip
 
 var _ts: Node = null
 var _test_passed := 0
@@ -21,8 +21,10 @@ func test_export_writes_v4_dimensions():
         return
 
     _ts.init_grid(40, 40)  # emits grid_initialized -> syncs BoundsSystem.grid_cells
-    bounds.visible_offset_x = 5
-    bounds.visible_offset_z = 4
+    bounds.left_inset = 5
+    bounds.right_inset = 5
+    bounds.top_inset = 4
+    bounds.bottom_inset = 4
 
     var path := "user://test_bounds_persist.json"
     _ts.export_to_json(path)
@@ -35,16 +37,18 @@ func test_export_writes_v4_dimensions():
     DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
     var map_size: Array = data.get("map_size", [])
-    var vbs: Array = data.get("visible_bounds_size", [])
+    var vb: Array = data.get("visible_bounds", [])
     TestHelper.assert_eq(int(data.get("version", 0)), 4, "version is 4")
     TestHelper.assert_eq(map_size.size(), 2, "map_size has 2 entries")
     if map_size.size() == 2:
         TestHelper.assert_eq(int(map_size[0]), 40, "map_size.x == grid_cells.x")
         TestHelper.assert_eq(int(map_size[1]), 40, "map_size.y == grid_cells.y")
-    TestHelper.assert_eq(vbs.size(), 2, "visible_bounds_size has 2 entries")
-    if vbs.size() == 2:
-        TestHelper.assert_eq(int(vbs[0]), 30, "visible width == 40 - 2*5")
-        TestHelper.assert_eq(int(vbs[1]), 32, "visible height == 40 - 2*4")
+    TestHelper.assert_eq(vb.size(), 4, "visible_bounds has 4 entries")
+    if vb.size() == 4:
+        TestHelper.assert_eq(int(vb[0]), 5, "visible_bounds[0] == left_inset")
+        TestHelper.assert_eq(int(vb[1]), 5, "visible_bounds[1] == right_inset")
+        TestHelper.assert_eq(int(vb[2]), 4, "visible_bounds[2] == top_inset")
+        TestHelper.assert_eq(int(vb[3]), 4, "visible_bounds[3] == bottom_inset")
 
     _ts.init_grid(64, 64)  # restore default
     _test_passed += TestHelper._passed
@@ -60,10 +64,12 @@ func test_apply_saved_bounds_v4():
         return
 
     bounds.grid_cells = Vector2i(40, 40)
-    bounds.apply_saved_bounds({"visible_bounds_size": [30, 32]})
+    bounds.apply_saved_bounds({"visible_bounds": [5, 5, 4, 4]})
 
-    TestHelper.assert_eq(bounds.visible_offset_x, 5, "offset_x recovered from size")
-    TestHelper.assert_eq(bounds.visible_offset_z, 4, "offset_z recovered from size")
+    TestHelper.assert_eq(bounds.left_inset, 5, "left_inset recovered")
+    TestHelper.assert_eq(bounds.right_inset, 5, "right_inset recovered")
+    TestHelper.assert_eq(bounds.top_inset, 4, "top_inset recovered")
+    TestHelper.assert_eq(bounds.bottom_inset, 4, "bottom_inset recovered")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
@@ -77,12 +83,16 @@ func test_apply_saved_bounds_v3_fallback():
         return
 
     bounds.grid_cells = Vector2i(40, 40)
-    bounds.visible_offset_x = 99
-    bounds.visible_offset_z = 99
-    bounds.apply_saved_bounds({"version": 3})  # no visible_bounds_size
+    bounds.left_inset = 99
+    bounds.right_inset = 99
+    bounds.top_inset = 99
+    bounds.bottom_inset = 99
+    bounds.apply_saved_bounds({"version": 3})  # no visible_bounds
 
-    TestHelper.assert_eq(bounds.visible_offset_x, 10, "v3 fallback offset_x == 10")
-    TestHelper.assert_eq(bounds.visible_offset_z, 8, "v3 fallback offset_z == 8")
+    TestHelper.assert_eq(bounds.left_inset, 5, "v3 fallback left_inset == 5")
+    TestHelper.assert_eq(bounds.right_inset, 5, "v3 fallback right_inset == 5")
+    TestHelper.assert_eq(bounds.top_inset, 4, "v3 fallback top_inset == 4")
+    TestHelper.assert_eq(bounds.bottom_inset, 4, "v3 fallback bottom_inset == 4")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()
@@ -96,11 +106,13 @@ func test_apply_saved_bounds_clamps_negative():
         return
 
     bounds.grid_cells = Vector2i(40, 40)
-    # visible size larger than the grid would imply a negative inset
-    bounds.apply_saved_bounds({"visible_bounds_size": [80, 80]})
+    # negative insets are clamped to 0
+    bounds.apply_saved_bounds({"visible_bounds": [-5, -5, -3, -3]})
 
-    TestHelper.assert_eq(bounds.visible_offset_x, 0, "inset clamped to 0")
-    TestHelper.assert_eq(bounds.visible_offset_z, 0, "inset clamped to 0")
+    TestHelper.assert_eq(bounds.left_inset, 0, "inset clamped to 0")
+    TestHelper.assert_eq(bounds.right_inset, 0, "inset clamped to 0")
+    TestHelper.assert_eq(bounds.top_inset, 0, "inset clamped to 0")
+    TestHelper.assert_eq(bounds.bottom_inset, 0, "inset clamped to 0")
     _test_passed += TestHelper._passed
     _test_failed += TestHelper._failed
     TestHelper.reset()

@@ -110,8 +110,10 @@ func test_map_and_zero_inset_play_masks_are_identical() -> void:
     ]
     for grid_cells: Vector2i in map_sizes:
         bounds.grid_cells = grid_cells
-        bounds.visible_offset_x = 0
-        bounds.visible_offset_z = 0
+        bounds.left_inset = 0
+        bounds.right_inset = 0
+        bounds.top_inset = 0
+        bounds.bottom_inset = 0
         var extent: int = grid_cells.x + grid_cells.y
         var masks_match: bool = true
         for x: int in extent:
@@ -125,20 +127,16 @@ func test_map_and_zero_inset_play_masks_are_identical() -> void:
         _assert_true(masks_match, "%s map and zero-inset play masks match" % grid_cells)
 
 
-func test_visible_size_controls_play_mask_outline_and_clamp() -> void:
+func test_visible_insets_control_play_mask_outline_and_clamp() -> void:
     var bounds: Node = _get_bounds_system()
     if bounds == null:
         _assert_true(false, "BoundsSystem autoload exists")
         return
     bounds.grid_cells = Vector2i(24, 20)
-    bounds.set_visible_bounds_size(Vector2i(14, 12))
-    _assert_eq(bounds.visible_offset_x, 5, "visible width converts to five-cell X inset")
-    _assert_eq(bounds.visible_offset_z, 4, "visible height converts to four-cell Z inset")
-    _assert_eq(
-        bounds._get_visible_draw_cells(),
-        Vector2(19.0, 16.0),
-        "blue outline includes the outer cell boundary"
-    )
+    bounds.left_inset = 5
+    bounds.right_inset = 5
+    bounds.top_inset = 4
+    bounds.bottom_inset = 4
 
     var extent: int = bounds.grid_cells.x + bounds.grid_cells.y
     var play_count: int = 0
@@ -146,16 +144,60 @@ func test_visible_size_controls_play_mask_outline_and_clamp() -> void:
         for z: int in extent:
             if bounds.is_in_play_area(Vector2i(x, z)):
                 play_count += 1
-    _assert_eq(
-        play_count,
-        2 * (bounds.grid_cells.x - 5) * (bounds.grid_cells.y - 4),
-        "play mask uses the same configured insets"
+    # The play diamond is a rectangle in the sum/diff frame with width
+    # 2h - top - bottom and height 2w - left - right; exactly half its
+    # (sum, diff) lattice points are real cells.
+    var w: int = bounds.grid_cells.x
+    var h: int = bounds.grid_cells.y
+    var expected: int = (
+        (2 * h - bounds.top_inset - bounds.bottom_inset)
+        * (2 * w - bounds.left_inset - bounds.right_inset)
+        / 2
     )
+    _assert_eq(play_count, expected, "play mask uses the same configured insets")
 
     var point := Vector3(1000.0, 0.0, 1000.0)
     var clamped: Vector3 = bounds.clamp_to_visible_diamond(point)
     var sum_axis: float = (clamped.x + clamped.z) / CellUtil.CELL_SIZE
     _assert_true(absf(sum_axis) <= 16.0 + 0.001, "visible clamp uses the blue outline H axis")
+
+
+func test_asymmetric_insets_shift_play_mask() -> void:
+    var bounds: Node = _get_bounds_system()
+    if bounds == null:
+        _assert_true(false, "BoundsSystem autoload exists")
+        return
+    bounds.grid_cells = Vector2i(24, 20)
+    # Asymmetric: shift the visible diamond toward +X (east) by using a larger
+    # left inset, and toward -Z (north) by using a larger bottom inset.
+    bounds.left_inset = 8
+    bounds.right_inset = 2
+    bounds.top_inset = 2
+    bounds.bottom_inset = 6
+
+    var sum_min: int = 999
+    var sum_max: int = -999
+    var diff_min: int = 999
+    var diff_max: int = -999
+    var extent: int = bounds.grid_cells.x + bounds.grid_cells.y
+    var w_h_sum: float = float(bounds.grid_cells.x + bounds.grid_cells.y)
+    for x: int in extent:
+        for z: int in extent:
+            var cell := Vector2i(x, z)
+            if not bounds.is_in_play_area(cell):
+                continue
+            var sum_axis: float = float(cell.x) + float(cell.y) + 1.0 - w_h_sum
+            var diff_axis: float = float(cell.x - cell.y)
+            sum_min = mini(sum_min, int(sum_axis))
+            sum_max = maxi(sum_max, int(sum_axis))
+            diff_min = mini(diff_min, int(diff_axis))
+            diff_max = maxi(diff_max, int(diff_axis))
+    # sum ∈ [-h + top, h - bottom) = [-20 + 2, 20 - 6)
+    _assert_eq(sum_min, -18, "asymmetric top inset lowers sum min")
+    _assert_eq(sum_max, 13, "asymmetric bottom inset lowers sum max")
+    # diff ∈ [-w + left, w - right) = [-24 + 8, 24 - 2)
+    _assert_eq(diff_min, -16, "asymmetric left inset raises diff min")
+    _assert_eq(diff_max, 21, "asymmetric right inset lowers diff max")
 
 
 func test_editor_grid_generates_symmetric_centered_geometry() -> void:
@@ -651,15 +693,18 @@ func test_prefill_21x20_boundary_cells() -> void:
 # End-to-end apply_new_map tests
 # ========================================
 # These test the full pipeline as the user triggers it:
-# clear → init_grid → set_visible_bounds_size → prefill → cell_changed → TerrainRenderer
+# clear → init_grid → set insets → prefill → cell_changed → TerrainRenderer
 
 
-func _apply_map_for_test(w: int, h: int, ox: int = 0, oz: int = 0) -> Node3D:
+func _apply_map_for_test(w: int, h: int, l: int = 0, r: int = 0, t: int = 0, b: int = 0) -> Node3D:
     # Simulate _apply_new_map without requiring UI/scene tree.
     # This is the exact code path from MapEditor._apply_new_map.
     _ts.clear()
     _ts.init_grid(w, h)
-    BoundsSystem.set_visible_bounds_size(Vector2i(ox, oz))
+    BoundsSystem.left_inset = l
+    BoundsSystem.right_inset = r
+    BoundsSystem.top_inset = t
+    BoundsSystem.bottom_inset = b
     var editor: Node3D = EDITOR_SCRIPT.new()
     editor._prefill_terrain()
     return editor
@@ -681,7 +726,7 @@ func test_apply_new_map_cell_count() -> void:
         var ox: int = c[2] as int
         var oz: int = c[3] as int
         var expected: int = c[4] as int
-        var editor: Node3D = _apply_map_for_test(w, h, ox, oz)
+        var editor: Node3D = _apply_map_for_test(w, h, ox, ox, oz, oz)
         var actual: int = _ts.get_all_cells().size()
         editor.free()
         _ts.clear()
@@ -714,7 +759,7 @@ func test_apply_new_map_no_ghost_cells() -> void:
         var ox: int = c[2] as int
         var oz: int = c[3] as int
         var grid_cells := Vector2i(w, h)
-        var editor: Node3D = _apply_map_for_test(w, h, ox, oz)
+        var editor: Node3D = _apply_map_for_test(w, h, ox, ox, oz, oz)
         var cells: Dictionary = _ts.get_all_cells()
         var ghost_count: int = 0
         var first_ghost: String = ""
@@ -761,7 +806,7 @@ func test_apply_new_map_spacing_minimum() -> void:
         var ox: int = c[2] as int
         var oz: int = c[3] as int
         var grid_cells := Vector2i(w, h)
-        var editor: Node3D = _apply_map_for_test(w, h, ox, oz)
+        var editor: Node3D = _apply_map_for_test(w, h, ox, ox, oz, oz)
         var positions: Array[Vector3] = []
         var cells: Dictionary = _ts.get_all_cells()
         for key: String in cells:
@@ -816,7 +861,7 @@ func test_apply_new_map_no_half_cell_offsets() -> void:
         var ox: int = c[2] as int
         var oz: int = c[3] as int
         var grid_cells := Vector2i(w, h)
-        var editor: Node3D = _apply_map_for_test(w, h, ox, oz)
+        var editor: Node3D = _apply_map_for_test(w, h, ox, ox, oz, oz)
         var half_cell_count: int = 0
         var first_bad_key: String = ""
         var first_bad_pos: Vector3 = Vector3.ZERO
