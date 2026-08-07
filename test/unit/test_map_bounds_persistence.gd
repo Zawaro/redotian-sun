@@ -3,8 +3,6 @@ extends Node
 # Map dimension persistence — JSON v4 map_size / visible_bounds round-trip
 
 var _ts: Node = null
-var _test_passed := 0
-var _test_failed := 0
 
 
 func _bounds() -> Node:
@@ -13,11 +11,10 @@ func _bounds() -> Node:
     return _ts.get_node_or_null("/root/BoundsSystem")
 
 
-func test_export_writes_v4_dimensions():
+func test_export_writes_v4_dimensions() -> void:
     var bounds := _bounds()
     if _ts == null or bounds == null:
-        _test_failed += 1
-        print("    FAIL: TerrainSystem/BoundsSystem not available")
+        TestHelper.fail("TerrainSystem/BoundsSystem not available")
         return
 
     _ts.init_grid(40, 40)  # emits grid_initialized -> syncs BoundsSystem.grid_cells
@@ -51,16 +48,12 @@ func test_export_writes_v4_dimensions():
         TestHelper.assert_eq(int(vb[3]), 4, "visible_bounds[3] == bottom_inset")
 
     _ts.init_grid(64, 64)  # restore default
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
-func test_apply_saved_bounds_v4():
+func test_apply_saved_bounds_v4() -> void:
     var bounds := _bounds()
     if bounds == null:
-        _test_failed += 1
-        print("    FAIL: BoundsSystem not available")
+        TestHelper.fail("BoundsSystem not available")
         return
 
     bounds.grid_cells = Vector2i(40, 40)
@@ -70,16 +63,12 @@ func test_apply_saved_bounds_v4():
     TestHelper.assert_eq(bounds.right_inset, 5, "right_inset recovered")
     TestHelper.assert_eq(bounds.top_inset, 4, "top_inset recovered")
     TestHelper.assert_eq(bounds.bottom_inset, 4, "bottom_inset recovered")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
-func test_apply_saved_bounds_v3_fallback():
+func test_apply_saved_bounds_v3_fallback() -> void:
     var bounds := _bounds()
     if bounds == null:
-        _test_failed += 1
-        print("    FAIL: BoundsSystem not available")
+        TestHelper.fail("BoundsSystem not available")
         return
 
     bounds.grid_cells = Vector2i(40, 40)
@@ -93,16 +82,12 @@ func test_apply_saved_bounds_v3_fallback():
     TestHelper.assert_eq(bounds.right_inset, 5, "v3 fallback right_inset == 5")
     TestHelper.assert_eq(bounds.top_inset, 4, "v3 fallback top_inset == 4")
     TestHelper.assert_eq(bounds.bottom_inset, 4, "v3 fallback bottom_inset == 4")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
 
 
-func test_apply_saved_bounds_clamps_negative():
+func test_apply_saved_bounds_clamps_negative() -> void:
     var bounds := _bounds()
     if bounds == null:
-        _test_failed += 1
-        print("    FAIL: BoundsSystem not available")
+        TestHelper.fail("BoundsSystem not available")
         return
 
     bounds.grid_cells = Vector2i(40, 40)
@@ -113,6 +98,20 @@ func test_apply_saved_bounds_clamps_negative():
     TestHelper.assert_eq(bounds.right_inset, 0, "inset clamped to 0")
     TestHelper.assert_eq(bounds.top_inset, 0, "inset clamped to 0")
     TestHelper.assert_eq(bounds.bottom_inset, 0, "inset clamped to 0")
-    _test_passed += TestHelper._passed
-    _test_failed += TestHelper._failed
-    TestHelper.reset()
+
+
+func test_apply_saved_bounds_clamps_oversized() -> void:
+    var bounds := _bounds()
+    if bounds == null:
+        TestHelper.fail("BoundsSystem not available")
+        return
+
+    bounds.grid_cells = Vector2i(40, 40)
+    # insets larger than the grid would invert the sum/diff range — clamp so the
+    # play area stays non-empty (at most grid_cells - 1 per axis)
+    bounds.apply_saved_bounds({"visible_bounds": [100, 100, 100, 100]})
+
+    TestHelper.assert_eq(bounds.left_inset, 39, "left inset clamped to grid width - 1")
+    TestHelper.assert_eq(bounds.right_inset, 39, "right inset clamped to grid width - 1")
+    TestHelper.assert_eq(bounds.top_inset, 39, "top inset clamped to grid height - 1")
+    TestHelper.assert_eq(bounds.bottom_inset, 39, "bottom inset clamped to grid height - 1")
