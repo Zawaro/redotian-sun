@@ -262,6 +262,7 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
         var ground_pos := _get_ground_position_at_mouse()
         if ground_pos != Vector3.INF:
             var orders := OrderSystem.get_orders(null, Vector2i.ZERO, ground_pos, modifiers)
+            _play_order_voices(orders)
             for order in orders:
                 order.execute.call()
 
@@ -272,9 +273,45 @@ func _try_execute_orders(
     var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
     if orders.is_empty():
         return false
+    _play_order_voices(orders)
     for order in orders:
         order.execute.call()
     return true
+
+
+func _play_order_voices(orders: Array[OrderResult]) -> void:
+    if orders.is_empty():
+        return
+    var event := _voice_event_for_cursor(orders[0].cursor)
+    if event.is_empty() or not selection_manager:
+        return
+    # C&C: one confirmation voice per order event, from the NW-most selected
+    # local unit — never one per unit (would stack on large selections).
+    var chosen := (
+        selection_manager.get_northwest_most(selection_manager.selected_entities) as SelectComponent
+    )
+    var entity: Node3D = chosen.get_parent() as Node3D if chosen else null
+    if not is_instance_valid(entity):
+        return
+    var voice := entity.get_node_or_null("VoiceComponent") as VoiceComponent
+    if not voice or not voice.voice_data:
+        return
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and stats.player_id >= 0 and stats.player_id != PlayerManager.get_local_player_id():
+        return
+    AudioManager.play_voice(voice.voice_data.id, event, entity.global_position)
+
+
+func _voice_event_for_cursor(cursor: CursorState.Type) -> String:
+    match cursor:
+        CursorState.Type.MOVE:
+            return VoiceData.EVENT_MOVE
+        CursorState.Type.ATTACK, CursorState.Type.HARVEST, CursorState.Type.ENTER:
+            return VoiceData.EVENT_ATTACK
+        CursorState.Type.DEPLOY:
+            return VoiceData.EVENT_ATTACK
+        _:
+            return ""
 
 
 func _build_modifiers(shift_pressed: bool) -> Dictionary:
@@ -288,6 +325,7 @@ func _build_modifiers(shift_pressed: bool) -> Dictionary:
 ## Box-select: select entities whose projection falls inside the drag rectangle.
 func _select_entities_2d_projected(rect: Rect2):
     var camera := _get_camera_3d()
+    var newly_added: Array = []
     for entity in get_tree().get_nodes_in_group("drag_selectable"):
         var select_component := entity.get_node_or_null("SelectComponent") as SelectComponent
         if not select_component:
@@ -303,6 +341,10 @@ func _select_entities_2d_projected(rect: Rect2):
         if rect.has_point(camera.unproject_position(select_component.global_position)):
             if not selection_manager.is_entity_selected(select_component):
                 selection_manager.add_entity(select_component)
+                newly_added.append(select_component)
+    # C&C: one select voice for the whole box event (NW-most unit), not one per unit.
+    if not newly_added.is_empty():
+        selection_manager.play_select_voice_for_entities(newly_added)
 
 
 ## Walk up the node tree to find a SelectComponent descendant.

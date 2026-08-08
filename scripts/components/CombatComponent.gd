@@ -193,7 +193,17 @@ func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:
     _fire_count += 1
     var rof: float = maxf(weapon.rate_of_fire, 0.001)
     _cooldowns[_current_weapon_index] = 60.0 / rof
+    _play_fire_sound(weapon)
     weapon_fired.emit(weapon, target)
+
+
+func _play_fire_sound(weapon: WeaponData) -> void:
+    var report := weapon.sound_report
+    if report.is_empty():
+        return
+    var ids := report.split(",")
+    var chosen := ids[randi() % ids.size()]
+    AudioManager.play_sound(chosen.strip_edges(), global_position)
 
 
 func _move_toward_target() -> void:

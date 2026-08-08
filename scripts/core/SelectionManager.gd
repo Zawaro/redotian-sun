@@ -34,6 +34,7 @@ func select_entity(entity: SelectComponent, shift_pressed: bool = false):
     else:
         deselect_all()
         add_entity(entity)
+    _play_select_voice(entity)
 
 
 func deselect_entity(entity: SelectComponent):
@@ -67,6 +68,67 @@ func add_entity(entity: SelectComponent):
             entity.set_is_selected(true)
 
         emit_signal("selection_changed", selected_entities.duplicate())
+
+
+func _play_select_voice(select_comp: SelectComponent) -> void:
+    if not is_instance_valid(select_comp):
+        return
+    var entity := select_comp.get_parent() as Node3D
+    if not is_instance_valid(entity):
+        return
+    var voice := entity.get_node_or_null("VoiceComponent") as VoiceComponent
+    if not voice or not voice.voice_data:
+        return
+    if not _is_local_unit(entity):
+        return
+    AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_SELECT, entity.global_position)
+
+
+## Play exactly one select voice for a multi-unit selection event (C&C rule):
+## the NW-most unit (top of screen, then right-most) speaks, never one per unit.
+func play_select_voice_for_entities(entities: Array) -> void:
+    var chosen := get_northwest_most(entities)
+    if chosen:
+        _play_select_voice(chosen)
+
+
+## Deterministic single-voice picker mirroring TS/RA2: furthest northwest (screen
+## top), then furthest northeast (planar right). Uses camera projection so the
+## "top of screen" is screen-space; falls back to world-space (+Z is up) in
+## headless/test contexts with no camera.
+func get_northwest_most(entities: Array) -> SelectComponent:
+    var camera := get_viewport().get_camera_3d() if get_viewport() else null
+    var best: SelectComponent = null
+    var best_screen := Vector2.INF
+    for select_comp in entities:
+        if not is_instance_valid(select_comp):
+            continue
+        var entity := select_comp.get_parent() as Node3D
+        if not is_instance_valid(entity):
+            continue
+        var screen_pos := (
+            camera.unproject_position(entity.global_position) if camera else Vector2.ZERO
+        )
+        if not camera:
+            # Nodes not in the tree report global_position as zero; read local
+            # position for the headless/test fallback ordering.
+            screen_pos = Vector2(entity.position.x, entity.position.z)
+        # Top-most (smallest y), then right-most (largest x).
+        if (
+            best == null
+            or screen_pos.y < best_screen.y
+            or (is_equal_approx(screen_pos.y, best_screen.y) and screen_pos.x > best_screen.x)
+        ):
+            best = select_comp
+            best_screen = screen_pos
+    return best
+
+
+func _is_local_unit(entity: Node3D) -> bool:
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if not stats:
+        return true
+    return stats.player_id < 0 or stats.player_id == PlayerManager.get_local_player_id()
 
 
 func remove_entity(entity: SelectComponent):
