@@ -138,6 +138,8 @@ func _inject_autoloads(obj: Object) -> void:
             obj.set("_em", child)
         elif child_name == "PlayerManager":
             obj.set("_pm", child)
+        elif child_name == "AudioManager":
+            obj.set("_am", child)
 
 
 func _render_results() -> void:
