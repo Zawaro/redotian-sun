@@ -104,6 +104,10 @@ func test_jumpjet_weapon_targets_ground_and_air():
 
 
 func test_jumpjet_attack_interrupts_airborne_move():
+    # An airborne jumpjet mid-move that receives an out-of-range attack cancels
+    # the in-flight move/landing, keeps its air zone, and immediately issues a
+    # combat approach (attack-cancels-move spec: fresh approach path in the same
+    # frame instead of sitting idle after the cancel).
     var root: Node = Engine.get_main_loop().root
     var pair: Array = _make_jumpjet_combat()
     var entity: Node3D = pair[0]
@@ -118,16 +122,23 @@ func test_jumpjet_attack_interrupts_airborne_move():
     root.add_child(target)
     target.global_position = Vector3(20.0, 0.0, 0.0)
     cc.set_target(target)
-    var state: int = mc._state
     var zone: int = mc._vertical_state
     var land: bool = mc._land_on_arrival
+    var approaching: bool = mc.is_moving()
+    var weapon := cc.get_current_weapon()
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    var dest: Vector3 = mc.get_target_position()
+    var in_range: bool = Vector2(dest.x - 20.0, dest.z).length() <= range_world + 0.5
     root.remove_child(entity)
     root.remove_child(target)
     entity.free()
     target.free()
-    TestHelper.assert_eq(state, MovementController.State.IDLE, "attack interrupts the move")
     TestHelper.assert_eq(zone, MovementController.VerticalState.AIR, "air zone retained")
     TestHelper.assert_eq(land, false, "pending landing cancelled")
+    TestHelper.assert_true(
+        approaching, "attack supersedes the move with an immediate combat approach"
+    )
+    TestHelper.assert_true(in_range, "approach point is within weapon range of the target")
 
 
 func test_jumpjet_attack_approaches_nearest_point():
