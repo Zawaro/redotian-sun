@@ -53,14 +53,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/redot
-          key: redot-26.1-stable-linux-x64
+          key: redot-26.2-stable-linux-x64
 
       - name: Download Redot
         if: steps.cache-redot.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/redot
           curl -L -o ~/redot/redot.zip \
-            "https://github.com/Redot-Engine/redot-engine/releases/download/redot-26.1-stable/Redot_v26.1-stable_linux_x64.zip"
+            "https://github.com/Redot-Engine/redot-engine/releases/download/redot-26.2-stable/Redot_v26.2-stable_linux_x64.zip"
           cd ~/redot && unzip redot.zip
           chmod +x ~/redot/redot.linuxbsd.editor.x86_64
 
