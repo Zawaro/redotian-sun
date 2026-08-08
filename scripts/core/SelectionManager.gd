@@ -79,9 +79,9 @@ func _play_select_voice(select_comp: SelectComponent) -> void:
     var voice := entity.get_node_or_null("VoiceComponent") as VoiceComponent
     if not voice or not voice.voice_data:
         return
-    if not _is_local_unit(entity):
+    if not _is_local_entity_node(entity):
         return
-    AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_SELECT, entity.global_position)
+    AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_SELECT)
 
 
 ## Play exactly one select voice for a multi-unit selection event (C&C rule):
@@ -125,6 +125,12 @@ func get_northwest_most(entities: Array) -> SelectComponent:
 
 
 func _is_local_unit(entity: Node3D) -> bool:
+    return _is_local_entity_node(entity)
+
+
+func _is_local_entity_node(entity: Node3D) -> bool:
+    if not is_instance_valid(entity):
+        return false
     var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
     if not stats:
         return true
@@ -364,10 +370,7 @@ func _is_local_entity(select_comp: SelectComponent) -> bool:
     var parent := select_comp.get_parent() as Node3D
     if not is_instance_valid(parent):
         return false
-    var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
-    if not stats:
-        return true
-    return stats.player_id < 0 or stats.player_id == PlayerManager.get_local_player_id()
+    return _is_local_entity_node(parent)
 
 
 func request_set_rally_point(target_position: Vector3) -> void:

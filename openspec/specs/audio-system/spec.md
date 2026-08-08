@@ -47,11 +47,11 @@ The system SHALL provide a standalone `VoiceData` resource (`scripts/data/VoiceD
 - **THEN** playback is skipped without error
 
 ### Requirement: Event-driven voice playback
-The system SHALL play a voice for a unit on two events: selection and order issue. On selection (`SelectionManager.add_entity`), the system SHALL play a random variant from the unit's `VoiceData.select` event, spatially at the unit position if configured. On order issue (`MouseHandler._try_execute_orders`), the system SHALL map the resolved `OrderResult.cursor` type to a voice event and play a random variant of that event. The mapping SHALL be: `MOVE` → `move`; `ATTACK`, `HARVEST`, `ENTER`, `DEPLOY` → `attack`; other cursor types SHALL play no order voice.
+The system SHALL play a voice for a unit on two events: selection and order issue. On selection (`SelectionManager.add_entity`), the system SHALL play a random variant from the unit's `VoiceData.select` event. On order issue (`MouseHandler._try_execute_orders`), the system SHALL map the resolved `OrderResult.cursor` type to a voice event and play a random variant of that event. The mapping SHALL be: `MOVE` → `move`; `ATTACK`, `HARVEST`, `ENTER`, `DEPLOY` → `attack`; other cursor types SHALL play no order voice. Voices SHALL play as commander radio chatter, centered on the camera at full volume, regardless of the unit's world position.
 
 #### Scenario: Selecting a unit plays its select voice
 - **WHEN** a unit with a `VoiceData` whose `select` event has variants is selected
-- **THEN** one variant from `select` is played on the unit's bus at its position
+- **THEN** one variant from `select` is played on the unit's bus, centered on the camera
 
 #### Scenario: Selecting a unit without voice data is silent
 - **WHEN** a unit with no `VoiceData` or an empty `select` event is selected
@@ -96,7 +96,18 @@ The system SHALL provide a `VoiceComponent` that holds a unit's `VoiceData` refe
 - **THEN** the entity has no `VoiceComponent`
 
 ### Requirement: Weapon fire and death sounds
-The system SHALL play weapon fire sounds using `WeaponData.sound_report` (a comma-separated list of audio ids) at the `CombatComponent._fire_weapon` choke point, spatially at the firing unit. One id SHALL be chosen at random from the comma-separated list when the list has multiple entries. The system SHALL play a death/explosion sound from the `HealthComponent.health_zero` signal at the dying entity's position. Both SHALL honor the graceful-failure requirement when ids are missing.
+The system SHALL play weapon fire sounds using `WeaponData.sound_report` (a comma-separated list of audio ids) at the `CombatComponent._fire_weapon` choke point, spatially at the firing unit. One id SHALL be chosen at random from the comma-separated list when the list has multiple entries. On death (`HealthComponent.health_zero`), the system SHALL play the unit's `VoiceData.die` set when one exists; entities without a die voice set play nothing. Explosion/effect SFX for unvoiced entities SHALL be assigned in a future issue. Both SHALL honor the graceful-failure requirement when ids are missing.
+
+### Requirement: Viewport-aware spatial falloff
+The system SHALL play spatial sounds (e.g. weapon fire) at full volume while the source is inside the camera's viewport, and attenuate with distance beyond the viewport edge. The spatial player's position SHALL be placed on the listener-relative bearing of the source at the source's distance past the viewport rectangle, using inverse-distance attenuation. Voices positioned at the camera are unaffected (distance zero → full volume). In headless/UI contexts without a camera, the sound SHALL play positionally at the source without falloff.
+
+#### Scenario: On-screen sound plays at full volume
+- **WHEN** a spatial sound source is inside the viewport footprint
+- **THEN** its player is placed at the listener position (full volume, no panning)
+
+#### Scenario: Off-screen sound attenuates with distance
+- **WHEN** a spatial sound source is beyond the viewport edge
+- **THEN** its player is placed past the listener along the source bearing, so the engine attenuates it by the off-screen distance
 
 #### Scenario: Weapon fire plays one report sound
 - **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires
@@ -106,9 +117,9 @@ The system SHALL play weapon fire sounds using `WeaponData.sound_report` (a comm
 - **WHEN** a weapon with an empty `sound_report` fires
 - **THEN** no fire sound plays and no error is raised
 
-#### Scenario: Death plays an explosion sound
-- **WHEN** an entity's health reaches zero
-- **THEN** a death/explosion sound plays at the entity's position
+#### Scenario: Death plays the unit's die voice set
+- **WHEN** an entity with a non-empty `VoiceData.die` reaches zero health
+- **THEN** a random die variant is played; entities without die voices play nothing
 
 ### Requirement: Content .tres files
 The system SHALL author `AudioData.tres` files under `resources/audio/` for available audio files, and `VoiceData.tres` files for units with select/order voice sets, using the available audio library and `references/sound.ini` id mapping. A `default_bus_layout.tres` SHALL define the Master/Music/SFX/Voice buses.
