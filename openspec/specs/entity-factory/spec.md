@@ -37,6 +37,7 @@ The factory SHALL add components based on these rules:
 - DockClientComponent: if `dock != ""`
 - DockUnloadComponent: if `dock_unload == true`
 - FreeUnitComponent: if `free_unit != ""`
+- VoiceComponent: if `voice_data != null`
 
 #### Scenario: Minimal entity (terrain rock)
 - **WHEN** EntityData has `entity_type = TERRAIN`, `strength = 0`, `foundation = Vector2i(1,1)`, `speed = 0`, `weapons = []`
@@ -61,6 +62,10 @@ The factory SHALL add components based on these rules:
 #### Scenario: Resource tree entity
 - **WHEN** EntityData has `spawned_entity_id = "TIB"`, `radius_cells = 8`, `node_count = 12`
 - **THEN** entity gets StatsComponent, FoundationComponent, ResourceTreeComponent, ArtComponent (no HealthComponent if strength = 0, no SelectComponent)
+
+#### Scenario: Voiced unit entity
+- **WHEN** EntityData has a `voice_data` reference (e.g. a VoiceData .tres)
+- **THEN** entity gets a VoiceComponent holding that reference, in addition to its normal components
 
 ### Requirement: Component wiring
 The factory SHALL wire component references programmatically after instantiation. HitboxComponent and SelectComponent SHALL receive a reference to HealthComponent.
@@ -95,3 +100,14 @@ The factory SHALL cache loaded EntityData resources by id for fast lookup. The f
 #### Scenario: Base scene missing
 - **WHEN** `Entity.tscn` is not found at the expected path
 - **THEN** the factory logs an error and returns null
+
+### Requirement: Death cleanup with die voice
+On `HealthComponent.health_zero`, EntityFactory SHALL free the entity. If the entity has a `VoiceComponent` with a non-empty `VoiceData.die` set, EntityFactory SHALL play a random die variant via `AudioManager.play_voice` before freeing. Entities without a die voice set play nothing.
+
+#### Scenario: Death plays die voice
+- **WHEN** a unit with a non-empty `VoiceData.die` reaches zero health
+- **THEN** a random die variant SHALL play and the entity SHALL be freed
+
+#### Scenario: Voiceless death is silent
+- **WHEN** an entity without a VoiceComponent, or with an empty `die` set, reaches zero health
+- **THEN** no sound SHALL play and the entity SHALL be freed

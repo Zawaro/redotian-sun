@@ -128,3 +128,14 @@ A naval unit intended as a submarine SHALL use `locomotor = "Ship"` and enable `
 #### Scenario: Fallback when GlobalRules unavailable
 - **WHEN** `build_time` is unset and GlobalRules cannot be resolved
 - **THEN** `get_build_time()` computes the time using the default factor `0.8`
+
+### Requirement: EntityData voice set reference
+EntityData SHALL include an optional `voice_data: VoiceData` export (default null) in the Art group. When set, EntityFactory SHALL attach a VoiceComponent holding the reference; when null, no VoiceComponent is created.
+
+#### Scenario: Voice data set attaches component
+- **WHEN** an EntityData has `voice_data` referencing a VoiceData resource
+- **THEN** EntityFactory SHALL attach a VoiceComponent holding that reference
+
+#### Scenario: Voice data unset omits component
+- **WHEN** an EntityData has `voice_data = null`
+- **THEN** no VoiceComponent SHALL be attached

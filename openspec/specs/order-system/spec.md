@@ -165,3 +165,26 @@ When a left-click hits a selectable entity that is friendly/neutral and not curr
 #### Scenario: Enemy routing unchanged
 - **WHEN** the target is an enemy and the selection can produce an order
 - **THEN** the order SHALL execute as before (no behavior change to the enemy branch)
+
+### Requirement: Order confirmation voices
+After order resolution in `MouseHandler`, the system SHALL play one confirmation voice per order event from the NW-most selected local unit that has a `VoiceComponent`. The resolved cursor type SHALL map to a voice event: `MOVE` → `move`; `ATTACK`, `HARVEST`, `ENTER`, `DEPLOY` → `attack`; any other cursor SHALL produce no voice. Playback SHALL be a single `AudioManager.play_voice` call (camera-centered), never one per selected unit.
+
+#### Scenario: Move order plays move voice
+- **WHEN** a player issues a `MOVE` order with a local unit selected
+- **THEN** one `move` voice variant SHALL play
+
+#### Scenario: Attack-class order plays attack voice
+- **WHEN** a player issues an `ATTACK`, `HARVEST`, `ENTER`, or `DEPLOY` order
+- **THEN** one `attack` voice variant SHALL play
+
+#### Scenario: Unmapped cursor is silent
+- **WHEN** the resolved order cursor is outside the defined mapping
+- **THEN** no order voice SHALL play
+
+#### Scenario: One voice per order, not per unit
+- **WHEN** a multi-unit selection issues one order
+- **THEN** exactly one confirmation voice plays (from the NW-most local unit)
+
+#### Scenario: Voiceless or non-local selection is silent
+- **WHEN** the NW-most local unit has no `VoiceComponent`, or the selection is entirely non-local
+- **THEN** no order voice SHALL play

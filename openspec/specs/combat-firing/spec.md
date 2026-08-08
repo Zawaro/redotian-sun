@@ -137,3 +137,18 @@ MovementController SHALL expose `func is_moving() -> bool` that returns `true` w
 - **WHEN** MovementController `_state` is `MOVING` or `ROTATING`
 - **THEN** `is_moving()` SHALL return `true`
 
+### Requirement: Weapon fire sound
+On each shot in `_fire_weapon`, CombatComponent SHALL play one audio id chosen at random from `WeaponData.sound_report` (a comma-separated list) at the firing unit's world position via `AudioManager.play_sound`. An empty `sound_report` SHALL play nothing. A missing or unknown id SHALL log a warning and remain silent (graceful failure).
+
+#### Scenario: Fire plays a report sound
+- **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires
+- **THEN** one of the listed ids SHALL be played at the firing unit's position
+
+#### Scenario: Empty report is silent
+- **WHEN** a weapon with an empty `sound_report` fires
+- **THEN** no sound SHALL play
+
+#### Scenario: Missing id is silent
+- **WHEN** the chosen report id is not in the audio cache
+- **THEN** a warning SHALL be logged and no sound SHALL play
+

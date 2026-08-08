@@ -3,7 +3,7 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 context: |
-  Engine: Redot 26.1 LTS (Forward Plus renderer)
+  Engine: Redot 26.2 LTS (Forward Plus renderer)
   Language: GDScript only — no C# bindings (.gdnlib / .gdns files exist in project yet)
   Genre: RTS remake of Command & Conquer: Tiberian Sun
   

@@ -137,3 +137,33 @@ The system SHALL separate sharers from non-sharers when processing a group move 
 - **WHEN** `_find_sharer_cell()` is called with a target cell at capacity
 - **THEN** it spirals outward to find the nearest cell below capacity
 
+### Requirement: Select voice playback
+On a single-entity selection via `select_entity(entity)`, SelectionManager SHALL play a random variant from the entity's `VoiceData.select` event when the entity has a `VoiceComponent` with `voice_data` and is a local unit. Group and box selection events SHALL play exactly ONE select voice from the NW-most unit — never one per unit. Voice playback SHALL go through `AudioManager.play_voice` (camera-centered radio chatter).
+
+#### Scenario: Selecting a local unit plays its select voice
+- **WHEN** `select_entity(entity)` is called on a local unit with a non-empty `VoiceData.select`
+- **THEN** one random `select` variant SHALL be played via AudioManager
+
+#### Scenario: Selecting an enemy unit is silent
+- **WHEN** `select_entity(entity)` is called on an enemy unit (non-local player_id)
+- **THEN** no voice SHALL play
+
+#### Scenario: Group select plays one voice
+- **WHEN** `play_select_voice_for_entities(entities)` is called for a multi-unit selection event
+- **THEN** exactly one select voice plays, from the NW-most unit
+
+#### Scenario: Add-entity alone is silent
+- **WHEN** `add_entity(entity)` is called directly (not via `select_entity` or the group path)
+- **THEN** no voice SHALL play — voices are deferred to the selection event
+
+### Requirement: NW-most voice picker
+`get_northwest_most(entities)` SHALL deterministically pick the single speaking unit as the one closest to the top of the screen (smallest projected screen Y), tie-broken by the largest screen X (right-most). Without a camera it SHALL fall back to world-space ordering (smallest +Z, then largest +X).
+
+#### Scenario: Top-most unit picked
+- **WHEN** a camera exists and three units are candidates
+- **THEN** the unit with the smallest projected screen Y is returned
+
+#### Scenario: World-space fallback ordering
+- **WHEN** no camera is present (headless/test context)
+- **THEN** the unit with smallest +Z (then largest +X) is returned
+
