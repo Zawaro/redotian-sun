@@ -379,6 +379,14 @@ func _find_select_component(node: Node) -> SelectComponent:
     return null
 
 
+## Fog gate for hover targeting: shrouded entities are skipped entirely.
+func _is_fog_visible(target: Node3D) -> bool:
+    var ss := get_node_or_null("/root/ShroudSystem")
+    if ss == null:
+        return true
+    return ss.is_cell_visible_to_local(CellUtil.world_to_cell(target.global_position))
+
+
 ## Walk up the node tree to find the entity root (first Node3D parent with components).
 func _find_entity_parent(node: Node) -> Node3D:
     while is_instance_valid(node):
@@ -415,10 +423,11 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
     if result.has("collider"):
         var collider := result.collider as Node
         var select_comp := _find_select_component(collider)
-        if select_comp:
+        var entity := _find_entity_parent(collider)
+        if select_comp and entity and _is_fog_visible(entity):
             _hover_miss_count = 0
             selection_manager.set_hover_preview(true, select_comp)
-            _hovered_entity = _find_entity_parent(collider)
+            _hovered_entity = entity
             return
 
     # Pass 2: layer 17 — interact hitboxes (tiberium, dock).
@@ -428,7 +437,7 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
     if result.has("collider"):
         var collider := result.collider as Node
         var entity := _find_entity_parent(collider)
-        if entity:
+        if entity and _is_fog_visible(entity):
             _hover_miss_count = 0
             _hovered_entity = entity
             return
