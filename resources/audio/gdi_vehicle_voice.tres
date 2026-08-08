@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="VoiceData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/VoiceData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "GDI_VEHICLE"
+select = Array[String](["25-I000", "25-I002", "25-I004", "25-I006"])
+move = Array[String](["25-I012", "25-I014", "25-I016", "25-I018", "25-I022"])
+attack = Array[String](["25-I014", "25-I022", "25-I024", "25-I026"])
+die = Array[String](["EXPNEW05"])
+feedback = Array[String]([])

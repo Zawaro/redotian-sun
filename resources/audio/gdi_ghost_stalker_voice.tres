@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="VoiceData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/VoiceData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "GDI_GHOST_STALKER"
+select = Array[String](["14-I000", "14-I002", "14-I004"])
+move = Array[String](["14-I008", "14-I010", "14-I012", "14-I014"])
+attack = Array[String](["14-I008", "14-I010", "14-I014", "14-I016"])
+die = Array[String](["DEDMAN1", "DEDMAN2", "DEDMAN4", "DEDMAN5", "DEDMAN6"])
+feedback = Array[String]([])
