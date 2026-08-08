@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="VoiceData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/VoiceData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "GDI_ENGINEER"
+select = Array[String](["19-I000", "19-I002", "19-I006"])
+move = Array[String](["19-I010", "19-I016"])
+attack = Array[String](["19-I018", "19-I016"])
+die = Array[String](["DEDMAN1", "DEDMAN2", "DEDMAN4", "DEDMAN5", "DEDMAN6"])
+feedback = Array[String]([])

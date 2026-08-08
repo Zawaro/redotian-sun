@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="VoiceData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/VoiceData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "GDI_UMAGON"
+select = Array[String](["10-I000", "10-I002", "10-I004", "10-I006"])
+move = Array[String](["10-I016", "10-I020", "10-I022"])
+attack = Array[String](["10-I024", "10-I026", "10-I028", "10-I030"])
+die = Array[String](["DEDGIRL1", "DEDGIRL2", "DEDGIRL3", "DEDGIRL4"])
+feedback = Array[String]([])

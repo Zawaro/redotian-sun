@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="VoiceData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/VoiceData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "NOD_ROCKET_INFANTRY"
+select = Array[String](["15-I000", "15-I032", "15-I048"])
+move = Array[String](["15-I008", "15-I014", "15-I026"])
+attack = Array[String](["15-I008", "15-I014", "15-I026", "15-I050", "15-I060"])
+die = Array[String](["DEDMAN1", "DEDMAN2", "DEDMAN4", "DEDMAN5", "DEDMAN6"])
+feedback = Array[String](["15-I058", "15-I064"])

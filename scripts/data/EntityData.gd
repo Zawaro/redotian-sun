@@ -293,6 +293,9 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export_group("Art")
 @export var art_data: ArtData = null
 
+## Voice set reference — drives select/order voice playback (optional).
+@export var voice_data: VoiceData = null
+
 ## Default build-speed factor when GlobalRules is unavailable (e.g. isolated tests).
 const DEFAULT_BUILD_SPEED: float = 0.8
 

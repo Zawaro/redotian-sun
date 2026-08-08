@@ -228,3 +228,42 @@ func test_double_handler_call_safe():
             break
     TestHelper.assert_eq(found, false, "building entry removed after double call")
     building.free()
+
+
+# --- Task: Death plays the entity's die voice set, not a hardcoded sound ---
+
+
+func _am_child_count() -> int:
+    return AudioManager.get_child_count()
+
+
+func test_death_plays_die_voice_set():
+    var before := _am_child_count()
+    var entity := EntityFactory.create_entity("GDI_LIGHT_INFANTRY")
+    TestHelper.assert_true(entity != null, "GDI light infantry created")
+    if entity:
+        var voice := entity.get_node_or_null("VoiceComponent") as VoiceComponent
+        (
+            TestHelper
+            . assert_true(
+                voice and voice.voice_data and not voice.voice_data.die.is_empty(),
+                "infantry has a die voice set",
+            )
+        )
+        EntityFactory._on_entity_death(entity)
+        var after := _am_child_count()
+        TestHelper.assert_true(after >= before + 1, "death spawned at least one voice player")
+        var last := AudioManager.get_child(AudioManager.get_child_count() - 1) as Node
+        if last and last.has_method("get_bus"):
+            TestHelper.assert_eq(last.get_bus(), "Voice", "die voice routed to Voice bus")
+
+
+func test_death_of_resource_is_silent():
+    var before := _am_child_count()
+    var resource := EntityFactory.create_entity("TIBERIUM_RIPARIUS")
+    TestHelper.assert_true(resource != null, "tiberium resource created")
+    if resource:
+        var voice := resource.get_node_or_null("VoiceComponent") as VoiceComponent
+        TestHelper.assert_true(voice == null, "resource entity has no VoiceComponent")
+        EntityFactory._on_entity_death(resource)
+        TestHelper.assert_eq(_am_child_count(), before, "resource death plays no sound")

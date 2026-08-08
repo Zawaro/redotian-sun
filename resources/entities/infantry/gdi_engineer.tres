@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://resources/art/infantry/gdi_engineer_art.tres" id="2_art"]
+[ext_resource type="Resource" path="res://resources/audio/gdi_engineer_voice.tres" id="3_voice"]
 
 [resource]
 script = ExtResource("1_script")
+voice_data = ExtResource("3_voice")
 art_data = ExtResource("2_art")
 id = "GDI_ENGINEER"
 display_name = "Engineer"

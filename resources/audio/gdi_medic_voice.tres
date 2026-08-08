@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="VoiceData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/VoiceData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "GDI_MEDIC"
+select = Array[String](["20-I000", "20-I004", "20-I006"])
+move = Array[String](["20-I008", "20-I010", "20-I012"])
+attack = Array[String](["20-I016", "20-I018", "20-I020"])
+die = Array[String](["DEDMAN1", "DEDMAN2", "DEDMAN4", "DEDMAN5", "DEDMAN6"])
+feedback = Array[String]([])

@@ -49,6 +49,7 @@ const DOCK_UNLOAD_COMPONENT_SCRIPT: GDScript = preload(
 )
 const DEPLOY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DeployComponent.gd")
 const ICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/IceComponent.gd")
+const VOICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/VoiceComponent.gd")
 
 var _entity_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
@@ -63,6 +64,19 @@ func _load_default_data() -> void:
     register_data_set("res://resources/entities/")
     if ResourceLoader.exists("res://resources/global_rules.tres"):
         _global_rules = load("res://resources/global_rules.tres") as GlobalRules
+
+
+func _on_entity_death(entity: Node3D) -> void:
+    if not is_instance_valid(entity):
+        return
+    var voice := entity.get_node_or_null("VoiceComponent") as VoiceComponent
+    if (
+        voice
+        and voice.voice_data
+        and not voice.voice_data.get_event(VoiceData.EVENT_DIE).is_empty()
+    ):
+        AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_DIE, entity.global_position)
+    entity.queue_free()
 
 
 func register_data_set(path: String) -> void:
@@ -111,7 +125,7 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     # Death cleanup — free entity when health reaches zero.
     var health := entity.get_node_or_null("HealthComponent") as HealthComponent
     if health:
-        health.health_zero.connect(func() -> void: entity.queue_free())
+        health.health_zero.connect(func() -> void: _on_entity_death(entity))
 
     # Cell occupancy — all except OVERLAY, and TERRAIN without foundation.
     var etype := data.entity_type
@@ -163,6 +177,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_free_unit_component(entity, data)
     _add_deploy_component(entity, data)
     _add_exit_component(entity, data)
+    _add_voice_component(entity, data)
     _add_rally_point_component(entity, data)
     _add_ice_component(entity, data)
     if data.resource_category != "tiberium":
@@ -305,6 +320,16 @@ func _add_rally_point_component(entity: Node3D, data: EntityData) -> void:
         var component := Node.new()
         component.name = "RallyPointComponent"
         component.set_script(RALLY_POINT_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_voice_component(entity: Node3D, data: EntityData) -> void:
+    if data.voice_data:
+        var component := Node.new()
+        component.name = "VoiceComponent"
+        component.set_script(VOICE_COMPONENT_SCRIPT)
+        component.voice_data = data.voice_data
         entity.add_child(component)
         component.owner = entity
 
