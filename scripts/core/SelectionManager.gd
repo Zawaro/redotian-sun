@@ -377,13 +377,10 @@ func _is_local_entity(select_comp: SelectComponent) -> bool:
 
 ## Fog gate: shrouded entities cannot be selected when fog of war is enabled.
 func _is_entity_selectable(entity: SelectComponent) -> bool:
-    var ss := get_node_or_null("/root/ShroudSystem")
-    if ss == null:
-        return true
     var parent := entity.get_parent() as Node3D
     if not is_instance_valid(parent):
         return true
-    return ss.is_cell_visible_to_local(CellUtil.world_to_cell(parent.global_position))
+    return ShroudSystem.is_cell_visible_to_local(CellUtil.world_to_cell(parent.global_position))
 
 
 func request_set_rally_point(target_position: Vector3) -> void:
