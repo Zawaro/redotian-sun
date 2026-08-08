@@ -89,7 +89,11 @@ func set_target(entity: Node3D) -> void:
     _connect_health_signal()
     var mc := get_parent().get_node_or_null("MovementController") as MovementController
     if mc:
-        mc.cancel_move_retain_vertical()
+        if mc.is_airborne_jumpjet():
+            mc.cancel_move_retain_vertical()
+        else:
+            mc.stop()
+    _move_toward_target(true)
 
 
 func clear_target() -> void:
@@ -206,47 +210,48 @@ func _play_fire_sound(weapon: WeaponData) -> void:
     AudioManager.play_sound(chosen.strip_edges(), global_position)
 
 
-func _move_toward_target() -> void:
+func _move_toward_target(force: bool = false) -> void:
     var entity := get_parent() as Node3D
     if not entity:
         return
     var mc := entity.get_node_or_null("MovementController") as MovementController
-    if mc and not mc.is_moving():
-        var weapon := get_current_weapon()
-        if not weapon:
-            return
-        var range_world := weapon.attack_range * CellUtil.CELL_SIZE
-        var to_target := _target.global_position - global_position
-        var distance := to_target.length()
-        if distance <= 0.01:
-            return
-        var stop_pos: Vector3
-        if mc.is_airborne_jumpjet():
-            # Shortest air path: approach the target head-on to weapon range,
-            # then nudge off any airborne jumpjets already there so the group
-            # spreads dynamically instead of stacking on one point.
-            var approach_dir := Vector3(to_target.x, 0.0, to_target.z).normalized()
-            var base_pos := _target.global_position - approach_dir * range_world
-            stop_pos = (
-                base_pos
-                + _air_repulsion(
-                    entity.global_position, _nearby_airborne_jumpjets(entity), range_world
-                )
-            )
-            # Never push an attacker out of firing range: pull any overshoot
-            # back onto the range circle so it fires on arrival instead of
-            # bouncing back to re-approach.
-            var stop_offset := _target.global_position - stop_pos
-            if stop_offset.length() > range_world:
-                stop_pos = _target.global_position - stop_offset.normalized() * range_world
-        else:
-            var angle := atan2(to_target.x, to_target.z)
-            stop_pos = (
-                _target.global_position
-                - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
-            )
-        _combat_move = true
-        mc.set_target_position(stop_pos, false, true)
+    if not mc:
+        return
+    if not force and mc.is_moving():
+        return
+    var weapon := get_current_weapon()
+    if not weapon:
+        return
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    var to_target := _target.global_position - global_position
+    var horizontal_distance := Vector3(to_target.x, 0.0, to_target.z).length()
+    if horizontal_distance <= range_world:
+        return
+    var stop_pos: Vector3
+    if mc.is_airborne_jumpjet():
+        # Shortest air path: approach the target head-on to weapon range,
+        # then nudge off any airborne jumpjets already there so the group
+        # spreads dynamically instead of stacking on one point.
+        var approach_dir := Vector3(to_target.x, 0.0, to_target.z).normalized()
+        var base_pos := _target.global_position - approach_dir * range_world
+        stop_pos = (
+            base_pos
+            + _air_repulsion(entity.global_position, _nearby_airborne_jumpjets(entity), range_world)
+        )
+        # Never push an attacker out of firing range: pull any overshoot
+        # back onto the range circle so it fires on arrival instead of
+        # bouncing back to re-approach.
+        var stop_offset := _target.global_position - stop_pos
+        if stop_offset.length() > range_world:
+            stop_pos = _target.global_position - stop_offset.normalized() * range_world
+    else:
+        var angle := atan2(to_target.x, to_target.z)
+        stop_pos = (
+            _target.global_position
+            - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
+        )
+    _combat_move = true
+    mc.set_target_position(stop_pos, false, true)
 
 
 ## World-space positions of airborne jumpjets within the 3x3 cells around the

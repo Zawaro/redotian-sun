@@ -698,6 +698,97 @@ func test_combat_move_preserves_attack_target():
     target.free()
 
 
+func _make_moving_ground_attacker(waypoint_dir: Vector3 = Vector3(1, 0, 0)) -> Array:
+    # A ground unit mid-move on a per-cell player-move path (21 cells), in the
+    # scene tree so global positions resolve. Returns [entity, mc, cc].
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return []
+    _ts.init_grid(32, 32)
+    if SpatialHash.instance:
+        SpatialHash.instance._grid.clear()
+    var root: Node = Engine.get_main_loop().root
+    var entity := _make_combat_entity(true, 0)
+    root.add_child(entity)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    mc._parent = entity
+    entity.global_position = Vector3(0, 0, 0)
+    mc._state = MovementController.State.MOVING
+    var waypoints := PackedVector3Array()
+    for i in range(0, 21):
+        waypoints.append(Vector3(i * 2.0, 0, 0) * waypoint_dir)
+    mc._waypoints = waypoints
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    return [entity, mc, cc]
+
+
+func test_ground_attack_in_range_stops_and_fires():
+    # A ground unit mid-move must abandon the old destination on an in-range
+    # attack, stop the move (settling within a cell), and fire (#195).
+    var setup: Array = _make_moving_ground_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(3.0, 0.0, 0.0)
+    var old_dest: Vector3 = mc.get_target_position()
+    cc.set_target(target)
+    var collapsed_dest: Vector3 = mc.get_target_position()
+    var abandoned: bool = collapsed_dest.distance_to(old_dest) > 5.0
+    cc._physics_process(0.1)
+    var health: int = target.get_node("HealthComponent").current_health
+    var fired: bool = health < 100
+    var still_attacking: bool = cc._target == target
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(abandoned, "in-range attack abandons old move destination")
+    TestHelper.assert_true(fired, "in-range attack fires after stopping")
+    TestHelper.assert_true(still_attacking, "attack target preserved after stopping")
+
+
+func test_ground_attack_out_of_range_supersedes_move():
+    # A ground unit mid-move heading elsewhere (along Z) must drop that
+    # destination on an out-of-range attack and immediately head along a fresh
+    # approach path into range (#256).
+    var setup: Array = _make_moving_ground_attacker(Vector3(0, 0, 1))
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(40.0, 0.0, 0.0)
+    var old_dest: Vector3 = mc.get_target_position()
+    cc.set_target(target)
+    var new_dest: Vector3 = mc.get_target_position()
+    var weapon := cc.get_current_weapon()
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    var in_range_of_target: bool = (
+        Vector2(new_dest.x - 40.0, new_dest.z).length() <= range_world + 0.5
+    )
+    var abandoned: bool = new_dest.distance_to(old_dest) > 5.0
+    var target_preserved: bool = cc._target == target
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(abandoned, "out-of-range attack abandons old move destination")
+    TestHelper.assert_true(
+        in_range_of_target, "new destination is an approach point within weapon range"
+    )
+    TestHelper.assert_true(target_preserved, "attack target preserved after superseding move")
+
+
 func test_range_ignores_vertical_separation():
     var root: Node = Engine.get_main_loop().root
     var entity := _make_combat_entity(true, 0)
