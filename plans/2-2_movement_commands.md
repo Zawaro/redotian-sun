@@ -1,9 +1,30 @@
 # Unit Movement & Commands System - Redotian Sun
 
 ## Overview
-The movement system handles all unit navigation and command execution, translating player inputs into in-game actions. This includes basic movement (Phase 1), attack orders, patrol routes, formation management, and later pathfinding integration with the navmesh system (Phase 2+).
+The movement system handles all unit navigation and command execution, translating player inputs into in-game actions. This includes basic movement, attack orders, formation management, and pathfinding integration.
 
 **Grid cell size: 2m × 2m.** Each vehicle unit occupies exactly one cell (occupancy radius = ~1.0 m). Movement is continuous — units slide smoothly across cell boundaries without snapping or grid-lock stepping.
+
+## Implementation Status (verified 2026-08-08)
+
+| Command | Status | Notes |
+|---------|--------|-------|
+| Move | ✅ | Left-click ground → `SelectionManager.request_move` with formation offsets (clamped ±2-cell) |
+| Attack | ✅ | Left-click enemy → `CombatComponent.get_order_for_target` (ATTACK prio 30) → chase + fire |
+| Attack-Move (Shift+Right) | ❌ | Not implemented |
+| Patrol | ❌ | Not implemented |
+| Gather | ✅ | `HarvestComponent` HARVEST/ENTER orders + full dock loop |
+| Formation menu | ❌ | Static click-offset formation only; no `FormationComponent` |
+| Group hotkeys 1–0 | ❌ | Not bound in `project.godot` |
+| Real shift-queue | ❌ | `queued` flag cosmetic; path replaced, not appended |
+
+Order pipeline (implemented): `MouseHandler` → `OrderSystem` (active generator) → `UnitOrderGenerator` / `SellOrderGenerator` / `RepairOrderGenerator` → `OrderResolver` (highest priority wins) → `OrderResult.execute`. See `5-1_rts_interface.md` §6.
+
+Tests: `test_order_resolver.gd`, `test_unit_order_generator.gd`, `test_movement_controller_infantry.gd`, `test_selection_manager.gd`.
+
+**Note:** Right-click is deselect/cancel only (never issues orders); left-click is select/act. This doc's Phase 1 "right-button drag pan" and attack-on-right-click were superseded by the input-role convention.
+
+---
 
 ## Core Requirements
 

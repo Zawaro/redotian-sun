@@ -3,6 +3,14 @@
 ## Overview
 Multiplayer support enables competitive and cooperative gameplay between multiple players over a network. This is critical for long-term engagement and community building.
 
+## Implementation Status (verified 2026-08-08)
+
+**Entirely greenfield — 0% implemented.** Zero network code in `scripts/`: no `MultiplayerAPI`, `ENetMultiplayerPeer`, `rpc`, peer management, lobby, matchmaking, or replay recording. The only trace is a comment in `scripts/components/DockUnloadComponent.gd:85` — "Needs entity ownership tracking for multiplayer." The MainMenu "Lan" button is disabled.
+
+Not on the critical path for GDI Mission 01 or skirmish (single-player + local AI scope).
+
+---
+
 ## Core Requirements
 
 ### 1. Network Architecture Design

@@ -3,6 +3,31 @@
 ## Overview
 The camera and selection system forms the foundation of RTS gameplay, enabling players to view, navigate, and control units on the battlefield. This system must replicate classic C&C controls while leveraging modern 3D rendering capabilities.
 
+## Implementation Status (verified 2026-08-08)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Pan (WASD/arrows, remappable) | ✅ | `CameraController._process`, diagonal world axes |
+| Middle-mouse pan + joystick cursor | ✅ | `slide_map_around` (right-button drag is NOT used — reserved for deselect) |
+| Edge scroll (toggleable) | ✅ | 7px threshold, gated by `InputSettings.edge_scroll_enabled` |
+| Zoom (wheel only) | ✅ | ortho `size` 10–50 (plan said 50–400 — stale); no +/- keys bound |
+| Rotate (Q/E) | ❌ | Fixed isometric yaw (45°); no rotation code/actions |
+| Reset (R) | ❌ | No action/code |
+| Shift+drag fast pan / smoothing / inertia | ❌ | Panning is raw `+= delta`, no lerp |
+| Cinematic camera | ❌ | Zero `cinematic` matches in scripts/ |
+| Single select | ✅ | `MouseHandler._handle_left_click_normal`, layer 16 raycast |
+| Box select | ✅ | ≥5px drag, `_select_entities_2d_projected`, skips enemies |
+| Multi-select / shift toggle | ✅ | `SelectionManager.select_entity(ent, shift)` |
+| Hover preview | ✅ | Outline + health bar |
+| Group hotkeys 1–0 | ❌ | No input actions bound |
+| Smart centering on distant select | ❌ | — |
+| Selection overlay (brackets/bars/pips) | ✅ | `SelectionOverlay` autoload (CanvasLayer) |
+| Cursor/order system | ✅ | `OrderSystem` + generators (see 5-1 §6) |
+
+**Scene paths are stale in this doc:** real files are `scenes/hud/Camera01.tscn` / `scripts/hud/CameraController.gd` + `Camera01.gd` (not `scenes/ui/CameraRoot.tscn`). `MouseHandler` polls `_process` (documented rationale: Control under Node3D lacks `_input` focus).
+
+---
+
 ## Core Requirements
 
 ### 1. Camera Controls

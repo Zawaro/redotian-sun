@@ -4,6 +4,23 @@
 
 New `ResourceGrowthSystem` autoload with two independent timers (tree + crystal), batched entity processing, and distance/spread limits to prevent cascading. MapEditor is guarded to never trigger growth.
 
+## Implementation Status (verified 2026-08-08)
+
+**Implemented and tested** (`scripts/core/ResourceGrowthSystem.gd`, `test_resource_growth_system.gd`):
+
+- Two independent timers (tree `tree_growth_rate`, crystal `growth_rate`), batched offsets (`growth_batch_trees`/`growth_batch_crystals`), cached entity lists rebuilt every 5s
+- `_process_tree()` — grow within `radius_cells` (`_spawn_in_radius` around tree); `_process_resource()` — self-grow + `_try_spread_from` 8-dir, capped by `spread_count`/`spread_max`
+- MapEditor guard: `Engine.is_editor_hint()` + scene-name check
+- Cascade prevention (3 layers): distance limit, spread count, batching — all shipped
+
+**Divergences from this doc:**
+- `tree_spawn_radius` replaced the doc's `radius_cells + buffer` spread-limit scheme
+- `full_growth_speed_bonus` is **not implemented** (doc + spec table list it; the codebase omits it — the field doesn't exist in GlobalRules)
+- `TiberiumTreeComponent`/`TiberiumComponent` were named `ResourceTreeComponent`/`ResourceComponent` in the shipped code
+- Autoload registered as `ResourceGrowthSystem` (spec text says `TiberiumGrowthSystem` for back-compat — cosmetic doc mismatch)
+
+---
+
 ## Design Decisions (from grill-me session)
 
 | Decision | Choice | Rationale |

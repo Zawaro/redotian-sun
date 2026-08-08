@@ -5,6 +5,25 @@ The economy system manages resource harvesting, credit tracking, and spending �
 
 The system is **resource-agnostic** — it supports tiberium, weed, or any custom resource type via the ResourceType hierarchy. Tiberium is the primary resource but the architecture doesn't assume it.
 
+## Implementation Status (verified 2026-08-08)
+
+Fully implemented and tested:
+- Harvest loop: `HarvestComponent` (IDLE/SEEK_NODE/HARVESTING/DELIVERING/HIBERNATE) → `DockClientComponent` → `DockHostComponent` → `DockUnloadComponent` → `EconomyManager` credits
+- `ResourceGrowthSystem` (tree + crystal timers, batching, spread limits)
+- `ResourceComponent` (3-stage placeholder visuals, `collect()` → self-free), `ResourceTreeComponent`, `TransportComponent` (cargo/pips), `FreeUnitComponent`
+- `ResourceType` hierarchy (green/blue/red/vein), `MapConfig`/`PlayerData`/`Faction`, per-player `PlayerManager`
+- Map editor resource tools (paint tiberium / place tree / erase) + JSON persistence
+- Tests: `test_harvest_dock.gd`, `test_resource_growth_system.gd`, `test_economy_manager.gd`, `test_dock_*`, `test_transport_cargo.gd`
+
+Known gaps:
+- `EconomyManager.get_storage_capacity()` hardcoded to 2000 (silo-based computation missing)
+- No income/expense rate tracking; credits-to-local-player shortcut in `DockUnloadComponent` (`ponytail:` comment)
+- ServiceDepotComponent / dock-based repair not implemented (BuildingManager has flat `repair_building`)
+- Vein toxicity gameplay missing (data exists)
+- Real 3D crystal/tree models — placeholder cubes/pole only
+
+---
+
 ## Core Loop
 ```
 ResourceTree (persistent spawner on map)
@@ -183,7 +202,7 @@ signal dock_undocked(docker: Node)
 
 ### Refinery Classification (`refinery: bool` on EntityData)
 
-> **Status (DEFERRED):** `refinery: bool` was implemented then removed — it had zero runtime readers. Re-add it to `EntityData` when the GameAI build-ratio system below is built and actually queries it. The rationale here is the spec for that point.
+> **Status (2026-08-08):** `refinery: bool` was **re-added** to `EntityData` (schema-first, no consumer yet — per a `ponytail:` comment). It remains unused until the GameAI build-ratio system below is built and queries it.
 
 **Source**: [ModEnc — Refinery](https://modenc.renegadeprojects.com/Refinery)
 
@@ -213,7 +232,7 @@ func _count_refineries() -> int:
     return count
 ```
 
-**Decision for #55**: Delete `RefineryComponent`. Move `accepted_resource_categories` to `DockUnloadComponent`. (`refinery: bool` deferred — see Status note above.)
+**Decision for #55**: Delete `RefineryComponent`. Move `accepted_resource_categories` to `DockUnloadComponent`. (`refinery: bool` re-added as schema-first — see Status note above.)
 
 ### DockUnloadComponent (on refinery buildings)
 Handles the actual unload tick — drains cargo from docked entity, converts to credits via ResourceType.value.

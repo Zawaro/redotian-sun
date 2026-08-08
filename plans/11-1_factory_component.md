@@ -1,8 +1,22 @@
 # FactoryComponent Cleanup & Production Exit System
 
 **Issue:** #31
-**Status:** Design complete, ready for implementation
+**Status:** ✅ Implemented (2026-07-24 change `factory-component-cleanup`, archived)
 **Created:** 2026-07-23
+
+## Implementation Status (verified 2026-08-08)
+
+All design elements are shipped and tested:
+
+- **`FactoryComponent.gd`** (`scripts/components/FactoryComponent.gd`) — `produces` queue types, `is_primary` toggle (`set_primary()` queries same-type same-player factories), `on_unit_produced`, `is_busy` during exit delay, `factories_changed` signal. Factory ownership is enforced in `PrerequisiteSystem.can_build`.
+- **`ExitComponent.gd`** — exit offsets, door delay, `exit_completed`; unit placement via `EntityPlacer`.
+- **`RallyPointComponent.gd`** — `set_rally_point` via `SelectionManager.request_set_rally_point` (Alt+click).
+- **`ProductionManager.gd`** — talks to FactoryComponent, `clear_waiting_for_placement` on building placement, `_ready_to_spawn` retry queue for blocked exits.
+- Tests: `test_factory_component.gd`, `test_exit_component.gd`, `test_rally_point_component.gd`, `test_production_manager.gd`.
+
+Not implemented from the design: helipad dual DockHost+Exit wiring (aircraft data has no weapons/exit wiring yet), door animations in ArtComponent.
+
+---
 
 ## Overview
 

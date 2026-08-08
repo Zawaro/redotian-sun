@@ -3,6 +3,14 @@
 ## Overview
 The combat AI governs how units behave during engagements, including target selection, engagement rules, and tactical decision-making. This creates believable enemy behavior and assists player unit automation.
 
+## Implementation Status (verified 2026-08-08)
+
+**Entirely greenfield — 0% implemented.** Units only fight when player-ordered (`CombatComponent.set_target`); there is no auto-engagement, no idle-guard, no chase state machine, no threat scoring, no retreat rules, and no GameAI/faction AI of any kind. The "Nod AI Opponent" is a `PlayerData.is_bot` flag only.
+
+Not blocked on anything — it builds on the combat/hitscan system (`3-1`) and the order system (`2-2`). A first playable GDI Mission 01 can ship with a **static/passive Nod base** (the First Blood pattern), deferring scripted team AI (#238) until after the trigger engine (#237) exists.
+
+---
+
 ## Core Requirements
 
 ### 1. Target Selection Logic

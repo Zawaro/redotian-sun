@@ -3,6 +3,34 @@
 ## Overview
 The terrain system defines the physical foundation of the game world, affecting unit movement, building placement, and resource distribution. This creates strategic depth through varied landscapes.
 
+## Implementation Status (verified 2026-08-08)
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| Heightfield terrain system | ✅ | `TerrainSystem.gd` — vertex grid, 4-dir cascade smoothing, JSON v4 |
+| Terrain rendering | ✅ | `TerrainRenderer.gd` — MultiMesh per GLB submesh, pink placeholder fallback |
+| Heightfield collision | ✅ | `intersect_heightfield_segment` + `HeightMapShape3D` |
+| Rectangular grid + diamond bounds | ✅ | `CellUtil.is_in_diamond` (2·W·H cells), `BoundsSystem` red/blue diamonds, 4-inset visible bounds |
+| Land types (data) | ✅ | 6 LandType .tres (clear/rough/road/water/cliff/resource) in GlobalRules |
+| Land-type painting (editor) | ❌ | `TerrainSystem.set_land_type` exists, never called by UI — open #228 |
+| Movement-cost modifiers | ✅ | Per-locomotor `terrain_speeds` + height cost + bib penalty (Pathfinder/MovementController) |
+| Terrain-object catalog | ✅ | 130+ baked .tres (cliffs/slopes/ramps), isotem tooling, `TerrainCatalog` |
+| Water | ⚠️ | Land type + passability exist; no water surface mesh/render — open #229 |
+| Ice / drowning | ✅ | `IceComponent` + `MovementController._damage_ice` (ice sits on water cells, authoring blocked by #229) |
+| Cliffs | ✅ | Height-driven slope/cliff classification + catalog rendering; tiling resolver open #230 |
+| Bridges | ❌ | Data-only stubs (`bridge.tres`/`rail_bridge.tres`); no walkable surface — open #231 |
+| Tiberium growth/spread | ✅ | `ResourceGrowthSystem` (batched, spread-capped) |
+| Harvesting | ✅ | Full loop (see 1-3) |
+| Theater selection | ⚠️ | Load-side only (`theater_id` → `TerrainCatalog.set_active_theater`); only `temperate`; editor can't set/save — open #203/#206 |
+
+**Plan-doc staleness:** the "Scene Structure" (`TerrainManager` / `ElevationCalculator` / `TiberiumGenerator` singletons) never existed — superseded by `TerrainSystem.gd` + `ResourceGrowthSystem.gd` + the isotem catalog. The movement-modifier table (hills 65–80%, forest 70%, road 140%) is aspirational; the shipped model is per-locomotor `terrain_speeds`.
+
+## Historical Implementation Status (stale — kept for reference)
+
+- ✅ EntityData.gd — terrain entities use `entity_type = TERRAIN`
+- ✅ .tres file created for TREE01 (destructible tree)
+- 🔄 Remaining: ~25 more terrain .tres files (Issue #23), locomotor enforcement (Issue #34) — *both done; roster is ~44 terrain .tres, locomotors fully enforced*
+
 ## Core Requirements
 
 ### 1. Terrain Types & Movement Modifiers
@@ -144,10 +172,11 @@ func get_terrain_modifier(position):
 - **Data Population**: See GitHub Issue #23 for terrain entity .tres files
 - **MovementController**: Issue #34 — implement locomotor enforcement and movement zones
 
-## Implementation Status
+## Historical Implementation Status (stale — kept for reference)
+
 - ✅ EntityData.gd — terrain entities use `entity_type = TERRAIN`
 - ✅ .tres file created for TREE01 (destructible tree)
-- 🔄 Remaining: ~25 more terrain .tres files (Issue #23), locomotor enforcement (Issue #34)
+- 🔄 Remaining: ~25 more terrain .tres files (Issue #23), locomotor enforcement (Issue #34) — *both done; roster is ~44 terrain .tres, locomotors fully enforced*
 
 ## Future Enhancements
 - Destructible terrain (craters from explosions)

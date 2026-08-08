@@ -3,6 +3,28 @@
 ## Overview
 The UI interface system provides players with essential information and control panels for managing their base, units, and resources during gameplay. This is critical for responsive RTS gameplay.
 
+## Implementation Status (verified 2026-08-08)
+
+| Element | Status | Notes |
+|---------|--------|-------|
+| Tabbed sidebar (4 tabs, F1–F4, 5×3) | ✅ | `Sidebar.gd`; Special tab empty (aircraft not wired) |
+| Credits HUD | ✅ | `%CreditsLabel`, signal-driven; insufficient-funds red state NOT implemented (credit-ui spec gap) |
+| Cameo states + angular progress | ✅ | Angular progress shader, queue overlay, ready flicker, build-limit dim, prereq hiding |
+| Cameo tooltip | ✅ | Native `tooltip_text` (cost + time) |
+| Production queue display | 🟡 | Cameo overlays only; no separate queue panel/cancel buttons/hotkey slots |
+| Cursor + order system | ✅ | 52 cursors (placeholder SVGs), generators, `OrderResolver` priority chain — see §6 |
+| Sell/Repair mode | ✅ | `OrderSystem.set_generator` |
+| Debug menu (~) | ✅ | `DebugMenu.gd` — overlays, lighting, cheats, entity inspection |
+| FPS counter | ✅ | `FPSCounter01.tscn` |
+| Gameplay minimap | ❌ | Only `scripts/editor/Minimap.gd` (editor tool); `RadarComponent` stub; open #177/#246 |
+| Selection/info panel | ❌ | Health bars + pips exist (SelectionOverlay); no stats/actions panel |
+| Resource HUD (Tiberium/income/power) | ❌ | Credits only; `EconomyManager` has no income tracking |
+| Input routing | ✅ | `InputSettings` autoload + `UIUtil` hit-tests |
+
+**Entity info:** closest is DebugMenu "Entity Inspection" (read-only component dump).
+
+---
+
 ## Core Requirements
 
 ### 1. Selection Panel

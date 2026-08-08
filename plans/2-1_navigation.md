@@ -1,7 +1,25 @@
 # Navigation & Pathfinding System - Redotian Sun
 
 ## Overview
-The navigation system provides pathfinding capabilities for all moving entities, enabling units to traverse terrain efficiently while avoiding obstacles and respecting movement constraints. The grid cell size is **2m × 2m** — each vehicle unit occupies exactly one cell (radius = 1.0). In Phase 1, obstacle avoidance uses radial repulsion steering on a kinematic basis; navmesh-based A* pathfinding arrives in Phase 2 after the input flow and player feel are validated.
+The navigation system provides pathfinding capabilities for all moving entities, enabling units to traverse terrain efficiently while avoiding obstacles and respecting movement constraints. The grid cell size is **2m × 2m** — each vehicle unit occupies exactly one cell (radius = 1.0).
+
+> **Phase note (verified 2026-08-08):** Phase 1 straight-line movement was superseded — a **custom grid A\*** is now the global pathfinder. `NavigationServer3D` is **not** used. The Phase 1/Phase 2 split in this doc is historical; the shipped system is at "Phase 2+" quality with local radial repulsion steering layered on top of A* waypoints.
+
+## Implementation Status (verified 2026-08-08)
+
+Implemented and tested:
+- **`Pathfinder.gd`** — 8-dir binary-heap A*, terrain cost via `Locomotor.get_speed_multiplier`, height-climb tolerance, bib-cell penalty, ice-as-footing on water, LOS string-pulling (`smooth_path`), best-reached fallback
+- **`MovementController.gd`** (~1000 lines) — IDLE/ROTATING/MOVING/WAIT states, Catmull-Rom spline waypoints (`SplineUtil`), radial repulsion steering, **9 locomotors** (Foot/Track/Wheel/Hover/Amphibious/Fly/Jumpjet/Subterranean/Ship), slope coefficients, crushing, ice cracking, sub-slot cell sharing, jumpjet vertical state machine, wait-state scatter
+- Supporting: `SpatialHash`, `CellReservation`, `CellSubPositions`, `CellUtil`, `BoundsSystem`, `Locomotor`/`LandType` registries in `GlobalRules`
+- Tests: `test_pathfinder*.gd`, `test_movement_*.gd`, `test_locomotor_registry.gd`, `test_pathfinder_terrain.gd`
+
+Not implemented from this plan:
+- Terrain toxicity damage (tiberium fields drain health) — land-type speed multipliers exist, health drain does not
+- Road speed bonus (road land type exists; no separate 0.7× bonus path)
+
+Terrain cost modifiers in this doc's table (hills 1.5×, road 0.7×, tiberium 1.2×+toxicity) are **aspirational** — the shipped model is per-locomotor `terrain_speeds` for clear/resource/road/rough + height cost + bib penalty.
+
+---
 
 ## Core Requirements
 

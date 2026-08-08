@@ -3,6 +3,18 @@
 ## Overview
 The fog of war system creates strategic depth by hiding unexplored areas, limiting vision to what units/buildings can see, and enabling classic RTS exploration mechanics.
 
+## Implementation Status (verified 2026-08-08)
+
+**Entirely greenfield — 0% implemented.** No FogOfWarSystem, VisionManager, LOSCalculator, shroud grid, exploration tracking, or win-condition system exists. Only traces:
+- `GlobalRules.gd:129` `@export var fog_of_war: bool = false` — never read by any system
+- `EntityData.sight` (sight range in cells) — data field, no consumer
+- `scripts/environment/LightingControls.gd` `fog_density` — atmospheric distance fog, **unrelated** to gameplay shroud
+- `scripts/editor/Minimap.gd` — map-editor tool, not a gameplay fog minimap
+
+Open issues: #197 (ShroudSystem fog grid + height-aware shadowcasting), #198 (fog rendering plane + entity culling). These are prerequisites for a gameplay minimap (#177) and objective reveals (#241).
+
+---
+
 ## Core Requirements
 
 ### 1. Fog Layers

@@ -3,6 +3,20 @@
 ## Overview
 Modding support empowers the community to create custom content, extending game longevity and fostering creativity. This includes units, maps, factions, and gameplay mechanics.
 
+## Implementation Status (verified 2026-08-08)
+
+**Partial scaffold only:**
+
+- ✅ `register_data_set()` exists in 3 autoloads — `EntityFactory.gd:82`, `TerrainCatalog.gd:46`, `AudioManager.gd:32` — providing the layered data-set loading this plan calls for
+- ❌ No ModManager / mod loader / validation / load-order handling
+- ❌ No asset import/export tools (isotem terrain tooling is a partial analogue)
+- ❌ No script extensibility hooks / event API
+- ❌ No mod distribution pipeline / UI
+
+Not on the critical path for GDI Mission 01.
+
+---
+
 ## Core Requirements
 
 ### 1. Modding Framework Design

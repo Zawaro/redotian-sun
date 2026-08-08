@@ -3,6 +3,26 @@
 ## Overview
 Faction systems define unique mechanics, units, buildings, and strategies for each playable side. This creates asymmetric gameplay that mirrors the original C&C: Tiberian Sun experience.
 
+## Implementation Status (verified 2026-08-08)
+
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| GDI faction data | ✅ | `resources/factions/gdi.tres` + per-faction unit/building .tres |
+| Nod faction data | ✅ | `resources/factions/nod.tres` |
+| Faction asymmetry | 🟡 | Expressed purely via data (e.g. Nod stealth tank/obelisk, GDI mammoth); no mechanic bonuses |
+| FactionManager autoload | ❌ | `Faction.gd` resource only; no `get_faction_bonus` |
+| Faction-specific tech trees | 🟡 | Per-faction prerequisite data; no research/upgrade system |
+| Special abilities | ❌ | `SpecialAbilityComponent.gd` is a data wrapper (`has_ability()` only); no ability logic |
+
+**Plan-doc staleness:** the `FactionSystem.tscn` / `FactionManager.gd` / `TechTreeResolver.gd` scene structure never existed. Faction bonuses in `GlobalRules` (this doc's design) are not implemented.
+
+## Historical Implementation Status (stale — kept for reference)
+
+- ✅ EntityData.gd — single resource class with all entity properties
+- ✅ EntityFactory.gd — creates entities from data, adds components dynamically
+- ✅ GlobalRules.gd — default game values from rules.ini, customizable armor types
+- 🔄 Remaining: Component logic (see issues #28-40), data population, integration — *component logic and data population done (22 components, 408 .tres); faction mechanics remain*
+
 ## Core Requirements
 
 ### 1. GDI Faction Mechanics
@@ -115,11 +135,12 @@ func get_faction_bonus(faction, bonus_type):
 - **Mod/DLC Support**: EntityFactory supports layered data sets for faction extensions
 - **Component Issues**: See GitHub Issues #28-40 for component-specific implementation tasks
 
-## Implementation Status
+## Historical Implementation Status (stale — kept for reference)
+
 - ✅ EntityData.gd — single resource class with all entity properties
 - ✅ EntityFactory.gd — creates entities from data, adds components dynamically
 - ✅ GlobalRules.gd — default game values from rules.ini, customizable armor types
-- 🔄 Remaining: Component logic (see issues #28-40), data population, integration
+- 🔄 Remaining: Component logic (see issues #28-40), data population, integration — *component logic and data population done (22 components, 408 .tres); faction mechanics remain*
 
 ## Future Enhancements
 - Additional factions (Scrin, Nod splinter groups)

@@ -3,6 +3,32 @@
 ## Overview
 The map design system provides tools for creating, editing, and loading custom maps. This enables modding community engagement and varied gameplay experiences.
 
+## Implementation Status (verified 2026-08-08)
+
+**MapEditor exists and is functional** (`scenes/editor/MapEditor.tscn`, `scripts/editor/MapEditor.gd`, runtime tool with `get_meta("is_map_editor")` guard):
+
+| Tool/Feature | Status | Notes |
+|--------------|--------|-------|
+| File menu (New/Load/Save) | ✅ | JSON v4 via `EditorSaveLoad.gd` + `TerrainSystem.export_to_json` |
+| New Map dialog | ✅ | W/H + insets + visible-bounds preview; **Starting Height and Player Count captured but ignored** (params unused); dialog max 12 vs `TerrainSystem.MAX_HEIGHT`=10 |
+| Paint Height | ✅ | Single-cell drag (`HeightPainter`); no brush radius |
+| Paint Resource (Tiberium) | ✅ | Radius brush (`ResourcePainter`) |
+| Place Tree / Erase | ✅ | |
+| Entity placement | ✅ | Buildings/units via `EntityPlacer` + `EntityBrowser` (search, owner player); TERRAIN/OVERLAY/SMUDGE categories missing from browser |
+| Grid + hover highlight | ✅ | Diamond-clipped |
+| Minimap | ✅ | Editor-only ortho SubViewport |
+| Undo/redo | ❌ | Open #200 |
+| Land-type paint | ❌ | Open #228 |
+| Theater selector | ❌ | `theater_id` never written; open #203/#206 |
+| Player start / MapConfig authoring | ❌ | `MapConfig`/`PlayerConfig` exist as data, no editor surface; `starting_units` spawning "not yet implemented" per map-config spec |
+| Scenario/trigger system | ❌ | `ScenarioScripter`/`MissionManager` never built — entire mission layer missing |
+
+**Plan-doc staleness:** this doc's `TerrainPainter.gd`, `ScenarioScripter.gd`, `MissionManager.gd` scene structure never existed. Map persistence is JSON v4 (terrain + entities + bounds), not the `map_data` dict in this doc.
+
+For GDI Mission 01, the authentic falls/river/bridge geography is blocked on #228–#231 (land-type paint, water render, cliff tiling, bridges); a simplified hand-built JSON map works today (land types + pathfinding already function in-game).
+
+---
+
 ## Core Requirements
 
 ### 1. Map Import Pipeline

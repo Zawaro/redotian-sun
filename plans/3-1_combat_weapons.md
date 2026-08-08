@@ -150,37 +150,53 @@ func take_damage(amount, damage_type):
 - **HitboxComponent**: Issue #29 — implement damage detection and forwarding
 - **HealthComponent**: Issue #30 — implement armor calculation, death effects, regen
 
-## Implementation Status
+## Implementation Status (verified 2026-08-08)
+
+- ✅ WeaponData.gd — unlimited weapons per entity via `Array[WeaponData]` (44 .tres)
+- ✅ WarheadData.gd — **exists** (`scripts/data/WarheadData.gd`, 27 .tres) — the ❌ below is stale
+- ✅ GlobalRules.armor_types — **wired end-to-end** via `ArmorType` (5 .tres) + `GlobalRules.get_warhead_armor_multiplier`; warhead → armor → clamped damage chain works (the ❌ below is stale)
+- ✅ CombatComponent — **real firing logic**: chase-to-range, cooldowns (`60/rof`), hitscan damage, veteran multiplier, fire sounds, jumpjet air approach (the ❌ "no firing logic" below is stale)
+- ✅ HitboxComponent — detects damage; note: damage currently routes via CombatComponent hitscan, not projectile-triggered hitbox
+- ✅ HealthComponent — `take_damage()` (veteran armor reduction), `heal`, `health_zero` signal; **death handler exists** — EntityFactory frees node + plays death voice, BuildingManager unregisters cells (the ❌ below is stale)
+- ✅ Attack command (#79) — resolved via order system (no `request_attack`; `CombatComponent.get_order_for_target`)
+
+**Remaining:**
+- Runtime projectiles (#78, #89) — `ProjectileData.gd` schema exists; no Projectile node/system. Damage is pure hitscan.
+- `splash_radius` (AoE), `anti_air`/`anti_ground` enforcement, `is_laser`/`is_sonic`/`is_railgun`, `ambient_damage`, accuracy rolls, ammo/volley — data-only, unused
+- Turret rotation (`turret`/`turret_anim` data, no logic)
+- Death effects (explosions, debris, resource drop) — death = voice + free only
+- Passive regeneration / dock-based repair — not implemented
+- **Combat AI is entirely separate** — see `3-2_combat_ai.md` (greenfield)
+
+## Historical Status (stale — kept for reference)
+
 - ✅ WeaponData.gd — unlimited weapons per entity via `Array[WeaponData]`
-- ❌ WarheadData.gd — **does not exist yet** (listed in #23 but not created)
-- ❌ GlobalRules.armor_types — referenced but unused, chain broken without WarheadData
-- ✅ CombatComponent — stores weapons, turret info, threat posed (no firing logic)
+- ❌ WarheadData.gd — **does not exist yet** (listed in #23 but not created) — *STALE, now implemented*
+- ❌ GlobalRules.armor_types — referenced but unused, chain broken without WarheadData — *STALE, now wired*
+- ✅ CombatComponent — stores weapons, turret info, threat posed (no firing logic) — *firing now implemented*
 - ✅ HitboxComponent — detects projectile hits, forwards to HealthComponent (no projectile to trigger it)
-- ✅ HealthComponent — take_damage(), health_zero signal (no death handler listens)
+- ✅ HealthComponent — take_damage(), health_zero signal (no death handler listens) — *death handler now exists*
 
-## Gaps (added 2026-07-18)
+## Gaps (added 2026-07-18, status updated 2026-08-08)
 
-### Projectile System (Issue #78)
-- No projectile nodes exist — entire damage pipeline dead-ends
+### Projectile System (Issue #78) — STILL OPEN
+- No projectile nodes exist — hitscan is used for all damage
 - Need: Projectile Node3D scene + ProjectileData resource
-- Alternative: hitscan (instant raycast) for high-speed weapons
 - WeaponData already has `projectile` and `speed` fields
 
-### Attack Command (Issue #79)
-- SelectionManager has no `request_attack()` — only move/harvest
-- MouseHandler has no left-click-on-enemy handler
-- CombatComponent has no `set_target()` entry point from player input
-- Need: entity ownership (player_id) + PlayerManager.is_enemy() for target filtering
+### Attack Command (Issue #79) — RESOLVED
+- ~~SelectionManager has no `request_attack()`~~ — attacks route through the order system (`CombatComponent.get_order_for_target` → ATTACK prio 30)
+- ~~MouseHandler has no left-click-on-enemy handler~~ — implemented
+- ~~CombatComponent has no `set_target()` entry point from player input~~ — `set_target` exists
+- Entity ownership (player_id) + `PlayerManager.is_enemy()` target filtering — implemented
 
-### WarheadData (Issue #23 gap)
-- WeaponData.warhead is a String but no WarheadData class exists
-- Chain: weapon warhead string → WarheadData → damage type → armor modifier
-- Without this, armor calculation has no input
+### WarheadData (Issue #23 gap) — RESOLVED
+- ~~WeaponData.warhead is a String but no WarheadData class exists~~ — `scripts/data/WarheadData.gd` + 27 .tres
+- Chain: weapon warhead string → WarheadData → damage type → armor modifier — **works end-to-end** (`get_warhead_armor_multiplier`)
 
-### Death Handler (Issue #82)
-- health_zero signal fires but nothing listens
-- Destroyed buildings persist as ghosts occupying cells
-- Need: BuildingManager cleanup on health_zero (unregister cells, free node)
+### Death Handler (Issue #82) — RESOLVED
+- ~~health_zero signal fires but nothing listens~~ — `EntityFactory._on_entity_death` (free + voice) and `BuildingManager` (cell/prereq unregister) both listen
+- ~~Destroyed buildings persist as ghosts occupying cells~~ — cells are freed on death
 
 ## Future Enhancements
 - Cover mechanics (units gain defense behind obstacles)

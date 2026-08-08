@@ -3,6 +3,23 @@
 ## Overview
 Polish and visual effects transform functional gameplay into an immersive experience. This phase focuses on animations, particle effects, sound design, and UI refinement.
 
+## Implementation Status (verified 2026-08-08)
+
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| VFX (explosions/damage/construction) | ❌ | Zero particle systems; `EntityData.death_explosion_ids` / `WarheadData` VFX fields unused; death = voice + free only; buildings appear instantly (no buildup) |
+| Screen shake / flash on damage | ❌ | — |
+| Unit/building animations | ❌ | Only door anim wiring (`ArtComponent` on exit); no walk/attack/idle states |
+| Sound design | 🟡 | `AudioManager` (4 buses) + voice hooks (select/order/fire/die) live; music 0, EVA 0, SFX content gitignored (`external_assets/`) — fresh clone is silent |
+| UI/UX polish | ❌ | No tooltip system beyond cameos, no accessibility, no transitions |
+| Camera easing | ❌ | Pan is raw `+= delta`; no smoothing/inertia |
+
+**Plan-doc staleness:** the `PolishSystem`/`VFXManager`/`AnimationController`/`SoundFXPlayer` scene structure never existed. The sound-design section is superseded by the implemented `audio-system` spec (which added viewport-aware falloff).
+
+Relevant open issues: #243 (combat SFX), #255 (music), #258 (EVA), #249 (GDI1 FX), #186 (death effects), #38 (art damaged states).
+
+---
+
 ## Core Requirements
 
 ### 1. Visual Effects (VFX)

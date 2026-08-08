@@ -3,6 +3,34 @@
 ## Overview
 The unit roster defines all playable units across factions, including their stats, abilities, and counter relationships. This creates strategic depth through rock-paper-scissors balance.
 
+## Implementation Status (verified 2026-08-08)
+
+**Roster is effectively TS-complete: 408 EntityData .tres files.**
+
+| Type | Count | Notes |
+|------|-------|-------|
+| INFANTRY | 26 | GDI: light inf, disc thrower, engineer, medic, jumpjet, ghost stalker, chem spray, umagon. Nod: light/rocket inf, engineer, cyborg(s), chameleon spy, mutant hijacker, slavick, oxanna. Civilians/mutants. |
+| VEHICLE | 38 | MCV, harvester(+docked), mammoth(+mk2), titan, wolverine, amphibious APC, disruptor, hover MLRS, hunter seeker, mobile sensor array; Nod buggy, cycle, stealth tank, tick tank, subterranean APC, devils tongue, artillery, ICBM, weed eater, mobile repair vehicle. |
+| BUILDING | 168 | GDI 24, Nod 27, Neutral 6 (incl. guardtower, Scrin ship), ~110 civilian |
+| AIRCRAFT | 8 | orca fighter/bomber/transport, carryall, dropship, drop pod, kodiak; banshee, harpy. **No weapons populated.** |
+| TERRAIN | 44 | trees, ice (5), boxes, tiberium trees, vein tree, riparius |
+| OVERLAY | 84 | walls/fences, rocks, tracks, 20 green + 12 blue crystal pods, veins |
+| SMUDGE | 40 | burns, craters, scorch |
+
+Weapons 44 .tres, warheads 27, armor 5, land types 6, locomotors 9, art ~325 .tres (43 with model_path; mostly placeholders). Buildable: 73.
+
+Not implemented from this plan: counter-system logic, hero/special units with abilities, aircraft weapons.
+
+**Plan-doc staleness:** the "~30 more .tres files" status below is massively stale — the roster is ~408 files.
+
+## Historical Implementation Status (stale — kept for reference)
+
+- ✅ EntityData.gd — single resource class with all entity properties
+- ✅ WeaponData.gd — unlimited weapons per entity
+- ✅ EntityFactory.gd — creates entities from data, adds components dynamically
+- ✅ .tres files created for: E1, BGGY, HARV, MCV, GACNST, GAPOWR, NAPOWR, TREE01
+- 🔄 Remaining: ~30 more .tres files (Issue #23), component logic (Issues #28-40) — *both done*
+
 ## Core Requirements
 
 ### 1. Infantry Units
@@ -129,12 +157,13 @@ resources/art/
 - **Data Population**: See GitHub Issue #23 for .tres file creation
 - **Component Issues**: See GitHub Issues #28-40 for component-specific implementation
 
-## Implementation Status
+## Historical Implementation Status (stale — kept for reference)
+
 - ✅ EntityData.gd — single resource class with all entity properties
 - ✅ WeaponData.gd — unlimited weapons per entity
 - ✅ EntityFactory.gd — creates entities from data, adds components dynamically
 - ✅ .tres files created for: E1, BGGY, HARV, MCV, GACNST, GAPOWR, NAPOWR, TREE01
-- 🔄 Remaining: ~30 more .tres files (Issue #23), component logic (Issues #28-40)
+- 🔄 Remaining: ~30 more .tres files (Issue #23), component logic (Issues #28-40) — *both done*
 
 ## Future Enhancements
 - Dynamic unit balancing based on win rates

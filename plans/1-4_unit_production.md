@@ -3,6 +3,23 @@
 ## Overview
 The unit production pipeline manages the creation of new units through factories, barracks, and other production structures. This system handles queue management, tech prerequisites, and spawn logic.
 
+## Implementation Status (verified 2026-08-08)
+
+Fully implemented and tested:
+- **`ProductionManager.gd`** — per-player per-queue-type queues (`"%d:%s" % [player_id, queue_type]`), `MAX_STACK=25`, pause/resume/cancel (refund only what was gradually deducted), **gradual cost deduction** over build time (plan said deduct-on-queue — documented divergence), factory speed bonus `1 + (count-1) * rules.multiple_factory` (0.5)
+- **`PrerequisiteSystem.gd`** — build limits, OR/AND prerequisites, factory-ownership check
+- **`FactoryComponent` / `ExitComponent` / `RallyPointComponent`** — exit offsets, door delay, rally points (Alt+click)
+- **`Sidebar.gd`** — 4 tabs (Buildings/Infantry/Vehicles/Special), 5×3 cameo grid, angular progress shader, credits label, prereq dimming, ready-to-place/spawn flows
+- Tests: `test_production_manager.gd`, `test_factory_component.gd`, `test_exit_component.gd`, `test_rally_point_component.gd`
+
+Not implemented from this plan:
+- Batch production, queue reordering, emergency recall
+- Research/upgrade tech tree (`upgrades` field unused)
+- Real shift-click queueing (`MOD_QUEUED`/`queued` flag threaded through `OrderResult` but `set_target_position` replaces the path — cosmetic only)
+- Aircraft production wiring (Special tab empty; aircraft have no weapons/exit data)
+
+---
+
 ## Core Requirements
 
 ### 1. Production Structures

@@ -151,9 +151,19 @@ func can_build_at(position, building_type):
 - ✅ EntityData.gd — buildings use `entity_type = BUILDING`
 - ✅ EntityFactory.gd — creates buildings from data, adds components dynamically
 - ✅ BuildingManager.gd — handles build mode, placement validation, construction
-- ✅ .tres files created for: GACNST, GAPOWR, NAPOWR
-- ✅ CivilianGuardTower01 — placed via build menu (BuildingType .tres)
-- 🔄 Remaining: BuildingManager migration to EntityFactory (Issue #25), power grid (Issue #33)
+- ✅ .tres files created for: GACNST, GAPOWR, NAPOWR (now 24 GDI + 27 Nod structures)
+- ✅ CivilianGuardTower01 — placed via build menu
+- ✅ BuildingManager migration to EntityFactory (Issue #25) — **done**; `place_building` → `EntityFactory.create_entity`, cell/bib registration via SpatialHash
+- ✅ Sell (50% refund) + Repair (flat heal) + destruction cleanup (unregister cells + prereqs)
+- ❌ Power grid (Issue #33) — `PowerComponent.gd` is a thin data wrapper; no grid computation, no overload shutdown, no power feedback
+
+## Status (verified 2026-08-08)
+
+Placement layer is complete and tested (`test_building_manager.gd`, `test_building_placement.gd`). Remaining from this plan:
+- Power grid management (Issue #33)
+- Territory restriction in `can_place()` (no player-territory check)
+- Building states beyond Idle/Destroyed — no in-world "Constructing"/"Upgrading" (construction is queue-side with angular progress, then instant placement)
+- Upgrade mechanics (empty data fields only)
 
 ## Future Enhancements
 - Building upgrades with tech tree prerequisites

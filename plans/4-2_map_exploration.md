@@ -3,6 +3,14 @@
 ## Overview
 Map exploration tracking enables victory conditions based on territory control and provides feedback for strategic planning. This system works alongside the fog of war to create competitive gameplay objectives.
 
+## Implementation Status (verified 2026-08-08)
+
+**Entirely greenfield — 0% implemented.** No ExplorationManager, WinConditionSystem, VisionSharing, or RevealBlackout exists. There is no exploration tracking, no win-condition evaluation, and no victory/defeat triggers anywhere.
+
+Note: for GDI Mission 01, a minimal win/lose (annihilation-style: destroy all Nod / lose refinery+barracks) will be built on the new trigger engine (#237) + objectives (#240) rather than the full exploration/domination machinery in this doc.
+
+---
+
 ## Core Requirements
 
 ### 1. Exploration Tracking

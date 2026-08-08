@@ -17,8 +17,10 @@ End-to-end gameplay flow: player deploys MCV, builds base, trains infantry, atta
 | 7 | Train infantry (E1 rifle) | #23 (weapon data) | ✅ Closed |
 | 8 | Left-click enemy Con Yard → attack command | #79 | ✅ Closed |
 | 9 | Infantry fires weapon → hitscan damage applied | #28 | ✅ Closed |
-| 10 | Con Yard health reaches 0 → health_zero signal | #30 | ❌ Open |
-| 11 | Death handler removes destroyed building | #82 | ❌ Open |
+| 10 | Con Yard health reaches 0 → health_zero signal | #30 | ✅ Closed |
+| 11 | Death handler removes destroyed building | #82 | ✅ Closed |
+
+> **Status (2026-08-08):** All 11 steps closed. Death handling is implemented — `EntityFactory._on_entity_death` frees the node + plays death voice; `BuildingManager` unregisters building/bib cells and deregisters from `PrerequisiteSystem` on `health_zero`. First Blood milestone is complete.
 
 ## Dependency Graph
 
@@ -38,10 +40,12 @@ The longest dependency chain is:
 1. ~~**#81** → prerequisite chain wiring~~ ✅
 2. ~~**#79** → attack command~~ ✅
 3. ~~**#28** → CombatComponent fires (hitscan MVP)~~ ✅
-4. **#30** → health_zero signal emitted (already works, needs death handler)
-5. **#82** → death removes building (connects to health_zero)
+4. ~~**#30** → health_zero signal emitted + death cleanup~~ ✅
+5. ~~**#82** → death removes building (connects to health_zero)~~ ✅
 
-Note: #78/#89 (projectile system) and #29 (HitboxComponent) are future upgrades from the hitscan MVP. They add visual projectiles but are not required for the First Blood demo.
+**Complete.** Note: #78/#89 (projectile system) and #29 (HitboxComponent) are future upgrades from the hitscan MVP. They add visual projectiles but are not required for the First Blood demo.
+
+> **Next milestone:** GDI Mission 01 — see `00-0_project_status.md`.
 
 ## Parallel Workstreams
 
@@ -105,3 +109,5 @@ After implementation, verify:
 - #81 — Prerequisite chain wiring
 - #79 — Attack command
 - #28 — CombatComponent firing logic (hitscan MVP)
+- #30 — HealthComponent death/armor
+- #82 — Death handler

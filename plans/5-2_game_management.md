@@ -3,6 +3,22 @@
 ## Overview
 The main menu serves as the primary hub for player interaction, providing access to all game modes and settings. It must capture the C&C aesthetic while delivering modern usability standards.
 
+## Implementation Status (verified 2026-08-08)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Main menu screen | 🟡 | `MainMenu01.tscn` + `MainMenu01.gd` — TS-style visual; only "Exit" works; other buttons print placeholders |
+| Menu → gameplay flow | ❌ | `MainScene.tscn` has an empty `Gameplay` node; no script loads a map into it; devs run map scenes standalone (`TestMap02.tscn`). `EntityMaskManager.gd:64` hardcodes a camera path that doesn't exist in the shipped scene |
+| Loading screen | ❌ | `LoadingScreen.tscn` is an inert static ProgressBar, hidden |
+| Pause | ❌ | No `get_tree().paused` anywhere; no pause menu/action |
+| Game save/load | ❌ | Only map-editor JSON dialogs (`EditorSaveLoad.gd`) + `InputSettings` cfg; no gameplay save |
+| Settings screens | ❌ | Headless `InputSettings` cfg (keybinds, edge-scroll toggle) — no UI panel |
+| Faction selection | ❌ | Data-driven only (`PlayerData.faction_id`) |
+| Tutorial/training | ❌ | — |
+| Multiplayer lobby | ❌ | "Lan" button disabled; plan 8-1 future |
+
+---
+
 ## Core Components
 
 ### 1. Main Menu Structure
