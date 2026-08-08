@@ -140,6 +140,8 @@ func _inject_autoloads(obj: Object) -> void:
             obj.set("_pm", child)
         elif child_name == "AudioManager":
             obj.set("_am", child)
+        elif child_name == "ShroudSystem":
+            obj.set("_ss", child)
 
 
 func _render_results() -> void:
@@ -246,7 +248,13 @@ func _render_ci() -> void:
         f.store_line(
             (
                 "| %s | %s | %s | %d | %s |"
-                % [rec["suite"], rec["name"], status, rec["asserts"], _format_ms(rec["duration_usec"])]
+                % [
+                    rec["suite"],
+                    rec["name"],
+                    status,
+                    rec["asserts"],
+                    _format_ms(rec["duration_usec"]),
+                ]
             )
         )
     f.close()
