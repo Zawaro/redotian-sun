@@ -375,6 +375,7 @@ func test_allied_shares_vision():
     _setup()
     _set_team(0, 1)
     _set_team(1, 1)
+    _ss.explore_area(1, CENTER, 0)
     var key: int = _ss.register_revealer(0, CENTER, 1, 0.0, true)
     TestHelper.assert_true(_ss.is_visible(1, CENTER), "ally sees what teammate reveals")
     TestHelper.assert_true(_ss.is_explored(1, CENTER), "ally shares explored state")
@@ -630,13 +631,24 @@ func _make_target(player_id: int) -> Node3D:
     return entity
 
 
-func _select_entity(entity: Node3D) -> void:
+func _select_entity(entity: Node3D) -> SelectComponent:
     _sm.deselect_all()
     _sm.add_child(entity)
     var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
     sc.name = "SelectComponent"
     entity.add_child(sc)
     _sm.add_entity(sc)
+    return sc
+
+
+## Units added to the in-tree SelectionManager autoload register their parent in
+## the "entities" group (SelectComponent._ready) and MUST be freed promptly, or
+## they leak into SpatialHash scans for the rest of the run.
+func _free_unit(entity: Node3D, sc: SelectComponent) -> void:
+    if _sm and is_instance_valid(sc):
+        _sm.remove_entity(sc)
+    if is_instance_valid(entity):
+        entity.free()
 
 
 func _orders_cursor_any(
@@ -653,7 +665,7 @@ func test_shrouded_enemy_falls_through_to_move():
     _set_fog(true)
     var unit := _make_combat_entity(0)
     var target := _make_target(1)
-    _select_entity(unit)
+    var sc := _select_entity(unit)
     target.global_position = CellUtil.cell_to_world(CENTER)
     target.position.y = 1.0
     add_child(target)
@@ -668,7 +680,8 @@ func test_shrouded_enemy_falls_through_to_move():
             ),
         )
     )
-    target.queue_free()
+    target.free()
+    _free_unit(unit, sc)
     _teardown()
 
 
@@ -679,7 +692,7 @@ func test_revealed_enemy_is_attackable():
     _set_fog(true)
     var unit := _make_combat_entity(0)
     var target := _make_target(1)
-    _select_entity(unit)
+    var sc := _select_entity(unit)
     target.global_position = CellUtil.cell_to_world(CENTER)
     target.position.y = 1.0
     add_child(target)
@@ -695,7 +708,8 @@ func test_revealed_enemy_is_attackable():
             ),
         )
     )
-    target.queue_free()
+    target.free()
+    _free_unit(unit, sc)
     _teardown()
 
 
@@ -706,7 +720,7 @@ func test_force_fire_into_shroud_gated():
     _set_fog(true)
     var unit := _make_combat_entity(0)
     var target := _make_target(1)
-    _select_entity(unit)
+    var sc := _select_entity(unit)
     target.global_position = CellUtil.cell_to_world(CENTER)
     target.position.y = 1.0
     add_child(target)
@@ -716,7 +730,8 @@ func test_force_fire_into_shroud_gated():
         if order.cursor == CursorState.Type.ATTACK:
             is_attack = true
     TestHelper.assert_true(not is_attack, "force-fire into shroud is gated (no attack order)")
-    target.queue_free()
+    target.free()
+    _free_unit(unit, sc)
     _teardown()
 
 
@@ -728,7 +743,7 @@ func test_shrouded_resource_not_targetable():
     var unit := _make_combat_entity(0)
     var target := _make_target(-1)
     target.add_to_group("drag_selectable")
-    _select_entity(unit)
+    var sc := _select_entity(unit)
     target.global_position = CellUtil.cell_to_world(CENTER)
     target.position.y = 1.0
     add_child(target)
@@ -744,7 +759,8 @@ func test_shrouded_resource_not_targetable():
             "shrouded resource is not targetable for harvest",
         )
     )
-    target.queue_free()
+    target.free()
+    _free_unit(unit, sc)
     _teardown()
 
 
@@ -804,7 +820,7 @@ func test_filter_disabled_without_fog():
     _setup()
     var unit := _make_combat_entity(0)
     var target := _make_target(1)
-    _select_entity(unit)
+    var sc := _select_entity(unit)
     target.global_position = CellUtil.cell_to_world(CENTER)
     target.position.y = 1.0
     add_child(target)
@@ -816,7 +832,8 @@ func test_filter_disabled_without_fog():
             "enemy attackable when fog is off",
         )
     )
-    target.queue_free()
+    target.free()
+    _free_unit(unit, sc)
     _teardown()
 
 
