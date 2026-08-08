@@ -75,7 +75,7 @@ func _on_entity_death(entity: Node3D) -> void:
         and voice.voice_data
         and not voice.voice_data.get_event(VoiceData.EVENT_DIE).is_empty()
     ):
-        AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_DIE, entity.global_position)
+        AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_DIE)
     entity.queue_free()
 
 
@@ -329,7 +329,6 @@ func _add_voice_component(entity: Node3D, data: EntityData) -> void:
         var component := Node.new()
         component.name = "VoiceComponent"
         component.set_script(VOICE_COMPONENT_SCRIPT)
-        component.voice_data = data.voice_data
         entity.add_child(component)
         component.owner = entity
 

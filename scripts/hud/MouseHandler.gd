@@ -296,10 +296,9 @@ func _play_order_voices(orders: Array[OrderResult]) -> void:
     var voice := entity.get_node_or_null("VoiceComponent") as VoiceComponent
     if not voice or not voice.voice_data:
         return
-    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
-    if stats and stats.player_id >= 0 and stats.player_id != PlayerManager.get_local_player_id():
+    if not selection_manager._is_local_entity_node(entity):
         return
-    AudioManager.play_voice(voice.voice_data.id, event, entity.global_position)
+    AudioManager.play_voice(voice.voice_data.id, event)
 
 
 func _voice_event_for_cursor(cursor: CursorState.Type) -> String:

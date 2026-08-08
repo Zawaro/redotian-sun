@@ -201,7 +201,7 @@ func _play_fire_sound(weapon: WeaponData) -> void:
     var report := weapon.sound_report
     if report.is_empty():
         return
-    var ids := report.split(",")
+    var ids := report.split(",", false)
     var chosen := ids[randi() % ids.size()]
     AudioManager.play_sound(chosen.strip_edges(), global_position)
 
