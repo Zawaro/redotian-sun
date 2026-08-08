@@ -647,6 +647,10 @@ func is_repair_mode() -> bool:
     return _repair_mode
 
 
+func is_debug_place_mode() -> bool:
+    return _debug_place_mode
+
+
 func exit_action_mode() -> void:
     _sell_mode = false
     _repair_mode = false
