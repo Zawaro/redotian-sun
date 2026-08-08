@@ -33,17 +33,13 @@ func get_orders(
 func _fog_filter_target(target: Node3D, target_cell: Vector2i, modifiers: Dictionary) -> Dictionary:
     if target == null:
         return {"target": null, "target_cell": target_cell, "modifiers": modifiers}
-    var ss := get_node_or_null("/root/ShroudSystem")
-    if ss == null:
-        return {"target": target, "target_cell": target_cell, "modifiers": modifiers}
     var cell := target_cell
     if cell == Vector2i.ZERO:
         cell = CellUtil.world_to_cell(target.global_position)
-    if ss.is_cell_visible_to_local(cell):
+    if ShroudSystem.is_cell_visible_to_local(cell):
         return {"target": target, "target_cell": target_cell, "modifiers": modifiers}
     var filtered := modifiers.duplicate()
     filtered.erase(OrderResult.MOD_FORCE_ATTACK)
-    filtered.erase(OrderResult.MOD_FORCE_MOVE)
     return {"target": null, "target_cell": target_cell, "modifiers": filtered}
 
 

@@ -54,6 +54,9 @@ func _physics_process(delta: float) -> void:
 func _init_grid(grid_cells: Vector2i) -> void:
     _grid_size = grid_cells
     _cell_count = grid_cells.x * grid_cells.y
+    # Grid changes wipe all per-player state, including revealer registrations.
+    # Unregistering a stale key afterwards is therefore a safe no-op — counts can
+    # never leak from a grid that no longer exists.
     _states.clear()
     _temp_reveals.clear()
     _revealer_seq = 0
@@ -325,17 +328,13 @@ func explore_area(player_id: int, center_cell: Vector2i, radius: int) -> void:
         return
     var st := _state(player_id)
     var explored: PackedByteArray = st["explored"]
-    for dx in range(-radius, radius + 1):
-        for dy in range(-radius, radius + 1):
-            if maxi(absi(dx), absi(dy)) > radius:
-                continue
-            var cell := center_cell + Vector2i(dx, dy)
-            var idx := _cell_index(cell)
-            if idx < 0 or not _revealable(cell):
-                continue
-            if explored[idx] == 0:
-                explored[idx] = 1
-            _mark_dirty(st, idx)
+    for cell in _shadowcast_cells(center_cell, radius, 0.0, false):
+        var idx := _cell_index(cell)
+        if idx < 0:
+            continue
+        if explored[idx] == 0:
+            explored[idx] = 1
+        _mark_dirty(st, idx)
 
 
 func reveal_area(player_id: int, center_cell: Vector2i, radius: int, duration: float) -> void:
