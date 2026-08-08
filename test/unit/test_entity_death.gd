@@ -237,6 +237,23 @@ func _am_child_count() -> int:
     return AudioManager.get_child_count()
 
 
+## Swaps the unit's voice set for a committed-fixture tone so death playback is
+## verifiable without the gitignored external_assets/ .ogg files.
+func _give_test_die_voice(entity: Node3D) -> void:
+    var audio := AudioData.new()
+    audio.id = "TEST_TONE"
+    audio.path = "res://test/fixtures/audio/test_tone.wav"
+    audio.bus = "Voice"
+    AudioManager._audio_cache[audio.id] = audio
+    var voice := VoiceData.new()
+    voice.id = "TEST_VOICE"
+    voice.die = ["TEST_TONE"]
+    AudioManager._voice_cache[voice.id] = voice
+    var voice_comp := entity.get_node_or_null("VoiceComponent") as VoiceComponent
+    if voice_comp:
+        voice_comp.voice_data = voice
+
+
 func test_death_plays_die_voice_set():
     var before := _am_child_count()
     var entity := EntityFactory.create_entity("GDI_LIGHT_INFANTRY")
@@ -250,6 +267,7 @@ func test_death_plays_die_voice_set():
                 "infantry has a die voice set",
             )
         )
+        _give_test_die_voice(entity)
         EntityFactory._on_entity_death(entity)
         var after := _am_child_count()
         TestHelper.assert_true(after >= before + 1, "death spawned at least one voice player")

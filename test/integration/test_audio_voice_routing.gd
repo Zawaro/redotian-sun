@@ -7,6 +7,8 @@ extends Node
 var _am: Node = null
 var _sm: Node = null
 
+const TEST_TONE_PATH: String = "res://test/fixtures/audio/test_tone.wav"
+
 
 func _ready() -> void:
     if has_node("/root/AudioManager"):
@@ -15,9 +17,35 @@ func _ready() -> void:
         _sm = get_node("/root/SelectionManager")
 
 
+## Registers a committed-fixture tone + a voice set that routes every event to it,
+## so playback assertions pass without the gitignored external_assets/ .ogg files.
+func _register_test_voice() -> VoiceData:
+    var voice := VoiceData.new()
+    voice.id = "TEST_VOICE"
+    voice.select = ["TEST_TONE"]
+    voice.move = ["TEST_TONE"]
+    voice.attack = ["TEST_TONE"]
+    voice.die = ["TEST_TONE"]
+    if _am:
+        var audio := AudioData.new()
+        audio.id = "TEST_TONE"
+        audio.path = TEST_TONE_PATH
+        audio.bus = "Voice"
+        _am._audio_cache[audio.id] = audio
+        _am._voice_cache[voice.id] = voice
+    return voice
+
+
+func _give_test_voice(entity: Node3D) -> void:
+    var voice_comp := entity.get_node_or_null("VoiceComponent") as VoiceComponent
+    if voice_comp:
+        voice_comp.voice_data = _register_test_voice()
+
+
 func _make_unit_with_voice(player_id: int = 0) -> Node3D:
     var entity := EntityFactory.create_entity("GDI_LIGHT_INFANTRY")
     if entity:
+        _give_test_voice(entity)
         var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
         if stats:
             stats.player_id = player_id
@@ -70,8 +98,10 @@ func test_select_voice_silent_for_enemy_unit():
 
 func test_weapon_fire_parses_comma_report():
     # _play_fire_sound picks one id from a comma-separated report and routes it
-    # through AudioManager. Both ids exist, so playback spawns a player.
+    # through AudioManager. Both ids resolve to the committed fixture, so
+    # playback spawns a player without the gitignored audio files.
     TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    _register_test_voice()
     var entity := Node3D.new()
     entity.name = "CombatEntity"
     var combat := CombatComponent.new()
@@ -82,7 +112,7 @@ func test_weapon_fire_parses_comma_report():
     weapon.damage = 1
     weapon.attack_range = 1.0
     weapon.rate_of_fire = 1.0
-    weapon.sound_report = "INFGUN3,CHAINGN1"
+    weapon.sound_report = "TEST_TONE,TEST_TONE"
     combat.weapons = [weapon]
     combat._init_cooldowns()
     var target := Node3D.new()
