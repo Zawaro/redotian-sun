@@ -4,9 +4,10 @@
 This document outlines the project planning and roadmap for the Redotian Sun Tiberian Sun remake using the Redot Engine, specifically tailored for real-time strategy game mechanics.
 
 ## Current Status
-- **Engine Version**: Redot 26.1 LTS
-- **Project State**: Development in progress - Core Systems phase
-- **Last Updated**: 2026-07-25
+- **Engine Version**: Redot 26.2 LTS
+- **Project State**: Core Systems complete — mission layer (GDI Mission 01) is next
+- **Last Updated**: 2026-08-08
+- **Live status**: See `00-0_project_status.md` for a verified system-by-system breakdown
 
 ---
 
@@ -40,25 +41,25 @@ The composition-based entity system is a prerequisite for most game systems. All
 ## Phase 1: Core RTS Systems (Priority: Critical)
 
 ### 1.1 Camera & Selection System
-- [x] Implement RTS-style camera controls (pan, zoom, rotate)
+- [x] Implement RTS-style camera controls (pan, zoom, edge-scroll; rotate is NOT implemented)
 - [x] Create box selection and multi-select functionality
-- [ ] Build unit highlighting UI system
+- [x] Build selection overlay UI system (brackets, health bars, pips)
 - [ ] Add smart camera positioning on events
-- [ ] Test with basic unit movement
+- [x] Test with basic unit movement
 
 ### 1.2 Base Building System
 - [x] Implement building placement validation rules
-- [x] Create construction queue with timing/resources
-- [ ] Build power grid management system (PowerComponent)
-- [ ] Add building states and destruction logic
-- [ ] Integrate with economy for costs
+- [x] Create construction queue with timing/resources (ProductionManager queue)
+- [ ] Build power grid management system (PowerComponent — Issue #33)
+- [x] Add building states and destruction logic (sell, repair, destroy cleanup)
+- [x] Integrate with economy for costs
 - **Note**: Uses EntityFactory + EntityData for building definitions
 
 ### 1.3 Economy & Resources
-- [ ] Define resource types (Credits, Tiberium)
-- [ ] Implement credit generation from structures
-- [ ] Create Tiberium harvesting mechanics
-- [ ] Build production cost system
+- [x] Define resource types (Credits, Tiberium — ResourceType hierarchy)
+- [x] Implement credit generation from structures (harvest → dock → unload → credits)
+- [x] Create Tiberium harvesting mechanics
+- [x] Build production cost system
 - [ ] Add income/expense cycle tracking
 
 ### 1.4 Unit Production Pipeline
@@ -68,7 +69,7 @@ The composition-based entity system is a prerequisite for most game systems. All
 - [x] Implement production queue system (ProductionManager)
 - [x] Build prerequisite system (PrerequisiteSystem)
 - [x] Add spawn logic for new units via EntityFactory
-- [ ] Test with various faction units
+- [x] Test with various faction units
 - **Note**: Units defined as EntityData .tres files
 
 ---
@@ -76,29 +77,29 @@ The composition-based entity system is a prerequisite for most game systems. All
 ## Phase 2: Movement & Pathfinding (Priority: High)
 
 ### 2.1 Navigation System
-- [ ] Choose pathfinding approach (A*, navmesh, grid-based)
-- [ ] Build navmesh/grid generation from terrain
-- [ ] Implement dynamic obstacle avoidance
-- [ ] Add terrain cost modifiers
-- [ ] Create path smoothing for units
+- [x] Choose pathfinding approach (A* — custom grid, NOT NavigationServer3D)
+- [x] Build grid from terrain (Pathfinder.gd, A* with binary-heap + terrain costs)
+- [x] Implement dynamic obstacle avoidance (radial repulsion steering)
+- [x] Add terrain cost modifiers (per-locomotor terrain_speeds, slope, bib penalty)
+- [x] Create path smoothing for units (Catmull-Rom splines, LOS string-pulling)
 
 ### 2.2 Unit Movement & Commands
-- [ ] Implement move command with path following
-- [ ] Create attack-move command system
-- [ ] Build patrol and gather commands
-- [ ] Add formation system (line, column, spread)
-- [ ] Test unit pathing in various terrains
+- [x] Implement move command with path following
+- [x] Create attack command system (left-click enemy → chase → fire)
+- [ ] Build patrol and gather commands (gather exists via HarvestComponent; patrol missing)
+- [ ] Add formation system (line, column, spread — static offsets only, no FormationComponent)
+- [x] Test unit pathing in various terrains
 
 ---
 
 ## Phase 3: Combat System (Priority: High)
 
 ### 3.1 Damage & Weapons
-- [ ] Define damage types via WarheadData resources
-- [ ] Create armor types via GlobalRules.armor_types (customizable dictionary)
-- [ ] Build WeaponData resource system (unlimited weapons per entity)
-- [ ] Implement projectile or hitscan systems via CombatComponent
-- [ ] Add unit health/regeneration mechanics (HealthComponent)
+- [x] Define damage types via WarheadData resources (27 .tres)
+- [x] Create armor types via GlobalRules.armor_types (5 ArmorType .tres)
+- [x] Build WeaponData resource system (44 .tres, unlimited weapons per entity)
+- [x] Implement projectile or hitscan systems via CombatComponent (hitscan MVP; runtime projectiles = Issue #78 pending)
+- [ ] Add unit health/regeneration mechanics (HealthComponent exists; regen not implemented)
 - **Note**: Weapons defined in resources/weapons/ .tres files
 
 ### 3.2 Combat AI
@@ -107,6 +108,7 @@ The composition-based entity system is a prerequisite for most game systems. All
 - [ ] Build engagement radius and retreat rules
 - [ ] Add morale/stamina systems if applicable
 - [ ] Test combat scenarios against various enemies
+- **Note**: Entirely greenfield — units only fight when player-ordered
 
 ---
 
@@ -134,15 +136,15 @@ The composition-based entity system is a prerequisite for most game systems. All
 - [x] Implement production queue display with angular progress
 - [x] Implement cursor system with per-unit resolution (GitHub Issue #70)
 - [x] Implement centralized input routing — InputSettings autoload, camera actions, edge scroll toggle
-- [ ] Implement resource HUD (credits, Tiberium)
-- [ ] Add minimap with unit markers
-- [ ] Create selection panel for selected units
+- [ ] Implement resource HUD (credits done; Tiberium, income, power missing)
+- [ ] Add minimap with unit markers (only editor minimap exists)
+- [ ] Create selection panel for selected units (health bars exist; stats/actions panel missing)
 
 ### 5.2 Game Management
 - [ ] Implement pause/resume functionality
 - [ ] Add save/load system for game state
 - [ ] Create settings/configuration screens
-- [ ] Build main menu and faction selection
+- [ ] Build main menu and faction selection (MainMenu01 visual only — only "Exit" works)
 - [ ] Add tutorial or training mode
 
 ---
@@ -150,38 +152,41 @@ The composition-based entity system is a prerequisite for most game systems. All
 ## Phase 6: World & Environment (Priority: Low)
 
 ### 6.1 Terrain Systems
-- [ ] Create terrain types with movement modifiers
-- [ ] Implement elevation/height system
-- [ ] Add Tiberium fields distribution
-- [ ] Build environmental hazards if applicable
-- [ ] Test terrain interaction with units/buildings
+- [x] Create terrain types with movement modifiers (LandType .tres + per-locomotor terrain_speeds)
+- [x] Implement elevation/height system (TerrainSystem heightfield + cascade)
+- [x] Add Tiberium fields distribution (paint tool + ResourceGrowthSystem)
+- [ ] Build environmental hazards if applicable (ice works; radiation/toxicity missing)
+- [x] Test terrain interaction with units/buildings
 - **Note**: Terrain objects use EntityData with entity_type=TERRAIN
 
 ### 6.2 Map Design Tools
-- [ ] Create level editor or map import pipeline
-- [ ] Implement scenario scripting system
-- [ ] Add trigger/event system for missions
-- [ ] Build campaign structure for single-player
+- [x] Create level editor or map import pipeline (MapEditor + JSON v4)
+- [ ] Implement scenario scripting system (entirely missing — needed for missions)
+- [ ] Add trigger/event system for missions (entirely missing)
+- [ ] Build campaign structure for single-player (entirely missing)
+
+### 6.3 Tiberium Growth
+- [x] ResourceGrowthSystem (tree + crystal timers, batching, spread limits)
 
 ---
 
 ## Phase 7: Factions & Content (Priority: Medium)
 
 ### 7.1 Faction Systems
-- [ ] Implement GDI faction mechanics
-- [ ] Create Nod faction mechanics
-- [ ] Build unique unit/structure differences per faction
-- [ ] Add faction-specific tech trees
+- [x] Implement GDI faction data (.tres)
+- [x] Create Nod faction data (.tres)
+- [ ] Build unique unit/structure differences per faction (data-level differences exist; no mechanic bonuses)
+- [ ] Add faction-specific tech trees (per-faction prerequisite data; no research/upgrades)
 - [ ] Test faction balance in combat scenarios
-- **Note**: Faction bonuses stored in GlobalRules.gd
+- **Note**: Faction bonuses stored in GlobalRules.gd; no FactionManager/bonus logic yet
 
 ### 7.2 Unit Roster
-- [ ] Implement infantry units (EntityData .tres files)
-- [ ] Create vehicle units (EntityData .tres files)
-- [ ] Build aircraft units if applicable
+- [x] Implement infantry units (EntityData .tres files — 26)
+- [x] Create vehicle units (EntityData .tres files — 38)
+- [x] Build aircraft units if applicable (8, no weapons populated)
 - [ ] Add hero/special units with unique abilities
 - [ ] Test all unit interactions and counters
-- **Note**: All units defined in resources/entities/ .tres files
+- **Note**: All units defined in resources/entities/ .tres files (~408 total)
 
 ---
 
@@ -207,17 +212,17 @@ The composition-based entity system is a prerequisite for most game systems. All
 ## Phase 9: Testing & Polish (Priority: High - Ongoing)
 
 ### 9.1 Quality Assurance
-- [ ] Set up GUT testing framework (v9.x)
-- [ ] Unit testing for all core systems
-- [ ] Integration testing across modules
+- [x] Set up custom test runner (GUT rejected — breaks on Redot 26.x class_name registration)
+- [x] Unit testing for all core systems (74 files, 777 methods, 4364 asserts)
+- [x] Integration testing across modules (7 integration suites)
 - [ ] Playtesting sessions with gameplay feedback
 - [ ] Bug fixes and refinement cycles
-- [ ] Performance optimization profiling
+- [ ] Performance optimization profiling (open: #221 SDFGI, #222 shadow grain)
 
 ### 9.2 Final Polish
-- [ ] Visual effects (explosions, damage, construction)
+- [ ] Visual effects (explosions, damage, construction — none implemented)
 - [ ] Animation quality and transitions
-- [ ] Sound design and music integration
+- [ ] Sound design and music integration (AudioManager done; music/EVA/content missing)
 - [ ] UI/UX polish and accessibility features
 - [ ] Documentation for players and modders
 
@@ -225,15 +230,22 @@ The composition-based entity system is a prerequisite for most game systems. All
 
 ## Resources & Dependencies
 
-- **Engine**: Redot Engine 26.1 LTS
-- **Programming Language**: GDScript (primary), C# (optional)
+- **Engine**: Redot Engine 26.2 LTS
+- **Programming Language**: GDScript only (no C# bindings)
 - **Documentation**: [Redot Engine Docs](https://docs.redotengine.org/en/stable/)
 - **Version Control**: Git with GitHub Issues for task tracking
-- **Build System**: Godot 4.x workflow
+- **Build System**: Redot editor workflow (no external build system)
 
 ---
 
 ## Next Steps
+
+### Next Milestone: GDI Mission 01 (Reinforce Phoenix Base)
+Two-tier milestone (GitHub milestone #1). MVP tier = playable build & destroy loop; completionist tier = `milestone-tier2` labeled. Umbrella: #260. See `00-0_project_status.md` (GDI Mission 01 section) and the issue series #226–258 + #260–268.
+- **MVP critical path:** #260 (umbrella), #262 (menu→map), #261 (guard AI), #236 (mission boot), #237 (trigger engine), #240 (objectives/win-lose), #247 (entity placement), #264 (attack-move)
+- **MVP map:** #226–#234 (importer, land-type paint, water, cliffs, bridges, buildout, waypoints)
+- **MVP defense/polish:** #245 (Component Tower defense), #246 (radar), #255 (music), #258 (EVA)
+- **New gap issues added 2026-08-08:** #260 umbrella, #261 guard/auto-engage AI, #262 menu→gameplay, #263 pause, #264 attack-move, #265 Special tab superweapons, #266 credit SFX, #267 aircraft & helipad, #268 CI pin 26.2
 
 ### Priority: First Blood Goal (Issue #84)
 End-to-end combat demo: deploy MCV → build base → train infantry → destroy enemy Con Yard. See `plans/10-1_first_blood_goal.md` for full breakdown.
@@ -245,14 +257,13 @@ End-to-end combat demo: deploy MCV → build base → train infantry → destroy
 5. ~~**Prerequisite Chain** (Issue #81)~~ ✅
 6. ~~**Attack Command** (Issue #79)~~ ✅
 7. ~~**CombatComponent Firing** (Issue #28)~~ ✅ — hitscan MVP, fire rate timer, range check, target tracking, player-move-cancels-attack
-8. **Projectile System** (Issue #78) + **ProjectileData Resource** (Issue #89) — future upgrade from hitscan
-9. **HitboxComponent** (Issue #29) — future upgrade, needs projectile to trigger it
-10. **HealthComponent Death** (Issue #30) — health_zero → cleanup
-11. **Death Handler** (Issue #82) — remove destroyed buildings from game
+8. ~~**Death Handling** (Issue #30/#82)~~ ✅ — death handler now frees node + unregisters cells (voice + cleanup)
+9. **Projectile System** (Issue #78) + **ProjectileData Resource** (Issue #89) — future upgrade from hitscan
+10. **HitboxComponent** (Issue #29) — future upgrade, needs projectile to trigger it
 
 ### Remaining Component Logic (Issues #28-40)
-- **Economy**: PowerComponent (#33), FactoryComponent (#31), TransportComponent (#32)
-- **Movement**: Locomotor enforcement (#34), Terrain movement costs (#51)
+- **Economy**: PowerComponent (#33)
+- **Movement**: Locomotor enforcement (#34), Terrain movement costs (#51) — mostly done
 - **UI**: Infantry health bars (#39), Art damaged states (#38)
 
 ### Infrastructure
@@ -264,4 +275,4 @@ End-to-end combat demo: deploy MCV → build base → train infantry → destroy
 
 ---
 
-*Last updated: 2026-07-25 — Unified order system + centralized input routing implemented, specs and plans synced*
+*Last updated: 2026-08-08 — status report added, roadmap synced to codebase (see plans/00-0_project_status.md)*
