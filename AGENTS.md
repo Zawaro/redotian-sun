@@ -16,16 +16,21 @@ Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Re
 | Main scene | `scenes/MainScene.tscn` |
 | Viewport | 1920×1080, stretch mode = viewport |
 
-### Autoloads (13 singletons, all registered in `project.godot`)
+### Autoloads (22 singletons, all registered in `project.godot`)
 
 | Singleton | Script | Purpose |
 |-----------|--------|---------|
 | `PlayerManager` | `scripts/core/PlayerManager.gd` | Per-player identity, teams, enemy checks |
+| `InputSettings` | `scripts/core/InputSettings.gd` | Input configuration singleton |
 | `SelectionManager` | `scripts/core/SelectionManager.gd` | Entity selection tracking |
+| `OrderSystem` | `scripts/core/OrderSystem.gd` | Order/cursor resolution funnel |
 | `DebugVisualizer` | `scripts/core/DebugVisualizer.gd` | Debug mesh overlays |
 | `SpatialHashSingleton` | `scripts/core/SpatialHash.gd` | Spatial partitioning |
+| `CellReservationSingleton` | `scripts/core/CellReservation.gd` | In-flight sub-slot cell reservation |
 | `TerrainSystem` | `scripts/core/TerrainSystem.gd` | Terrain grid management |
+| `TerrainCatalog` | `scripts/core/TerrainCatalog.gd` | Terrain object catalog |
 | `EntityFactory` | `scripts/entities/EntityFactory.gd` | Creates entities from EntityData resources |
+| `BatchLoader` | `scripts/core/BatchLoader.gd` | Async model loading |
 | `EntityPlacer` | `scripts/entities/EntityPlacer.gd` | Places entities at world positions |
 | `BuildingManager` | `scripts/buildings/BuildingManager.gd` | Build mode, placement, preview |
 | `EconomyManager` | `scripts/economy/EconomyManager.gd` | Per-player credits, deductions |
@@ -33,6 +38,10 @@ Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Re
 | `SelectionOverlay` | `scripts/ui/SelectionOverlay.gd` | Draws selection brackets, health bars, pips |
 | `PrerequisiteSystem` | `scripts/production/PrerequisiteSystem.gd` | Tech tree prerequisite checks |
 | `ProductionManager` | `scripts/production/ProductionManager.gd` | Production queues, timers, spawning |
+| `BoundsSystem` | `scripts/core/BoundsSystem.gd` | Map/visible-bounds diamonds |
+| `UnitMeshRenderer` | `scripts/core/UnitMeshRenderer.gd` | MultiMesh unit rendering |
+| `AudioManager` | `scripts/core/AudioManager.gd` | Audio buses, SFX/voice playback |
+| `ShroudSystem` | `scripts/core/ShroudSystem.gd` | Per-player fog-of-war grid |
 
 ## Folder Structure
 
@@ -89,7 +98,7 @@ Test files use `TestHelper` class (`test/test_helper.gd`) with static assertions
 - `TestHelper.assert_true(value, msg)`
 - `TestHelper.reset()` — called between test methods
 
-The runner auto-injects autoloads as shorthand vars: `_ts` (TerrainSystem), `_sh` (SpatialHash), `_sm` (SelectionManager), `_bm` (BuildingManager), `_em` (EconomyManager), `_pm` (PlayerManager).
+The runner auto-injects autoloads as shorthand vars: `_ts` (TerrainSystem), `_sh` (SpatialHash), `_sm` (SelectionManager), `_bm` (BuildingManager), `_em` (EconomyManager), `_pm` (PlayerManager), `_am` (AudioManager), `_ss` (ShroudSystem).
 
 ### Test Design — Behavior, Not Implementation
 
@@ -190,7 +199,7 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 - **PR titles**: Conventional prefix + issue number in parentheses — `fix: building ignores moving entities (#59)`, `feat: async model loading (#60)`. The branch already has the number, but PR title must include it too.
 - **Naming**: PascalCase for classes/scenes, snake_case for vars/funcs. Scene files mirror script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
-- **Autoloads**: 13 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
+- **Autoloads**: 22 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
 - **Input roles**: Right-click = deselect / cancel only (clears selection, exits modes, cancels production). Left-click = select / act (selects entities, issues orders, starts production). Never issue unit commands on right-click.
 - **UID files**: Redot generates `.uid` files (e.g., `MyScript.gd.uid`) alongside scripts and scenes. These are valid parts of the codebase and MUST be committed. Always `git add` both the script and its `.uid` file together.
 
