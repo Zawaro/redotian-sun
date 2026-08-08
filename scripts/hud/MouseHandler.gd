@@ -16,6 +16,7 @@ var active_rect: Rect2
 var _last_hover_pos := Vector2.INF
 var _hover_miss_count := 0
 var _skip_release := false
+var _skip_input_frames := 0
 
 # Cursor state
 var _current_cursor: CursorState.Type = CursorState.Type.DEFAULT
@@ -43,6 +44,22 @@ func _ready():
         print("SelectionManager found!")
 
 
+## Pausing mid box-select swallows the mouse-release (input is gated by
+## process_mode), which would otherwise leave a stuck drag state. Reset it,
+## and force the system cursor while the pause menu is open. Unpausing arms a
+## short input debounce so the resume-click's release does not pass through as
+## a game click (the Input singleton records it regardless of GUI consumption).
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_PAUSED:
+        mouse_dragging = false
+        _skip_release = false
+        selection_rect.hide()
+        active_rect = Rect2()
+        _apply_cursor(CursorState.Type.DEFAULT)
+    elif what == NOTIFICATION_UNPAUSED:
+        _skip_input_frames = 2
+
+
 # Poll input directly (like CameraController.gd) instead of using _input().
 # This is required because Control nodes embedded under Node3D root don't receive
 # _input() events without focus in Play Scene mode. The Input singleton polls OS-level state
@@ -61,7 +78,7 @@ func _process(_delta):
         return
 
     var sidebar := UIUtil.find_sidebar()
-    if sidebar and sidebar.get("_debug_place_mode"):
+    if sidebar and sidebar.is_debug_place_mode():
         return
 
     # Deploy hotkey (Ctrl+D) or Stop hotkey (Ctrl+S) — above _skip_release so hotkeys always work.
@@ -90,8 +107,15 @@ func _process(_delta):
                 selection_manager._pending_index = 0
         return
 
-    if _skip_release:
-        if Input.is_action_just_released("select_entity"):
+    # Skip input while the unpause debounce or a mode-exit release-suppression
+    # is active. The resume click's release is still visible to the Input
+    # singleton on the unpause frame; skipping a couple of frames stops it
+    # being read as a gameplay click and issued as an order to the selection.
+    var skip_debounce := _skip_input_frames > 0
+    if skip_debounce:
+        _skip_input_frames -= 1
+    if skip_debounce or _skip_release:
+        if _skip_release and Input.is_action_just_released("select_entity"):
             _skip_release = false
         return
 

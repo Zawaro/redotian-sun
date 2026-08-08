@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/environment/CloudShadowPlane.tscn" id="10_cloud"]
 [ext_resource type="Script" path="res://scripts/environment/LightingControls.gd" id="11_light"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DebugMenu.tscn" id="12_debug"]
+[ext_resource type="PackedScene" path="res://scenes/ui/PauseMenu.tscn" id="13_pause"]
 
 [node name="MapBase01" type="Node3D"]
 
@@ -39,3 +40,5 @@ layer = 256
 script = ExtResource("11_light")
 
 [node name="DebugMenu" parent="HUD" instance=ExtResource("12_debug")]
+
+[node name="PauseMenu" parent="HUD" instance=ExtResource("13_pause")]
