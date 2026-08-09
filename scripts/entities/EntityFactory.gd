@@ -50,6 +50,7 @@ const DOCK_UNLOAD_COMPONENT_SCRIPT: GDScript = preload(
 const DEPLOY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DeployComponent.gd")
 const ICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/IceComponent.gd")
 const VOICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/VoiceComponent.gd")
+const VISION_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/VisionComponent.gd")
 
 var _entity_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
@@ -178,6 +179,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_deploy_component(entity, data)
     _add_exit_component(entity, data)
     _add_voice_component(entity, data)
+    _add_vision_component(entity, data)
     _add_rally_point_component(entity, data)
     _add_ice_component(entity, data)
     if data.resource_category != "tiberium":
@@ -329,6 +331,22 @@ func _add_voice_component(entity: Node3D, data: EntityData) -> void:
         var component := Node.new()
         component.name = "VoiceComponent"
         component.set_script(VOICE_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_vision_component(entity: Node3D, data: EntityData) -> void:
+    var etype := data.entity_type
+    var is_player_owned := (
+        etype == EntityData.EntityType.INFANTRY
+        or etype == EntityData.EntityType.VEHICLE
+        or etype == EntityData.EntityType.AIRCRAFT
+        or etype == EntityData.EntityType.BUILDING
+    )
+    if data.sight > 0 and is_player_owned:
+        var component := Node.new()
+        component.name = "VisionComponent"
+        component.set_script(VISION_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 

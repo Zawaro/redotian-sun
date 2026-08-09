@@ -39,6 +39,7 @@ BoundsSystem="*res://scripts/core/BoundsSystem.gd"
 UnitMeshRenderer="*res://scripts/core/UnitMeshRenderer.gd"
 AudioManager="*res://scripts/core/AudioManager.gd"
 ShroudSystem="*res://scripts/core/ShroudSystem.gd"
+FogRenderer="*res://scripts/core/FogRenderer.gd"
 
 [display]
 

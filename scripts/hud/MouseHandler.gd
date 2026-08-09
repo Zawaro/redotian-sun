@@ -381,7 +381,7 @@ func _find_select_component(node: Node) -> SelectComponent:
 
 ## Fog gate for hover targeting: shrouded entities are skipped entirely.
 func _is_fog_visible(target: Node3D) -> bool:
-    return ShroudSystem.is_cell_visible_to_local(CellUtil.world_to_cell(target.global_position))
+    return ShroudSystem.is_entity_revealed_to_local(target)
 
 
 ## Walk up the node tree to find the entity root (first Node3D parent with components).

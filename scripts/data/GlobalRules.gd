@@ -126,6 +126,7 @@ class_name GlobalRules extends Resource
 
 ## Misc
 @export_group("Misc")
+@export var shroud_enabled: bool = true
 @export var fog_of_war: bool = false
 @export var shroud_grows: bool = false
 @export var shroud_growth_interval: float = 10.0

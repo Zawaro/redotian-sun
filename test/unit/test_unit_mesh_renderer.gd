@@ -9,6 +9,8 @@ extends Node
 
 const MODEL_PATH := "res://assets/models/nod_buggy01.glb"
 
+const STATS_SCRIPT: GDScript = preload("res://scripts/components/StatsComponent.gd")
+
 var _renderer: UnitMeshRenderer
 var _container: Node3D
 
@@ -40,6 +42,16 @@ func _make_unit(pos: Vector3) -> Node3D:
     model_root.name = "ModelRoot"
     entity.add_child(model_root)
     _container.add_child(entity)
+    return entity
+
+
+func _make_unit_with_player(pos: Vector3, player_id: int) -> Node3D:
+    var entity := _make_unit(pos)
+    var stats := Node.new()
+    stats.name = "StatsComponent"
+    stats.set_script(STATS_SCRIPT)
+    entity.add_child(stats)
+    stats.player_id = player_id
     return entity
 
 
@@ -201,6 +213,247 @@ func test_migration_into_full_region_keeps_entity_visible():
     var entry: Dictionary = _renderer._registry[mover]
     TestHelper.assert_eq(entry["slot"], -1, "no slot in full target region")
     TestHelper.assert_true(model_root.visible, "GLB shown when no MultiMesh slot available")
+    _teardown()
+    _finish()
+
+
+# ========================================
+# Fog culling
+# ========================================
+
+var _ts: Node = null
+var _pm: Node = null
+var _ss: Node = null
+var _fog_was := false
+var _shroud_was := true
+var _saved_insets := Vector4i(0, 0, 0, 0)
+
+
+func _fog_setup() -> void:
+    _ts = _tree().root.get_node_or_null("TerrainSystem")
+    _pm = _tree().root.get_node_or_null("PlayerManager")
+    _ss = _tree().root.get_node_or_null("ShroudSystem")
+    _ts.init_grid(50, 50)
+    _saved_insets = Vector4i(
+        BoundsSystem.left_inset,
+        BoundsSystem.right_inset,
+        BoundsSystem.top_inset,
+        BoundsSystem.bottom_inset,
+    )
+    BoundsSystem.left_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.x
+    BoundsSystem.right_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.y
+    BoundsSystem.top_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.z
+    BoundsSystem.bottom_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.w
+    _pm._players.clear()
+    _pm._local_player_id = 0
+    _pm._init_defaults()
+    var rules := GlobalRules.get_current()
+    _fog_was = rules.fog_of_war
+    _shroud_was = rules.shroud_enabled
+    rules.fog_of_war = true
+    rules.shroud_enabled = true
+
+
+func _fog_teardown() -> void:
+    BoundsSystem.left_inset = _saved_insets.x
+    BoundsSystem.right_inset = _saved_insets.y
+    BoundsSystem.top_inset = _saved_insets.z
+    BoundsSystem.bottom_inset = _saved_insets.w
+    var rules := GlobalRules.get_current()
+    rules.fog_of_war = _fog_was
+    rules.shroud_enabled = _shroud_was
+
+
+func _cell_world(cell: Vector2i) -> Vector3:
+    return CellUtil.cell_to_world(cell)
+
+
+func _tick(_entity: Node3D) -> void:
+    _renderer._physics_process(0.0)
+
+
+func test_fog_culls_enemy_unit_in_shroud():
+    _setup()
+    _fog_setup()
+    var cell := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell), 1)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    _tick(enemy)
+    TestHelper.assert_true(_renderer._registry[enemy]["hidden"], "enemy hidden in shroud")
+    TestHelper.assert_true(not _renderer._registry[enemy]["slot"] < 0, "slot retained while hidden")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_shows_enemy_when_visible():
+    _setup()
+    _fog_setup()
+    var cell := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell), 1)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    ShroudSystem.register_revealer(0, cell, 5, 0.0, true)
+    _tick(enemy)
+    TestHelper.assert_true(not _renderer._registry[enemy]["hidden"], "enemy shown when visible")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_never_hides_friendly_unit():
+    _setup()
+    _fog_setup()
+    var cell := Vector2i(40, 40)
+    var friendly := _make_unit_with_player(_cell_world(cell), 0)
+    TestHelper.assert_true(_register(friendly), "friendly registered")
+    _tick(friendly)
+    TestHelper.assert_true(not _renderer._registry[friendly]["hidden"], "friendly never hidden")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_unhide_resumes_sync():
+    _setup()
+    _fog_setup()
+    var cell := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell), 1)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    _tick(enemy)
+    TestHelper.assert_true(_renderer._registry[enemy]["hidden"], "hidden while shrouded")
+    ShroudSystem.register_revealer(0, cell, 5, 0.0, true)
+    _tick(enemy)
+    TestHelper.assert_true(not _renderer._registry[enemy]["hidden"], "unhidden once cell visible")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_disabled_is_inert():
+    _setup()
+    _fog_setup()
+    var rules := GlobalRules.get_current()
+    rules.fog_of_war = false
+    rules.shroud_enabled = false
+    var cell := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell), 1)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    _tick(enemy)
+    TestHelper.assert_true(not _renderer._registry[enemy]["hidden"], "no culling when fog off")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_region_migration_while_hidden():
+    _setup()
+    _fog_setup()
+    var cell_a := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell_a), 1)
+    var old_region := _renderer._region_key(enemy.global_position)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    _tick(enemy)
+    TestHelper.assert_true(_renderer._registry[enemy]["hidden"], "hidden while shrouded")
+    var new_pos := Vector3(-33.0, 0.0, -33.0)
+    enemy.global_position = new_pos
+    var new_cell := CellUtil.world_to_cell(new_pos)
+    TestHelper.assert_true(BoundsSystem.is_in_play_area(new_cell), "target cell in play area")
+    _tick(enemy)
+    TestHelper.assert_true(
+        _renderer._registry[enemy]["region"] == old_region, "no migration while hidden"
+    )
+    ShroudSystem.register_revealer(0, new_cell, 5, 0.0, true)
+    _tick(enemy)
+    var new_region := _renderer._region_key(enemy.global_position)
+    TestHelper.assert_true(
+        _renderer._registry[enemy]["region"] == new_region, "migrates once visible again"
+    )
+    TestHelper.assert_true(
+        _renderer._buckets.has(new_region), "new region bucket exists after unhide"
+    )
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_freezes_enemy_in_explored_fog():
+    _setup()
+    _fog_setup()
+    var cell := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell), 1)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    ShroudSystem.explore_area(0, cell, 1)
+    _ss.resolve_dirty()
+    _tick(enemy)
+    var entry: Dictionary = _renderer._registry[enemy]
+    TestHelper.assert_true(entry["fogged"], "enemy frozen as ghost in explored fog")
+    TestHelper.assert_true(not entry["hidden"], "ghost not parked off-world")
+    TestHelper.assert_true(not entry["slot"] < 0, "ghost slot retained")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_off_no_ghost_in_explored_cell():
+    _setup()
+    _fog_setup()
+    var rules := GlobalRules.get_current()
+    rules.fog_of_war = false
+    var cell := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell), 1)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    ShroudSystem.explore_area(0, cell, 1)
+    _ss.resolve_dirty()
+    _tick(enemy)
+    var entry: Dictionary = _renderer._registry[enemy]
+    TestHelper.assert_true(not entry["fogged"], "no ghost when fog of war off")
+    TestHelper.assert_true(not entry["hidden"], "enemy not hidden in explored cell")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_freeze_resumes_on_reveal():
+    _setup()
+    _fog_setup()
+    var cell := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell), 1)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    ShroudSystem.explore_area(0, cell, 1)
+    _ss.resolve_dirty()
+    _tick(enemy)
+    TestHelper.assert_true(_renderer._registry[enemy]["fogged"], "frozen in fog")
+    ShroudSystem.register_revealer(0, cell, 5, 0.0, true)
+    _tick(enemy)
+    TestHelper.assert_true(
+        not _renderer._registry[enemy]["fogged"], "resumes syncing once cell visible"
+    )
+    TestHelper.assert_true(not _renderer._registry[enemy]["hidden"], "not hidden when visible")
+    _fog_teardown()
+    _teardown()
+    _finish()
+
+
+func test_fog_frozen_ghost_no_region_migration():
+    _setup()
+    _fog_setup()
+    var cell_a := Vector2i(40, 40)
+    var enemy := _make_unit_with_player(_cell_world(cell_a), 1)
+    var old_region := _renderer._region_key(enemy.global_position)
+    TestHelper.assert_true(_register(enemy), "enemy registered")
+    ShroudSystem.explore_area(0, cell_a, 1)
+    _ss.resolve_dirty()
+    _tick(enemy)
+    TestHelper.assert_true(_renderer._registry[enemy]["fogged"], "frozen in fog")
+    var new_pos := Vector3(-33.0, 0.0, -33.0)
+    enemy.global_position = new_pos
+    var new_cell := CellUtil.world_to_cell(new_pos)
+    TestHelper.assert_true(BoundsSystem.is_in_play_area(new_cell), "target cell in play area")
+    _tick(enemy)
+    TestHelper.assert_true(
+        _renderer._registry[enemy]["region"] == old_region, "no migration while ghosted"
+    )
+    _fog_teardown()
     _teardown()
     _finish()
 

@@ -29,14 +29,21 @@ func get_orders(
 
 ## Fog gate: when fog of war is enabled, a target whose cell is not visible to
 ## the local player behaves as absent — it falls through to the move path and
-## cannot be attacked (including force-fire).
+## cannot be attacked (including force-fire). Buildings use their foundation
+## footprint: any explored foundation cell keeps them targetable.
 func _fog_filter_target(target: Node3D, target_cell: Vector2i, modifiers: Dictionary) -> Dictionary:
     if target == null:
         return {"target": null, "target_cell": target_cell, "modifiers": modifiers}
-    var cell := target_cell
-    if cell == Vector2i.ZERO:
-        cell = CellUtil.world_to_cell(target.global_position)
-    if ShroudSystem.is_cell_visible_to_local(cell):
+    var stats := target.get_node_or_null("StatsComponent") as StatsComponent
+    var revealed: bool
+    if stats != null and stats.entity_type == EntityData.EntityType.BUILDING:
+        revealed = ShroudSystem.is_entity_revealed_to_local(target)
+    else:
+        var cell := target_cell
+        if cell == Vector2i.ZERO:
+            cell = CellUtil.world_to_cell(target.global_position)
+        revealed = ShroudSystem.is_cell_visible_to_local(cell)
+    if revealed:
         return {"target": target, "target_cell": target_cell, "modifiers": modifiers}
     var filtered := modifiers.duplicate()
     filtered.erase(OrderResult.MOD_FORCE_ATTACK)
