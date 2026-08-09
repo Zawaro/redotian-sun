@@ -27,6 +27,21 @@ const SHROUD_LIFT_Y: float = 40.0 * TerrainSystem.HEIGHT_STEP
 ## UV check.
 const RIM_MARGIN: int = 32
 
+## Soft-edge band widths (in cells) for the shroud and fog boundaries, mirrored
+## into the fog shader as `shroud_grow` / `shroud_falloff` / `fog_grow` /
+## `fog_falloff`. `*_grow` extends the fully-opaque zone past the region
+## boundary so the opaque sheet's crisp edge hides under it; `*_falloff` is the
+## smoothstep width beyond that. Tunable at runtime through those uniforms
+## without a rebake.
+const SHROUD_GROW: float = 0.5
+const SHROUD_FALLOFF: float = 1.5
+const FOG_GROW: float = 0.25
+const FOG_FALLOFF: float = 1.0
+
+## Max ring distance baked into the edge mask; must exceed the largest falloff
+## width so the smoothstep saturates before the sentinel is reached.
+const MASK_MAX_RING: int = 4
+
 var _plane: MeshInstance3D
 var _plane_opaque: MeshInstance3D
 var _material: ShaderMaterial
@@ -107,6 +122,10 @@ func _on_shroud_changed() -> void:
     var fog: bool = ShroudSystem.is_fog_enabled()
     _material.set_shader_parameter("shroud_enabled", shroud)
     _material.set_shader_parameter("fog_enabled", fog)
+    _material.set_shader_parameter("shroud_grow", SHROUD_GROW)
+    _material.set_shader_parameter("shroud_falloff", SHROUD_FALLOFF)
+    _material.set_shader_parameter("fog_grow", FOG_GROW)
+    _material.set_shader_parameter("fog_falloff", FOG_FALLOFF)
     _material_opaque.set_shader_parameter("shroud_enabled", shroud)
     if not shroud and not fog:
         _set_plane_visible(false)
@@ -164,6 +183,10 @@ func _layout_plane() -> void:
     _material.set_shader_parameter("grid_size", size)
     _material.set_shader_parameter("shroud_enabled", ShroudSystem.is_shroud_enabled())
     _material.set_shader_parameter("fog_enabled", ShroudSystem.is_fog_enabled())
+    _material.set_shader_parameter("shroud_grow", SHROUD_GROW)
+    _material.set_shader_parameter("shroud_falloff", SHROUD_FALLOFF)
+    _material.set_shader_parameter("fog_grow", FOG_GROW)
+    _material.set_shader_parameter("fog_falloff", FOG_FALLOFF)
     # Transparent-pass sorting: above the CloudShadowPlane and unit ghosts, but
     # below the 2D SelectionOverlay CanvasLayer (layer 128). RENDER_PRIORITY_MAX
     # clamps at 127 in this engine.
@@ -171,6 +194,9 @@ func _layout_plane() -> void:
     _material_opaque.set_shader_parameter("grid_origin", origin)
     _material_opaque.set_shader_parameter("grid_size", size)
     _material_opaque.set_shader_parameter("shroud_enabled", ShroudSystem.is_shroud_enabled())
+    # UV size of one cell, for the opaque sheet's erosion neighbor taps.
+    var texel := Vector2(1.0 / float(extent.x), 1.0 / float(extent.y))
+    _material_opaque.set_shader_parameter("grid_texel", texel)
 
 
 ## Builds a grid mesh draping the terrain surface (+PLANE_EPSILON) so the shroud
@@ -242,17 +268,89 @@ func _rebuild_texture(states: PackedByteArray) -> void:
     var grid_tex := ImageTexture.create_from_image(img)
     _material.set_shader_parameter("fog_grid", grid_tex)
     _material_opaque.set_shader_parameter("fog_grid", grid_tex)
+    var mask_tex := ImageTexture.create_from_image(_bake_edge_mask(states, extent))
+    _material.set_shader_parameter("edge_mask", mask_tex)
+
+
+## Builds the RG8 soft-edge mask (R = shroud ring distance, G = fog ring
+## distance) from the effective-state buffer. Covered cells store 0; each cell
+## outward stores its 8-neighbor Chebyshev ring distance up to MASK_MAX_RING.
+## Bilinear interpolation in the shader ramps the distance linearly between
+## texel centers, so a covered footprint stays flat (alpha 1) to its exact edge
+## and the band extends outward only. Runs on the state-change event — the same
+## gate as `_rebuild_texture` — never per frame.
+func _bake_edge_mask(states: PackedByteArray, extent: Vector2i) -> Image:
+    var width := extent.x
+    var height := extent.y
+    var shroud_dist := _ring_distance(states, 0, width, height)
+    var fog_dist := _ring_distance(states, 1, width, height)
+    var data := PackedByteArray()
+    data.resize(states.size() * 2)
+    for i in states.size():
+        data[i * 2] = shroud_dist[i]
+        data[i * 2 + 1] = fog_dist[i]
+    return Image.create_from_data(width, height, false, Image.FORMAT_RG8, data)
+
+
+## Two-pass Chebyshev distance transform to the nearest texel whose effective
+## state equals `target`, clamped to MASK_MAX_RING. Counts diagonal neighbors at
+## the same cost as cardinal ones (8-neighbor, L-infinity), so the falloff band
+## aligns equally to axes and diagonals — the 45-degree rotation of a Manhattan
+## diamond. O(n) with 8 compares per texel — cheap enough to run on every state
+## change.
+func _ring_distance(
+    states: PackedByteArray,
+    target: int,
+    width: int,
+    height: int,
+) -> PackedByteArray:
+    var dist := PackedByteArray()
+    dist.resize(states.size())
+    for i in states.size():
+        dist[i] = 0 if states[i] == target else MASK_MAX_RING
+    for y in range(1, height):
+        for x in range(1, width):
+            var idx := y * width + x
+            var best := dist[idx]
+            if dist[idx - 1] + 1 < best:
+                best = dist[idx - 1] + 1
+            if dist[idx - width] + 1 < best:
+                best = dist[idx - width] + 1
+            if dist[idx - width - 1] + 1 < best:
+                best = dist[idx - width - 1] + 1
+            if x < width - 1 and dist[idx - width + 1] + 1 < best:
+                best = dist[idx - width + 1] + 1
+            dist[idx] = best
+    for y in range(height - 2, -1, -1):
+        for x in range(width - 2, -1, -1):
+            var idx := y * width + x
+            var best := dist[idx]
+            if dist[idx + 1] + 1 < best:
+                best = dist[idx + 1] + 1
+            if dist[idx + width] + 1 < best:
+                best = dist[idx + width] + 1
+            if dist[idx + width + 1] + 1 < best:
+                best = dist[idx + width + 1] + 1
+            if x > 0 and dist[idx + width - 1] + 1 < best:
+                best = dist[idx + width - 1] + 1
+            dist[idx] = best
+    return dist
 
 
 func _clear_textures() -> void:
     _material.set_shader_parameter("fog_grid", null)
+    _material.set_shader_parameter("edge_mask", null)
     _material_opaque.set_shader_parameter("fog_grid", null)
 
 
 func _set_plane_visible(visible: bool) -> void:
-    var fog_visible: bool = visible and ShroudSystem.is_fog_enabled()
-    if is_instance_valid(_plane) and _plane.visible != fog_visible:
-        _plane.visible = fog_visible
+    # The fog plane carries the soft shroud band as well as the fog dim, so it
+    # renders when either toggle is on (default state is shroud on / fog off).
+    var overlay_visible: bool = (
+        visible and (ShroudSystem.is_shroud_enabled() or ShroudSystem.is_fog_enabled())
+    )
+    if is_instance_valid(_plane) and _plane.visible != overlay_visible:
+        _plane.visible = overlay_visible
     var opaque_visible: bool = visible and ShroudSystem.is_shroud_enabled()
     if is_instance_valid(_plane_opaque) and _plane_opaque.visible != opaque_visible:
         _plane_opaque.visible = opaque_visible
