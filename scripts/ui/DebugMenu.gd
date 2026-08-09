@@ -231,7 +231,7 @@ func _sync_fog_toggles() -> void:
     cb_fog.set_pressed_no_signal(rules.fog_of_war)
 
 
-func _on_fog_toggle(field: StringName, pressed: bool) -> void:
+func _on_fog_toggle(pressed: bool, field: StringName) -> void:
     var rules := GlobalRules.get_current()
     if rules:
         rules.set(field, pressed)
