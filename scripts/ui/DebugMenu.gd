@@ -38,6 +38,14 @@ var _selection_overlay: CanvasLayer = null
 @onready var cb_no_cost: CheckBox = %CBNoCost
 @onready var cb_place_anywhere: CheckBox = %CBPlaceAnywhere
 
+## Fog / shroud controls
+@onready var fog_header: Button = %FogHeader
+@onready var fog_content: VBoxContainer = %FogContent
+@onready var cb_shroud: CheckBox = %CBShroud
+@onready var cb_fog: CheckBox = %CBFog
+@onready var reveal_shroud_btn: Button = %RevealShroudBtn
+@onready var cover_shroud_btn: Button = %CoverShroudBtn
+
 ## Lighting controls
 @onready var lighting_controls: LightingControls = null
 
@@ -72,6 +80,7 @@ func _ready() -> void:
     overlays_header.pressed.connect(_toggle_section.bind(overlays_content))
     lighting_header.pressed.connect(_toggle_section.bind(lighting_content))
     cheats_header.pressed.connect(_toggle_section.bind(cheats_content))
+    fog_header.pressed.connect(_toggle_section.bind(fog_content))
     inspect_header.pressed.connect(_toggle_section.bind(inspect_content))
 
     # Connect overlay checkboxes
@@ -94,6 +103,13 @@ func _ready() -> void:
     var add_credits_btn: Button = %AddCreditsBtn
     clear_paths_btn.pressed.connect(_on_clear_paths)
     add_credits_btn.pressed.connect(_on_add_credits)
+
+    # Fog / shroud controls
+    _sync_fog_toggles()
+    cb_shroud.toggled.connect(_on_fog_toggle.bind(&"shroud_enabled"))
+    cb_fog.toggled.connect(_on_fog_toggle.bind(&"fog_of_war"))
+    reveal_shroud_btn.pressed.connect(_on_reveal_shroud)
+    cover_shroud_btn.pressed.connect(_on_cover_shroud)
 
     # Initialize lighting sliders
     _init_lighting_sliders()
@@ -202,6 +218,40 @@ func _on_clear_paths() -> void:
 func _on_add_credits() -> void:
     var player_id := PlayerManager.get_local_player_id()
     EconomyManager.add(player_id, 100000, "debug_menu")
+
+
+# --- Fog / shroud controls ---
+
+
+func _sync_fog_toggles() -> void:
+    var rules := GlobalRules.get_current()
+    if rules == null:
+        return
+    cb_shroud.set_pressed_no_signal(rules.shroud_enabled)
+    cb_fog.set_pressed_no_signal(rules.fog_of_war)
+
+
+func _on_fog_toggle(field: StringName, pressed: bool) -> void:
+    var rules := GlobalRules.get_current()
+    if rules:
+        rules.set(field, pressed)
+    _refresh_fog_renderer()
+
+
+func _on_reveal_shroud() -> void:
+    var local := PlayerManager.get_local_player_id()
+    ShroudSystem.explore_all(local)
+    ShroudSystem.resolve_dirty()
+
+
+func _on_cover_shroud() -> void:
+    ShroudSystem.cover_shroud(PlayerManager.get_local_player_id())
+
+
+func _refresh_fog_renderer() -> void:
+    var fog_renderer := get_node_or_null("/root/FogRenderer")
+    if fog_renderer and fog_renderer.has_method("refresh"):
+        fog_renderer.refresh()
 
 
 # --- Entity inspection ---
@@ -347,6 +397,12 @@ func reset_state() -> void:
     cb_no_build_time.button_pressed = false
     cb_no_cost.button_pressed = false
     cb_place_anywhere.button_pressed = false
+    var rules := GlobalRules.get_current()
+    if rules:
+        rules.shroud_enabled = true
+        rules.fog_of_war = false
+    _sync_fog_toggles()
+    _refresh_fog_renderer()
     if _sidebar:
         _sidebar.exit_debug_place_mode()
     EntityPlacer.cancel_preview()

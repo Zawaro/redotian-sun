@@ -54,6 +54,11 @@ func _make_unit_with_voice(player_id: int = 0) -> Node3D:
 
 func test_select_voice_plays_for_local_unit():
     TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    var rules := GlobalRules.get_current()
+    var saved_shroud: bool = rules.shroud_enabled
+    var saved_fog: bool = rules.fog_of_war
+    rules.shroud_enabled = false
+    rules.fog_of_war = false
     var entity := _make_unit_with_voice(0)
     TestHelper.assert_true(entity != null, "unit created")
     if not entity or not _am:
@@ -72,6 +77,8 @@ func test_select_voice_plays_for_local_unit():
         )
         _sm.remove_entity(sc)
     entity.queue_free()
+    rules.shroud_enabled = saved_shroud
+    rules.fog_of_war = saved_fog
 
 
 func test_select_voice_silent_for_enemy_unit():

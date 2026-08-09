@@ -234,6 +234,41 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Add 100k Credits"
 
+[node name="FogHeader" type="Button" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Fog / Shroud"
+toggle_mode = true
+
+[node name="FogContent" type="VBoxContainer" parent="Content/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="CBShroud" type="CheckBox" parent="Content/Panel/Margin/VBox/FogContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Shroud"
+button_pressed = true
+
+[node name="CBFog" type="CheckBox" parent="Content/Panel/Margin/VBox/FogContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Fog of war"
+
+[node name="HSepFog" type="HSeparator" parent="Content/Panel/Margin/VBox/FogContent"]
+layout_mode = 2
+
+[node name="RevealShroudBtn" type="Button" parent="Content/Panel/Margin/VBox/FogContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reveal Shroud"
+
+[node name="CoverShroudBtn" type="Button" parent="Content/Panel/Margin/VBox/FogContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cover Shroud"
+
 [node name="InspectHeader" type="Button" parent="Content/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2

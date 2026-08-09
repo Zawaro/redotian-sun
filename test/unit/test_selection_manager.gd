@@ -440,6 +440,11 @@ func test_non_infantry_sharer_uses_cell_distribution():
     if _sm == null or _ts == null:
         TestHelper.fail("SelectionManager/TerrainSystem not injected")
         return
+    var rules := GlobalRules.get_current()
+    var saved_shroud: bool = rules.shroud_enabled
+    var saved_fog: bool = rules.fog_of_war
+    rules.shroud_enabled = false
+    rules.fog_of_war = false
     _ts.init_grid(50, 50)
     _sm.deselect_all()
     CellReservation.instance.clear()
@@ -463,6 +468,8 @@ func test_non_infantry_sharer_uses_cell_distribution():
     _sm.deselect_all()
     CellReservation.instance.clear()
     entity.queue_free()
+    rules.shroud_enabled = saved_shroud
+    rules.fog_of_war = saved_fog
     (
         TestHelper
         . assert_true(

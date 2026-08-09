@@ -7,15 +7,15 @@ Authoritative per-player fog-of-war grid providing shroud / fog / visible cell s
 ## Requirements
 
 ### Requirement: ShroudSystem autoload and per-player grid
-The system SHALL provide a `ShroudSystem` autoload that maintains an authoritative per-player fog-of-war grid. The grid SHALL be sized to the terrain grid (`TerrainSystem.grid_cells`) and re-initialized when the terrain grid changes. Per player, the system SHALL track: an `explored` boolean per cell (latch, never un-set by vision), a `visible_count` per cell (reference count of active revealers), and dirty flags per cell for incremental updates. Cell state SHALL resolve to shroud (0), fog (1), or visible (2): unexplored is shroud; explored with no active visibility is fog; explored with one or more active visibility sources is visible. Visible and fog states are not mutually supersets — a cell SHALL be fog only when explored and not currently visible.
+The system SHALL provide a `ShroudSystem` autoload that maintains an authoritative per-player fog-of-war grid. The grid SHALL be sized to the terrain cell index space (`CellUtil.get_diamond_extent(TerrainSystem.grid_cells)` — W+H cells per axis for a grid_cells of W×H) and re-initialized when the terrain grid changes. Per player, the system SHALL track: an `explored` boolean per cell (latch, never un-set by vision), a `visible_count` per cell (reference count of active revealers), and dirty flags per cell for incremental updates. Cell state SHALL resolve to shroud (0), fog (1), or visible (2): unexplored is shroud; explored with no active visibility is fog; explored with one or more active visibility sources is visible. Visible and fog states are not mutually supersets — a cell SHALL be fog only when explored and not currently visible.
 
 #### Scenario: Grid initialized from terrain
-- **WHEN** ShroudSystem initializes with a terrain grid of size N×M
+- **WHEN** ShroudSystem initializes with a terrain grid whose diamond extent is N×M
 - **THEN** every cell resolves to shroud and `explored` is false for all cells
 
 #### Scenario: Grid re-initialized on terrain change
 - **WHEN** the terrain grid is re-initialized (new map)
-- **THEN** ShroudSystem clears all per-player state and re-sizes to the new grid dimensions
+- **THEN** ShroudSystem clears all per-player state and re-sizes to the new diamond extent
 
 #### Scenario: Fog not a superset of visible
 - **WHEN** a cell is explored but no revealer currently covers it
@@ -24,6 +24,17 @@ The system SHALL provide a `ShroudSystem` autoload that maintains an authoritati
 #### Scenario: Visible not a superset of explored
 - **WHEN** a revealer covers a cell that was never marked explored
 - **THEN** the cell resolves to visible and SHALL also become explored
+
+### Requirement: Change notification
+The system SHALL emit a `state_changed` signal each resolve tick when any cells were processed by `resolve_dirty`. The signal SHALL NOT be emitted when nothing changed.
+
+#### Scenario: Signal emitted on resolution
+- **WHEN** `resolve_dirty` processes one or more dirty cells
+- **THEN** the `state_changed` signal is emitted
+
+#### Scenario: No signal when nothing changed
+- **WHEN** `resolve_dirty` processes zero cells
+- **THEN** the `state_changed` signal is not emitted
 
 ### Requirement: Ref-counted revealer registration
 The system SHALL expose `register_revealer(player_id, center_cell, radius, viewer_height, blocks_terrain) -> key` and `unregister_revealer(player_id, key)`. Registration SHALL mark the revealed cells explored and increment their `visible_count`; unregistration SHALL decrement it. Overlapping revealers SHALL stack via reference counts, so a cell stays visible while at least one revealer covers it. A revealer that moves SHALL be re-registered at its new cell (stamp change) without leaking counts.
@@ -49,7 +60,7 @@ The system SHALL expose `register_revealer(player_id, center_cell, radius, viewe
 - **THEN** cell A loses its visibility contribution and cell B gains it, with no leftover counts
 
 ### Requirement: Height-aware shadowcasting
-Revealed cells SHALL be computed by per-cell Bresenham line-of-sight from the revealer center to each candidate cell within radius. A candidate cell is revealed only if no intermediate cell blocks it. A cell blocks vision when its terrain height (`TerrainSystem.get_cell_max_height`) exceeds the viewer height by more than `max_height_delta`, or when it is a building cell (`SpatialHash.is_building_cell`). The revealer's own cell and the candidate cell itself are not blockers. Viewer height SHALL be supplied at registration. Air revealers (`blocks_terrain = false`) SHALL ignore all blockers and reveal a full circle within radius.
+Revealed cells SHALL be computed by per-cell Bresenham line-of-sight from the revealer center to each candidate cell within radius. A candidate cell is revealed only if no intermediate cell blocks it. A cell blocks vision when its terrain height (`TerrainSystem.get_cell_max_height`) exceeds the viewer height by more than `max_height_delta`. Buildings do not block line of sight. The revealer's own cell and the candidate cell itself are not blockers. Viewer height SHALL be supplied at registration. Air revealers (`blocks_terrain = false`) SHALL ignore all blockers and reveal a full circle within radius.
 
 #### Scenario: Hill blocks vision
 - **WHEN** a low revealer is below a hill whose height exceeds the viewer height plus delta
@@ -59,13 +70,13 @@ Revealed cells SHALL be computed by per-cell Bresenham line-of-sight from the re
 - **WHEN** a revealer sits atop a ridge with viewer height above the valley floor
 - **THEN** cells in the valley below within radius are revealed
 
-#### Scenario: Building blocks vision
+#### Scenario: Building does not block vision
 - **WHEN** a building cell lies on the line between a revealer and a candidate cell
-- **THEN** the candidate cell is not revealed by that revealer, and the building's own cells are revealed
+- **THEN** the candidate cell is still revealed by that revealer, and the building's own cells are revealed
 
 #### Scenario: Air revealer ignores blockers
-- **WHEN** an air revealer (`blocks_terrain = false`) registers over a hill or building
-- **THEN** all cells within radius are revealed regardless of intervening terrain or buildings
+- **WHEN** an air revealer (`blocks_terrain = false`) registers over a hill
+- **THEN** all cells within radius are revealed regardless of intervening terrain
 
 ### Requirement: Reveal limiter to visible bounds
 No cell SHALL ever be explored or made visible outside the blue visible-bounds play area. All reveal operations (shadowcasting, `explore_area`, `reveal_area`, `explore_all`) SHALL clamp to `BoundsSystem.is_in_play_area(cell)`. Cells outside the play area SHALL remain permanently shrouded. `get_explored_percentage` SHALL compute against the play-area cell count.

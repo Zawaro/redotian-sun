@@ -350,7 +350,3 @@ func unregister_building_cells(cells: Array[Vector2i]) -> void:
 
 func get_building_cells() -> Dictionary:
     return _building_cells
-
-
-func is_building_cell(cell: Vector2i) -> bool:
-    return _building_cells.has(CellUtil.cell_key(cell))

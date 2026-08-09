@@ -3,6 +3,8 @@ extends Node
 ## Authoritative per-player fog-of-war grid — shroud / fog / visible.
 ## Simulation-only. Rendering and VisionComponent wiring are follow-up work.
 
+signal state_changed
+
 const STATE_SHROUD: int = 0
 const STATE_FOG: int = 1
 const STATE_VISIBLE: int = 2
@@ -26,12 +28,10 @@ var _resolve_timer: float = 0.0
 var _growth_timer: float = 0.0
 
 var _terrain: Node = null
-var _spatial_hash: SpatialHash = null
 
 
 func _ready() -> void:
     _terrain = get_node_or_null("/root/TerrainSystem")
-    _spatial_hash = SpatialHash.instance
     if _terrain:
         _max_height_delta = TerrainSystem.HEIGHT_STEP * 0.75
         if not _terrain.grid_initialized.is_connected(_on_grid_initialized):
@@ -52,8 +52,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _init_grid(grid_cells: Vector2i) -> void:
-    _grid_size = grid_cells
-    _cell_count = grid_cells.x * grid_cells.y
+    # The terrain cell index space is the inscribed diamond, whose extent is
+    # W+H cells per axis (e.g. grid_cells 50x50 -> cells 0..99). Sizing to the
+    # raw grid_cells would track only the SW quadrant of the map.
+    _grid_size = CellUtil.get_diamond_extent(grid_cells)
+    _cell_count = _grid_size.x * _grid_size.y
     # Grid changes wipe all per-player state, including revealer registrations.
     # Unregistering a stale key afterwards is therefore a safe no-op — counts can
     # never leak from a grid that no longer exists.
@@ -151,7 +154,8 @@ func _shadowcast_cells(
         for dy in range(-radius, radius + 1):
             if dx == 0 and dy == 0:
                 continue
-            if maxi(absi(dx), absi(dy)) > radius:
+            # Euclidean disc: sight is radial, not a Chebyshev square.
+            if dx * dx + dy * dy > radius * radius:
                 continue
             var candidate := center_cell + Vector2i(dx, dy)
             if not _cell_reachable(center_cell, candidate, viewer_height, blocks_terrain):
@@ -179,8 +183,6 @@ func _cell_reachable(
 
 
 func _cell_blocks(cell: Vector2i, viewer_height: float) -> bool:
-    if _spatial_hash and _spatial_hash.is_building_cell(cell):
-        return true
     if _terrain and _terrain.get_cell_max_height(cell) > viewer_height + _max_height_delta:
         return true
     return false
@@ -243,9 +245,38 @@ func is_explored(player_id: int, cell: Vector2i) -> bool:
 
 
 func is_cell_visible_to_local(cell: Vector2i) -> bool:
-    if not is_fog_enabled():
+    var local := PlayerManager.get_local_player_id()
+    if is_visible(local, cell):
         return true
-    return is_visible(PlayerManager.get_local_player_id(), cell)
+    if not is_explored(local, cell):
+        return not is_shroud_enabled()
+    return not is_fog_enabled()
+
+
+## Reveal gate for an entity's render + command targeting. Buildings are
+## revealed when ANY foundation cell has ever been explored (persists in fog);
+## with shroud off every building is revealed. Non-buildings keep the single
+## collapsed-cell gate so units still follow the shroud/fog toggle semantics.
+func is_entity_revealed_to_local(entity: Node3D) -> bool:
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats == null or stats.entity_type != EntityData.EntityType.BUILDING:
+        return is_cell_visible_to_local(CellUtil.world_to_cell(entity.global_position))
+    var foundation := Vector2i(1, 1)
+    var fc := entity.get_node_or_null("FoundationComponent") as FoundationComponent
+    if fc != null:
+        foundation = fc.foundation
+    var origin := CellUtil.world_to_cell_origin(entity.global_position, foundation)
+    var local := PlayerManager.get_local_player_id()
+    for dx in foundation.x:
+        for dz in foundation.y:
+            if is_explored(local, origin + Vector2i(dx, dz)):
+                return true
+    return not is_shroud_enabled()
+
+
+func is_shroud_enabled() -> bool:
+    var rules := GlobalRules.get_current()
+    return rules != null and rules.shroud_enabled
 
 
 func is_fog_enabled() -> bool:
@@ -326,15 +357,7 @@ func explore_all(player_id: int) -> void:
 func explore_area(player_id: int, center_cell: Vector2i, radius: int) -> void:
     if radius < 0 or _cell_count <= 0:
         return
-    var st := _state(player_id)
-    var explored: PackedByteArray = st["explored"]
-    for cell in _shadowcast_cells(center_cell, radius, 0.0, false):
-        var idx := _cell_index(cell)
-        if idx < 0:
-            continue
-        if explored[idx] == 0:
-            explored[idx] = 1
-        _mark_dirty(st, idx)
+    _stamp_explored(_state(player_id), center_cell, radius)
 
 
 func reveal_area(player_id: int, center_cell: Vector2i, radius: int, duration: float) -> void:
@@ -342,6 +365,44 @@ func reveal_area(player_id: int, center_cell: Vector2i, radius: int, duration: f
     _temp_reveals.append(
         {"player_id": player_id, "key": key, "expires": _time + maxf(duration, 0.0)}
     )
+
+
+## Covers the player's shroud: all explored cells revert to unexplored (shroud),
+## except cells currently within the sight radius of any allied/own revealer,
+## which are re-explored in place. Visible counts are left untouched — active
+## revealers keep those cells visible.
+func cover_shroud(player_id: int) -> void:
+    if _cell_count <= 0:
+        return
+    for pid in _allied_player_ids(player_id):
+        if not _states.has(pid):
+            continue
+        var st := _state(pid)
+        var explored: PackedByteArray = st["explored"]
+        explored.fill(0)
+        for key in st["revealers"]:
+            var info: Dictionary = (st["revealers"] as Dictionary)[key]
+            _stamp_explored(st, info["center"] as Vector2i, info["radius"] as int)
+        for x in _grid_size.x:
+            for y in _grid_size.y:
+                var idx := _cell_index(Vector2i(x, y))
+                if idx >= 0:
+                    _mark_dirty(st, idx)
+    resolve_dirty()
+
+
+## Marks the cells within a revealer's radius as explored without touching
+## visible counts (unlike `_stamp_reveal`). Uses air-style shadowcasting so
+## terrain cannot re-shroud already-sighted cells during a cover.
+func _stamp_explored(st: Dictionary, center_cell: Vector2i, radius: int) -> void:
+    var explored: PackedByteArray = st["explored"]
+    for cell in _shadowcast_cells(center_cell, radius, 0.0, false):
+        var idx := _cell_index(cell)
+        if idx < 0 or not _revealable(cell):
+            continue
+        if explored[idx] == 0:
+            explored[idx] = 1
+        _mark_dirty(st, idx)
 
 
 func _tick_temp_reveals() -> void:
@@ -428,6 +489,8 @@ func resolve_dirty() -> int:
                 resolved[idx] = STATE_FOG
             processed += 1
         dirty.clear()
+    if processed > 0:
+        state_changed.emit()
     return processed
 
 

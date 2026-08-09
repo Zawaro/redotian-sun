@@ -10,6 +10,10 @@ const REGION_SIZE: float = 32.0
 const MAX_INSTANCES_PER_REGION: int = 512
 const HIDDEN_POSITION := Vector3(-9999.0, -9999.0, -9999.0)
 
+const _FOG_VISIBLE: int = 0
+const _FOG_GHOST: int = 1
+const _FOG_HIDDEN: int = 2
+
 ## entity_root(Node3D) -> entry
 ## entry: {model_path, model_root, region, slot, offset, is_remappable}
 var _registry: Dictionary = {}
@@ -63,6 +67,9 @@ func register(
         "slot": slot,
         "offset": model_offset,
         "is_remappable": is_remappable,
+        "hidden": false,
+        "fogged": false,
+        "stats": entity_root.get_node_or_null("StatsComponent") as StatsComponent,
     }
     model_root.visible = false
     _active_count += 1
@@ -202,6 +209,36 @@ func _physics_process(_delta: float) -> void:
             if parked and entry["slot"] >= 0:
                 parked.set_instance_transform(entry["slot"], Transform3D(Basis(), HIDDEN_POSITION))
             continue
+        # Fog handling is visual-only (simulation keeps running). Enemy units
+        # in unexplored shroud are parked off-world; enemy units in explored
+        # fog are frozen at their last-known position so the player sees a
+        # ghost where they last were. Friendly units and fog-off maps are
+        # never hidden. GLB tree stays hidden throughout.
+        var state := _fog_state(entity_node, entry)
+        var multimesh: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
+        if state == _FOG_HIDDEN:
+            entry["fogged"] = false
+            entry["hidden"] = true
+            if multimesh and entry["slot"] >= 0:
+                multimesh.set_instance_transform(
+                    entry["slot"], Transform3D(Basis(), HIDDEN_POSITION)
+                )
+            continue
+        if state == _FOG_GHOST:
+            entry["hidden"] = false
+            if not entry["fogged"]:
+                # Freeze at the current (last-known) transform once on fog entry.
+                entry["fogged"] = true
+                if multimesh and entry["slot"] >= 0:
+                    multimesh.set_instance_transform(
+                        entry["slot"], entity_node.global_transform * entry["offset"]
+                    )
+                # ponytail: a ghost frozen in a region bucket whose key differs
+                # from its frozen position may frustum-cull late; negligible, and
+                # the slot re-migrates to the true position on reveal.
+            continue
+        entry["fogged"] = false
+        entry["hidden"] = false
         _set_model_visible(model_root, false)
         var region := _region_key(entity_node.global_position)
         if region != entry["region"]:
@@ -218,9 +255,9 @@ func _physics_process(_delta: float) -> void:
                 )
                 _set_model_visible(model_root, true)
         if entry["slot"] >= 0:
-            var multimesh: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
-            if multimesh:
-                multimesh.set_instance_transform(
+            var synced: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
+            if synced:
+                synced.set_instance_transform(
                     entry["slot"], entity_node.global_transform * entry["offset"]
                 )
 
@@ -228,6 +265,22 @@ func _physics_process(_delta: float) -> void:
 func _set_model_visible(model_root: Node3D, visible: bool) -> void:
     if is_instance_valid(model_root) and model_root.visible != visible:
         model_root.visible = visible
+
+
+func _fog_state(entity_node: Node3D, entry: Dictionary) -> int:
+    if not ShroudSystem.is_shroud_enabled() and not ShroudSystem.is_fog_enabled():
+        return _FOG_VISIBLE
+    var stats: StatsComponent = entry.get("stats")
+    if not is_instance_valid(stats) or stats.player_id < 0:
+        return _FOG_VISIBLE
+    if not PlayerManager.is_enemy(PlayerManager.get_local_player_id(), stats.player_id):
+        return _FOG_VISIBLE
+    var cell := CellUtil.world_to_cell(entity_node.global_position)
+    if ShroudSystem.is_cell_visible_to_local(cell):
+        return _FOG_VISIBLE
+    if ShroudSystem.is_explored(PlayerManager.get_local_player_id(), cell):
+        return _FOG_GHOST
+    return _FOG_HIDDEN
 
 
 func _current_scene_is_map_editor() -> bool:
