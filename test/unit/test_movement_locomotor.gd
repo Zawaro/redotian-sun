@@ -230,3 +230,94 @@ func test_slope_probe_flat():
     _reset_terrain()
     pair[0].queue_free()
     TestHelper.assert_true(is_equal_approx(coeff, 1.0), "flat segment -> no coefficient")
+
+
+func test_frame_height_memo_matches_direct_read_on_slope():
+    _reset_terrain()
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var mc: MovementController = pair[1]
+    # Two unit positions in the same half-cell bucket on a sloped cell.
+    var pos_a := Vector3(0.2, 0.0, 0.2)
+    var pos_b := Vector3(0.7, 0.0, 0.6)
+    _ts._vertex_grid[50][50] = 3
+    _ts._vertex_grid[51][50] = 0
+    _ts._vertex_grid[50][51] = 0
+    _ts._vertex_grid[51][51] = 3
+    _ts.invalidate_height_snapshot()
+    var direct_a: float = _ts.get_height_at_world_smooth(pos_a)
+    _ts.invalidate_height_snapshot()
+    var memo_b: float = mc._memoized_smooth_height(pos_b)
+    _ts.invalidate_height_snapshot()
+    var direct_b: float = _ts.get_height_at_world_smooth(pos_b)
+    _reset_terrain()
+    pair[0].queue_free()
+    var delta: float = absf(memo_b - direct_b)
+    # Half-cell quantization: memo returns the bucket-center height, so it may
+    # differ from the exact position read on a slope — but the error stays well
+    # under a foot unit's climb tolerance (1 * HEIGHT_STEP).
+    (
+        TestHelper
+        . assert_true(
+            delta < _ts.HEIGHT_STEP,
+            "frame memo bucket error stays under climb tolerance (delta %s)" % [delta],
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            delta > 0.0,
+            "slope cell produces a nonzero bucket delta (memo is not trivially identical)",
+        )
+    )
+
+
+func test_frame_height_memo_caches_per_bucket():
+    _reset_terrain()
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var mc: MovementController = pair[1]
+    _ts._vertex_grid[50][50] = 3
+    _ts._vertex_grid[51][50] = 3
+    _ts._vertex_grid[50][51] = 3
+    _ts._vertex_grid[51][51] = 3
+    _ts.invalidate_height_snapshot()
+    var h_a: float = mc._memoized_smooth_height(Vector3(0.2, 0.0, 0.2))
+    _ts.invalidate_height_snapshot()
+    var h_b: float = mc._memoized_smooth_height(Vector3(0.7, 0.0, 0.6))
+    _reset_terrain()
+    pair[0].queue_free()
+    TestHelper.assert_eq(
+        h_a, h_b, "same bucket returns the same memoized height (one terrain read per bucket)"
+    )
+
+
+func test_baked_spline_matches_spline_util():
+    _reset_terrain()
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var mc: MovementController = pair[1]
+    var waypoints := PackedVector3Array(
+        [
+            Vector3(0, 0, 0),
+            Vector3(4, 0, 2),
+            Vector3(8, 0, 5),
+            Vector3(12, 0, 3),
+        ]
+    )
+    mc._waypoints = waypoints
+    mc._bake_spline()
+    for t: float in [0.0, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0]:
+        var baked_pos: Vector3 = mc._get_spline_pos(t)
+        var direct_pos: Vector3 = SplineUtil.evaluate(waypoints, t)
+        TestHelper.assert_eq(
+            baked_pos, direct_pos, "baked position matches SplineUtil at t=%s" % [t]
+        )
+        var baked_tangent: Vector3 = mc._get_spline_tangent(t)
+        var direct_tangent: Vector3 = SplineUtil.tangent(waypoints, t)
+        TestHelper.assert_eq(
+            baked_tangent, direct_tangent, "baked tangent matches SplineUtil at t=%s" % [t]
+        )
+    var seg_len_0: float = mc._segment_length(0)
+    TestHelper.assert_eq(
+        seg_len_0, waypoints[0].distance_to(waypoints[1]), "baked seg length matches"
+    )
+    _reset_terrain()
+    pair[0].queue_free()

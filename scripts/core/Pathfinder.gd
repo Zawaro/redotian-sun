@@ -49,13 +49,16 @@ static func _get_terrain_system() -> Node:
 
 ## Pure-arithmetic terrain height read for a cell: the minimum of its 4 corner
 ## vertices, matching TerrainSystem._compute_cell_from_vertices (a slope cell
-## reads at its lowest corner). No dict/string lookups. This preserves the
-## pre-D7 per-cell semantics so a 2-step cliff still blocks foot units — the
-## bilinear-average read made transition cells read high enough that 2-step
-## walls became climbable.
+## reads at its lowest corner). No dict/string lookups. Reads through the
+## world-lifetime TerrainSystem height snapshot (`terrain-height-cache`) when the
+## node supports it. This preserves the pre-D7 per-cell semantics so a 2-step
+## cliff still blocks foot units — the bilinear-average read made transition
+## cells read high enough that 2-step walls became climbable.
 static func _cell_height(terrain: Node, cell: Vector2i) -> float:
     if terrain == null:
         return 0.0
+    if terrain.has_method("get_cell_min_height"):
+        return terrain.get_cell_min_height(cell)
     var h := mini(
         mini(terrain.get_vertex(cell.x, cell.y), terrain.get_vertex(cell.x + 1, cell.y)),
         mini(terrain.get_vertex(cell.x, cell.y + 1), terrain.get_vertex(cell.x + 1, cell.y + 1)),
@@ -107,8 +110,10 @@ static func try_greedy_step(
     locomotor: Locomotor = null,
     previous_cell: Vector2i = GREEDY_STALL,
     cost_cache: PathCostCache = null,
+    terrain: Node = null,
 ) -> Vector2i:
-    var terrain: Node = _get_terrain_system()
+    if terrain == null:
+        terrain = _get_terrain_system()
     var climb_limit: float = (
         float(locomotor.climb_tolerance) * terrain.HEIGHT_STEP if terrain and locomotor else 0.0
     )
@@ -228,10 +233,13 @@ static func find_path(
     locomotor: Locomotor = null,
     ignore_bib_penalty: bool = false,
     cost_cache: PathCostCache = null,
+    terrain: Node = null,
 ) -> PackedVector3Array:
     find_path_call_count += 1
-    # Resolve TerrainSystem once per path, not per neighbour.
-    var terrain: Node = _get_terrain_system()
+    # Resolve TerrainSystem once per path, not per neighbour. A reference may be
+    # threaded in from the caller (batch-scoped) to skip the scene-tree lookup.
+    if terrain == null:
+        terrain = _get_terrain_system()
     var grid_cells: Vector2i = terrain.grid_cells if terrain else Vector2i(32, 32)
     var start_cell := CellUtil.world_to_cell(start_world, grid_cells)
     var end_cell := CellUtil.world_to_cell(end_world, grid_cells)

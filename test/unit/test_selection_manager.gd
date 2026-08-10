@@ -483,5 +483,3 @@ func test_non_infantry_sharer_uses_cell_distribution():
             ),
         )
     )
-
-

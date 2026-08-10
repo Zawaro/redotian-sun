@@ -21,6 +21,15 @@ var _cells: Dictionary = {}
 ## Sparse per-cell land type overlay: cell_key -> land type id. Absent = DEFAULT_LAND_TYPE.
 var _land_types: Dictionary = {}
 
+## World-lifetime per-cell corner-vertex height snapshot: cell_key -> [h_nw, h_ne, h_sw, h_se]
+## (raw ints, HEIGHT_STEP applied by consumers). Populated lazily on first query; heights only —
+## land type stays batch-lifetime (set_land_type emits no cell_changed; resource registry mutates
+## on harvest/growth). Invalidated per-cell on cell_changed and wholesale on grid re-init.
+var _height_snapshot: Dictionary = {}
+## Bumped on every grid re-init / full snapshot clear so frame-scoped consumers
+## (e.g. MovementController's per-frame height memo) can detect terrain changes.
+var height_snapshot_generation: int = 0
+
 var _corner_to_dir: Array[String] = ["west", "north", "south", "east"]
 
 ## Catalog slope tile families (TS slope01/05/09/13/17 + hand-authored saddle2).
@@ -76,6 +85,8 @@ static func _corners_key(corners: Array) -> String:
 
 func _init() -> void:
     _init_vertex_grid()
+    cell_changed.connect(_on_snapshot_cell_changed)
+    grid_initialized.connect(_on_snapshot_grid_initialized)
 
 
 func init_grid(cells_x: int, cells_z: int) -> void:
@@ -94,6 +105,8 @@ func _init_vertex_grid() -> void:
         var row: Array[int] = []
         row.resize(v_count_z)
         _vertex_grid[vx] = row
+    _height_snapshot.clear()
+    height_snapshot_generation += 1
 
 
 func _enter_tree() -> void:
@@ -103,6 +116,47 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
     CellUtil.notify_grid_changed()
     clear()
+
+
+func _on_snapshot_cell_changed(cell_key: String, _cell_data: Dictionary) -> void:
+    var parts: PackedStringArray = cell_key.split(",")
+    if parts.size() == 2:
+        _height_snapshot.erase(CellUtil.cell_key(Vector2i(int(parts[0]), int(parts[1]))))
+
+
+func _on_snapshot_grid_initialized() -> void:
+    _height_snapshot.clear()
+    height_snapshot_generation += 1
+
+
+## Clears the world-lifetime height snapshot. Test/tool code that mutates
+## `_vertex_grid` directly (bypassing set_vertex, which emits cell_changed) must
+## call this before reading cached heights.
+func invalidate_height_snapshot() -> void:
+    _height_snapshot.clear()
+    height_snapshot_generation += 1
+
+
+## World-lifetime per-cell corner-vertex snapshot: [h_nw, h_ne, h_sw, h_se] raw ints.
+## Returns [] for out-of-diamond cells (consumers keep their bounds defaults).
+func _snapshot_corners(cell: Vector2i) -> Array:
+    var cx := cell.x
+    var cz := cell.y
+    var extent: Vector2i = CellUtil.get_diamond_extent(grid_cells)
+    if cx < 0 or cx >= extent.x or cz < 0 or cz >= extent.y:
+        return []
+    var key: int = CellUtil.cell_key(cell)
+    var cached: Array = _height_snapshot.get(key, [])
+    if not cached.is_empty():
+        return cached
+    cached = [
+        _vertex_grid[cx][cz],
+        _vertex_grid[cx + 1][cz],
+        _vertex_grid[cx][cz + 1],
+        _vertex_grid[cx + 1][cz + 1],
+    ]
+    _height_snapshot[key] = cached
+    return cached
 
 
 func clear() -> void:
@@ -220,17 +274,21 @@ func set_land_type(cell: Vector2i, land_type_id: String) -> void:
 
 
 func get_cell_max_height(cell: Vector2i) -> float:
-    var cx := cell.x
-    var cz := cell.y
-    var extent: Vector2i = CellUtil.get_diamond_extent(grid_cells)
-    if cx < 0 or cx >= extent.x or cz < 0 or cz >= extent.y:
+    var corners := _snapshot_corners(cell)
+    if corners.is_empty():
         return 0.0
-    var v00: int = _vertex_grid[cx][cz]
-    var v10: int = _vertex_grid[cx + 1][cz]
-    var v01: int = _vertex_grid[cx][cz + 1]
-    var v11: int = _vertex_grid[cx + 1][cz + 1]
-    var h_max := maxi(maxi(v00, v10), maxi(v01, v11))
+    var h_max := maxi(maxi(corners[0], corners[1]), maxi(corners[2], corners[3]))
     return float(h_max) * HEIGHT_STEP
+
+
+## Min-corner height for a cell (raw heights * HEIGHT_STEP). Matches the pre-cache
+## Pathfinder._cell_height semantics (4-corner minimum); out-of-diamond reads as 0.0.
+func get_cell_min_height(cell: Vector2i) -> float:
+    var corners := _snapshot_corners(cell)
+    if corners.is_empty():
+        return 0.0
+    var h_min := mini(mini(corners[0], corners[1]), mini(corners[2], corners[3]))
+    return float(h_min) * HEIGHT_STEP
 
 
 func get_cell_corner_heights(cell: Vector2i) -> Array[float]:
@@ -272,15 +330,24 @@ func get_height_at_world_smooth(world_pos: Vector3) -> float:
 ## surfaces sample the same surface.
 func _sample_heightfield_at(vx: float, vz: float) -> float:
     var x0 := floori(vx)
-    var x1 := x0 + 1
     var z0 := floori(vz)
-    var z1 := z0 + 1
     var fx: float = vx - float(x0)
     var fz: float = vz - float(z0)
-    var h00: float = float(get_vertex(x0, z0))
-    var h10: float = float(get_vertex(x1, z0))
-    var h01: float = float(get_vertex(x0, z1))
-    var h11: float = float(get_vertex(x1, z1))
+    var corners := _snapshot_corners(Vector2i(x0, z0))
+    var h00: float
+    var h10: float
+    var h01: float
+    var h11: float
+    if corners.is_empty():
+        h00 = float(get_vertex(x0, z0))
+        h10 = float(get_vertex(x0 + 1, z0))
+        h01 = float(get_vertex(x0, z0 + 1))
+        h11 = float(get_vertex(x0 + 1, z0 + 1))
+    else:
+        h00 = float(corners[0])
+        h10 = float(corners[1])
+        h01 = float(corners[2])
+        h11 = float(corners[3])
     var h0: float = h00 + (h10 - h00) * fx
     var h1: float = h01 + (h11 - h01) * fx
     return h0 + (h1 - h0) * fz
@@ -514,6 +581,12 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
     var existed_before: Dictionary = {}
     for key in affected_cells:
         existed_before[key] = _cells.has(key)
+        # A touched vertex makes this cell's snapshot stale whether or not the
+        # cell is tracked in `_cells` (cell_changed is only emitted for tracked
+        # cells) — erase the height snapshot entry directly.
+        var parts: PackedStringArray = key.split(",")
+        if parts.size() == 2:
+            _height_snapshot.erase(CellUtil.cell_key(Vector2i(int(parts[0]), int(parts[1]))))
 
     for key in affected_cells:
         if not existed_before[key]:

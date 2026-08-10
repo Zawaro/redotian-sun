@@ -469,3 +469,55 @@ func test_greedy_step_flyer_crosses_cliff():
             "flyer ignores height and steps onto the cliff (got %s)" % [step],
         )
     )
+
+
+func test_threaded_terrain_reference_matches_autoload():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    var foot := Locomotor.new()
+    foot.terrain_speeds = {"clear": 1.0}
+    foot.climb_tolerance = 1
+    _ts.set_land_type(Vector2i(20, 21), "water")
+    _ts.set_land_type(Vector2i(21, 21), "water")
+    var blocked := {
+        CellUtil.cell_key(Vector2i(24, 16)): true,
+        CellUtil.cell_key(Vector2i(25, 16)): true,
+    }
+    var start_world := CellUtil.cell_to_world(Vector2i(12, 16))
+    var end_world := CellUtil.cell_to_world(Vector2i(28, 16))
+    var shared := Pathfinder.PathCostCache.new()
+    shared.generation = Pathfinder._world_generation
+    var baseline: PackedVector3Array = Pathfinder.find_path(
+        start_world, end_world, blocked, foot, false, shared
+    )
+    var threaded: PackedVector3Array = Pathfinder.find_path(
+        start_world, end_world, blocked, foot, false, shared, _ts
+    )
+    _ts.clear()
+    TestHelper.assert_eq(
+        threaded,
+        baseline,
+        "find_path with threaded terrain reference matches autoload-resolved path"
+    )
+
+
+func test_threaded_greedy_step_matches_autoload():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    var foot := Locomotor.new()
+    foot.terrain_speeds = {"clear": 1.0}
+    _ts.set_land_type(Vector2i(20, 21), "water")
+    var from := Vector2i(20, 20)
+    var target := Vector2i(20, 24)
+    var baseline: Vector2i = Pathfinder.try_greedy_step(from, target, {}, foot)
+    var threaded: Vector2i = Pathfinder.try_greedy_step(
+        from, target, {}, foot, Pathfinder.GREEDY_STALL, null, _ts
+    )
+    _ts.clear()
+    TestHelper.assert_eq(
+        threaded, baseline, "try_greedy_step with threaded terrain matches autoload-resolved step"
+    )

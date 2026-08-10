@@ -32,10 +32,31 @@ const WAIT_MAX_SECONDS: float = 25.0 / 60.0
 static var _scattered_this_frame: Dictionary = {}
 static var _last_physics_frame: int = -1
 
+## Frame-scoped smoothed-height memo, shared across all controllers. Terrain is
+## static within a physics frame, so the ~3 bilinear reads per unit per tick
+## collapse to one read per half-cell bucket. Keyed by half-cell (1m) buckets;
+## the cached value is the bucket-center height, so it is deterministic and
+## order-independent. Cleared when the process frame advances or when the
+## TerrainSystem height snapshot generation changes (grid re-init / direct
+## vertex edits).
+static var _frame_heights: Dictionary = {}
+static var _frame_heights_frame: int = -1
+static var _frame_heights_gen: int = -1
+const HALF_CELL_KEY_OFFSET: int = 1024
+
 var _state: State = State.IDLE
 var _vertical_state: VerticalState = VerticalState.GROUND
 var _waypoints: PackedVector3Array = PackedVector3Array()
 var _spline_t: float = 0.0
+## Baked per-segment spline data: control points [p0,p1,p2,p3] and 3D length per
+## segment, precomputed at path-build time so `_get_spline_pos`/`_get_spline_tangent`
+## and the segment-length read index arrays instead of re-evaluating Catmull-Rom
+## (and re-deriving control points) ~4x per unit per tick. `_baked_generation`
+## guards against stale access when `_waypoints` is rebuilt.
+var _baked_controls: Array = []
+var _baked_seg_len: PackedFloat32Array = PackedFloat32Array()
+var _path_generation: int = 0
+var _baked_generation: int = -1
 var _rotation_target: Node3D
 var _parent: Node3D
 var _wait_time: float = 0.0
@@ -144,8 +165,8 @@ func _slope_coefficient() -> float:
     var seg := _spline_segment()
     var next_idx := mini(seg + 1, _waypoints.size() - 1)
     var probe := CellUtil.cell_to_world(CellUtil.world_to_cell(_waypoints[next_idx]))
-    var height_ahead := TerrainSystem.get_height_at_world_smooth(probe)
-    var height_now := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    var height_ahead := _memoized_smooth_height(probe)
+    var height_now := _memoized_smooth_height(_parent.global_position)
     var grade := height_ahead - height_now
     if absf(grade) < 0.05:
         return 1.0
@@ -165,6 +186,29 @@ func _is_floating() -> bool:
     if _is_hover:
         return true
     return _is_jumpjet and _vertical_state != VerticalState.GROUND
+
+
+## Frame-scoped smoothed terrain height. Terrain is static within a physics
+## frame, so the ~3 `get_height_at_world_smooth` reads per unit per tick
+## collapse to one read per half-cell bucket. Unit-independent only — the 3x3
+## avoidance scan stays live per-unit (it reads dynamic neighbor positions).
+func _memoized_smooth_height(pos: Vector3) -> float:
+    var frame := Engine.get_process_frames()
+    var gen: int = TerrainSystem.height_snapshot_generation
+    if frame != _frame_heights_frame or gen != _frame_heights_gen:
+        _frame_heights.clear()
+        _frame_heights_frame = frame
+        _frame_heights_gen = gen
+    var half := CellUtil.CELL_SIZE * 0.5
+    var bx := floori(pos.x / half)
+    var bz := floori(pos.z / half)
+    var key := (bx + HALF_CELL_KEY_OFFSET) << 16 | (bz + HALF_CELL_KEY_OFFSET) & 0xFFFF
+    if _frame_heights.has(key):
+        return _frame_heights[key]
+    var bucket_center := Vector3((float(bx) + 0.5) * half, 0.0, (float(bz) + 0.5) * half)
+    var h: float = TerrainSystem.get_height_at_world_smooth(bucket_center)
+    _frame_heights[key] = h
+    return h
 
 
 ## Split factor while a jumpjet vertically transitions (ascend/descend) at the
@@ -239,11 +283,13 @@ func stop() -> void:
                     next_waypoint = CellUtil.cell_to_world(candidate_cell)
         _waypoints = PackedVector3Array([_parent.global_position, next_waypoint])
         _spline_t = 0.0
+        _bake_spline()
 
 
 func _finish_stop() -> void:
     _waypoints = PackedVector3Array()
     _spline_t = 0.0
+    _bake_spline()
     _has_sub_slot = false
     _hybrid_active = false
     _land_on_arrival = false
@@ -273,6 +319,7 @@ func set_target_position(
     keep_zone: bool = false,
     internal: bool = false,
     cost_cache: Pathfinder.PathCostCache = null,
+    terrain: Node = null,
 ) -> void:
     if (
         is_nan(target.x)
@@ -353,7 +400,9 @@ func set_target_position(
                 target = _sub_slot_position
 
         blocked = _build_blocked_cells(unblock_buildings)
-        path = _greedy_or_search_path(target, target_cell, blocked, unblock_buildings, cost_cache)
+        path = _greedy_or_search_path(
+            target, target_cell, blocked, unblock_buildings, cost_cache, terrain
+        )
 
         if _is_jumpjet and _locomotor_data:
             if path.is_empty():
@@ -433,6 +482,7 @@ func set_target_position(
         full_path[i].y = TerrainSystem.get_height_at_world_smooth(full_path[i])
 
     _waypoints = full_path
+    _bake_spline()
     _spline_t = 0.0
     _wait_time = 0.0
     _repair_time = 0.0
@@ -476,8 +526,11 @@ func _greedy_or_search_path(
     blocked: Dictionary,
     unblock_buildings: bool,
     cost_cache: Pathfinder.PathCostCache,
+    terrain: Node = null,
 ) -> PackedVector3Array:
     const GREEDY_BUDGET: int = 64
+    if terrain == null:
+        terrain = Pathfinder._get_terrain_system()
     var start_cell := CellUtil.world_to_cell(_parent.global_position)
     var current := start_cell
     var prefix := PackedVector3Array()
@@ -485,7 +538,7 @@ func _greedy_or_search_path(
     var steps := 0
     while current != target_cell and steps < GREEDY_BUDGET:
         var step := Pathfinder.try_greedy_step(
-            current, target_cell, blocked, _locomotor_data, prev, cost_cache
+            current, target_cell, blocked, _locomotor_data, prev, cost_cache, terrain
         )
         if step == Pathfinder.GREEDY_STALL:
             break
@@ -505,7 +558,7 @@ func _greedy_or_search_path(
         _parent.global_position if prefix.is_empty() else CellUtil.cell_to_world(current)
     )
     var rest := Pathfinder.find_path(
-        search_start, target, blocked, _locomotor_data, unblock_buildings, cost_cache
+        search_start, target, blocked, _locomotor_data, unblock_buildings, cost_cache, terrain
     )
     if prefix.is_empty():
         return rest
@@ -575,7 +628,7 @@ func _handle_moving_movement(delta: float) -> void:
     var seg := _spline_segment()
     var seg_begin := _get_spline_pos(float(seg))
     var seg_end := _get_spline_pos(float(seg + 1))
-    var seg_length := seg_begin.distance_to(seg_end)
+    var seg_length := _segment_length(seg)
     # Floating units move horizontally while their Y is owned by the vertical
     # state machine (`_update_vertical` / hover float). Using the 3D segment
     # length here would let `_spline_t` reach the path end after travelling more
@@ -709,9 +762,7 @@ func _handle_moving_movement(delta: float) -> void:
         )
         if arrival_dist < 0.001:
             if not _is_jumpjet:
-                _parent.global_position.y = TerrainSystem.get_height_at_world_smooth(
-                    _parent.global_position
-                )
+                _parent.global_position.y = _memoized_smooth_height(_parent.global_position)
             if _is_jumpjet and _land_on_arrival and _vertical_state != VerticalState.GROUND:
                 _vertical_state = VerticalState.DESCENDING
             _has_sub_slot = false
@@ -875,11 +926,52 @@ func _spline_segment() -> int:
     return clampi(floori(_spline_t), 0, maxi(0, _num_segments() - 1))
 
 
+## Precomputes per-segment Catmull-Rom control points and 3D lengths from
+## `_waypoints` at path-build time. Called from `set_target_position`; guarded by
+## `_path_generation` so any `_waypoints` rebuild invalidates stale baked data.
+func _bake_spline() -> void:
+    _path_generation += 1
+    _baked_generation = _path_generation
+    _baked_controls = []
+    _baked_seg_len = PackedFloat32Array()
+    var n := _waypoints.size()
+    if n < 2:
+        return
+    _baked_seg_len.resize(n - 1)
+    for i in range(n - 1):
+        var p0 := _waypoints[maxi(0, i - 1)]
+        var p1 := _waypoints[i]
+        var p2 := _waypoints[mini(n - 1, i + 1)]
+        var p3 := _waypoints[mini(n - 1, i + 2)]
+        _baked_controls.append([p0, p1, p2, p3])
+        _baked_seg_len[i] = p1.distance_to(p2)
+
+
+## Segment length read, precomputed at bake time. Falls back to a live distance
+## when the baked data is stale (path rebuilt without baking).
+func _segment_length(seg: int) -> float:
+    if _baked_generation == _path_generation and seg >= 0 and seg < _baked_seg_len.size():
+        return _baked_seg_len[seg]
+    return _waypoints[seg].distance_to(_waypoints[seg + 1])
+
+
 func _get_spline_pos(t: float) -> Vector3:
+    var n := _waypoints.size()
+    var seg := clampi(floori(t), 0, maxi(0, n - 2))
+    var local_t := clampf(t - float(seg), 0.0, 1.0)
+    if _baked_generation == _path_generation and seg < _baked_controls.size():
+        var c: Array = _baked_controls[seg]
+        return SplineUtil._catmull_rom(c[0], c[1], c[2], c[3], local_t)
     return SplineUtil.evaluate(_waypoints, t)
 
 
 func _get_spline_tangent(t: float) -> Vector3:
+    var n := _waypoints.size()
+    var seg := clampi(floori(t), 0, maxi(0, n - 2))
+    var local_t := clampf(t - float(seg), 0.0, 1.0)
+    if _baked_generation == _path_generation and seg < _baked_controls.size():
+        var c: Array = _baked_controls[seg]
+        return SplineUtil._catmull_rom_tangent(c[0], c[1], c[2], c[3], local_t)
     return SplineUtil.tangent(_waypoints, t)
 
 
@@ -988,7 +1080,7 @@ func _snap_if_idle_cell_changed() -> void:
     var cell := CellUtil.world_to_cell(_parent.global_position)
     if _idle_snapped and cell == _idle_snap_cell:
         return
-    var idle_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    var idle_y := _memoized_smooth_height(_parent.global_position)
     _parent.global_position.y = idle_y + (_hover_height if _is_floating() else 0.0)
     _idle_snap_cell = cell
     _idle_snapped = true
@@ -998,7 +1090,7 @@ func _snap_to_terrain(delta: float = 0.0) -> void:
     if _is_jumpjet:
         _update_vertical(delta)
         return
-    var terrain_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    var terrain_y := _memoized_smooth_height(_parent.global_position)
     var target_y := terrain_y + (_hover_height if _is_floating() else 0.0)
     _parent.global_position.y = lerpf(_parent.global_position.y, target_y, 0.95)
 
