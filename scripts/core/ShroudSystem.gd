@@ -3,7 +3,7 @@ extends Node
 ## Authoritative per-player fog-of-war grid — shroud / fog / visible.
 ## Simulation-only. Rendering and VisionComponent wiring are follow-up work.
 
-signal state_changed
+signal state_changed(dirty: PackedInt32Array)
 
 const STATE_SHROUD: int = 0
 const STATE_FOG: int = 1
@@ -28,6 +28,8 @@ var _resolve_timer: float = 0.0
 var _growth_timer: float = 0.0
 
 var _terrain: Node = null
+var _team_cache: Dictionary = {}
+var _emit_touched := PackedByteArray()
 
 
 func _ready() -> void:
@@ -63,6 +65,7 @@ func _init_grid(grid_cells: Vector2i) -> void:
     _states.clear()
     _temp_reveals.clear()
     _revealer_seq = 0
+    _team_cache.clear()
 
 
 func _on_grid_initialized() -> void:
@@ -174,10 +177,29 @@ func _cell_reachable(
         return false
     if not blocks_terrain:
         return true
-    for cell in _bresenham_cells(from_cell, to_cell):
-        if cell == from_cell or cell == to_cell:
-            continue
-        if _cell_blocks(cell, viewer_height):
+    # Walk the line in place, early-exiting at the first blocker — no per-cell
+    # Array allocation on the 60Hz re-stamp path. Endpoints are never checked:
+    # from_cell is the viewer's own cell and to_cell is the destination.
+    var x0: int = from_cell.x
+    var y0: int = from_cell.y
+    var x1: int = to_cell.x
+    var y1: int = to_cell.y
+    var dx: int = absi(x1 - x0)
+    var dy: int = -absi(y1 - y0)
+    var sx: int = 1 if x0 < x1 else -1
+    var sy: int = 1 if y0 < y1 else -1
+    var err: int = dx + dy
+    while x0 != x1 or y0 != y1:
+        var e2: int = 2 * err
+        if e2 >= dy:
+            err += dy
+            x0 += sx
+        if e2 <= dx:
+            err += dx
+            y0 += sy
+        if x0 == x1 and y0 == y1:
+            break
+        if _cell_blocks(Vector2i(x0, y0), viewer_height):
             return false
     return true
 
@@ -186,31 +208,6 @@ func _cell_blocks(cell: Vector2i, viewer_height: float) -> bool:
     if _terrain and _terrain.get_cell_max_height(cell) > viewer_height + _max_height_delta:
         return true
     return false
-
-
-func _bresenham_cells(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    var x0: int = a.x
-    var y0: int = a.y
-    var x1: int = b.x
-    var y1: int = b.y
-    var dx: int = absi(x1 - x0)
-    var dy: int = -absi(y1 - y0)
-    var sx: int = 1 if x0 < x1 else -1
-    var sy: int = 1 if y0 < y1 else -1
-    var err: int = dx + dy
-    while true:
-        cells.append(Vector2i(x0, y0))
-        if x0 == x1 and y0 == y1:
-            break
-        var e2: int = 2 * err
-        if e2 >= dy:
-            err += dy
-            x0 += sx
-        if e2 <= dx:
-            err += dx
-            y0 += sy
-    return cells
 
 
 # ========================================
@@ -329,6 +326,28 @@ func get_effective_state(local_player: int) -> PackedByteArray:
                 state = STATE_FOG
             out[idx] = state
     return out
+
+
+## Merged effective state for a single cell index, used by the renderer's
+## incremental bake on the dirty cells emitted with `state_changed`. Matches
+## `get_effective_state` per-cell semantics: STATE_SHROUD when no allied player
+## has explored the cell.
+func get_cell_effective_state(local_player: int, idx: int) -> int:
+    if idx < 0 or idx >= _cell_count:
+        return STATE_SHROUD
+    var state := STATE_SHROUD
+    for pid in _allied_player_ids(local_player):
+        if not _states.has(pid):
+            continue
+        var st: Dictionary = _states[pid]
+        var explored: PackedByteArray = st["explored"]
+        if explored[idx] == 0:
+            continue
+        var visible_count: PackedInt32Array = st["visible_count"]
+        if visible_count[idx] > 0:
+            return STATE_VISIBLE
+        state = STATE_FOG
+    return state
 
 
 # ========================================
@@ -470,11 +489,20 @@ func _has_shroud_neighbor(cell: Vector2i, explored: PackedByteArray) -> bool:
 
 func resolve_dirty() -> int:
     var processed := 0
+    var local_player := PlayerManager.get_local_player_id()
+    var allied := _allied_player_ids(local_player)
+    if _emit_touched.size() != _cell_count:
+        _emit_touched.resize(_cell_count)
+        _emit_touched.fill(0)
+    else:
+        _emit_touched.fill(0)
+    var emit_dirty := PackedInt32Array()
     for player_id in _states:
         var st: Dictionary = _states[player_id]
         var dirty: Array = st["dirty"]
         if dirty.is_empty():
             continue
+        var is_allied := allied.has(player_id)
         var touched: PackedByteArray = st["touched"]
         var resolved: PackedByteArray = st["resolved"]
         var explored: PackedByteArray = st["explored"]
@@ -488,9 +516,14 @@ func resolve_dirty() -> int:
             else:
                 resolved[idx] = STATE_FOG
             processed += 1
+            # Only cells whose change can affect the local player's merged view
+            # (allied players) reach the renderer's incremental bake.
+            if is_allied and _emit_touched[idx] == 0:
+                _emit_touched[idx] = 1
+                emit_dirty.append(idx)
         dirty.clear()
     if processed > 0:
-        state_changed.emit()
+        state_changed.emit(emit_dirty)
     return processed
 
 
@@ -522,11 +555,30 @@ func _state(player_id: int) -> Dictionary:
 
 
 func _allied_player_ids(player_id: int) -> Array[int]:
-    var out: Array[int] = []
+    var cached: Dictionary = _team_cache.get(player_id, {})
+    if not cached.is_empty() and _team_cache_valid(cached):
+        return cached["ids"]
     var data := PlayerManager.get_player_data(player_id)
+    var ids: Array[int] = []
+    var teams: Array[int] = []
     for p in PlayerManager.get_players_by_team(data.team_id):
-        out.append(p.player_id)
-    return out
+        ids.append(p.player_id)
+        teams.append(p.team_id)
+    _team_cache[player_id] = {"ids": ids, "teams": teams}
+    return ids
+
+
+## Live-validates a cached allied team so direct team_id mutations (tests,
+## rare runtime re-teams) are picked up without an allocation on the hot path.
+func _team_cache_valid(cached: Dictionary) -> bool:
+    var ids: Array = cached["ids"]
+    var teams: Array = cached["teams"]
+    if ids.size() != teams.size():
+        return false
+    for i in ids.size():
+        if PlayerManager.get_player_data(ids[i]).team_id != teams[i]:
+            return false
+    return true
 
 
 func _revealable(cell: Vector2i) -> bool:

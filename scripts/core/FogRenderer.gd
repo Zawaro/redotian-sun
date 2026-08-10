@@ -49,6 +49,15 @@ var _material_opaque: ShaderMaterial
 var _last_states := PackedByteArray()
 var _buildings: Dictionary = {}
 
+## Persistent textures/images: created once per grid init, updated in place on
+## state changes (ImageTexture.update) instead of re-allocating per resolve.
+var _grid_image: Image = null
+var _mask_image: Image = null
+var _grid_tex: ImageTexture = null
+var _mask_tex: ImageTexture = null
+var _shroud_dist := PackedByteArray()
+var _fog_dist := PackedByteArray()
+
 
 func _ready() -> void:
     _material = ShaderMaterial.new()
@@ -88,31 +97,36 @@ func _exit_tree() -> void:
         get_tree().node_removed.disconnect(_on_node_removed)
 
 
-func _physics_process(_delta: float) -> void:
+## Building reveal is event-driven: resolved shroud state only changes on the
+## state_changed signal (or a building spawn), so the old per-frame poll
+## recomputed a constant. The opaque shroud sheet depth-occludes anything a
+## stale flag would leave visible in the window between resolves.
+func _sync_buildings() -> void:
     if Engine.is_editor_hint():
-        return
-    if not ShroudSystem.is_shroud_enabled() and not ShroudSystem.is_fog_enabled():
         return
     var scene := get_tree().current_scene
     if scene != null and scene.has_meta("is_map_editor"):
         return
-    var local := PlayerManager.get_local_player_id()
     for entity in _buildings.keys():
         var node: Node3D = entity
         if not is_instance_valid(node):
             _buildings.erase(entity)
             continue
-        var stats := node.get_node_or_null("StatsComponent") as StatsComponent
-        if stats == null or stats.player_id < 0:
-            continue
-        if not PlayerManager.is_enemy(local, stats.player_id):
-            continue
-        var revealed := ShroudSystem.is_entity_revealed_to_local(node)
-        if node.visible != revealed:
-            node.visible = revealed
+        _sync_building(node)
 
 
-func _on_shroud_changed() -> void:
+func _sync_building(node: Node3D) -> void:
+    var stats := node.get_node_or_null("StatsComponent") as StatsComponent
+    if stats == null or stats.player_id < 0:
+        return
+    if not PlayerManager.is_enemy(PlayerManager.get_local_player_id(), stats.player_id):
+        return
+    var revealed := ShroudSystem.is_entity_revealed_to_local(node)
+    if node.visible != revealed:
+        node.visible = revealed
+
+
+func _on_shroud_changed(dirty: PackedInt32Array) -> void:
     if Engine.is_editor_hint():
         return
     # Re-sync the toggle uniforms every signal: `_layout_plane` only runs on grid
@@ -127,18 +141,32 @@ func _on_shroud_changed() -> void:
     _material.set_shader_parameter("fog_grow", FOG_GROW)
     _material.set_shader_parameter("fog_falloff", FOG_FALLOFF)
     _material_opaque.set_shader_parameter("shroud_enabled", shroud)
+    # Building flips ride the same event as the fog texture, so they land
+    # atomically; also force-reveals when both toggles are off (shroud off ->
+    # is_entity_revealed_to_local returns true).
+    _sync_buildings()
     if not shroud and not fog:
         _set_plane_visible(false)
         _clear_textures()
         return
     _set_plane_visible(true)
-    var states := ShroudSystem.get_effective_state(PlayerManager.get_local_player_id())
-    if states.is_empty():
+    if _grid_tex == null:
+        _init_textures(ShroudSystem.get_effective_state(PlayerManager.get_local_player_id()))
         return
-    if states.size() == _last_states.size() and states == _last_states:
+    if dirty.is_empty():
         return
-    _last_states = states
-    _rebuild_texture(states)
+    var local := PlayerManager.get_local_player_id()
+    var changed: Array[int] = []
+    for idx in dirty:
+        if idx < 0 or idx >= _last_states.size():
+            continue
+        var s: int = ShroudSystem.get_cell_effective_state(local, idx)
+        if s != _last_states[idx]:
+            _last_states[idx] = s
+            changed.append(idx)
+    if changed.is_empty():
+        return
+    _update_textures(changed)
 
 
 func _on_grid_initialized() -> void:
@@ -149,15 +177,18 @@ func _on_grid_initialized() -> void:
         _clear_textures()
         return
     _set_plane_visible(true)
-    _rebuild_texture(ShroudSystem.get_effective_state(PlayerManager.get_local_player_id()))
+    _init_textures(ShroudSystem.get_effective_state(PlayerManager.get_local_player_id()))
+    _sync_buildings()
 
 
 ## Re-applies the shroud/fog toggles (uniforms + plane visibility + texture)
-## after the debug menu changes GlobalRules. No-op state compare ensures a
-## rebuild when only a toggle changed without any cell-state change.
+## after the debug menu changes GlobalRules. Nulls the texture refs so the next
+## signal does a full rebuild even when no cell state changed.
 func refresh() -> void:
+    _grid_tex = null
+    _mask_tex = null
     _last_states = PackedByteArray()
-    _on_shroud_changed()
+    _on_shroud_changed(PackedInt32Array())
 
 
 func _layout_plane() -> void:
@@ -260,44 +291,122 @@ func _grid_origin(grid: Vector2i) -> Vector2:
     return Vector2(min_x, min_z)
 
 
-func _rebuild_texture(states: PackedByteArray) -> void:
+## Full (re)build of the persistent grid + edge-mask images/textures from a
+## freshly computed effective-state buffer. Runs on grid init and on the first
+## signal after a refresh — never per state change.
+func _init_textures(states: PackedByteArray) -> void:
     var extent := CellUtil.get_diamond_extent(TerrainSystem.grid_cells)
     if extent.x <= 0 or extent.y <= 0 or states.is_empty():
         return
-    var img := Image.create_from_data(extent.x, extent.y, false, Image.FORMAT_L8, states)
-    var grid_tex := ImageTexture.create_from_image(img)
-    _material.set_shader_parameter("fog_grid", grid_tex)
-    _material_opaque.set_shader_parameter("fog_grid", grid_tex)
-    var mask_tex := ImageTexture.create_from_image(_bake_edge_mask(states, extent))
-    _material.set_shader_parameter("edge_mask", mask_tex)
+    _last_states = states
+    _grid_image = Image.create_from_data(extent.x, extent.y, false, Image.FORMAT_L8, states)
+    _shroud_dist = _ring_distance(states, 0, extent.x, extent.y)
+    _fog_dist = _ring_distance(states, 1, extent.x, extent.y)
+    _mask_image = _mask_from_dists(extent.x, extent.y)
+    _grid_tex = ImageTexture.create_from_image(_grid_image)
+    _mask_tex = ImageTexture.create_from_image(_mask_image)
+    _material.set_shader_parameter("fog_grid", _grid_tex)
+    _material_opaque.set_shader_parameter("fog_grid", _grid_tex)
+    _material.set_shader_parameter("edge_mask", _mask_tex)
 
 
-## Builds the RG8 soft-edge mask (R = shroud ring distance, G = fog ring
-## distance) from the effective-state buffer. Covered cells store 0; each cell
-## outward stores its 8-neighbor Chebyshev ring distance up to MASK_MAX_RING.
-## Bilinear interpolation in the shader ramps the distance linearly between
-## texel centers, so a covered footprint stays flat (alpha 1) to its exact edge
-## and the band extends outward only. Runs on the state-change event — the same
-## gate as `_rebuild_texture` — never per frame.
-func _bake_edge_mask(states: PackedByteArray, extent: Vector2i) -> Image:
+## Packs the two persistent distance buffers into the RG8 edge-mask image
+## (R = shroud ring distance, G = fog ring distance).
+func _mask_from_dists(width: int, height: int) -> Image:
+    var data := PackedByteArray()
+    data.resize(width * height * 2)
+    for i in width * height:
+        data[i * 2] = _shroud_dist[i]
+        data[i * 2 + 1] = _fog_dist[i]
+    return Image.create_from_data(width, height, false, Image.FORMAT_RG8, data)
+
+
+## Applies an incremental effective-state change: writes the changed cells into
+## the persistent L8 grid image and re-bakes only the affected edge-mask band,
+## then re-uploads both textures in place.
+func _update_textures(changed: Array[int]) -> void:
+    var extent := CellUtil.get_diamond_extent(TerrainSystem.grid_cells)
     var width := extent.x
     var height := extent.y
-    var shroud_dist := _ring_distance(states, 0, width, height)
-    var fog_dist := _ring_distance(states, 1, width, height)
-    var data := PackedByteArray()
-    data.resize(states.size() * 2)
-    for i in states.size():
-        data[i * 2] = shroud_dist[i]
-        data[i * 2 + 1] = fog_dist[i]
-    return Image.create_from_data(width, height, false, Image.FORMAT_RG8, data)
+    for idx in changed:
+        var v := float(_last_states[idx]) / 255.0
+        (
+            _grid_image
+            . set_pixel(
+                idx % width,
+                idx / width,
+                Color(v, v, v, 1.0),
+            )
+        )
+    _update_edge_mask(changed, width, height)
+    if _grid_tex:
+        _grid_tex.update(_grid_image)
+    if _mask_tex:
+        _mask_tex.update(_mask_image)
+
+
+## Incremental re-bake of the edge-mask band around the changed cells. The band
+## (changed cells dilated by MASK_MAX_RING) is the only region whose ring
+## distances can change; a 2-sweep Chebyshev distance transform restricted to a
+## region dilated one ring further recomputes it exactly — all sources that can
+## affect a band cell lie inside that region, and cells outside it keep their
+## correct previous values. Cost scales with the changed area, not grid size.
+func _update_edge_mask(changed: Array[int], width: int, height: int) -> void:
+    if changed.is_empty() or _mask_image == null:
+        return
+    var min_x := 0x7FFFFFFF
+    var min_y := 0x7FFFFFFF
+    var max_x := -1
+    var max_y := -1
+    for idx in changed:
+        var x := idx % width
+        var y := idx / width
+        min_x = mini(min_x, x)
+        min_y = mini(min_y, y)
+        max_x = maxi(max_x, x)
+        max_y = maxi(max_y, y)
+    min_x = maxi(min_x - MASK_MAX_RING * 2, 0)
+    min_y = maxi(min_y - MASK_MAX_RING * 2, 0)
+    max_x = mini(max_x + MASK_MAX_RING * 2, width - 1)
+    max_y = mini(max_y + MASK_MAX_RING * 2, height - 1)
+    # Reset the band (changed dilated by ring) to valid upper bounds; targets
+    # keep distance 0, everything else restarts at the ring sentinel.
+    for idx in changed:
+        var cx := idx % width
+        var cy := idx / width
+        for y in range(maxi(cy - MASK_MAX_RING, min_y), mini(cy + MASK_MAX_RING, max_y) + 1):
+            for x in range(maxi(cx - MASK_MAX_RING, min_x), mini(cx + MASK_MAX_RING, max_x) + 1):
+                var i := y * width + x
+                var is_shroud: bool = _last_states[i] == ShroudSystem.STATE_SHROUD
+                var is_fog: bool = _last_states[i] == ShroudSystem.STATE_FOG
+                _shroud_dist[i] = 0 if is_shroud else MASK_MAX_RING
+                _fog_dist[i] = 0 if is_fog else MASK_MAX_RING
+    _sweep_dist(_shroud_dist, width, height, min_x, min_y, max_x, max_y)
+    _sweep_dist(_fog_dist, width, height, min_x, min_y, max_x, max_y)
+    for y in range(min_y, max_y + 1):
+        for x in range(min_x, max_x + 1):
+            var i := y * width + x
+            (
+                _mask_image
+                . set_pixel(
+                    x,
+                    y,
+                    Color(
+                        float(_shroud_dist[i]) / 255.0,
+                        float(_fog_dist[i]) / 255.0,
+                        0.0,
+                        1.0,
+                    ),
+                )
+            )
 
 
 ## Two-pass Chebyshev distance transform to the nearest texel whose effective
 ## state equals `target`, clamped to MASK_MAX_RING. Counts diagonal neighbors at
 ## the same cost as cardinal ones (8-neighbor, L-infinity), so the falloff band
 ## aligns equally to axes and diagonals — the 45-degree rotation of a Manhattan
-## diamond. O(n) with 8 compares per texel — cheap enough to run on every state
-## change.
+## diamond. Exact (no edge artifact): every cell is relaxed from all 8
+## directions; neighbors outside the grid are guarded.
 func _ring_distance(
     states: PackedByteArray,
     target: int,
@@ -308,36 +417,55 @@ func _ring_distance(
     dist.resize(states.size())
     for i in states.size():
         dist[i] = 0 if states[i] == target else MASK_MAX_RING
-    for y in range(1, height):
-        for x in range(1, width):
-            var idx := y * width + x
-            var best := dist[idx]
-            if dist[idx - 1] + 1 < best:
-                best = dist[idx - 1] + 1
-            if dist[idx - width] + 1 < best:
-                best = dist[idx - width] + 1
-            if dist[idx - width - 1] + 1 < best:
-                best = dist[idx - width - 1] + 1
-            if x < width - 1 and dist[idx - width + 1] + 1 < best:
-                best = dist[idx - width + 1] + 1
-            dist[idx] = best
-    for y in range(height - 2, -1, -1):
-        for x in range(width - 2, -1, -1):
-            var idx := y * width + x
-            var best := dist[idx]
-            if dist[idx + 1] + 1 < best:
-                best = dist[idx + 1] + 1
-            if dist[idx + width] + 1 < best:
-                best = dist[idx + width] + 1
-            if dist[idx + width + 1] + 1 < best:
-                best = dist[idx + width + 1] + 1
-            if x > 0 and dist[idx + width - 1] + 1 < best:
-                best = dist[idx + width - 1] + 1
-            dist[idx] = best
+    _sweep_dist(dist, width, height, 0, 0, width - 1, height - 1)
     return dist
 
 
+## Two-pass Chebyshev distance relaxation over a sub-rectangle of a distance
+## buffer. Cells outside the rectangle hold valid upper bounds (their exact
+## value), so restricting the sweep to the band region recomputes it exactly.
+## Forward pass relaxes N/W/NW/NE, backward the other four — with out-of-grid
+## neighbors guarded so the east column and south row are relaxed too.
+func _sweep_dist(
+    dist: PackedByteArray,
+    width: int,
+    height: int,
+    min_x: int,
+    min_y: int,
+    max_x: int,
+    max_y: int,
+) -> void:
+    for y in range(min_y, max_y + 1):
+        for x in range(min_x, max_x + 1):
+            var idx := y * width + x
+            var best := dist[idx]
+            if y > 0 and dist[idx - width] + 1 < best:
+                best = dist[idx - width] + 1
+            if x > 0 and dist[idx - 1] + 1 < best:
+                best = dist[idx - 1] + 1
+            if x > 0 and y > 0 and dist[idx - width - 1] + 1 < best:
+                best = dist[idx - width - 1] + 1
+            if x < width - 1 and y > 0 and dist[idx - width + 1] + 1 < best:
+                best = dist[idx - width + 1] + 1
+            dist[idx] = best
+    for y in range(max_y, min_y - 1, -1):
+        for x in range(max_x, min_x - 1, -1):
+            var idx := y * width + x
+            var best := dist[idx]
+            if x < width - 1 and dist[idx + 1] + 1 < best:
+                best = dist[idx + 1] + 1
+            if y < height - 1 and dist[idx + width] + 1 < best:
+                best = dist[idx + width] + 1
+            if x < width - 1 and y < height - 1 and dist[idx + width + 1] + 1 < best:
+                best = dist[idx + width + 1] + 1
+            if x > 0 and y < height - 1 and dist[idx + width - 1] + 1 < best:
+                best = dist[idx + width - 1] + 1
+            dist[idx] = best
+
+
 func _clear_textures() -> void:
+    _grid_tex = null
+    _mask_tex = null
     _material.set_shader_parameter("fog_grid", null)
     _material.set_shader_parameter("edge_mask", null)
     _material_opaque.set_shader_parameter("fog_grid", null)
@@ -368,6 +496,9 @@ func _on_node_added(node: Node) -> void:
     if stats.entity_type != EntityData.EntityType.BUILDING:
         return
     _buildings[n3d] = true
+    # Buildings spawned between resolves default visible=true; sync immediately
+    # so the flag is correct (or the opaque shroud sheet hides it until then).
+    _sync_building(n3d)
 
 
 func _on_node_removed(node: Node) -> void:

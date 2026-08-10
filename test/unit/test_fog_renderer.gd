@@ -203,13 +203,22 @@ func test_texture_rebuilds_only_on_change():
     var cell := Vector2i(40, 40)
     var tex_initial: ImageTexture = _fr._material.get_shader_parameter("fog_grid")
     TestHelper.assert_true(tex_initial != null, "texture built from initial grid state")
+    # get_image() on an updated ImageTexture is stale in this engine, so the
+    # content check reads the persistent grid image the renderer re-uploads.
+    var bytes_before: PackedByteArray = _fr._grid_image.get_data()
     ShroudSystem.register_revealer(0, cell, 1, 0.0, true)
     _ss.resolve_dirty()
     var tex_after: ImageTexture = _fr._material.get_shader_parameter("fog_grid")
     TestHelper.assert_true(tex_after != null, "texture present after state change")
-    TestHelper.assert_true(tex_initial != tex_after, "texture rebuilt when state changed")
+    (
+        TestHelper
+        . assert_true(
+            bytes_before != _fr._grid_image.get_data(),
+            "texture content updated when state changed",
+        )
+    )
     var tex_same: ImageTexture = _fr._material.get_shader_parameter("fog_grid")
-    TestHelper.assert_true(tex_after == tex_same, "no rebuild when effective state unchanged")
+    TestHelper.assert_true(tex_after == tex_same, "texture object reused across updates")
     _teardown()
 
 
@@ -223,6 +232,7 @@ func test_allied_only_noise_does_not_rebuild():
     _ss.resolve_dirty()
     var tex_first: ImageTexture = _fr._material.get_shader_parameter("fog_grid")
     TestHelper.assert_true(tex_first != null, "texture built for local reveal")
+    var states_before: PackedByteArray = _fr._last_states.duplicate()
     # Player 1 is an enemy (different team); its reveal must not alter the local
     # player's effective state, so no rebuild.
     _set_team(1, 2)
@@ -231,6 +241,13 @@ func test_allied_only_noise_does_not_rebuild():
     var tex_second: ImageTexture = _fr._material.get_shader_parameter("fog_grid")
     TestHelper.assert_true(
         tex_first == tex_second, "enemy-only resolve does not rebuild local texture"
+    )
+    (
+        TestHelper
+        . assert_true(
+            _fr._last_states == states_before,
+            "enemy-only resolve leaves local effective state unchanged",
+        )
     )
     _teardown()
 
@@ -328,7 +345,7 @@ func test_building_hidden_before_explored():
         return
     var cell := Vector2i(40, 40)
     var enemy := _make_building(cell, 1)
-    _fr._physics_process(0.0)
+    _fr._sync_buildings()
     TestHelper.assert_true(not enemy.visible, "enemy building hidden in shroud")
     _fr._buildings.erase(enemy)
     enemy.queue_free()
@@ -344,7 +361,7 @@ func test_building_persists_in_explored_fog():
     var enemy := _make_building(cell, 1)
     ShroudSystem.explore_area(0, cell, 1)
     _ss.resolve_dirty()
-    _fr._physics_process(0.0)
+    _fr._sync_buildings()
     TestHelper.assert_true(enemy.visible, "building visible in explored fog")
     _fr._buildings.erase(enemy)
     enemy.queue_free()
@@ -358,11 +375,11 @@ func test_building_hidden_until_any_foundation_cell_explored():
         return
     # 2x2 footprint at origin (39,39): cells (39,39)..(40,40).
     var enemy := _make_building_foundation(Vector2i(39, 39), 1, Vector2i(2, 2))
-    _fr._physics_process(0.0)
+    _fr._sync_buildings()
     TestHelper.assert_true(not enemy.visible, "building hidden with no foundation cell explored")
     ShroudSystem.explore_area(0, Vector2i(40, 40), 0)
     _ss.resolve_dirty()
-    _fr._physics_process(0.0)
+    _fr._sync_buildings()
     TestHelper.assert_true(enemy.visible, "building shown when one foundation corner is explored")
     _fr._buildings.erase(enemy)
     enemy.free()
@@ -376,8 +393,103 @@ func test_friendly_building_always_visible():
         return
     var cell := Vector2i(40, 40)
     var friendly := _make_building(cell, 0)
-    _fr._physics_process(0.0)
+    _fr._sync_buildings()
     TestHelper.assert_true(friendly.visible, "friendly building never hidden")
     _fr._buildings.erase(friendly)
     friendly.queue_free()
     _teardown()
+
+
+## Reference test: the incremental band re-bake must reproduce the full-grid
+## `_ring_distance` exactly, across consecutive updates and at map borders.
+func test_incremental_edge_mask_matches_full_recompute():
+    _setup()
+    if _fr == null:
+        TestHelper.fail("FogRenderer not injected")
+        return
+    var width := 60
+    var height := 40
+    var size := width * height
+    var states := PackedByteArray()
+    states.resize(size)
+    var rng := RandomNumberGenerator.new()
+    rng.seed = 20240810
+    for i in size:
+        states[i] = rng.randi_range(0, 2)
+    _fr._last_states = states.duplicate()
+    _fr._shroud_dist = _fr._ring_distance(states, 0, width, height)
+    _fr._fog_dist = _fr._ring_distance(states, 1, width, height)
+    var mask_data := PackedByteArray()
+    mask_data.resize(size * 2)
+    for i in size:
+        mask_data[i * 2] = _fr._shroud_dist[i]
+        mask_data[i * 2 + 1] = _fr._fog_dist[i]
+    _fr._mask_image = Image.create_from_data(width, height, false, Image.FORMAT_RG8, mask_data)
+    # First incremental batch: flip a scattered set of cells.
+    var changed: Array[int] = _apply_random_flips(states, rng, 10)
+    _fr._last_states = states
+    _fr._update_edge_mask(changed, width, height)
+    _assert_mask_matches(_fr, states, width, height, "after first flips")
+    # Second batch at the corners: exercises region clamping at map borders.
+    changed = [0, width - 1, (height - 1) * width, size - 1]
+    for idx in changed:
+        states[idx] = rng.randi_range(0, 2)
+    _fr._last_states = states
+    _fr._update_edge_mask(changed, width, height)
+    _assert_mask_matches(_fr, states, width, height, "after border flips")
+    _teardown()
+
+
+func _apply_random_flips(
+    states: PackedByteArray,
+    rng: RandomNumberGenerator,
+    count: int,
+) -> Array[int]:
+    var changed: Array[int] = []
+    for n in count:
+        var idx := rng.randi_range(0, states.size() - 1)
+        states[idx] = rng.randi_range(0, 2)
+        changed.append(idx)
+    return changed
+
+
+func _assert_mask_matches(
+    fr: Node,
+    states: PackedByteArray,
+    width: int,
+    height: int,
+    label: String,
+) -> void:
+    var ref_shroud: PackedByteArray = fr._ring_distance(states, 0, width, height)
+    var ref_fog: PackedByteArray = fr._ring_distance(states, 1, width, height)
+    var i := _first_mismatch(fr._shroud_dist, ref_shroud)
+    TestHelper.assert_eq(i, -1, "shroud ring dist %s matches full recompute" % label)
+    i = _first_mismatch(fr._fog_dist, ref_fog)
+    TestHelper.assert_eq(i, -1, "fog ring dist %s matches full recompute" % label)
+    var mask_bytes: PackedByteArray = fr._mask_image.get_data()
+    i = -1
+    for k in states.size():
+        if mask_bytes[k * 2] != ref_shroud[k] or mask_bytes[k * 2 + 1] != ref_fog[k]:
+            i = k
+            break
+    TestHelper.assert_eq(i, -1, "mask image bytes %s match full recompute" % label)
+
+
+func _first_mismatch(a: PackedByteArray, b: PackedByteArray) -> int:
+    if a.size() != b.size():
+        return -2
+    for i in a.size():
+        if a[i] != b[i]:
+            return i
+    return -1
+
+
+## Guards the L8 `Image.set_pixel` byte conversion used by the incremental grid
+## texture update — the stored byte must equal the effective state value.
+func test_grid_image_pixel_roundtrip():
+    var img := Image.create_empty(4, 4, false, Image.FORMAT_L8)
+    img.set_pixel(1, 2, Color(1.0 / 255.0, 1.0 / 255.0, 1.0 / 255.0, 1.0))
+    img.set_pixel(2, 2, Color(2.0 / 255.0, 2.0 / 255.0, 2.0 / 255.0, 1.0))
+    var data := img.get_data()
+    TestHelper.assert_eq(data[2 * 4 + 1], 1, "L8 set_pixel stores state byte 1")
+    TestHelper.assert_eq(data[2 * 4 + 2], 2, "L8 set_pixel stores state byte 2")

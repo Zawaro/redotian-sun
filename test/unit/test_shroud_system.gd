@@ -704,7 +704,7 @@ func test_state_changed_signal_fired_on_resolve():
         return
     _setup()
     _signal_fired = false
-    var on_changed := func() -> void: _signal_fired = true
+    var on_changed := func(_dirty: PackedInt32Array) -> void: _signal_fired = true
     _ss.state_changed.connect(on_changed)
     _ss.resolve_dirty()
     TestHelper.assert_true(not _signal_fired, "no signal when nothing changed")
@@ -721,7 +721,7 @@ func test_state_changed_no_signal_when_clean():
         return
     _setup()
     _signal_fired = false
-    var on_changed := func() -> void: _signal_fired = true
+    var on_changed := func(_dirty: PackedInt32Array) -> void: _signal_fired = true
     _ss.state_changed.connect(on_changed)
     var key: int = _ss.register_revealer(0, CENTER, 1, 0.0, true)
     _ss.resolve_dirty()
