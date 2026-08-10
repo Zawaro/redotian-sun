@@ -22,6 +22,7 @@ InputSettings="*res://scripts/core/InputSettings.gd" ; Must init before scene-lo
 SelectionManager="*res://scripts/core/SelectionManager.gd"
 OrderSystem="*res://scripts/core/OrderSystem.gd"
 DebugVisualizer="*res://scripts/core/DebugVisualizer.gd"
+MoveLineRenderer="*res://scripts/core/MoveLineRenderer.gd"
 SpatialHashSingleton="*res://scripts/core/SpatialHash.gd"
 CellReservationSingleton="*res://scripts/core/CellReservation.gd"
 TerrainSystem="*res://scripts/core/TerrainSystem.gd"

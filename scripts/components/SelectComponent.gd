@@ -18,15 +18,17 @@ signal selection_state_changed(select_comp: SelectComponent)
 enum SelectBoxType { Infantry, Vehicle, Structure }
 
 const HEALTH_BAR_CUBE_SIZE = 0.33333333
+## Move-target line lifetime and fade tail (seconds). The line is an order
+## acknowledgement glyph: short-lived, fading out over the tail.
+const MOVE_LINE_DURATION := 0.3
+const FADE_WINDOW := 0.1
 ## Shared white unshaded material for building select boxes — one per game
 ## instead of one fresh material per building.
 static var _shared_select_box_material: ORMMaterial3D = null
 var health_bar: MeshInstance3D
 var _building_select_box: MeshInstance3D
 var _health_bar_grid: MeshInstance3D
-var _rally_line_mesh: MeshInstance3D = null
 var _rally_component: RallyPointComponent = null
-var _move_line_mesh: MeshInstance3D = null
 var _move_line_timer: Timer = null
 var _movement_controller: MovementController = null
 var _combat_component: CombatComponent = null
@@ -247,27 +249,27 @@ func _ready():
             add_child(health_bar_grid)
             _health_bar_grid = health_bar_grid
 
-    # Rally line — green line from building center to rally point
+    # Rally line — green line from building center to rally point, drawn via the
+    # shared MoveLineRenderer (change-only: re-registered when the rally point moves).
     var building := get_parent()
     if building:
         _rally_component = (building.get_node_or_null("RallyPointComponent") as RallyPointComponent)
         if _rally_component:
             _rally_component.rally_point_changed.connect(_on_rally_point_changed)
-            _rally_line_mesh = _make_feedback_line("RallyLine")
 
-    # Move target line — green line from a moving unit to its destination cell
+    # Move target line — green line from a moving unit to its destination cell,
+    # drawn via the shared MoveLineRenderer (registered while the line is shown).
     var entity := get_parent()
     if entity:
         _movement_controller = entity.get_node_or_null("MovementController") as MovementController
         _combat_component = entity.get_node_or_null("CombatComponent") as CombatComponent
         if _movement_controller:
             _movement_controller.movement_started.connect(_on_movement_started)
-            _move_line_mesh = _make_feedback_line("MoveTargetLine")
 
             var timer := Timer.new()
             timer.name = "MoveTargetLineTimer"
             timer.one_shot = true
-            timer.wait_time = 1.0
+            timer.wait_time = MOVE_LINE_DURATION
             timer.timeout.connect(_on_move_line_timeout)
             add_child(timer)
             _move_line_timer = timer
@@ -324,14 +326,7 @@ func set_is_selected(value: bool):
     selection_state_changed.emit(self)
 
 
-func _process(_delta: float) -> void:
-    if _move_line_mesh and _move_line_mesh.visible:
-        _redraw_move_line()
-
-
 func _update_move_line_on_select() -> void:
-    if not _move_line_mesh:
-        return
     # Show the line while the unit is moving OR while it has an active attack
     # target, so an in-range attacker re-selected mid-fight still shows it.
     if is_selected and _movement_controller:
@@ -342,55 +337,26 @@ func _update_move_line_on_select() -> void:
 
 
 func _on_movement_started() -> void:
-    if _move_line_mesh and is_selected:
+    if is_selected:
         _show_move_line()
 
 
 func _on_move_line_timeout() -> void:
-    set_process(false)
-    if _move_line_mesh:
-        _move_line_mesh.visible = false
+    _unregister_line()
 
 
 func _show_move_line() -> void:
-    if not _move_line_mesh or not _move_line_timer:
+    if not _move_line_timer:
         return
-    set_process(true)
+    _register_line()
     _move_line_timer.start()
-    _move_line_mesh.visible = true
-    _redraw_move_line()
 
 
 func _hide_move_line() -> void:
-    set_process(false)
     if _move_line_timer:
         _move_line_timer.stop()
-    if _move_line_mesh:
-        _move_line_mesh.visible = false
-
-
-# Green unshaded overlay line used by both the rally line and the move-target line.
-func _make_feedback_line(mesh_name: String) -> MeshInstance3D:
-    var mesh := MeshInstance3D.new()
-    mesh.name = mesh_name
-    mesh.mesh = ImmediateMesh.new()
-    mesh.cast_shadow = MeshInstance3D.SHADOW_CASTING_SETTING_OFF
-    mesh.visible = false
-    var mat := ORMMaterial3D.new()
-    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    mat.albedo_color = Color(0.0, 0.8, 0.0, 0.9)
-    mat.no_depth_test = true
-    mat.render_priority = 100
-    mesh.material_override = mat
-    add_child(mesh)
-    return mesh
-
-
-func _draw_line_from_origin(immesh: ImmediateMesh, mat: ORMMaterial3D, local_end: Vector3) -> void:
-    immesh.surface_begin(Mesh.PRIMITIVE_LINES, mat)
-    immesh.surface_add_vertex(Vector3.ZERO)
-    immesh.surface_add_vertex(local_end)
-    immesh.surface_end()
+    if not _rally_line_active():
+        _unregister_line()
 
 
 func _has_active_attack_target() -> bool:
@@ -405,36 +371,80 @@ func _get_move_line_endpoint() -> Vector3:
     return _movement_controller.get_target_position()
 
 
-func _redraw_move_line() -> void:
-    if not _move_line_mesh or not _movement_controller:
-        return
-    var immesh := _move_line_mesh.mesh as ImmediateMesh
-    if not immesh:
-        return
-    immesh.clear_surfaces()
+## Pulled each frame by the shared MoveLineRenderer for registered sources.
+## Returns the world-space line geometry (or {} when nothing should be drawn).
+## The move-target endpoint is snapped to its destination cell center (y kept);
+## the rally endpoint is the raw rally position.
+func get_line_render_data() -> Dictionary:
+    if not is_selected:
+        return {}
+    if _rally_line_active():
+        return {
+            "origin": _line_origin(),
+            "target": _rally_component.get_target_position(),
+            "alpha": 1.0,
+            "marker_half": 0.6,
+            "marker_diamond": true,
+        }
+    if _move_line_active():
+        var target := _get_move_line_endpoint()
+        var center := CellUtil.cell_to_world(CellUtil.world_to_cell(target))
+        center.y = target.y  # cell_to_world zeroes y; keep the waypoint's terrain height
+        return {
+            "origin": _line_origin(),
+            "target": center,
+            "alpha": _line_alpha(),
+            "marker_half": 0.125,
+            "marker_diamond": false,
+        }
+    return {}
 
-    var target := _get_move_line_endpoint()
-    var center := CellUtil.cell_to_world(CellUtil.world_to_cell(target))
-    center.y = target.y  # cell_to_world zeroes y; keep the waypoint's terrain height
-    var local_center := to_local(center)
 
-    var mat := _move_line_mesh.material_override as ORMMaterial3D
-    _draw_line_from_origin(immesh, mat, local_center)
+func _line_origin() -> Vector3:
+    var parent := get_parent() as Node3D
+    if is_instance_valid(parent):
+        return parent.global_position
+    return Vector3.ZERO
 
-    # Filled rectangle marker at destination cell center
-    var half := 0.125
-    var corner_a := local_center + Vector3(-half, 0, -half)
-    var corner_b := local_center + Vector3(half, 0, -half)
-    var corner_c := local_center + Vector3(half, 0, half)
-    var corner_d := local_center + Vector3(-half, 0, half)
-    immesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, mat)
-    immesh.surface_add_vertex(corner_a)
-    immesh.surface_add_vertex(corner_b)
-    immesh.surface_add_vertex(corner_c)
-    immesh.surface_add_vertex(corner_a)
-    immesh.surface_add_vertex(corner_c)
-    immesh.surface_add_vertex(corner_d)
-    immesh.surface_end()
+
+## Fade the line out over the tail of its one-shot lifetime.
+func _line_alpha() -> float:
+    if not _move_line_timer:
+        return 1.0
+    var remaining := _move_line_timer.time_left
+    if remaining >= FADE_WINDOW:
+        return 1.0
+    return maxf(remaining / FADE_WINDOW, 0.0)
+
+
+func _move_line_active() -> bool:
+    return (
+        _movement_controller != null
+        and (_movement_controller.is_moving() or _has_active_attack_target())
+    )
+
+
+func _rally_line_active() -> bool:
+    return _rally_component != null and _rally_component.has_rally_point()
+
+
+func _register_line() -> void:
+    var renderer := _line_renderer()
+    if renderer:
+        renderer.register(self)
+
+
+func _unregister_line() -> void:
+    var renderer := _line_renderer()
+    if renderer:
+        renderer.unregister(self)
+
+
+func _line_renderer() -> Node:
+    var tree := get_tree()
+    if tree:
+        return tree.get_root().get_node_or_null("MoveLineRenderer")
+    return null
 
 
 func _update_visibility():
@@ -450,53 +460,21 @@ func _update_visibility():
             child != _building_select_box
             and child != health_bar
             and child != _health_bar_grid
-            and child != _rally_line_mesh
-            and child != _move_line_mesh
             and child != _move_line_timer
         ):
             child.visible = vis
-    if _rally_line_mesh:
-        var has_rally := is_selected and _rally_component and _rally_component.has_rally_point()
-        _rally_line_mesh.visible = has_rally
+    if _rally_component:
+        var has_rally := is_selected and _rally_component.has_rally_point()
         if has_rally:
-            _redraw_rally_line()
+            _register_line()
+        elif not _move_line_active():
+            _unregister_line()
 
 
 func _on_rally_point_changed(_point: Vector2i) -> void:
-    if _rally_line_mesh:
-        var has_rally := is_selected and _rally_component and _rally_component.has_rally_point()
-        _rally_line_mesh.visible = has_rally
+    if _rally_component:
+        var has_rally := is_selected and _rally_component.has_rally_point()
         if has_rally:
-            _redraw_rally_line()
-
-
-func _redraw_rally_line() -> void:
-    if not _rally_line_mesh or not _rally_component:
-        return
-    var immesh := _rally_line_mesh.mesh as ImmediateMesh
-    if not immesh:
-        return
-    immesh.clear_surfaces()
-
-    var rally_pos := _rally_component.get_target_position()
-    var local_rally := to_local(rally_pos)
-
-    var mat := _rally_line_mesh.material_override as ORMMaterial3D
-    _draw_line_from_origin(immesh, mat, local_rally)
-
-    # Diamond marker at rally point
-    var cs := 2.0
-    var half := cs * 0.3
-    var diamond := PackedVector3Array(
-        [
-            local_rally + Vector3(half, 0, 0),
-            local_rally + Vector3(0, 0, half),
-            local_rally + Vector3(-half, 0, 0),
-            local_rally + Vector3(0, 0, -half),
-            local_rally + Vector3(half, 0, 0),
-        ]
-    )
-    immesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, mat)
-    for p in diamond:
-        immesh.surface_add_vertex(p)
-    immesh.surface_end()
+            _register_line()
+        else:
+            _unregister_line()
