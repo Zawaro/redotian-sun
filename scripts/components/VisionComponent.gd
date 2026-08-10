@@ -56,8 +56,8 @@ func _physics_process(_delta: float) -> void:
             set_physics_process(false)
         return
     if cell != _registered_cell:
-        _unregister()
-        _register(cell)
+        ShroudSystem.move_revealer(_registered_player_id, _registered_key, cell)
+        _registered_cell = cell
 
 
 func _exit_tree() -> void:

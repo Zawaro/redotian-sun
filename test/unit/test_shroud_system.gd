@@ -269,14 +269,161 @@ func test_move_between_cells_no_leak():
         return
     _setup()
     var a: int = _ss.register_revealer(0, CENTER, 1, 0.0, true)
-    _ss.unregister_revealer(0, a)
-    var b: int = _ss.register_revealer(0, CENTER + Vector2i(3, 0), 1, 0.0, true)
+    _ss.move_revealer(0, a, CENTER + Vector2i(3, 0))
     TestHelper.assert_true(not _ss.is_visible(0, CENTER), "old cell loses visibility")
     TestHelper.assert_true(_ss.is_visible(0, CENTER + Vector2i(3, 0)), "new cell visible")
     TestHelper.assert_eq(
         _ss._states[0]["visible_count"][_ss._cell_index(CENTER)], 0, "no leaked count"
     )
+    _ss.unregister_revealer(0, a)
+    _teardown()
+
+
+func test_move_revealer_entering_crescent_revealed():
+    if not _guard():
+        return
+    _setup()
+    var key: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    var entering := CENTER + Vector2i(6, 0)
+    TestHelper.assert_true(not _ss.is_visible(0, entering), "entering cell not visible before move")
+    _ss.move_revealer(0, key, CENTER + Vector2i(1, 0))
+    TestHelper.assert_true(_ss.is_visible(0, entering), "entering crescent revealed after move")
+    _ss.unregister_revealer(0, key)
+    _teardown()
+
+
+func test_move_revealer_exiting_crescent_unrevealed():
+    if not _guard():
+        return
+    _setup()
+    var key: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    var exiting := CENTER + Vector2i(-5, 0)
+    TestHelper.assert_true(_ss.is_visible(0, exiting), "exiting cell visible before move")
+    _ss.move_revealer(0, key, CENTER + Vector2i(1, 0))
+    TestHelper.assert_true(not _ss.is_visible(0, exiting), "exiting crescent loses visibility")
+    TestHelper.assert_eq(
+        _ss._states[0]["visible_count"][_ss._cell_index(exiting)], 0, "exiting count drained"
+    )
+    _ss.unregister_revealer(0, key)
+    _teardown()
+
+
+func test_move_revealer_overlap_unchanged():
+    if not _guard():
+        return
+    _setup()
+    var key: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    var overlap := CENTER + Vector2i(2, 0)
+    var vc: PackedInt32Array = _ss._states[0]["visible_count"]
+    var idx: int = _ss._cell_index(overlap)
+    TestHelper.assert_eq(vc[idx], 1, "overlap cell contributed before move")
+    _ss.move_revealer(0, key, CENTER + Vector2i(1, 0))
+    TestHelper.assert_eq(vc[idx], 1, "overlap cell count unchanged (no double stamp)")
+    _ss.unregister_revealer(0, key)
+    TestHelper.assert_eq(vc[idx], 0, "overlap cell fully drained on death")
+    _teardown()
+
+
+func test_move_revealer_same_cell_noop():
+    if not _guard():
+        return
+    _setup()
+    var key: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    _ss.resolve_dirty()
+    _ss.move_revealer(0, key, CENTER)
+    TestHelper.assert_eq(_ss.resolve_dirty(), 0, "same-cell move re-stamps nothing")
+    _ss.unregister_revealer(0, key)
+    _teardown()
+
+
+func test_move_revealer_unknown_key_noop():
+    if not _guard():
+        return
+    _setup()
+    var key: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    _ss.move_revealer(0, 999999, CENTER + Vector2i(1, 0))
+    TestHelper.assert_true(_ss.is_visible(0, CENTER), "unknown-key move is a no-op")
+    _ss.unregister_revealer(0, key)
+    _teardown()
+
+
+func test_move_revealer_unregister_cleans_all():
+    if not _guard():
+        return
+    _setup()
+    var key: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    _ss.move_revealer(0, key, CENTER + Vector2i(1, 0))
+    _ss.move_revealer(0, key, CENTER + Vector2i(2, 0))
+    _ss.unregister_revealer(0, key)
+    var vc: PackedInt32Array = _ss._states[0]["visible_count"]
+    var min_count: int = 0x7FFFFFFF
+    var max_count: int = -0x80000000
+    for value in vc:
+        min_count = mini(min_count, value)
+        max_count = maxi(max_count, value)
+    TestHelper.assert_eq(min_count, 0, "no negative counts after cleanup")
+    TestHelper.assert_eq(max_count, 0, "all contributions drained after death")
+    _teardown()
+
+
+func test_move_revealer_shadow_edge_flip_self_corrects():
+    if not _guard():
+        return
+    _setup()
+    # A single high terrain corner at vertex (42,42) lifts cells (41,42),
+    # (42,41), (42,42). Cell C=(40,44) is reachable from (40,40) but blocked
+    # from (41,40): the sight line from B grazes the high cell (41,42). C lies
+    # inside both discs — an overlap shadow-edge flip.
+    _ts._set_vertex_no_cascade(42, 42, 3)
+    var key: int = _ss.register_revealer(0, Vector2i(40, 40), 5, 0.0, true)
+    var flip := Vector2i(40, 44)
+    var vc: PackedInt32Array = _ss._states[0]["visible_count"]
+    var idx: int = _ss._cell_index(flip)
+    TestHelper.assert_eq(vc[idx], 1, "flip cell reachable from the old center")
+    _ss.move_revealer(0, key, Vector2i(41, 40))
+    TestHelper.assert_eq(vc[idx], 1, "overlap flip cell keeps prior state (no count drop)")
+    _ss.move_revealer(0, key, Vector2i(35, 40))
+    TestHelper.assert_eq(vc[idx], 0, "flip cell self-corrects on exit")
+    TestHelper.assert_true(not _ss.is_visible(0, flip), "flip cell hidden after exit")
+    _ss.unregister_revealer(0, key)
+    TestHelper.assert_eq(vc[idx], 0, "no count leak after death")
+    _teardown()
+
+
+func test_move_revealer_restamps_only_crescent():
+    if not _guard():
+        return
+    _setup()
+    var key: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    _ss.resolve_dirty()
+    _ss.move_revealer(0, key, CENTER + Vector2i(1, 0))
+    var crescent_size: int = (_ss._states[0]["dirty"] as Array).size()
+    TestHelper.assert_true(crescent_size > 0, "move re-stamps at least the crescent")
+    (
+        TestHelper
+        . assert_true(
+            crescent_size <= 40,
+            "1-cell move re-stamps only the crescent, not the full disc (got %d)" % [crescent_size],
+        )
+    )
+    _ss.unregister_revealer(0, key)
+    _ss.resolve_dirty()
+    # Regression reference: a full-disc register/unregister/register re-stamps
+    # far more than a crescent move — the guard would flag a move that regressed
+    # to the unregister+register path.
+    var b: int = _ss.register_revealer(0, CENTER, 5, 0.0, true)
+    _ss.resolve_dirty()
     _ss.unregister_revealer(0, b)
+    var c: int = _ss.register_revealer(0, CENTER + Vector2i(1, 0), 5, 0.0, true)
+    var full_dirty: int = (_ss._states[0]["dirty"] as Array).size()
+    (
+        TestHelper
+        . assert_true(
+            full_dirty >= 80,
+            "full-disc re-stamp far exceeds the crescent (got %d)" % [full_dirty],
+        )
+    )
+    _ss.unregister_revealer(0, c)
     _teardown()
 
 

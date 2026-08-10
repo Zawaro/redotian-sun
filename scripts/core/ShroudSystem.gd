@@ -87,14 +87,16 @@ func register_revealer(
     blocks_terrain: bool = true,
 ) -> int:
     _revealer_seq += 1
+    var cells := _reveal_cells(center_cell, radius, viewer_height, blocks_terrain)
     var st := _state(player_id)
     st["revealers"][_revealer_seq] = {
         "center": center_cell,
         "radius": radius,
         "viewer_height": viewer_height,
         "blocks_terrain": blocks_terrain,
+        "cells": _cells_to_dict(cells),
     }
-    _stamp_reveal(st, center_cell, radius, viewer_height, blocks_terrain, 1)
+    _stamp_cells(st, cells, 1)
     return _revealer_seq
 
 
@@ -102,40 +104,74 @@ func unregister_revealer(player_id: int, key: int) -> void:
     if not _states.has(player_id):
         return
     var st: Dictionary = _states[player_id]
-    if not (st["revealers"] as Dictionary).has(key):
+    var revealers: Dictionary = st["revealers"]
+    if not revealers.has(key):
         return
-    var info: Dictionary = (st["revealers"] as Dictionary)[key]
-    (st["revealers"] as Dictionary).erase(key)
-    _stamp_reveal(
-        st,
-        info["center"] as Vector2i,
-        info["radius"] as int,
-        info["viewer_height"] as float,
-        info["blocks_terrain"] as bool,
-        -1,
-    )
+    var info: Dictionary = revealers[key]
+    revealers.erase(key)
+    _stamp_cells(st, (info["cells"] as Dictionary).keys(), -1)
 
 
-func _stamp_reveal(
-    st: Dictionary,
-    center_cell: Vector2i,
-    radius: int,
-    viewer_height: float,
-    blocks_terrain: bool,
-    delta: int,
-) -> void:
-    if _cell_count <= 0 or _cell_index(center_cell) < 0:
+## Incremental revealer move: re-stamps only the entering/exiting crescent
+## between the old and new discs, leaving overlap cells untouched. Each revealer
+## caches the exact set of cells it contributes +1 to, so exiting and death
+## cleanup subtract exactly what was applied — counts never leak. The one
+## approximation: an overlap cell whose line-of-sight flips at a terrain shadow
+## edge keeps its previously stamped state until it leaves the disc (or the
+## revealer dies), then self-corrects.
+func move_revealer(player_id: int, key: int, new_cell: Vector2i) -> void:
+    if not _states.has(player_id):
+        return
+    var st: Dictionary = _states[player_id]
+    var revealers: Dictionary = st["revealers"]
+    if not revealers.has(key):
+        return
+    var info: Dictionary = revealers[key]
+    var old_cell := info["center"] as Vector2i
+    if old_cell == new_cell or _cell_count <= 0 or _cell_index(new_cell) < 0:
+        return
+    var radius := info["radius"] as int
+    var viewer_height := info["viewer_height"] as float
+    var blocks_terrain := info["blocks_terrain"] as bool
+    var cells := info["cells"] as Dictionary
+    info["center"] = new_cell
+    var min_x := mini(old_cell.x, new_cell.x) - radius
+    var max_x := maxi(old_cell.x, new_cell.x) + radius
+    var min_y := mini(old_cell.y, new_cell.y) - radius
+    var max_y := maxi(old_cell.y, new_cell.y) + radius
+    for cx in range(min_x, max_x + 1):
+        for cy in range(min_y, max_y + 1):
+            var candidate := Vector2i(cx, cy)
+            var in_old := _in_disc(old_cell, candidate, radius)
+            var in_new := _in_disc(new_cell, candidate, radius)
+            if in_old and not in_new:
+                if cells.has(candidate):
+                    cells.erase(candidate)
+                    _apply_cell(st, candidate, -1)
+            elif in_new and not in_old:
+                if (
+                    not cells.has(candidate)
+                    and _cell_reachable(new_cell, candidate, viewer_height, blocks_terrain)
+                ):
+                    cells[candidate] = true
+                    _apply_cell(st, candidate, 1)
+
+
+func _stamp_cells(st: Dictionary, cells: Array, delta: int) -> void:
+    for cell in cells:
+        _apply_cell(st, cell, delta)
+
+
+func _apply_cell(st: Dictionary, cell: Vector2i, delta: int) -> void:
+    var idx := _cell_index(cell)
+    if idx < 0 or not _revealable(cell):
         return
     var explored: PackedByteArray = st["explored"]
     var visible_count: PackedInt32Array = st["visible_count"]
-    for cell in _shadowcast_cells(center_cell, radius, viewer_height, blocks_terrain):
-        var idx := _cell_index(cell)
-        if idx < 0 or not _revealable(cell):
-            continue
-        visible_count[idx] = maxi(visible_count[idx] + delta, 0)
-        if delta > 0 and explored[idx] == 0:
-            explored[idx] = 1
-        _mark_dirty(st, idx)
+    visible_count[idx] = maxi(visible_count[idx] + delta, 0)
+    if delta > 0 and explored[idx] == 0:
+        explored[idx] = 1
+    _mark_dirty(st, idx)
 
 
 # ========================================
@@ -165,6 +201,37 @@ func _shadowcast_cells(
                 continue
             out.append(candidate)
     return out
+
+
+## Shadowcast output filtered to in-bounds, play-area cells — the exact set of
+## cells a revealer contributes +1 to. Used for registration and the per-revealer
+## cell cache backing incremental moves.
+func _reveal_cells(
+    center_cell: Vector2i,
+    radius: int,
+    viewer_height: float,
+    blocks_terrain: bool,
+) -> Array[Vector2i]:
+    var out: Array[Vector2i] = []
+    if radius < 0:
+        return out
+    for cell in _shadowcast_cells(center_cell, radius, viewer_height, blocks_terrain):
+        if _cell_index(cell) >= 0 and _revealable(cell):
+            out.append(cell)
+    return out
+
+
+func _cells_to_dict(cells: Array[Vector2i]) -> Dictionary:
+    var out := {}
+    for cell in cells:
+        out[cell] = true
+    return out
+
+
+func _in_disc(center: Vector2i, cell: Vector2i, radius: int) -> bool:
+    var dx := cell.x - center.x
+    var dy := cell.y - center.y
+    return dx * dx + dy * dy <= radius * radius
 
 
 func _cell_reachable(

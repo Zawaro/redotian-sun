@@ -37,7 +37,7 @@ The system SHALL emit a `state_changed` signal each resolve tick when any cells 
 - **THEN** the `state_changed` signal is not emitted
 
 ### Requirement: Ref-counted revealer registration
-The system SHALL expose `register_revealer(player_id, center_cell, radius, viewer_height, blocks_terrain) -> key` and `unregister_revealer(player_id, key)`. Registration SHALL mark the revealed cells explored and increment their `visible_count`; unregistration SHALL decrement it. Overlapping revealers SHALL stack via reference counts, so a cell stays visible while at least one revealer covers it. A revealer that moves SHALL be re-registered at its new cell (stamp change) without leaking counts.
+The system SHALL expose `register_revealer(player_id, center_cell, radius, viewer_height, blocks_terrain) -> key`, `unregister_revealer(player_id, key)`, and `move_revealer(player_id, key, new_cell)`. Registration SHALL mark the revealed cells explored and increment their `visible_count`; unregistration SHALL decrement it. Overlapping revealers SHALL stack via reference counts, so a cell stays visible while at least one revealer covers it. A revealer that moves SHALL call `move_revealer` with its new cell; the move SHALL transfer the revealer's visibility contribution from the old disc to the new disc without leaking counts. A `move_revealer` SHALL re-stamp only the entering/exiting crescent between the old and new discs; cells covered by both discs SHALL keep their existing `visible_count` contribution and SHALL NOT be re-stamped.
 
 #### Scenario: Single revealer reveals radius
 - **WHEN** a revealer with radius R registers at cell C
@@ -56,8 +56,16 @@ The system SHALL expose `register_revealer(player_id, center_cell, radius, viewe
 - **THEN** the call is a no-op and does not corrupt counts
 
 #### Scenario: Revealer moves between cells
-- **WHEN** a revealer is unregistered at cell A and registered at cell B
+- **WHEN** a revealer moves from cell A to cell B via `move_revealer`
 - **THEN** cell A loses its visibility contribution and cell B gains it, with no leftover counts
+
+#### Scenario: Move re-stamps only the crescent
+- **WHEN** a revealer moves one cell from A to B
+- **THEN** only the cells that entered or left the union of the two discs are re-stamped; cells covered by both discs keep their contribution and are not re-stamped
+
+#### Scenario: Shadow-edge flip self-corrects
+- **WHEN** a move leaves an overlap cell's line-of-sight reachability changed at a terrain shadow edge (its segment passes within one cell of a blocker)
+- **THEN** the cell keeps its previously stamped state and no count leaks; the discrepancy self-corrects on a subsequent crossing that re-stamps the cell
 
 ### Requirement: Height-aware shadowcasting
 Revealed cells SHALL be computed by per-cell Bresenham line-of-sight from the revealer center to each candidate cell within radius. A candidate cell is revealed only if no intermediate cell blocks it. A cell blocks vision when its terrain height (`TerrainSystem.get_cell_max_height`) exceeds the viewer height by more than `max_height_delta`. Buildings do not block line of sight. The revealer's own cell and the candidate cell itself are not blockers. Viewer height SHALL be supplied at registration. Air revealers (`blocks_terrain = false`) SHALL ignore all blockers and reveal a full circle within radius.
@@ -135,7 +143,7 @@ When enabled, the shroud SHALL grow one cell step per interval. The system SHALL
 - **THEN** no cells ever revert to shroud from growth
 
 ### Requirement: Incremental updates
-The system SHALL resolve cell state only for dirty cells and SHALL short-circuit when nothing changed. A fixed resolve tick SHALL process only cells whose dirty flags were set since the previous tick. Shadowcasting SHALL only be recomputed when a revealer registers, unregisters, or moves to a new cell.
+The system SHALL resolve cell state only for dirty cells and SHALL short-circuit when nothing changed. A fixed resolve tick SHALL process only cells whose dirty flags were set since the previous tick. Shadowcasting SHALL only be recomputed when a revealer registers, unregisters, or moves to a new cell; a move SHALL re-stamp only the entering/exiting crescent between the old and new discs, leaving overlap cells' `visible_count` untouched.
 
 #### Scenario: No work when nothing changed
 - **WHEN** no revealer registers, unregisters, or crosses a cell between ticks
@@ -144,3 +152,7 @@ The system SHALL resolve cell state only for dirty cells and SHALL short-circuit
 #### Scenario: Only changed cells resolved
 - **WHEN** a single revealer moves one cell
 - **THEN** only cells affected by that movement are re-resolved
+
+#### Scenario: Move re-stamps crescent not full disc
+- **WHEN** a revealer moves one cell
+- **THEN** the re-stamp covers only the crescent cells that entered or left the disc, not the full disc
