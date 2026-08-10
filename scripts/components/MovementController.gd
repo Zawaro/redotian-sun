@@ -272,6 +272,7 @@ func set_target_position(
     unblock_buildings: bool = false,
     keep_zone: bool = false,
     internal: bool = false,
+    cost_cache: Pathfinder.PathCostCache = null,
 ) -> void:
     if (
         is_nan(target.x)
@@ -352,9 +353,7 @@ func set_target_position(
                 target = _sub_slot_position
 
         blocked = _build_blocked_cells(unblock_buildings)
-        path = Pathfinder.find_path(
-            _parent.global_position, target, blocked, _locomotor_data, unblock_buildings
-        )
+        path = _greedy_or_search_path(target, target_cell, blocked, unblock_buildings, cost_cache)
 
         if _is_jumpjet and _locomotor_data:
             if path.is_empty():
@@ -462,6 +461,57 @@ func get_target_position() -> Vector3:
     if _waypoints.is_empty():
         return _parent.global_position
     return _waypoints[_waypoints.size() - 1]
+
+
+## Greedy-first path resolution: walks bounded greedy descent (`try_greedy_step`)
+## from the unit's current cell toward the destination cell. On open terrain the
+## walk completes in O(distance) cheap steps, skipping the full A* search. When
+## the walk stalls (concave pocket, blocked cells, cliff) or exhausts the budget,
+## the walked prefix is kept and the remaining leg is finished with a full
+## `find_path` from the stalled cell — so the path is always completed and the
+## result degrades gracefully to the pre-greedy behavior.
+func _greedy_or_search_path(
+    target: Vector3,
+    target_cell: Vector2i,
+    blocked: Dictionary,
+    unblock_buildings: bool,
+    cost_cache: Pathfinder.PathCostCache,
+) -> PackedVector3Array:
+    const GREEDY_BUDGET: int = 64
+    var start_cell := CellUtil.world_to_cell(_parent.global_position)
+    var current := start_cell
+    var prefix := PackedVector3Array()
+    var prev: Vector2i = current
+    var steps := 0
+    while current != target_cell and steps < GREEDY_BUDGET:
+        var step := Pathfinder.try_greedy_step(
+            current, target_cell, blocked, _locomotor_data, prev, cost_cache
+        )
+        if step == Pathfinder.GREEDY_STALL:
+            break
+        prefix.append(CellUtil.cell_to_world(step))
+        prev = current
+        current = step
+        steps += 1
+
+    if current == target_cell and prefix.size() > 0:
+        # Greedy completed the whole walk: cell-center waypoints mirror the
+        # find_path output shape (start cell excluded).
+        return prefix
+
+    # Greedy stalled or exhausted the budget: finish the remaining leg with A*
+    # from the stalled cell (or the original start when greedy never moved).
+    var search_start: Vector3 = (
+        _parent.global_position if prefix.is_empty() else CellUtil.cell_to_world(current)
+    )
+    var rest := Pathfinder.find_path(
+        search_start, target, blocked, _locomotor_data, unblock_buildings, cost_cache
+    )
+    if prefix.is_empty():
+        return rest
+    var combined := prefix
+    combined.append_array(rest)
+    return combined
 
 
 func _resolve_rotation_target() -> void:
