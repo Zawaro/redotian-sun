@@ -27,7 +27,7 @@ The smoke-tested approach now shipped in this branch works; this design records 
 ## Decisions
 
 ### 1. Baked 2-channel ring-distance mask, not a full EDT
-`_rebuild_texture` additionally bakes an RG8 `edge_mask`: R = 8-neighbor Chebyshev ring distance to nearest shroud cell, G = to nearest fog cell, via a two-pass Chebyshev distance transform (`_ring_distance`, O(n), 8 compares/cell), clamped to `MASK_MAX_RING = 4`. Uploaded with `filter_linear`.
+The fog overlay bakes an RG8 `edge_mask`: R = 8-neighbor Chebyshev ring distance to nearest shroud cell, G = to nearest fog cell, via a two-pass Chebyshev distance transform (`_ring_distance` → `_sweep_dist`, O(n), 8 compares/cell), clamped to `MASK_MAX_RING = 4`. Uploaded with `filter_linear`.
 - **Why over a full SDF:** the two-pass transform is ~80k integer compares per bake vs a full EDT; at 100×100 cells both are sub-millisecond, but the integer ring field is enough — bilinear interpolation of an integer ring field already ramps linearly between texel centers.
 - **Why Chebyshev, not Manhattan:** diagonal neighbors count the same as cardinal ones, so the falloff band aligns equally to axes and diagonals — the 45° rotation of a Manhattan diamond. Diagonal cell edges ramp at the same width as cardinal edges (square-cornered grown cell), which reads smoother on diagonal transitions. Cost is 8 vs 4 compares/cell; still O(n).
 - **Why over shader-side multi-tap:** one bilinear sample in the fragment shader instead of 4–9 nearest taps per fragment; the CPU bake is event-gated, not per-frame.
@@ -51,6 +51,23 @@ The smoke-tested approach now shipped in this branch works; this design records 
 ### 5. Fix DebugMenu toggle bind order
 `_on_fog_toggle(pressed, field)` — Godot's `Callable.bind` appends args after the signal's own, so the handler must declare `(pressed: bool, field: StringName)`.
 
+### 6. Incremental band re-bake, not a full-grid rebake
+`ShroudSystem.resolve_dirty` now emits the resolved local dirty cell set with `state_changed(dirty)` (allied players only, deduplicated). `FogRenderer._on_shroud_changed(dirty)` recomputes the merged effective state only for those cells via `get_cell_effective_state`, applies the deltas to a persistent `_last_states` buffer, and re-bakes the edge mask only around the changed band.
+- `_update_edge_mask` resets the band (changed cells dilated by `MASK_MAX_RING`) to valid upper bounds (0 at targets, ring otherwise) and runs the two-pass sweep over a region dilated one ring further. Cells outside that region keep their exact previous values, which are provably unaffected (any source that could change them lies within the band). Cost scales with the changed area, not the 100×100 grid.
+- **Why not just run the full transform:** the steady-state tick (many units moving) dirties a small fraction of cells; band-only recompute keeps the 0.25s resolve cost flat as the map grows.
+
+### 7. Persistent textures via `ImageTexture.update()`
+The L8 grid image and RG8 mask image (and their `ImageTexture`s) are created once per grid init; incremental changes are written with `Image.set_pixel` into the persistent images and re-uploaded with `ImageTexture.update()`. The old path re-allocated two `Image` + two `ImageTexture` per state change.
+- **Note:** `ImageTexture.get_image()` returns the image the texture was created with (stale after `update()`) in this engine — tests assert on the renderer's persistent images instead.
+
+### 8. Exact guarded 2-sweep (`_sweep_dist`)
+`_ring_distance` delegates to the same guarded two-pass `_sweep_dist` used by the incremental band. The previous backward pass started at `width-2`/`height-2`, so the east column and south row were never relaxed from below — a latent ring-distance artifact at the map edge. Both full and band recomputes now share one exact implementation (guards for out-of-grid neighbors), so the incremental path reproduces the full transform bit-for-bit (reference-tested).
+
+### 9. Event-driven building culling + allocation-free queries
+- `FogRenderer` building visibility is maintained on `state_changed` (and per building spawn via `get_tree().node_added`), not a per-frame `_physics_process` poll — a building's revealed flag is provably constant between resolves, and the opaque shroud sheet occludes anything a stale flag would leave visible in the window.
+- `ShroudSystem._allied_player_ids` is cached per player and live-validated against `PlayerManager` team data (O(players) compares, zero allocation), so the per-frame `UnitMeshRenderer._fog_state` and `FogRenderer` shroud queries stop allocating.
+- Revealer shadowcasting walks each line in place inside `_cell_reachable` (Bresenham inlined, early-exit at first blocker) instead of allocating a fresh `Array[Vector2i]` per candidate cell on the 60Hz re-stamp path.
+
 ## Risks / Trade-offs
 
 - [Soft band dims entities in fog/visible cells near the boundary] → The fog plane is already x-ray translucent; entities near a shroud edge are dimmed rather than occluded. Per spec this matches fog semantics; the band is narrow (grow 0.5).
@@ -59,3 +76,6 @@ The smoke-tested approach now shipped in this branch works; this design records 
 - [Bilinear banding at convex corners] → The Chebyshev field plus smoothstep shapes it acceptably; pixel-perfect corners would need a 4× texel re-bake (same shader), deferred.
 - [Diagonal corners of eroded sheet] → 4-neighbor erosion leaves shroud cells diagonally adjacent to fog drawn by the opaque sheet; the band's solid zone covers the gap, verified in smoke test.
 - [Wide-band tunability beyond 4 cells] → `MASK_MAX_RING = 4` bounds the falloff; exceeding it needs a larger ring bake (uniform-driven, no shader change).
+- [Incremental band correctness] → The reference test (`test_incremental_edge_mask_matches_full_recompute`) asserts the band re-bake reproduces the full transform exactly across consecutive updates and at map borders, so a stale-band regression fails loudly.
+- [`ImageTexture.get_image()` stale after `update()`] → Affects tests only; the renderer reads its own persistent images, and rendering uses the GPU data the `update()` call uploads.
+- [Revealer re-stamp still re-runs the full disc on cell crossing] → The 60Hz stamp is allocation-free but still O(radius²) per crossing (unregister+register double-stamp). A persistent sliding revealer (crescent diff) is tracked as follow-up work (#279).
