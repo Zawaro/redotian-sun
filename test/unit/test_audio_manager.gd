@@ -135,3 +135,461 @@ func test_falloff_position_places_past_listener_on_bearing():
     TestHelper.assert_eq(
         pos, Vector3(50, 20, 150), "player placed at excess distance past the listener"
     )
+
+
+# Stacked identical sounds must not sum to a louder aggregate: N concurrent
+# copies of one id share a single copy's loudness budget.
+
+
+func _has_bus_effect(bus_name: String, effect_class: String) -> bool:
+    var bus_idx := AudioServer.get_bus_index(bus_name)
+    if bus_idx == -1:
+        return false
+    for effect_idx in AudioServer.get_bus_effect_count(bus_idx):
+        var effect: AudioEffect = AudioServer.get_bus_effect(bus_idx, effect_idx)
+        if effect.get_class() == effect_class:
+            return true
+    return false
+
+
+func test_master_bus_has_hard_limiter():
+    if not _am:
+        return
+    (
+        TestHelper
+        . assert_true(
+            _has_bus_effect("Master", "AudioEffectHardLimiter"),
+            "Master bus carries a hard limiter",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            _has_bus_effect("Master", "AudioEffectCompressor"),
+            "Master bus carries a compressor before the limiter",
+        )
+    )
+    var bus_idx := AudioServer.get_bus_index("Master")
+    for effect_idx in AudioServer.get_bus_effect_count(bus_idx):
+        var effect := AudioServer.get_bus_effect(bus_idx, effect_idx) as AudioEffect
+        if effect is AudioEffectHardLimiter:
+            (
+                TestHelper
+                . assert_true(
+                    effect.ceiling_db < 0.0,
+                    "hard limiter ceiling below 0 dB (got %s)" % effect.ceiling_db,
+                )
+            )
+        elif effect is AudioEffectCompressor:
+            (
+                TestHelper
+                . assert_true(
+                    effect.gain > 0.0,
+                    "Master compressor has makeup gain (got %s)" % effect.gain,
+                )
+            )
+
+
+func test_sfx_bus_has_hard_limiter():
+    if not _am:
+        return
+    (
+        TestHelper
+        . assert_true(
+            _has_bus_effect("SFX", "AudioEffectHardLimiter"),
+            "SFX bus carries a hard limiter",
+        )
+    )
+
+
+func test_voice_bus_has_compressor():
+    if not _am:
+        return
+    (
+        TestHelper
+        . assert_true(
+            _has_bus_effect("Voice", "AudioEffectCompressor"),
+            "Voice bus carries a compressor",
+        )
+    )
+    var bus_idx := AudioServer.get_bus_index("Voice")
+    for effect_idx in AudioServer.get_bus_effect_count(bus_idx):
+        var effect := AudioServer.get_bus_effect(bus_idx, effect_idx) as AudioEffect
+        if effect is AudioEffectCompressor:
+            (
+                TestHelper
+                . assert_true(
+                    effect.gain > 0.0,
+                    "Voice compressor has makeup gain (got %s)" % effect.gain,
+                )
+            )
+
+
+func test_bus_effect_setup_idempotent():
+    if not _am:
+        return
+    var bus_names: Array[String] = ["Master", "SFX", "Voice"]
+    var counts: Array[int] = []
+    for bus_name in bus_names:
+        counts.append(AudioServer.get_bus_effect_count(AudioServer.get_bus_index(bus_name)))
+    _am._ensure_buses()
+    for i in counts.size():
+        (
+            TestHelper
+            . assert_eq(
+                AudioServer.get_bus_effect_count(AudioServer.get_bus_index(bus_names[i])),
+                counts[i],
+                "re-running setup adds no duplicate effects on %s" % bus_names[i],
+            )
+        )
+
+
+func _ensure_bus(bus_name: String) -> void:
+    if AudioServer.get_bus_index(bus_name) == -1:
+        AudioServer.add_bus()
+        AudioServer.set_bus_name(AudioServer.bus_count - 1, bus_name)
+
+
+func _stack_fixture(id: String, volume_db: float) -> AudioData:
+    var audio := AudioData.new()
+    audio.id = id
+    audio.path = "res://test/fixtures/audio/test_tone.wav"
+    audio.bus = id + "_BUS"
+    audio.volume_db = volume_db
+    _ensure_bus(audio.bus)
+    _am._audio_cache[id] = audio
+    return audio
+
+
+## Bypass the retrigger throttle so a test can force a same-id re-play. The
+## stack tests target normalization; retrigger rate limiting has its own tests.
+func _expire_retrigger(id: String) -> void:
+    _am._last_played_at[id] = -100000
+
+
+func _stack_players(bus: String) -> Array:
+    var out: Array = []
+    for child in _am.get_children():
+        if (
+            child is AudioStreamPlayer
+            and child.get("bus") == bus
+            and not child.is_queued_for_deletion()
+        ):
+            out.append(child)
+        elif (
+            child is AudioStreamPlayer3D
+            and child.get("bus") == bus
+            and not child.is_queued_for_deletion()
+        ):
+            out.append(child)
+    return out
+
+
+func _release_players(players: Array) -> void:
+    for player: Node in players:
+        if is_instance_valid(player):
+            player.emit_signal("finished")
+
+
+func test_stack_single_playback_keeps_base_volume():
+    if not _am:
+        return
+    var fixture := _stack_fixture("STACK_SINGLE", -6.0)
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    var players := _stack_players(fixture.bus)
+    TestHelper.assert_eq(players.size(), 1, "single copy spawned")
+    if players.size() == 1:
+        var db: float = players[0].get("volume_db")
+        TestHelper.assert_true(
+            is_equal_approx(db, -6.0), "single copy keeps its base volume (got %s)" % db
+        )
+    _release_players(players)
+
+
+func test_stack_identical_sounds_scale_volume():
+    if not _am:
+        return
+    var fixture := _stack_fixture("STACK_SCALE", 0.0)
+    for i in 3:
+        _expire_retrigger(fixture.id)
+        _am.play_sound(fixture.id, Vector3(0, 0, 0))
+        var players := _stack_players(fixture.bus)
+        var expected_db: float = linear_to_db(1.0 / float(i + 1))
+        TestHelper.assert_eq(players.size(), i + 1, "stack grows to %d" % (i + 1))
+        for player: Node in players:
+            var db: float = player.get("volume_db")
+            (
+                TestHelper
+                . assert_true(
+                    is_equal_approx(db, expected_db),
+                    "each of %d copies at %s dB (got %s)" % [i + 1, expected_db, db],
+                )
+            )
+    _release_players(_stack_players(fixture.bus))
+
+
+func test_stack_total_loudness_never_exceeds_single():
+    if not _am:
+        return
+    var fixture := _stack_fixture("STACK_BOUND", -10.0)
+    for i in 8:
+        _expire_retrigger(fixture.id)
+        _am.play_sound(fixture.id, Vector3(0, 0, 0))
+        var players := _stack_players(fixture.bus)
+        var total_amplitude := 0.0
+        for player: Node in players:
+            total_amplitude += db_to_linear(player.get("volume_db"))
+        (
+            TestHelper
+            . assert_true(
+                total_amplitude <= db_to_linear(-10.0) + 0.001,
+                "stacked amplitude never exceeds a single copy (got %s)" % total_amplitude,
+            )
+        )
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(total_amplitude, db_to_linear(-10.0)),
+                "stacked amplitude stays at single-copy loudness (got %s)" % total_amplitude,
+            )
+        )
+    _release_players(_stack_players(fixture.bus))
+
+
+func test_stack_caps_concurrent_instances():
+    if not _am:
+        return
+    # Cap chosen per the issue (8-12); keep in sync with MAX_STACK_PER_ID.
+    var cap := 12
+    var fixture := _stack_fixture("STACK_CAP", -3.0)
+    for i in cap + 5:
+        _expire_retrigger(fixture.id)
+        _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    var players := _stack_players(fixture.bus)
+    TestHelper.assert_eq(players.size(), cap, "concurrent copies capped")
+    var expected_db: float = -3.0 + linear_to_db(1.0 / float(cap))
+    for player: Node in players:
+        var db: float = player.get("volume_db")
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(db, expected_db),
+                "post-cap copies normalized to the cap count (got %s)" % db,
+            )
+        )
+    _release_players(players)
+
+
+func test_stack_cleanup_restarts_the_count():
+    if not _am:
+        return
+    var fixture := _stack_fixture("STACK_CLEANUP", 0.0)
+    for i in 3:
+        _expire_retrigger(fixture.id)
+        _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    _release_players(_stack_players(fixture.bus))
+    TestHelper.assert_eq(
+        _stack_players(fixture.bus).size(), 0, "no live copies after every one finishes"
+    )
+    _expire_retrigger(fixture.id)
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    _expire_retrigger(fixture.id)
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    var players := _stack_players(fixture.bus)
+    TestHelper.assert_eq(players.size(), 2, "fresh stack starts from zero")
+    var second: Node = players[players.size() - 1] as Node
+    var second_db: float = second.get("volume_db")
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(second_db, linear_to_db(0.5)),
+            "second fresh copy scaled as N=2, not continuing a stale count (got %s)" % second_db,
+        )
+    )
+    _release_players(players)
+
+
+func test_stack_voice_path_normalized():
+    if not _am:
+        return
+    var fixture := _stack_fixture("STACK_VOICE_SND", -4.0)
+    fixture.is_spatial = false
+    var voice := VoiceData.new()
+    voice.id = "STACK_VOICE"
+    voice.select = [fixture.id]
+    _am._voice_cache[voice.id] = voice
+    for i in 3:
+        _expire_retrigger(fixture.id)
+        _am.play_voice(voice.id, "select")
+        var players := _stack_players(fixture.bus)
+        var expected_db: float = -4.0 + linear_to_db(1.0 / float(i + 1))
+        TestHelper.assert_eq(players.size(), i + 1, "voice copy joins the stack")
+        for player: Node in players:
+            var db: float = player.get("volume_db")
+            (
+                TestHelper
+                . assert_true(
+                    is_equal_approx(db, expected_db),
+                    "voice copy normalized like SFX (got %s)" % db,
+                )
+            )
+    _release_players(_stack_players(fixture.bus))
+
+
+func test_stack_cross_id_scales_to_bus_total():
+    if not _am:
+        return
+    var bus := "STACK_MIX_BUS"
+    _ensure_bus(bus)
+    var ids: Array[String] = ["STACK_MIX_A", "STACK_MIX_B", "STACK_MIX_C"]
+    for id in ids:
+        var audio := AudioData.new()
+        audio.id = id
+        audio.path = "res://test/fixtures/audio/test_tone.wav"
+        audio.bus = bus
+        audio.volume_db = 0.0
+        _am._audio_cache[id] = audio
+        _am.play_sound(id, Vector3(0, 0, 0))
+    var players := _stack_players(bus)
+    TestHelper.assert_eq(players.size(), 3, "three distinct ids stacked")
+    var expected_db: float = linear_to_db(1.0 / 3.0)
+    for player: Node in players:
+        var db: float = player.get("volume_db")
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(db, expected_db),
+                "each of 3 mixed ids at -20·log10(3) dB (got %s)" % db,
+            )
+        )
+    _release_players(players)
+
+
+func test_stack_cross_id_total_never_exceeds_single():
+    if not _am:
+        return
+    var bus := "STACK_MIX_BOUND_BUS"
+    _ensure_bus(bus)
+    var ids: Array[String] = ["STACK_MIXB_A", "STACK_MIXB_B", "STACK_MIXB_C", "STACK_MIXB_D"]
+    for id in ids:
+        var audio := AudioData.new()
+        audio.id = id
+        audio.path = "res://test/fixtures/audio/test_tone.wav"
+        audio.bus = bus
+        audio.volume_db = -8.0
+        _am._audio_cache[id] = audio
+        _am.play_sound(id, Vector3(0, 0, 0))
+    var players := _stack_players(bus)
+    var total_amplitude := 0.0
+    for player: Node in players:
+        total_amplitude += db_to_linear(player.get("volume_db"))
+    (
+        TestHelper
+        . assert_true(
+            total_amplitude <= db_to_linear(-8.0) + 0.001,
+            "mixed stack amplitude never exceeds a single copy (got %s)" % total_amplitude,
+        )
+    )
+    _release_players(players)
+
+
+func test_stack_buses_normalize_independently():
+    if not _am:
+        return
+    var sfx_bus := "STACK_SEP_SFX_BUS"
+    var voice_bus := "STACK_SEP_VOICE_BUS"
+    _ensure_bus(sfx_bus)
+    _ensure_bus(voice_bus)
+    var sfx := AudioData.new()
+    sfx.id = "STACK_SEP_SFX"
+    sfx.path = "res://test/fixtures/audio/test_tone.wav"
+    sfx.bus = sfx_bus
+    sfx.volume_db = 0.0
+    _am._audio_cache[sfx.id] = sfx
+    var voice := AudioData.new()
+    voice.id = "STACK_SEP_VOICE"
+    voice.path = "res://test/fixtures/audio/test_tone.wav"
+    voice.bus = voice_bus
+    voice.volume_db = 0.0
+    _am._audio_cache[voice.id] = voice
+    _expire_retrigger(sfx.id)
+    _am.play_sound(sfx.id, Vector3(0, 0, 0))
+    _expire_retrigger(sfx.id)
+    _am.play_sound(sfx.id, Vector3(0, 0, 0))
+    _am.play_sound(voice.id, Vector3(0, 0, 0))
+    var sfx_players := _stack_players(sfx_bus)
+    TestHelper.assert_eq(sfx_players.size(), 2, "two SFX copies stacked")
+    for player: Node in sfx_players:
+        var db: float = player.get("volume_db")
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(db, linear_to_db(0.5)),
+                "SFX scaled by its own bus count only (got %s)" % db,
+            )
+        )
+    var voice_players := _stack_players(voice_bus)
+    TestHelper.assert_eq(voice_players.size(), 1, "one voice copy")
+    for player: Node in voice_players:
+        var db: float = player.get("volume_db")
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(db, 0.0),
+                "voice at full volume, not buried by the SFX stack (got %s)" % db,
+            )
+        )
+    _release_players(sfx_players)
+    _release_players(voice_players)
+
+
+func test_retrigger_throttle_skips_rapid_same_id():
+    if not _am:
+        return
+    var fixture := _stack_fixture("RETRIGGER_A", 0.0)
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    var players := _stack_players(fixture.bus)
+    TestHelper.assert_eq(
+        players.size(), 1, "rapid same-id replays within the interval spawn one player"
+    )
+    _release_players(players)
+
+
+func test_retrigger_allows_distinct_ids():
+    if not _am:
+        return
+    var bus := "RETRIGGER_MIX_BUS"
+    _ensure_bus(bus)
+    var ids: Array[String] = ["RETRIGGER_B", "RETRIGGER_C", "RETRIGGER_D"]
+    for id in ids:
+        var audio := AudioData.new()
+        audio.id = id
+        audio.path = "res://test/fixtures/audio/test_tone.wav"
+        audio.bus = bus
+        audio.volume_db = 0.0
+        _am._audio_cache[id] = audio
+        _am.play_sound(id, Vector3(0, 0, 0))
+    TestHelper.assert_eq(
+        _stack_players(bus).size(), 3, "distinct ids are not throttled by each other"
+    )
+    _release_players(_stack_players(bus))
+
+
+func test_retrigger_allows_after_interval():
+    if not _am:
+        return
+    var fixture := _stack_fixture("RETRIGGER_E", 0.0)
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    _expire_retrigger(fixture.id)
+    _am.play_sound(fixture.id, Vector3(0, 0, 0))
+    (
+        TestHelper
+        . assert_eq(
+            _stack_players(fixture.bus).size(),
+            2,
+            "same id plays again once the retrigger window has elapsed",
+        )
+    )
+    _release_players(_stack_players(fixture.bus))

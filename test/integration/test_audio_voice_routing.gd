@@ -17,6 +17,13 @@ func _ready() -> void:
         _sm = get_node("/root/SelectionManager")
 
 
+## Bypass the retrigger throttle so a test observes a fresh playback — these
+## tests verify routing/parsing, not rate throttling. Mirrors the helper in
+## the audio_manager unit tests.
+func _expire_retrigger(id: String) -> void:
+    _am._last_played_at[id] = -100000
+
+
 ## Registers a committed-fixture tone + a voice set that routes every event to it,
 ## so playback assertions pass without the gitignored external_assets/ .ogg files.
 func _register_test_voice() -> VoiceData:
@@ -27,6 +34,7 @@ func _register_test_voice() -> VoiceData:
     voice.attack = ["TEST_TONE"]
     voice.die = ["TEST_TONE"]
     if _am:
+        _expire_retrigger("TEST_TONE")
         var audio := AudioData.new()
         audio.id = "TEST_TONE"
         audio.path = TEST_TONE_PATH
