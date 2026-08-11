@@ -304,6 +304,15 @@ func get_cell_corner_heights(cell: Vector2i) -> Array[float]:
     return [h_nw, h_ne, h_sw, h_se]
 
 
+## Raw corner heights `[h_nw, h_ne, h_sw, h_se]` from the world-lifetime snapshot,
+## in unscaled height units (matching `_vertex_grid` semantics). Empty array for
+## out-of-diamond cells. Callers that need a smooth bilinear sample at a world
+## position can cache these per cell and interpolate at the exact position —
+## bit-identical to `_sample_heightfield_at` with `HEIGHT_STEP` applied last.
+func get_cell_snapshot_corners_raw(cell: Vector2i) -> Array:
+    return _snapshot_corners(cell)
+
+
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
     var cell := CellUtil.world_to_cell(world_pos)
     return get_cell(cell)

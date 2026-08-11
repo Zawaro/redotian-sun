@@ -236,7 +236,9 @@ func test_frame_height_memo_matches_direct_read_on_slope():
     _reset_terrain()
     var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
     var mc: MovementController = pair[1]
-    # Two unit positions in the same half-cell bucket on a sloped cell.
+    # Two unit positions in the same cell on a sloped cell: the memo caches the
+    # per-cell corners and bilinear-interpolates at the exact position, so it
+    # must be bit-identical to a direct smooth read (no bucket quantization).
     var pos_a := Vector3(0.2, 0.0, 0.2)
     var pos_b := Vector3(0.7, 0.0, 0.6)
     _ts._vertex_grid[50][50] = 3
@@ -251,42 +253,64 @@ func test_frame_height_memo_matches_direct_read_on_slope():
     var direct_b: float = _ts.get_height_at_world_smooth(pos_b)
     _reset_terrain()
     pair[0].queue_free()
-    var delta: float = absf(memo_b - direct_b)
-    # Half-cell quantization: memo returns the bucket-center height, so it may
-    # differ from the exact position read on a slope — but the error stays well
-    # under a foot unit's climb tolerance (1 * HEIGHT_STEP).
     (
         TestHelper
-        . assert_true(
-            delta < _ts.HEIGHT_STEP,
-            "frame memo bucket error stays under climb tolerance (delta %s)" % [delta],
+        . assert_eq(
+            memo_b,
+            direct_b,
+            (
+                "memo matches the exact smooth read at the position on a slope (memo %s vs direct %s)"
+                % [memo_b, direct_b]
+            ),
         )
     )
     (
         TestHelper
         . assert_true(
-            delta > 0.0,
-            "slope cell produces a nonzero bucket delta (memo is not trivially identical)",
+            absf(direct_a - direct_b) > 0.0,
+            "slope cell gives distinct heights per position (test is meaningful)",
         )
     )
 
 
-func test_frame_height_memo_caches_per_bucket():
+func test_frame_height_memo_caches_per_cell():
     _reset_terrain()
     var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
     var mc: MovementController = pair[1]
     _ts._vertex_grid[50][50] = 3
-    _ts._vertex_grid[51][50] = 3
-    _ts._vertex_grid[50][51] = 3
+    _ts._vertex_grid[51][50] = 0
+    _ts._vertex_grid[50][51] = 0
     _ts._vertex_grid[51][51] = 3
+    _ts._vertex_grid[60][60] = 2
+    _ts._vertex_grid[61][60] = 1
+    _ts._vertex_grid[60][61] = 1
+    _ts._vertex_grid[61][61] = 2
     _ts.invalidate_height_snapshot()
     var h_a: float = mc._memoized_smooth_height(Vector3(0.2, 0.0, 0.2))
-    _ts.invalidate_height_snapshot()
     var h_b: float = mc._memoized_smooth_height(Vector3(0.7, 0.0, 0.6))
+    var cache_size: int = mc._frame_heights.size()
+    var h_c: float = mc._memoized_smooth_height(Vector3(20.2, 0.0, 20.2))
+    var cache_size_grown: int = mc._frame_heights.size()
+    var direct_c: float = _ts.get_height_at_world_smooth(Vector3(20.2, 0.0, 20.2))
     _reset_terrain()
     pair[0].queue_free()
+    # Same cell, distinct positions: distinct exact heights (no bucket flattening).
+    TestHelper.assert_true(
+        absf(h_a - h_b) > 0.0, "distinct positions in the same sloped cell get distinct heights"
+    )
+    # One corner fetch per cell: two reads in the same cell stay a single entry,
+    # a read in another cell grows the cache by one.
+    TestHelper.assert_eq(cache_size, 1, "two reads in the same cell share one cached corner array")
     TestHelper.assert_eq(
-        h_a, h_b, "same bucket returns the same memoized height (one terrain read per bucket)"
+        cache_size_grown, cache_size + 1, "a read in a new cell adds one corner array"
+    )
+    (
+        TestHelper
+        . assert_eq(
+            h_c,
+            direct_c,
+            "cached cell read matches the exact smooth height at that position",
+        )
     )
 
 

@@ -41,9 +41,9 @@ static var _last_physics_frame: int = -1
 ## vertex edits).
 static var _frame_heights: Dictionary = {}
 static var _frame_heights_frame: int = -1
-static var _frame_heights_gen: int = -1
-const HALF_CELL_KEY_OFFSET: int = 1024
 
+static var _frame_heights_gen: int = -1
+const CELL_KEY_OFFSET: int = 1024
 var _state: State = State.IDLE
 var _vertical_state: VerticalState = VerticalState.GROUND
 var _waypoints: PackedVector3Array = PackedVector3Array()
@@ -190,8 +190,11 @@ func _is_floating() -> bool:
 
 ## Frame-scoped smoothed terrain height. Terrain is static within a physics
 ## frame, so the ~3 `get_height_at_world_smooth` reads per unit per tick
-## collapse to one read per half-cell bucket. Unit-independent only — the 3x3
-## avoidance scan stays live per-unit (it reads dynamic neighbor positions).
+## collapse to one corner-array fetch per cell. The per-cell corner heights are
+## cached, then bilinear-interpolated at the exact query position — bit-identical
+## to `get_height_at_world_smooth` (no bucket quantization). Unit-independent
+## only — the 3x3 avoidance scan stays live per-unit (it reads dynamic neighbor
+## positions).
 func _memoized_smooth_height(pos: Vector3) -> float:
     var frame := Engine.get_process_frames()
     var gen: int = TerrainSystem.height_snapshot_generation
@@ -199,16 +202,28 @@ func _memoized_smooth_height(pos: Vector3) -> float:
         _frame_heights.clear()
         _frame_heights_frame = frame
         _frame_heights_gen = gen
-    var half := CellUtil.CELL_SIZE * 0.5
-    var bx := floori(pos.x / half)
-    var bz := floori(pos.z / half)
-    var key := (bx + HALF_CELL_KEY_OFFSET) << 16 | (bz + HALF_CELL_KEY_OFFSET) & 0xFFFF
-    if _frame_heights.has(key):
-        return _frame_heights[key]
-    var bucket_center := Vector3((float(bx) + 0.5) * half, 0.0, (float(bz) + 0.5) * half)
-    var h: float = TerrainSystem.get_height_at_world_smooth(bucket_center)
-    _frame_heights[key] = h
-    return h
+    var center: float = float(TerrainSystem.grid_cells.x + TerrainSystem.grid_cells.y) * 0.5
+    var vx: float = pos.x / CellUtil.CELL_SIZE + center
+    var vz: float = pos.z / CellUtil.CELL_SIZE + center
+    var x0 := floori(vx)
+    var z0 := floori(vz)
+    var key := (x0 + CELL_KEY_OFFSET) << 16 | (z0 + CELL_KEY_OFFSET) & 0xFFFF
+    var corners: Array = _frame_heights.get(key, [])
+    if corners.is_empty():
+        corners = TerrainSystem.get_cell_snapshot_corners_raw(Vector2i(x0, z0))
+        _frame_heights[key] = corners
+    if corners.is_empty():
+        # Out-of-diamond cell: fall back to the live query for the exact height.
+        return TerrainSystem.get_height_at_world_smooth(pos)
+    var fx: float = vx - float(x0)
+    var fz: float = vz - float(z0)
+    var h00: float = float(corners[0])
+    var h10: float = float(corners[1])
+    var h01: float = float(corners[2])
+    var h11: float = float(corners[3])
+    var h0: float = h00 + (h10 - h00) * fx
+    var h1: float = h01 + (h11 - h01) * fx
+    return (h0 + (h1 - h0) * fz) * TerrainSystem.HEIGHT_STEP
 
 
 ## Split factor while a jumpjet vertically transitions (ascend/descend) at the
