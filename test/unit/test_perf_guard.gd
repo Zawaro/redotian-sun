@@ -84,6 +84,72 @@ func test_spatial_reconcile_performs_no_group_scans():
     _sh.rebuild()
 
 
+## perf-284 — `_reconcile` must skip the world_to_cell + cell_key recompute for
+## entries whose position has not changed since the last reconcile: the steady-
+## state (idle) majority costs a position compare, not a cell recompute. A moved
+## entry must still reconcile to the correct new cell.
+func test_reconcile_skips_cell_recompute_for_unmoved_entries():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entities: Array[Node3D] = []
+    for i in 20:
+        var e := _make_grid_entity("PerfReconcile%d" % i)
+        e.position = Vector3(float(i), 0.0, float(i))
+        _sh.add_child(e)
+        entities.append(e)
+    _sh.rebuild()
+    _sh.perf_reconcile_recomputes = 0
+    _sh._reconcile()
+    (
+        TestHelper
+        . assert_eq(
+            _sh.perf_reconcile_recomputes,
+            0,
+            "idle unmoved entries perform no cell recompute during reconcile",
+        )
+    )
+    # Move one entry; its reconcile must recompute its cell and land on the new cell.
+    var mover: Node3D = entities[3]
+    var old_cell := CellUtil.world_to_cell(mover.global_position)
+    var cell_b := old_cell + Vector2i(2, 0)
+    mover.global_position = CellUtil.cell_to_world(cell_b)
+    _sh.perf_reconcile_recomputes = 0
+    _sh._reconcile()
+    # Other entities share cells (cell size 2 vs 1-unit spacing), so assert on the
+    # moved entry itself: its pooled entry moved to B and B is blocked by it.
+    var moved_entry: Dictionary = _sh._entry_map[mover]
+    var moved_ok: bool = (
+        _sh.perf_reconcile_recomputes == 1
+        and moved_entry["cell_key"] == CellUtil.cell_key(cell_b)
+        and _sh.is_cell_blocked(cell_b)
+        and moved_entry["last_x"] == mover.global_position.x
+    )
+    for e in entities:
+        _sh.remove_child(e)
+        e.free()
+    _sh.rebuild()
+    (
+        TestHelper
+        . assert_eq(
+            _sh.perf_reconcile_recomputes,
+            1,
+            "only the moved entry recomputes its cell (one recompute, not 20)",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            moved_ok,
+            "moved entry reconciles to its new cell (entry cell_key at B, blocked at B)",
+        )
+    )
+
+
 ## 9.2 — SelectionManager's per-frame `_process` must only scan the
 ## "selectable" group every 6th frame (the throttled sync safety net).
 func test_selection_sync_scans_group_only_every_sixth_frame():

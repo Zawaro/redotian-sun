@@ -43,6 +43,22 @@ static var _frame_heights: Dictionary = {}
 static var _frame_heights_frame: int = -1
 
 static var _frame_heights_gen: int = -1
+
+## Frame-scoped per-cell cache shared across all controllers: land type and the
+## 3×3 avoidance hood for each cell touched by the movement hot path this frame.
+## Terrain and occupancy are static within a physics frame, so units sharing a
+## cell pay one dict fetch per cell per frame instead of once per unit per tick.
+## Keyed by `CellUtil.cell_key(cell)`; cleared when the process frame advances or
+## when the TerrainSystem height-snapshot generation changes (grid re-init).
+static var _frame_cells: Dictionary = {}
+static var _frame_cells_frame: int = -1
+
+static var _frame_cells_gen: int = -1
+## Grid-generation at the time `_frame_cells` was built. `SpatialHash.rebuild()`
+## replaces the `_grid` arrays the hood references; bumping past this gen
+## invalidates the cache so no unit scans a stale array holding freed-node
+## entries (crushed infantry).
+static var _frame_cells_grid_gen: int = -1
 const CELL_KEY_OFFSET: int = 1024
 var _state: State = State.IDLE
 var _vertical_state: VerticalState = VerticalState.GROUND
@@ -179,7 +195,7 @@ func _terrain_speed_factor() -> float:
     if _is_jumpjet and _vertical_state != VerticalState.GROUND:
         return 1.0
     var cell := CellUtil.world_to_cell(_parent.global_position)
-    return _locomotor_data.get_speed_multiplier(TerrainSystem.get_land_type(cell))
+    return _locomotor_data.get_speed_multiplier(_frame_cell_land(cell))
 
 
 func _is_floating() -> bool:
@@ -195,13 +211,62 @@ func _is_floating() -> bool:
 ## to `get_height_at_world_smooth` (no bucket quantization). Unit-independent
 ## only — the 3x3 avoidance scan stays live per-unit (it reads dynamic neighbor
 ## positions).
-func _memoized_smooth_height(pos: Vector3) -> float:
+func _ensure_frame_caches_valid() -> void:
     var frame := Engine.get_process_frames()
     var gen: int = TerrainSystem.height_snapshot_generation
     if frame != _frame_heights_frame or gen != _frame_heights_gen:
         _frame_heights.clear()
         _frame_heights_frame = frame
         _frame_heights_gen = gen
+    var grid_gen: int = SpatialHash.instance.grid_generation if SpatialHash.instance else -1
+    if frame != _frame_cells_frame or gen != _frame_cells_gen or grid_gen != _frame_cells_grid_gen:
+        _frame_cells.clear()
+        _frame_cells_frame = frame
+        _frame_cells_gen = gen
+        _frame_cells_grid_gen = grid_gen
+
+
+## Frame-scoped land type for a cell. Terrain land type is static within a
+## physics frame (resource-registry flips land at most at growth/harvest
+## boundaries), so the painted-overlay + resource-registry dict reads collapse to
+## one per cell per frame for all units on that cell.
+func _frame_cell_land(cell: Vector2i) -> String:
+    var entry := _frame_cell_entry(cell)
+    if not entry.has("land"):
+        entry["land"] = TerrainSystem.get_land_type(cell)
+    return entry["land"]
+
+
+## Frame-scoped 3×3 avoidance hood for a cell: the 9 `SpatialHash.get_entries`
+## lists around `cell`, fetched once per cell per frame. Units sharing a cell
+## read the same hood, and empty neighbor cells answer from the cached empty
+## array — no per-unit `get_entries` burst. The cached lists are only read by
+## the avoidance scan (never mutated), so sharing them is safe.
+func _frame_hood(cell: Vector2i) -> Array:
+    var entry := _frame_cell_entry(cell)
+    if not entry.has("hood"):
+        var hood := []
+        hood.resize(9)
+        for dx in range(-1, 2):
+            for dz in range(-1, 2):
+                var entries: Array = SpatialHash.instance.get_entries(cell + Vector2i(dx, dz))
+                hood[(dx + 1) * 3 + (dz + 1)] = entries
+        entry["hood"] = hood
+    return entry["hood"]
+
+
+func _frame_cell_entry(cell: Vector2i) -> Dictionary:
+    _ensure_frame_caches_valid()
+    var key := CellUtil.cell_key(cell)
+    var entry: Dictionary = _frame_cells.get(key, {})
+    if entry.is_empty():
+        entry = {}
+        _frame_cells[key] = entry
+    return entry
+
+
+func _memoized_smooth_height(pos: Vector3) -> float:
+    _ensure_frame_caches_valid()
     var center: float = float(TerrainSystem.grid_cells.x + TerrainSystem.grid_cells.y) * 0.5
     var vx: float = pos.x / CellUtil.CELL_SIZE + center
     var vz: float = pos.z / CellUtil.CELL_SIZE + center
@@ -224,6 +289,35 @@ func _memoized_smooth_height(pos: Vector3) -> float:
     var h0: float = h00 + (h10 - h00) * fx
     var h1: float = h01 + (h11 - h01) * fx
     return (h0 + (h1 - h0) * fz) * TerrainSystem.HEIGHT_STEP
+
+
+## Frame-scoped terrain normal at a world position. Reuses the same per-cell
+## corner-array fetch as `_memoized_smooth_height` (same cell key, same
+## `_frame_heights` store), so a unit's snap and facing read the corners once per
+## frame per cell. Computes the same cross-product normal as
+## `TerrainSystem.get_normal_at_world` (same raw corners, same `edge_z.cross(
+## edge_x)` ordering, same `HEIGHT_STEP` scaling) — bit-identical output.
+func _memoized_normal(pos: Vector3) -> Vector3:
+    _ensure_frame_caches_valid()
+    var center: float = float(TerrainSystem.grid_cells.x + TerrainSystem.grid_cells.y) * 0.5
+    var vx: float = pos.x / CellUtil.CELL_SIZE + center
+    var vz: float = pos.z / CellUtil.CELL_SIZE + center
+    var x0 := floori(vx)
+    var z0 := floori(vz)
+    var key := (x0 + CELL_KEY_OFFSET) << 16 | (z0 + CELL_KEY_OFFSET) & 0xFFFF
+    var corners: Array = _frame_heights.get(key, [])
+    if corners.is_empty():
+        corners = TerrainSystem.get_cell_snapshot_corners_raw(Vector2i(x0, z0))
+        _frame_heights[key] = corners
+    if corners.is_empty():
+        # Out-of-diamond cell: fall back to the live query for the exact normal.
+        return TerrainSystem.get_normal_at_world(pos).normalized()
+    var h00: float = float(corners[0]) * TerrainSystem.HEIGHT_STEP
+    var h10: float = float(corners[1]) * TerrainSystem.HEIGHT_STEP
+    var h01: float = float(corners[2]) * TerrainSystem.HEIGHT_STEP
+    var edge_x := Vector3(CellUtil.CELL_SIZE, h10 - h00, 0.0)
+    var edge_z := Vector3(0.0, h01 - h00, CellUtil.CELL_SIZE)
+    return edge_z.cross(edge_x).normalized()
 
 
 ## Split factor while a jumpjet vertically transitions (ascend/descend) at the
@@ -689,13 +783,16 @@ func _handle_moving_movement(delta: float) -> void:
 
     var parent_cell := CellUtil.world_to_cell(parent_pos)
     var min_neighbor_dist_ahead: float = INF
+    var hood: Array = _frame_hood(parent_cell)
 
+    var hi: int = 0
     for dx in range(-1, 2):
         for dz in range(-1, 2):
-            for entry in SpatialHash.instance.get_entries(parent_cell + Vector2i(dx, dz)):
-                var entity_parent := entry.node as Node3D
-                if not is_instance_valid(entity_parent) or entity_parent == _parent:
+            for entry in hood[hi]:
+                var node_ref: Object = entry.node
+                if not is_instance_valid(node_ref) or node_ref == _parent:
                     continue
+                var entity_parent := node_ref as Node3D
 
                 var mc := entry.mc as MovementController
                 if not mc or mc._state == State.IDLE:
@@ -715,6 +812,7 @@ func _handle_moving_movement(delta: float) -> void:
                         / squaref(neighbor_dist)
                     )
                     direction += push_away * REPULSION_STRENGTH * repulsion_weight
+            hi += 1
 
     var speed_factor: float = 1.0
     if min_neighbor_dist_ahead < INF:
@@ -911,9 +1009,7 @@ func _apply_facing(direction: Vector3) -> void:
     if forward.length_squared() < 0.001:
         return
     var normal := (
-        Vector3.UP
-        if _stand_upright
-        else TerrainSystem.get_normal_at_world(_parent.global_position).normalized()
+        Vector3.UP if _stand_upright else _memoized_normal(_parent.global_position).normalized()
     )
     var projected := (forward - forward.dot(normal) * normal).normalized()
     if projected.length_squared() < 0.001:
