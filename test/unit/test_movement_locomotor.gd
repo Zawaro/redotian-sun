@@ -259,8 +259,8 @@ func test_frame_height_memo_matches_direct_read_on_slope():
             memo_b,
             direct_b,
             (
-                "memo matches the exact smooth read at the position on a slope (memo %s vs direct %s)"
-                % [memo_b, direct_b]
+                "memo matches the exact smooth read at the position on a slope "
+                + "(memo %s vs direct %s)" % [memo_b, direct_b]
             ),
         )
     )
