@@ -290,11 +290,13 @@ func get_crusher_blocking_cells(player_id: int) -> Dictionary:
             continue
         var entries: Array = _grid.get(key, [])
         for entry in entries:
+            if not is_instance_valid(entry["node"]):
+                continue
             var entry_type: int = entry["entity_type"]
             if entry_type != EntityData.EntityType.INFANTRY:
                 continue
             var entry_pid: int = entry["player_id"]
-            if entry_pid == -1 or not PlayerManager.is_enemy(player_id, entry_pid):
+            if player_id < 0 or entry_pid == -1 or not PlayerManager.is_enemy(player_id, entry_pid):
                 result[key] = true
                 break
             var entry_node: Node3D = entry["node"]
@@ -309,12 +311,14 @@ func get_crushable_enemies_on_cell(cell: Vector2i, player_id: int) -> Array:
     var result: Array = []
     var entries: Array = _grid.get(CellUtil.cell_key(cell), [])
     for entry in entries:
+        if not is_instance_valid(entry["node"]):
+            continue
         var entry_node: Node3D = entry["node"]
         var entry_pid: int = entry["player_id"]
         var entry_type: int = entry["entity_type"]
         if entry_type != EntityData.EntityType.INFANTRY:
             continue
-        if entry_pid == -1 or not PlayerManager.is_enemy(player_id, entry_pid):
+        if entry_pid == -1 or player_id < 0 or not PlayerManager.is_enemy(player_id, entry_pid):
             continue
         var entry_stats := entry_node.get_node_or_null("StatsComponent") as StatsComponent
         if entry_stats and entry_stats.crushable:

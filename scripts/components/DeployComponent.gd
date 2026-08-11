@@ -356,6 +356,13 @@ func _do_deploy(
     var world_pos := _cell_origin_to_world(origin, target_data.foundation)
     world_pos.y = _get_max_height(origin, target_data.foundation)
     target_entity.position = world_pos
+    # Assign the player before add_child so MovementController._ready() caches the
+    # real id (the crush filter's query side). Setting it post-add leaves
+    # _player_id = -1 forever, so an undeployed crusher treats every unit as an
+    # enemy and crushes friendlies.
+    var deploy_stats := target_entity.get_node_or_null("StatsComponent") as StatsComponent
+    if deploy_stats:
+        deploy_stats.player_id = snap["player_id"]
     var buildings_parent := _get_buildings_parent()
     if buildings_parent:
         buildings_parent.add_child(target_entity)
@@ -459,6 +466,13 @@ func _do_undeploy(
     var world_pos := CellUtil.cell_to_world(target_cell)
     world_pos.y = TerrainSystem.get_height_at_world_smooth(world_pos)
     target_entity.position = world_pos
+    # Assign the player before add_child so MovementController._ready() caches the
+    # real id (the crush filter's query side). Setting it post-add leaves
+    # _player_id = -1 forever, so an undeployed crusher treats every unit as an
+    # enemy and crushes friendlies.
+    var deploy_stats := target_entity.get_node_or_null("StatsComponent") as StatsComponent
+    if deploy_stats:
+        deploy_stats.player_id = snap["player_id"]
     var parent := _get_buildings_parent()
     if parent:
         parent.add_child(target_entity)
