@@ -1,6 +1,44 @@
 class_name Pathfinder
 
 
+## Batch-lifetime memo of unit-independent terrain cost data: cell height (the
+## 4-corner minimum), land type, and bib status. Blocked status is deliberately
+## NOT cached — the blocked set differs per unit (each movement controller erases
+## its own cell), so it stays a per-call parameter. One `PathCostCache` is shared
+## across a move order's drain in SelectionManager, so overlapping searches read
+## terrain cost data once instead of re-probing TerrainSystem/SpatialHash.
+class PathCostCache:
+    var _cells: Dictionary = {}
+    var generation: int = -1
+
+    func get_cell(key: int) -> Dictionary:
+        return _cells.get(key, {})
+
+    func set_cell(key: int, entry: Dictionary) -> void:
+        _cells[key] = entry
+
+    func invalidate() -> void:
+        _cells.clear()
+        generation = -1
+
+
+## World-mutation generation. Bumped by SelectionManager at each `request_move`
+## (the order boundary); `find_path` lazily clears any `PathCostCache` whose
+## generation is stale, so a mid-drain blocker/building change never serves
+## stale cost data.
+static var _world_generation: int = 0
+
+
+static func bump_world_generation() -> void:
+    _world_generation += 1
+
+
+## Test-observable count of `find_path` invocations. Greedy-first movement on
+## open terrain completes without a full A* search, so the counter must not move
+## for a greedy-only move. Not used by gameplay logic (test-only instrumentation).
+static var find_path_call_count: int = 0
+
+
 ## Resolves the TerrainSystem autoload once per pathfinding call (hot path).
 static func _get_terrain_system() -> Node:
     var tree: SceneTree = Engine.get_main_loop() as SceneTree
@@ -11,18 +49,153 @@ static func _get_terrain_system() -> Node:
 
 ## Pure-arithmetic terrain height read for a cell: the minimum of its 4 corner
 ## vertices, matching TerrainSystem._compute_cell_from_vertices (a slope cell
-## reads at its lowest corner). No dict/string lookups. This preserves the
-## pre-D7 per-cell semantics so a 2-step cliff still blocks foot units — the
-## bilinear-average read made transition cells read high enough that 2-step
-## walls became climbable.
+## reads at its lowest corner). No dict/string lookups. Reads through the
+## world-lifetime TerrainSystem height snapshot (`terrain-height-cache`) when the
+## node supports it. This preserves the pre-D7 per-cell semantics so a 2-step
+## cliff still blocks foot units — the bilinear-average read made transition
+## cells read high enough that 2-step walls became climbable.
 static func _cell_height(terrain: Node, cell: Vector2i) -> float:
     if terrain == null:
         return 0.0
+    if terrain.has_method("get_cell_min_height"):
+        return terrain.get_cell_min_height(cell)
     var h := mini(
         mini(terrain.get_vertex(cell.x, cell.y), terrain.get_vertex(cell.x + 1, cell.y)),
         mini(terrain.get_vertex(cell.x, cell.y + 1), terrain.get_vertex(cell.x + 1, cell.y + 1)),
     )
     return float(h) * terrain.HEIGHT_STEP
+
+
+## Unit-independent terrain cost data for a cell — height, land type, bib
+## status — memoized in `cost_cache` when provided (batch lifetime) or probed
+## fresh. Blocked status is NOT cached (per-unit blocked sets differ).
+static func _cell_cost(terrain: Node, cell: Vector2i, cost_cache: PathCostCache) -> Dictionary:
+    if cost_cache == null:
+        return {
+            "height": _cell_height(terrain, cell),
+            "land": terrain.get_land_type(cell) if terrain else "clear",
+            "bib": bool(SpatialHash.instance and SpatialHash.instance.is_bib_cell(cell)),
+        }
+    var key: int = CellUtil.cell_key(cell)
+    var cached: Dictionary = cost_cache.get_cell(key)
+    if not cached.is_empty():
+        return cached
+    cached = {
+        "height": _cell_height(terrain, cell),
+        "land": terrain.get_land_type(cell) if terrain else "clear",
+        "bib": bool(SpatialHash.instance and SpatialHash.instance.is_bib_cell(cell)),
+    }
+    cost_cache.set_cell(key, cached)
+    return cached
+
+
+## Out-of-range cell value returned by `try_greedy_step` to signal a stall: too
+## far outside any real grid for `cell_key`/`cell_to_world` to be valid, so it
+## can never collide with a genuine cell.
+const GREEDY_STALL: Vector2i = Vector2i(-1000000, -1000000)
+
+
+## Greedy descent primitive for group moves: returns the best strictly-
+## improving passable 8-neighbor toward `target_cell`, or `GREEDY_STALL` when no
+## passable neighbor strictly reduces the distance to the target. Uses the same
+## per-locomotor cost model as `find_path` (octile step, terrain speed
+## multiplier, height penalty, bib penalty, climb tolerance, `ignores_height`).
+## Ties break toward the target direction, then the previous heading, so a
+## plateau keeps moving instead of oscillating. Terrain cost data is memoized in
+## `cost_cache` when provided (batch lifetime).
+static func try_greedy_step(
+    from_cell: Vector2i,
+    target_cell: Vector2i,
+    blocked_cells: Dictionary = {},
+    locomotor: Locomotor = null,
+    previous_cell: Vector2i = GREEDY_STALL,
+    cost_cache: PathCostCache = null,
+    terrain: Node = null,
+) -> Vector2i:
+    if terrain == null:
+        terrain = _get_terrain_system()
+    var climb_limit: float = (
+        float(locomotor.climb_tolerance) * terrain.HEIGHT_STEP if terrain and locomotor else 0.0
+    )
+    var ignores_height: bool = false
+    if locomotor:
+        ignores_height = locomotor.is_fly or locomotor.is_jumpjet
+
+    var neighbor_dirs := [
+        Vector2i(1, 0),
+        Vector2i(-1, 0),
+        Vector2i(0, 1),
+        Vector2i(0, -1),
+        Vector2i(1, 1),
+        Vector2i(1, -1),
+        Vector2i(-1, 1),
+        Vector2i(-1, -1),
+    ]
+    var neighbor_costs: Array[float] = [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        CellUtil.SQRT2,
+        CellUtil.SQRT2,
+        CellUtil.SQRT2,
+        CellUtil.SQRT2,
+    ]
+
+    var from_height: float = _cell_height(terrain, from_cell)
+    var from_dist := CellUtil.heuristic(from_cell, target_cell)
+    var rules := GlobalRules.get_current()
+    var bib_penalty: float = rules.bib_cost_penalty if rules else 0.0
+    var best: Vector2i = GREEDY_STALL
+    var best_dist: float = from_dist
+    var best_cost: float = INF
+    var best_align: float = INF
+
+    for i in 8:
+        var neighbor: Vector2i = from_cell + neighbor_dirs[i]
+        var nkey: int = CellUtil.cell_key(neighbor)
+        if blocked_cells.has(nkey):
+            continue
+        var cost: Dictionary = _cell_cost(terrain, neighbor, cost_cache)
+        var neighbor_height: float = cost["height"]
+        var cost_multiplier: float = 1.0
+        if terrain and locomotor:
+            if not ignores_height and absf(neighbor_height - from_height) > climb_limit:
+                continue
+            var land: String = cost["land"]
+            if not _is_terrain_passable(locomotor, land, neighbor):
+                continue
+            cost_multiplier = _cost_multiplier(locomotor, land, neighbor)
+
+        var ndist := CellUtil.heuristic(neighbor, target_cell)
+        if ndist >= from_dist:
+            # Strictly-improving only: a plateau or worsening neighbor is not a
+            # greedy step — the caller falls back to A* instead of oscillating.
+            continue
+        var step_cost: float = (
+            neighbor_costs[i] * cost_multiplier
+            + absf(neighbor_height - from_height) * 0.5
+            + (bib_penalty if cost["bib"] else 0.0)
+        )
+        # Tie-break: target direction (smaller dist), then terrain cost, then
+        # continuing the previous heading (smaller alignment distance).
+        var align_dist := CellUtil.heuristic(neighbor, previous_cell)
+        if (
+            ndist < best_dist - 0.001
+            or (
+                absf(ndist - best_dist) <= 0.001
+                and (
+                    step_cost < best_cost - 0.001
+                    or (absf(step_cost - best_cost) <= 0.001 and align_dist < best_align)
+                )
+            )
+        ):
+            best = neighbor
+            best_dist = ndist
+            best_cost = step_cost
+            best_align = align_dist
+
+    return best
 
 
 ## Terrain passability for a unit's locomotor. Fly/hover pass everything; others
@@ -59,15 +232,32 @@ static func find_path(
     blocked_cells: Dictionary = {},
     locomotor: Locomotor = null,
     ignore_bib_penalty: bool = false,
+    cost_cache: PathCostCache = null,
+    terrain: Node = null,
 ) -> PackedVector3Array:
-    # Resolve TerrainSystem once per path, not per neighbour.
-    var terrain: Node = _get_terrain_system()
+    find_path_call_count += 1
+    # Resolve TerrainSystem once per path, not per neighbour. A reference may be
+    # threaded in from the caller (batch-scoped) to skip the scene-tree lookup.
+    if terrain == null:
+        terrain = _get_terrain_system()
     var grid_cells: Vector2i = terrain.grid_cells if terrain else Vector2i(32, 32)
     var start_cell := CellUtil.world_to_cell(start_world, grid_cells)
     var end_cell := CellUtil.world_to_cell(end_world, grid_cells)
 
     if start_cell == end_cell:
         return PackedVector3Array()
+
+    # A shared cache is valid only while the world generation matches; a stale
+    # cache (blockers/buildings changed mid-drain) is cleared before reuse.
+    # Without a shared cache, a per-call local memo still dedups repeated
+    # neighbor probes within this one search.
+    var local_cache: PathCostCache = null
+    if cost_cache == null:
+        local_cache = PathCostCache.new()
+        cost_cache = local_cache
+    elif cost_cache.generation != _world_generation:
+        cost_cache.invalidate()
+        cost_cache.generation = _world_generation
 
     # Bib cells are walkable but penalized — dockers (harvesters) path onto the
     # dock pad, but ordinary traffic detours around it. Null-safe: no penalty in
@@ -160,22 +350,19 @@ static func find_path(
             if blocked_cells.has(nkey):
                 continue
 
-            var neighbor_height: float = _cell_height(terrain, neighbor)
+            var cost: Dictionary = _cell_cost(terrain, neighbor, cost_cache)
+            var neighbor_height: float = cost["height"]
             var cost_multiplier: float = 1.0
             if terrain and locomotor:
                 if not ignores_height and absf(neighbor_height - current_height) > climb_limit:
                     continue
-                var land: String = terrain.get_land_type(neighbor)
+                var land: String = cost["land"]
                 if not _is_terrain_passable(locomotor, land, neighbor):
                     continue
                 cost_multiplier = _cost_multiplier(locomotor, land, neighbor)
 
             var height_cost: float = absf(neighbor_height - current_height) * 0.5
-            var bib_cost: float = (
-                bib_penalty
-                if SpatialHash.instance and SpatialHash.instance.is_bib_cell(neighbor)
-                else 0.0
-            )
+            var bib_cost: float = bib_penalty if cost["bib"] else 0.0
             var tentative_g: float = (
                 g_score.get(current_key, INF)
                 + neighbor_costs[i] * cost_multiplier

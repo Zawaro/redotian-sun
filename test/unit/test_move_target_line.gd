@@ -2,6 +2,8 @@ extends Node
 
 # MovementController move-target API tests (backs SelectComponent move target line)
 
+const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/SelectComponent.tscn")
+
 var _ts: Node = null
 
 
@@ -166,7 +168,9 @@ func test_move_line_endpoint_tracks_attack_target():
 func test_reselect_shows_line_for_stationary_attacker():
     # An in-range attacker (not moving) that is deselected and re-selected must
     # still show the move line pointing at the enemy — movement alone is not
-    # enough when the line tracks an active attack target.
+    # enough when the line tracks an active attack target. The line now flows
+    # through the shared MoveLineRenderer: get_line_render_data() is the
+    # renderer-facing contract the shared buffer consumes.
     var entity := Node3D.new()
     var cc := CombatComponent.new()
     entity.add_child(cc)
@@ -181,28 +185,53 @@ func test_reselect_shows_line_for_stationary_attacker():
     var sc := SelectComponent.new()
     sc._combat_component = cc
     sc._movement_controller = mc
-    sc._move_line_mesh = MeshInstance3D.new()
-    sc._move_line_mesh.mesh = ImmediateMesh.new()
     var timer := Timer.new()
     sc.add_child(timer)
     sc._move_line_timer = timer
 
     sc.set_is_selected(true)
-    var shown: bool = sc._move_line_mesh.visible
+    var shown: bool = not sc.get_line_render_data().is_empty()
 
     sc.set_is_selected(false)
-    var hidden: bool = not sc._move_line_mesh.visible
+    var hidden: bool = sc.get_line_render_data().is_empty()
 
     sc.free()
     entity.free()
     target.free()
+    var msg := (
+        "reselect shows line for stationary attacker; deselect hides (shown=%s hidden=%s)"
+        % [shown, hidden]
+    )
+    TestHelper.assert_true(shown and hidden, msg)
+
+
+func test_move_line_timer_is_0_3s_and_fades():
+    # The move-target line is an order-acknowledgement glyph: 0.3s lifetime with
+    # a fade over the tail (alpha drops below 1 as the timer nears expiry).
+    var parent := Node3D.new()
+    (Engine.get_main_loop() as SceneTree).root.add_child(parent)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    mc._parent = parent
+    parent.add_child(mc)
+    var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    parent.add_child(sc)
+
+    var duration_ok: bool = (
+        sc._move_line_timer != null and is_equal_approx(sc._move_line_timer.wait_time, 0.3)
+    )
+    sc._move_line_timer.wait_time = 0.05
+    sc._move_line_timer.start()
+    sc._show_move_line()
+    var alpha: float = sc._line_alpha()
+    var fade_ok := alpha > 0.0 and alpha < 1.0
+
+    sc.free()
+    parent.free()
     (
         TestHelper
         . assert_true(
-            shown and hidden,
-            (
-                "reselect shows line for stationary attacker; deselect hides: reselect "
-                + "attacker line (shown=%s hidden=%s)" % [shown, hidden]
-            ),
+            duration_ok and fade_ok,
+            "move line timer is 0.3s and fades over the tail (alpha=%s)" % alpha,
         )
     )

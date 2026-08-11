@@ -248,3 +248,81 @@ func test_idle_unit_does_not_rewrite_y_on_same_cell():
     entity.free()
     TestHelper.assert_true(unchanged, "idle unit on the same cell does not rewrite y every tick")
     TestHelper.assert_true(re_snapped, "idle unit re-snaps after moving to a new cell")
+
+
+func test_open_terrain_move_uses_greedy_without_find_path():
+    _reset_terrain()
+    var pair: Array = _make_mc()
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    var root: Node = Engine.get_main_loop().root
+    root.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(Vector2i(50, 50))
+    var before: int = Pathfinder.find_path_call_count
+    var target := CellUtil.cell_to_world(Vector2i(60, 50))
+    mc.set_target_position(target)
+    var calls: int = Pathfinder.find_path_call_count - before
+    var reached := mc._waypoints.size() > 1
+    root.remove_child(entity)
+    entity.free()
+    TestHelper.assert_eq(calls, 0, "open-terrain move completes via greedy descent, no find_path")
+    TestHelper.assert_true(reached, "greedy move still produces a waypoint path to the target")
+
+
+func test_concave_pocket_falls_back_to_find_path():
+    _reset_terrain()
+    var pair: Array = _make_mc()
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    var root: Node = Engine.get_main_loop().root
+    root.add_child(entity)
+    # Start inside a U-shaped pocket open to the south; the exit is blocked
+    # north/east/west, so greedy stalls and the A* fallback must escape.
+    var start_cell := Vector2i(50, 50)
+    entity.global_position = CellUtil.cell_to_world(start_cell)
+    var wall_offsets := [
+        Vector2i(0, -1),
+        Vector2i(1, -1),
+        Vector2i(-1, -1),
+        Vector2i(1, 0),
+        Vector2i(-1, 0),
+    ]
+    for offset in wall_offsets:
+        SpatialHash.instance._blocked_cells[CellUtil.cell_key(start_cell + offset)] = true
+    var target := CellUtil.cell_to_world(Vector2i(52, 53))
+    mc.set_target_position(target)
+    var reached: bool = mc._waypoints.size() > 1
+    for offset in wall_offsets:
+        SpatialHash.instance._blocked_cells.erase(CellUtil.cell_key(start_cell + offset))
+    root.remove_child(entity)
+    entity.free()
+    TestHelper.assert_true(
+        reached, "unit trapped in a concave pocket still gets an escape path via find_path fallback"
+    )
+
+
+func test_flyer_greedy_crosses_height_steps():
+    _reset_terrain()
+    var pair: Array = _make_mc()
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    var root: Node = Engine.get_main_loop().root
+    root.add_child(entity)
+    var loco := Locomotor.new()
+    loco.terrain_speeds = {"clear": 1.0}
+    loco.is_fly = true
+    mc._locomotor_data = loco
+    entity.global_position = CellUtil.cell_to_world(Vector2i(50, 50))
+    # Raise a 3-level wall between start and target; a flyer ignores height.
+    for z in range(51, 56):
+        _ts.set_vertex(51, z, 3)
+        _ts.set_vertex(52, z, 3)
+    var before: int = Pathfinder.find_path_call_count
+    var target := CellUtil.cell_to_world(Vector2i(50, 56))
+    mc.set_target_position(target)
+    var calls: int = Pathfinder.find_path_call_count - before
+    var reached := mc._waypoints.size() > 1
+    root.remove_child(entity)
+    entity.free()
+    TestHelper.assert_eq(calls, 0, "flyer greedy crosses height steps without find_path")
+    TestHelper.assert_true(reached, "flyer move reaches the far side of the wall")

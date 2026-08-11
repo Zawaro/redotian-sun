@@ -10,6 +10,13 @@ var hovered_entity: SelectComponent = null
 var _pending_moves: Array[Array] = []
 var _pending_index: int = 0
 var _selection_sync_counter: int = 0
+## Batch-lifetime terrain-cost cache shared across one move order's 8-per-frame
+## drain, so all units in the order read terrain cost data once. Created in
+## `request_move` (the order boundary bumps Pathfinder's world generation).
+var _cost_cache: Pathfinder.PathCostCache = null
+## Batch-lifetime TerrainSystem reference, resolved once per move order so per-unit
+## path resolution never walks the scene tree for the autoload.
+var _terrain: Node = null
 ## Perf-guard counter: "selectable"-group scans by the throttled sync. The
 ## per-frame path must only scan every 6th frame (test/unit/test_perf_guard.gd).
 ## ponytail: only catches scans routed through this scan site.
@@ -222,6 +229,13 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
 
     _pending_moves.clear()
     _pending_index = 0
+    # New order = new world snapshot: bump the generation and start a fresh
+    # batch-lifetime terrain-cost cache for the drain. Resolve the TerrainSystem
+    # reference once per order so per-unit pathing skips the autoload lookup.
+    Pathfinder.bump_world_generation()
+    _cost_cache = Pathfinder.PathCostCache.new()
+    _cost_cache.generation = Pathfinder._world_generation
+    _terrain = Pathfinder._get_terrain_system()
 
     var sharers: Array[SelectComponent] = []
     var vehicles: Array[SelectComponent] = []
@@ -337,7 +351,7 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
         return
     var mc := parent.get_node("MovementController") as MovementController
     if is_instance_valid(mc):
-        mc.set_target_position(position)
+        mc.set_target_position(position, false, false, false, _cost_cache, _terrain)
     var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
     if harvest:
         harvest.cancel_harvest(true)

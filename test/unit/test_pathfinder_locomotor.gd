@@ -259,6 +259,9 @@ func test_cell_height_flat_matches_min_corner():
             for vx in [cell.x, cell.x + 1]:
                 for vz in [cell.y, cell.y + 1]:
                     _ts._vertex_grid[vx][vz] = height
+            # Direct _vertex_grid writes bypass cell_changed; invalidate the
+            # world-lifetime height snapshot so the read sees the new values.
+            _ts.invalidate_height_snapshot()
             var got: float = Pathfinder._cell_height(_ts, cell)
             var expected: float = float(height) * _ts.HEIGHT_STEP
             (
