@@ -17,6 +17,21 @@ var _rebuild_pending := false
 ## `_reconcile()` must never increment it (test/unit/test_perf_guard.gd asserts
 ## this). ponytail: only catches scans routed through these scan sites.
 var perf_group_scans: int = 0
+## Perf-guard counter: cell recomputes (world_to_cell + cell_key) performed by the
+## per-frame `_reconcile()`. Idle, unmoved entries must never increment it
+## (test/unit/test_perf_guard.gd asserts this). ponytail: only catches recomputes
+## routed through the position-changed branch.
+var perf_reconcile_recomputes: int = 0
+## Monotonic grid-generation counter. Bumped on every `rebuild()`, which
+## replaces the `_grid` entry arrays. Consumers caching references to those
+## arrays (MovementController's frame-scoped hood) must invalidate when this
+## changes, or they read stale arrays whose entries may reference freed nodes.
+var grid_generation: int = 0
+## Perf-guard counter: `get_entries` invocations. The movement avoidance scan
+## must fetch the 3×3 hood once per unique cell per frame (not 9× per unit),
+## asserted by test/unit/test_movement_frame_cache.gd. ponytail: test-only
+## instrumentation; a single int increment per call.
+var perf_get_entries_calls: int = 0
 
 
 func _enter_tree() -> void:
@@ -53,6 +68,7 @@ func _physics_process(_delta: float) -> void:
 
 
 func rebuild() -> void:
+    grid_generation += 1
     _grid.clear()
     _blocked_cells.clear()
     _shared_cell_counts.clear()
@@ -98,6 +114,8 @@ func rebuild() -> void:
             "cell_key": key,
             "state": state,
             "shares": shares,
+            "last_x": entity_root.global_position.x,
+            "last_z": entity_root.global_position.z,
         }
         _entry_map[entity_root] = entry
         _add_entry_to_grid(entry, key)
@@ -114,7 +132,9 @@ func rebuild() -> void:
 
 ## Allocation-free drift correction. Reads cached node/MC refs and only mutates
 ## the grid when a cell or state actually changed. No group scans, no node
-## lookups, no per-entity dictionary allocations.
+## lookups, no per-entity dictionary allocations. Entries whose position has not
+## changed since the last reconcile short-circuit on a cached-position compare,
+## skipping the `world_to_cell`/`cell_key` recompute entirely.
 func _reconcile() -> void:
     for entity_root in _entry_map:
         var entry: Dictionary = _entry_map[entity_root]
@@ -125,8 +145,29 @@ func _reconcile() -> void:
         if mc and is_instance_valid(mc):
             state = mc._state
             shares = mc.shares_cell()
-        var key: int = CellUtil.cell_key(CellUtil.world_to_cell(node.global_position))
+        var pos: Vector3 = node.global_position
+        var last_x: float = entry["last_x"]
+        var last_z: float = entry["last_z"]
         var cached_key: int = entry["cell_key"]
+        # Short-circuit: an unchanged position implies an unchanged cell (the only
+        # continuous position writer, MovementController, mutates in place; spawn
+        # and Deploy set position before add_child, which triggers a rebuild).
+        # Unchanged position + unchanged state/shares => nothing to reconcile.
+        if (
+            pos.x == last_x
+            and pos.z == last_z
+            and state == entry["state"]
+            and shares == entry["shares"]
+        ):
+            continue
+        var key: int
+        if pos.x == last_x and pos.z == last_z:
+            key = cached_key
+        else:
+            key = CellUtil.cell_key(CellUtil.world_to_cell(pos))
+            perf_reconcile_recomputes += 1
+        entry["last_x"] = pos.x
+        entry["last_z"] = pos.z
         if key == cached_key and state == entry["state"] and shares == entry["shares"]:
             continue
         var was_blocking: bool = (
@@ -188,6 +229,7 @@ func _has_blocking_entity(key: int) -> bool:
 
 
 func get_entries(cell: Vector2i) -> Array:
+    perf_get_entries_calls += 1
     return _grid.get(CellUtil.cell_key(cell), [])
 
 

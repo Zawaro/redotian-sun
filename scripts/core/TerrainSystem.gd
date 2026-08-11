@@ -30,6 +30,12 @@ var _height_snapshot: Dictionary = {}
 ## (e.g. MovementController's per-frame height memo) can detect terrain changes.
 var height_snapshot_generation: int = 0
 
+## Perf-guard counter: `get_land_type` invocations. The movement hot path must
+## resolve land type once per cell per frame via the MovementController frame
+## cache, asserted by test/unit/test_movement_frame_cache.gd. ponytail: test-only
+## instrumentation; a single int increment per call.
+var land_type_query_count: int = 0
+
 var _corner_to_dir: Array[String] = ["west", "north", "south", "east"]
 
 ## Catalog slope tile families (TS slope01/05/09/13/17 + hand-authored saddle2).
@@ -259,6 +265,7 @@ func get_cell_type(cell: Vector2i) -> String:
 ## (derived from the SpatialHash registry, so it tracks growth and harvest);
 ## otherwise the painted overlay applies, defaulting to "clear".
 func get_land_type(cell: Vector2i) -> String:
+    land_type_query_count += 1
     if SpatialHash.instance and SpatialHash.instance.has_resource_cell(cell):
         return RESOURCE_LAND_TYPE
     return _land_types.get(CellUtil.cell_key(cell), DEFAULT_LAND_TYPE)
