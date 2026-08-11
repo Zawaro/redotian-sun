@@ -437,6 +437,7 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
         if entity and _is_fog_visible(entity):
             _hover_miss_count = 0
             _hovered_entity = entity
+            selection_manager.clear_hover_preview()
             return
 
     _hover_miss_count += 1
