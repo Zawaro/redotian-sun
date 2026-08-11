@@ -11,10 +11,36 @@ const BUS_MUSIC: String = "Music"
 const BUS_SFX: String = "SFX"
 const BUS_VOICE: String = "Voice"
 const REQUIRED_BUSES: Array[String] = [BUS_MASTER, BUS_MUSIC, BUS_SFX, BUS_VOICE]
+## Hard cap on concurrent copies of one sound id; past this the oldest copy is dropped.
+const MAX_STACK_PER_ID: int = 12
+## Skip starting a sound id that already played within this window. Kills the
+## density wall from high-ROF weapons (M1 carbine at 20/s × 20 units = 400
+## spawns/s): stacked fire then sounds like a single weapon.
+## ponytail: retrigger knob, tune from playtesting.
+const RETRIGGER_INTERVAL_MS: float = 100.0
+## Master bus compressor — gentle, pulls the whole mix down only when it gets
+## busy, before the hard limiter (docs-recommended chain). Makeup gain
+## restores the compressed level so loud transients sit back at the ceiling.
+## ponytail: knobs, tune from playtesting.
+const MASTER_COMPRESSOR_THRESHOLD_DB: float = -18.0
+const MASTER_COMPRESSOR_RATIO: float = 2.0
+const MASTER_COMPRESSOR_GAIN_DB: float = 8.0
+## Master bus hard limiter — final ceiling below 0 dB so the mixed output can never clip.
+## ponytail: ceiling knob, tune from playtesting.
+const MASTER_LIMIT_CEILING_DB: float = -1.0
+## SFX bus hard limiter — reels in busy combat stacks above the threshold.
+const SFX_LIMIT_CEILING_DB: float = -1.0
+## Voice bus compressor — keeps stacked voice lines at consistent volume.
+const VOICE_COMPRESSOR_THRESHOLD_DB: float = -18.0
+const VOICE_COMPRESSOR_RATIO: float = 2.0
+const VOICE_COMPRESSOR_GAIN_DB: float = 8.0
 
 var _audio_cache: Dictionary = {}
 var _voice_cache: Dictionary = {}
 var _data_sets: Array[String] = []
+var _active_players_by_id: Dictionary = {}
+var _active_players_by_bus: Dictionary = {}
+var _last_played_at: Dictionary = {}
 
 
 func _ready() -> void:
@@ -27,6 +53,53 @@ func _ensure_buses() -> void:
         if AudioServer.get_bus_index(bus_name) == -1:
             AudioServer.add_bus()
             AudioServer.set_bus_name(AudioServer.bus_count - 1, bus_name)
+    _ensure_bus_effects()
+
+
+## Install the loudness-ceiling effects once per bus. Idempotent: a bus that
+## already carries an effect of the same class is left untouched. Master chain
+## is compressor → hard limiter (docs recommendation: compress before the
+## limiter's ceiling so the limiter stays subtle).
+func _ensure_bus_effects() -> void:
+    _add_bus_effect_if_missing(
+        BUS_MASTER,
+        _make_compressor(
+            MASTER_COMPRESSOR_THRESHOLD_DB, MASTER_COMPRESSOR_RATIO, MASTER_COMPRESSOR_GAIN_DB
+        ),
+    )
+    _add_bus_effect_if_missing(BUS_MASTER, _make_limiter(MASTER_LIMIT_CEILING_DB))
+    _add_bus_effect_if_missing(BUS_SFX, _make_limiter(SFX_LIMIT_CEILING_DB))
+    _add_bus_effect_if_missing(
+        BUS_VOICE,
+        _make_compressor(
+            VOICE_COMPRESSOR_THRESHOLD_DB, VOICE_COMPRESSOR_RATIO, VOICE_COMPRESSOR_GAIN_DB
+        ),
+    )
+
+
+func _add_bus_effect_if_missing(bus_name: String, effect: AudioEffect) -> void:
+    var bus_idx := AudioServer.get_bus_index(bus_name)
+    if bus_idx == -1:
+        return
+    for effect_idx in AudioServer.get_bus_effect_count(bus_idx):
+        var existing: AudioEffect = AudioServer.get_bus_effect(bus_idx, effect_idx)
+        if existing.get_class() == effect.get_class():
+            return
+    AudioServer.add_bus_effect(bus_idx, effect)
+
+
+func _make_compressor(threshold_db: float, ratio: float, gain_db: float) -> AudioEffect:
+    var effect := AudioEffectCompressor.new()
+    effect.threshold = threshold_db
+    effect.ratio = ratio
+    effect.gain = gain_db
+    return effect
+
+
+func _make_limiter(ceiling_db: float) -> AudioEffect:
+    var effect := AudioEffectHardLimiter.new()
+    effect.ceiling_db = ceiling_db
+    return effect
 
 
 func register_data_set(path: String) -> void:
@@ -78,11 +151,24 @@ func play_sound(id: String, position: Vector3 = Vector3.INF) -> void:
         push_warning("AudioManager: Failed to load audio stream for id %s: %s" % [id, audio.path])
         return
 
+    var now_ms := Time.get_ticks_msec()
+    if now_ms - (_last_played_at.get(id, -1) as int) < RETRIGGER_INTERVAL_MS:
+        return
+    _last_played_at[id] = now_ms
+
+    var active := _active_players_by_id.get(id, []) as Array
+    if active.size() >= MAX_STACK_PER_ID:
+        var oldest := active.pop_front() as Node
+        if is_instance_valid(oldest):
+            oldest.call("stop")
+            oldest.queue_free()
+        _untrack_player(id, oldest)
+    _active_players_by_id[id] = active
+
     var spatial := audio.is_spatial and position != Vector3.INF
     if spatial:
         var player := AudioStreamPlayer3D.new()
         player.stream = stream
-        player.volume_db = audio.volume_db
         player.bus = audio.bus
         player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
         add_child(player)
@@ -99,19 +185,19 @@ func play_sound(id: String, position: Vector3 = Vector3.INF) -> void:
                 position, viewport_rect, _listener_position()
             )
         player.play()
-        player.finished.connect(func() -> void: player.queue_free())
+        _track_player(id, player, active)
     else:
         var player := AudioStreamPlayer.new()
         player.stream = stream
-        player.volume_db = audio.volume_db
         player.bus = audio.bus
         add_child(player)
         player.play()
-        player.finished.connect(func() -> void: player.queue_free())
+        _track_player(id, player, active)
 
 
-## Voice playback is commander radio chatter: always centered on the camera at
-## full volume, regardless of where the speaking unit is in the world.
+## Voice playback is commander radio chatter, always centered on the camera.
+## It routes through play_sound, so stacked identical voices share the same
+## loudness budget as any other stacked sound.
 func play_voice(voice_id: String, event_name: String) -> void:
     var voice := get_voice_data(voice_id)
     if not voice:
@@ -122,6 +208,55 @@ func play_voice(voice_id: String, event_name: String) -> void:
         return
     var chosen := variants[randi() % variants.size()]
     play_sound(chosen, _listener_position())
+
+
+## Track a new copy on its bus. The whole bus stack is rebalanced so N
+## concurrent copies — same or different ids — share one copy's loudness
+## budget (each at -20·log10(N) dB).
+func _track_player(id: String, player: Node, active: Array) -> void:
+    active.append(player)
+    var audio := get_audio_data(id)
+    player.set_meta("stack_base_db", audio.volume_db)
+    var bus_players := _active_players_by_bus.get(audio.bus, []) as Array
+    bus_players.append(player)
+    _active_players_by_bus[audio.bus] = bus_players
+    _renormalize_bus(bus_players)
+    player.connect("finished", _on_player_finished.bind(id, player))
+
+
+## Scale every active copy on a bus by the bus's total concurrent count, so a
+## stacked mix — across ids — sums to exactly one instance's loudness.
+func _renormalize_bus(bus_players: Array) -> void:
+    var count: int = bus_players.size()
+    if count == 0:
+        return
+    var stack_db: float = linear_to_db(1.0 / float(count))
+    for player: Node in bus_players:
+        var base_db: float = player.get_meta("stack_base_db", 0.0) as float
+        player.set("volume_db", base_db + stack_db)
+
+
+## Remove a copy from its bus stack and rebalance the survivors.
+func _untrack_player(id: String, player: Node) -> void:
+    var audio := get_audio_data(id)
+    if not audio or not is_instance_valid(player):
+        return
+    var bus_players := _active_players_by_bus.get(audio.bus, []) as Array
+    bus_players.erase(player)
+    if bus_players.is_empty():
+        _active_players_by_bus.erase(audio.bus)
+    else:
+        _renormalize_bus(bus_players)
+
+
+func _on_player_finished(id: String, player: Node) -> void:
+    _untrack_player(id, player)
+    if is_instance_valid(player):
+        player.queue_free()
+    var active := _active_players_by_id.get(id, []) as Array
+    active.erase(player)
+    if active.is_empty():
+        _active_players_by_id.erase(id)
 
 
 ## World-space viewport footprint: the 4 screen corners unprojected to the
