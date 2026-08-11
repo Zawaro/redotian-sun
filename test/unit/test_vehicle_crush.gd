@@ -203,3 +203,48 @@ func test_empty_cell_returns_no_crushables():
     TestHelper.assert_true(
         result.size() == 0, "empty cell returns no crushables: expected 0, got %d" % result.size()
     )
+
+
+## A crusher with an unresolved player id (-1) must not crush anyone — a stale
+## _player_id (e.g. DeployComponent setting player_id after add_child) previously
+## made is_enemy(-1, friendly) true, killing friendlies.
+func test_unknown_query_player_crushes_nothing():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _cleanup_entries()
+    var cell := Vector2i(10, 10)
+    _make_infantry_entry(cell, 0, true)  # friendly crushable infantry
+    var result: Array = _sh.get_crushable_enemies_on_cell(cell, -1)
+    _cleanup_entries()
+    (
+        TestHelper
+        . assert_true(
+            result.size() == 0,
+            (
+                "get_crushable_enemies with player_id -1 crushes nothing: "
+                + "expected 0, got %d" % result.size()
+            ),
+        )
+    )
+
+
+## An unknown-id crusher must path around infantry cells rather than drive over
+## friendlies (get_crusher_blocking_cells treats them as blocking).
+func test_unknown_query_player_blocks_friendly_cell():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _cleanup_entries()
+    var cell := Vector2i(10, 10)
+    _make_infantry_entry(cell, 0, true)  # friendly crushable infantry
+    var result: Dictionary = _sh.get_crusher_blocking_cells(-1)
+    _cleanup_entries()
+    var key: int = CellUtil.cell_key(cell)
+    (
+        TestHelper
+        . assert_true(
+            result.has(key),
+            "get_crusher_blocking_cells with player_id -1 treats infantry " + "cell as blocking",
+        )
+    )
