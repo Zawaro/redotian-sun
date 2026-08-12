@@ -578,3 +578,32 @@ func test_reconcile_query_parity_with_rebuild():
     TestHelper.assert_eq(
         reconciled_size, rebuilt_size, "reconcile and rebuild agree on entry count at moved cell"
     )
+
+
+## Regression (#295): a queue_free()'d entity stays in the global "entities"
+## group until a frame tick, and rebuild() scans that group. Rebuild must skip
+## entities pending deletion so dying units don't pollute the grid.
+func test_rebuild_skips_queued_for_deletion_entities():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entity := _make_grid_entity("Doomed")
+    _sh.add_child(entity)
+    var cell := CellUtil.world_to_cell(entity.global_position)
+    entity.queue_free()
+    _sh.rebuild()
+    var count: int = _sh.get_shared_cell_count(cell)
+    var blocked: bool = _sh.is_cell_blocked(cell)
+    (
+        TestHelper
+        . assert_eq(
+            count,
+            0,
+            "queued-for-deletion entity is not counted in shared cells (got %s)" % count,
+        )
+    )
+    TestHelper.assert_true(not blocked, "queued-for-deletion entity does not block its cell")

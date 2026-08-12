@@ -95,7 +95,7 @@ func rebuild() -> void:
         var entity_root := entity as Node3D
         if not entity_root:
             entity_root = entity.get_parent() as Node3D
-        if not is_instance_valid(entity_root):
+        if not is_instance_valid(entity_root) or entity_root.is_queued_for_deletion():
             continue
         var mc := entity_root.get_node_or_null("MovementController") as MovementController
         var stats := entity_root.get_node_or_null("StatsComponent") as StatsComponent
