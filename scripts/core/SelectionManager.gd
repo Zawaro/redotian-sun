@@ -1,11 +1,17 @@
 extends Node
 
 signal selection_changed(selected_entities: Array[SelectComponent])
-signal hover_changed(entity: SelectComponent)
+signal hover_changed(entity: Node3D)
+
+const SHROUD_LABEL := "UNREVEALED TERRAIN"
 
 var selected_entities: Array[SelectComponent] = []
 var is_hovering: bool = false
 var hovered_entity: SelectComponent = null
+## Hovered entity regardless of selectability (units, structures, resources).
+var hovered_node: Node3D = null
+## Fixed tooltip label for hover states without an entity (e.g. shrouded cells).
+var hover_label_override: String = ""
 
 var _pending_moves: Array[Array] = []
 var _pending_index: int = 0
@@ -169,24 +175,47 @@ func set_hover_preview(enabled: bool, entity: SelectComponent = null):
 
     is_hovering = enabled
 
-    var cleared := false
     if hovered_entity and is_instance_valid(hovered_entity) and hovered_entity != entity:
         hovered_entity.set_is_hovering(false)
-        hovered_entity = null
-        cleared = true
-
-    if enabled and entity and is_instance_valid(entity):
-        hovered_entity = entity
+    hovered_entity = entity if (enabled and entity and is_instance_valid(entity)) else null
+    if is_instance_valid(hovered_entity):
         hovered_entity.set_is_hovering(true)
-        hover_changed.emit(entity)
-    elif cleared:
-        # Notify consumers (SelectionOverlay) so their tracked hovered ref is
-        # dropped instead of lingering until the next selection/hover event.
-        hover_changed.emit(null)
+    _emit_hover(hovered_entity.get_parent() as Node3D if hovered_entity else null)
+
+
+## Hover over a non-selectable entity (resources, dock hosts): sets the generic
+## hover node without touching selectable selection state.
+func set_hover_node(node: Node3D):
+    if node == hovered_node and hover_label_override.is_empty():
+        return
+    if is_instance_valid(hovered_entity):
+        hovered_entity.set_is_hovering(false)
+        hovered_entity = null
+    _emit_hover(node if is_instance_valid(node) else null)
+    is_hovering = is_instance_valid(hovered_node)
+
+
+## Hover over a shrouded cell: no entity, but the tooltip shows the shroud label.
+func set_hover_shroud():
+    if hovered_node == null and hover_label_override == SHROUD_LABEL:
+        return
+    if is_instance_valid(hovered_entity):
+        hovered_entity.set_is_hovering(false)
+        hovered_entity = null
+    hovered_node = null
+    hover_label_override = SHROUD_LABEL
+    is_hovering = true
+    hover_changed.emit(null)
 
 
 func clear_hover_preview():
     set_hover_preview(false, null)
+
+
+func _emit_hover(node: Node3D):
+    hovered_node = node
+    hover_label_override = ""
+    hover_changed.emit(node)
 
 
 func request_move(target_position: Vector3, skip_formation: bool = false) -> void:

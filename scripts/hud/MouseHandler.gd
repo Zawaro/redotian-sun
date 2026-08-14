@@ -384,6 +384,16 @@ func _is_fog_visible(target: Node3D) -> bool:
     return ShroudSystem.is_entity_revealed_to_local(target)
 
 
+## True when the ground cell under the cursor is not revealed (shroud/fog).
+func _is_hovering_shrouded() -> bool:
+    if not ShroudSystem.is_shroud_enabled():
+        return false
+    var ground := _get_ground_position_at_mouse()
+    if ground == Vector3.INF:
+        return false
+    return not ShroudSystem.is_cell_visible_to_local(CellUtil.world_to_cell(ground))
+
+
 ## Walk up the node tree to find the entity root (first Node3D parent with components).
 func _find_entity_parent(node: Node) -> Node3D:
     while is_instance_valid(node):
@@ -437,13 +447,16 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
         if entity and _is_fog_visible(entity):
             _hover_miss_count = 0
             _hovered_entity = entity
-            selection_manager.clear_hover_preview()
+            selection_manager.set_hover_node(entity)
             return
 
     _hover_miss_count += 1
     if _hover_miss_count > 3:
-        selection_manager.clear_hover_preview()
         _hover_miss_count = 0
+        if _is_hovering_shrouded():
+            selection_manager.set_hover_shroud()
+        else:
+            selection_manager.clear_hover_preview()
         _hovered_entity = null
 
 

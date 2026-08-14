@@ -90,6 +90,14 @@ func test_unit_hover_preview_clears_on_resource_takeover() -> void:
             "SelectionManager drops the hovered unit when hover moves onto a resource",
         )
     )
+    var same_node: bool = _sm.hovered_node == (res["entity"] as Node3D)
+    (
+        TestHelper
+        . assert_true(
+            same_node,
+            "SelectionManager tracks the resource as the hovered node (tooltip target)",
+        )
+    )
 
     _sm.clear_hover_preview()
     _sm.deselect_all()
@@ -99,3 +107,38 @@ func test_unit_hover_preview_clears_on_resource_takeover() -> void:
     var rules := setup["rules"] as GlobalRules
     rules.shroud_enabled = setup["saved_shroud"]
     rules.fog_of_war = setup["saved_fog"]
+
+
+func test_shroud_hover_detection_follows_rules() -> void:
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var setup := _setup_world()
+    var cam := setup["cam"] as Camera3D
+    var mouse := MouseHandler.new()
+    mouse.selection_manager = _sm
+    mouse.camera_controller = setup["cc"]
+    var rules := setup["rules"] as GlobalRules
+
+    rules.shroud_enabled = true
+    (
+        TestHelper
+        . assert_true(
+            mouse._is_hovering_shrouded(),
+            "with shroud enabled, unrevealed ground under the cursor is reported shrouded",
+        )
+    )
+
+    rules.shroud_enabled = false
+    (
+        TestHelper
+        . assert_true(
+            not mouse._is_hovering_shrouded(),
+            "with shroud disabled, ground under the cursor is not reported shrouded",
+        )
+    )
+
+    rules.shroud_enabled = setup["saved_shroud"]
+    rules.fog_of_war = setup["saved_fog"]
+    mouse.free()
+    (setup["cc"] as Node).free()

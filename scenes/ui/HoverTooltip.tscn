@@ -1,0 +1,30 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/HoverTooltip.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tooltip"]
+content_margin_left = 2.0
+content_margin_right = 2.0
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.6, 1, 0.6, 1)
+
+[sub_resource type="SystemFont" id="SystemFont_tooltip"]
+font_names = PackedStringArray("Noto Sans", "Arial", "Helvetica", "DejaVu Sans", "sans-serif")
+font_weight = 500
+
+[node name="HoverTooltip" type="PanelContainer"]
+visible = false
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tooltip")
+script = ExtResource("1_script")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.6, 1, 0.6, 1)
+theme_override_fonts/font = SubResource("SystemFont_tooltip")
+theme_override_font_sizes/font_size = 16
