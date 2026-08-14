@@ -70,7 +70,7 @@ func _on_selection_changed(selected: Array[SelectComponent]):
     _rebuild_tracked(selected)
 
 
-func _on_hover_changed(_h: SelectComponent):
+func _on_hover_changed(_h: Node3D):
     var selected: Array[SelectComponent] = (
         _selection_manager.selected_entities if _selection_manager else []
     )

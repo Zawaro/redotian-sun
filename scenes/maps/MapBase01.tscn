@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://ce077cqvy5f6p"]
+[gd_scene load_steps=13 format=3 uid="uid://ce077cqvy5f6p"]
 
 [ext_resource type="PackedScene" uid="uid://b53rjho7dyptw" path="res://scenes/hud/Camera01.tscn" id="1_uw0ss"]
 [ext_resource type="PackedScene" uid="uid://c0blgqnig6dyh" path="res://scenes/hud/MouseHandler.tscn" id="2_cuur3"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/environment/LightingControls.gd" id="11_light"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DebugMenu.tscn" id="12_debug"]
 [ext_resource type="PackedScene" path="res://scenes/ui/PauseMenu.tscn" id="13_pause"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HoverTooltip.tscn" id="14_tooltip"]
 
 [node name="MapBase01" type="Node3D"]
 
@@ -42,3 +43,5 @@ script = ExtResource("11_light")
 [node name="DebugMenu" parent="HUD" instance=ExtResource("12_debug")]
 
 [node name="PauseMenu" parent="HUD" instance=ExtResource("13_pause")]
+
+[node name="HoverTooltip" parent="HUD" instance=ExtResource("14_tooltip")]
