@@ -81,9 +81,11 @@ func _process(delta: float) -> void:
     var credits_to_add := int(_credit_accumulator)
     _credit_accumulator -= float(credits_to_add)
     if credits_to_add > 0 and _economy_manager:
-        # ponytail: single-player shortcut — credits go to local player.
-        # Needs entity ownership tracking for multiplayer.
-        _economy_manager.add(PlayerManager.get_local_player_id(), credits_to_add, "harvest")
+        var owner_id := PlayerManager.get_local_player_id()
+        var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+        if stats and stats.player_id >= 0:
+            owner_id = stats.player_id
+        _economy_manager.add(owner_id, credits_to_add, "harvest")
 
     if transport.get_cargo_total() <= 0.0:
         dock.leave_dock(docker_node)
