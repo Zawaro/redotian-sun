@@ -18,6 +18,15 @@ signal weapon_fired(weapon: WeaponData, target: Node3D)
 ## World-space separation at which airborne attackers stop nudging each other.
 const MIN_AIR_SEPARATION: float = 1.5
 
+## Minimum seconds between chase re-plans; bounds re-plan cost to the enemy's
+## actual motion rate (#284 budget) and stops target jitter from oscillating
+## a MOVING leg.
+const CHASE_REPLAN_MIN_INTERVAL: float = 0.15
+
+## Backoff after a failed chase path, so an unreachable target does not retry
+## pathfinding every physics tick.
+const CHASE_RETRY_BACKOFF: float = 0.5
+
 @export_group("Combat")
 @export var weapons: Array[WeaponData] = []
 @export var elite_weapons: Array[WeaponData] = []
@@ -33,6 +42,13 @@ var _mc_connected: bool = false
 var _combat_move: bool = false
 var _connected_health_target: Node3D = null
 var _fire_count: int = 0
+## Grid cell of the target when the current chase leg was planned. A leg is
+## stale the moment the target leaves this cell, so the chase can re-plan
+## obstacle-aware instead of walking a straight line through new blockers.
+var _chase_leg_enemy_cell: Vector2i = Vector2i.ZERO
+var _last_chase_replan_time: float = 0.0
+var _chase_retry_after: float = 0.0
+var _logged_unreachable: Node3D = null
 
 
 func configure(data: EntityData) -> void:
@@ -85,6 +101,8 @@ func get_target() -> Node3D:
 func set_target(entity: Node3D) -> void:
     _target = entity
     _attack_active = true
+    _chase_retry_after = 0.0
+    _logged_unreachable = null
     _connect_mc_signal()
     _connect_health_signal()
     var mc := get_parent().get_node_or_null("MovementController") as MovementController
@@ -100,6 +118,7 @@ func clear_target() -> void:
     _disconnect_health_signal()
     _target = null
     _attack_active = false
+    _logged_unreachable = null
 
 
 func validate(data: EntityData) -> PackedStringArray:
@@ -217,7 +236,7 @@ func _move_toward_target(force: bool = false) -> void:
     var mc := entity.get_node_or_null("MovementController") as MovementController
     if not mc:
         return
-    if not force and mc.is_moving():
+    if not force and not _should_replan(mc):
         return
     var weapon := get_current_weapon()
     if not weapon:
@@ -250,7 +269,15 @@ func _move_toward_target(force: bool = false) -> void:
             _target.global_position
             - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
         )
+        # A chase stop can land inside a building footprint when the enemy hugs
+        # a wall: relocate to the nearest passable cell so the destination is
+        # never blocked before the move is even issued.
+        stop_pos = CellUtil.cell_to_world(
+            mc.find_nearest_free_cell(CellUtil.world_to_cell(stop_pos))
+        )
     _combat_move = true
+    _chase_leg_enemy_cell = CellUtil.world_to_cell(_target.global_position)
+    _last_chase_replan_time = _now()
     mc.set_target_position(stop_pos, false, true)
 
 
@@ -340,3 +367,33 @@ func _on_pathfinding_failed() -> void:
     # A failed move never emits movement_started, so clear the combat-approach
     # flag here to avoid it consuming a later move order's signal.
     _combat_move = false
+    _chase_retry_after = _now() + CHASE_RETRY_BACKOFF
+    if is_instance_valid(_target) and _logged_unreachable != _target:
+        _logged_unreachable = _target
+        push_warning(
+            (
+                "[CombatComponent] chase pathfinding failed; target unreachable (retry in %.2fs)"
+                % CHASE_RETRY_BACKOFF
+            )
+        )
+
+
+## Whether a fresh approach move may be issued right now. Always true when the
+## controller is idle or waiting; for a real MOVING/ROTATING leg only when the
+## target has left the cell the leg was planned against (stale geometry) and the
+## re-plan throttle has elapsed. False during the failed-path retry backoff.
+func _should_replan(mc: MovementController) -> bool:
+    var now := _now()
+    if now < _chase_retry_after:
+        return false
+    if not is_instance_valid(_target):
+        return false
+    if not mc.is_moving() or mc.is_waiting():
+        return true
+    if now - _last_chase_replan_time < CHASE_REPLAN_MIN_INTERVAL:
+        return false
+    return CellUtil.world_to_cell(_target.global_position) != _chase_leg_enemy_cell
+
+
+func _now() -> float:
+    return Time.get_ticks_msec() / 1000.0
