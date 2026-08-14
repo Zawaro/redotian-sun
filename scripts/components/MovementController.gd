@@ -481,7 +481,7 @@ func set_target_position(
             # Never fly into an occupied landing cell: relocate up front, like
             # the ground branch, before booking so arrival is clean.
             if _is_cell_occupied_by_idle(target_cell):
-                var free := _find_nearest_free_cell(target_cell)
+                var free := _find_nearest_free_idle_cell(target_cell)
                 target = CellUtil.cell_to_world(free)
                 target_cell = free
             _assign_sub_slot_at_cell(target_cell)
@@ -498,7 +498,7 @@ func set_target_position(
     else:
         # Ground move: normal infantry booking, then walk pathfinding.
         if _is_cell_occupied_by_idle(target_cell):
-            var free := _find_nearest_free_cell(target_cell)
+            var free := _find_nearest_free_idle_cell(target_cell)
             target = CellUtil.cell_to_world(free)
             target_cell = free
         if _shares_cell:
@@ -860,7 +860,7 @@ func _handle_moving_movement(delta: float) -> void:
             if _is_jumpjet:
                 # A jumpjet can fly: don't freeze waiting for the cell to clear,
                 # glide to the nearest free cell instead (keeping its zone intent).
-                var free_cell := _find_nearest_free_cell(final_cell)
+                var free_cell := _find_nearest_free_idle_cell(final_cell)
                 set_target_position(
                     CellUtil.cell_to_world(free_cell), false, not _land_on_arrival, true
                 )
@@ -937,7 +937,7 @@ func _handle_wait(delta: float) -> void:
         _wait_time = 0.0
         _scatter_blockers()
         var target_cell := CellUtil.world_to_cell(_waypoints[_waypoints.size() - 1])
-        var free_cell := _find_nearest_free_cell(target_cell)
+        var free_cell := _find_nearest_free_idle_cell(target_cell)
         # Keep the move's zone intent: an attack hold stays airborne, a landing
         # move still lands.
         set_target_position(
@@ -1133,13 +1133,18 @@ func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
 ## Nearest passable cell to `cell`: the cell itself when passable, otherwise a
 ## spiral search for the closest free cell. Considers blocked cells, building
 ## footprints, and present units. Public for chasing destinations
-## (CombatComponent) that must never aim into a blocked or building cell.
+## (CombatComponent) that must never aim into a blocked or building cell. Falls
+## back to the unit's own cell (always passable) when the radius is exhausted,
+## so it never returns a blocked destination.
 func find_nearest_free_cell(cell: Vector2i) -> Vector2i:
     if _is_destination_clear(cell):
         return cell
-    return CellUtil.spiral_first_free(
+    var free := CellUtil.spiral_first_free(
         cell, 4, func(c: Vector2i) -> bool: return not _is_destination_clear(c)
     )
+    if _is_destination_clear(free):
+        return free
+    return CellUtil.world_to_cell(_parent.global_position)
 
 
 func _is_destination_clear(cell: Vector2i) -> bool:
@@ -1149,11 +1154,14 @@ func _is_destination_clear(cell: Vector2i) -> bool:
     if SpatialHash.instance._grid.has(key):
         for entry in SpatialHash.instance._grid[key]:
             if entry.node != _parent:
+                var entry_mc := entry.mc as MovementController
+                if _shares_cell and entry_mc and entry_mc.shares_cell():
+                    continue
                 return false
     return true
 
 
-func _find_nearest_free_cell(cell: Vector2i) -> Vector2i:
+func _find_nearest_free_idle_cell(cell: Vector2i) -> Vector2i:
     return CellUtil.spiral_first_free(cell, 4, _is_cell_occupied_by_idle)
 
 
@@ -1213,7 +1221,7 @@ func nudge_from_cell(blocking_cell: Vector2i) -> bool:
     for entry in entries:
         var mc := entry.mc as MovementController
         if mc and mc._state == State.IDLE:
-            var free := _find_nearest_free_cell(blocking_cell)
+            var free := _find_nearest_free_idle_cell(blocking_cell)
             mc.set_target_position(
                 CellUtil.cell_to_world(free), false, mc.is_airborne_jumpjet(), true
             )
