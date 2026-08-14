@@ -53,19 +53,18 @@ func _on_hover_changed(_entity: Node3D):
     if label.is_empty():
         visible = false
         return
-    if visible:
-        _set_text(label)
-        reset_size()
-        _move_to_cursor()
-    else:
-        _pending_label = label
-        _delay_timer.start()
+    _pending_label = label
+    _delay_timer.start()
 
 
 func _on_delay_timeout():
     if _pending_label.is_empty():
         return
-    _set_text(_pending_label)
+    _show(_pending_label)
+
+
+func _show(label: String):
+    _set_text(label)
     reset_size()
     _move_to_cursor()
     visible = true

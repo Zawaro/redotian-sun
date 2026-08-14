@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Show a hover tooltip over world entities, resources, and shrouded cells in the RTS viewport, reusing the existing `SelectionManager` hover state with no additional per-frame raycasts.
+
+## Requirements
 
 ### Requirement: Tooltip shown on hover over selectable entities
 When the local player hovers the cursor over a selectable world entity (unit or structure) that is revealed to the local player, the game SHALL display a hover tooltip. The tooltip SHALL follow the cursor position while hovering and SHALL disappear when hover clears (mouse leaves the entity) or when the cursor moves over sidebar/debug UI. Hover detection SHALL reuse the existing `SelectionManager` hover state — no additional per-frame raycasts.
@@ -16,7 +20,7 @@ When the local player hovers the cursor over a selectable world entity (unit or 
 - **THEN** the tooltip SHALL hide even if the previous hover target is unchanged
 
 ### Requirement: Tooltip appears after a hover delay
-The tooltip SHALL appear only after the cursor has hovered the same target continuously for 0.5 seconds. Moving the cursor SHALL reset the delay: a pending tooltip restarts its countdown, and a visible tooltip SHALL hide and stay hidden until the restarted delay lapses. It SHALL hide immediately when hover clears, and a new target SHALL restart the delay. The delay SHALL apply to every tooltip target (entities, resources, shrouded cells). Once the tooltip is visible, moving onto a different target SHALL keep it visible and SHALL update its content to the new target immediately — the tooltip SHALL NOT flicker (hide and re-show) when switching targets.
+The tooltip SHALL appear only after the cursor has hovered the same target continuously for 0.5 seconds. Moving the cursor SHALL reset the delay: a pending tooltip restarts its countdown, and a visible tooltip SHALL hide and stay hidden until the restarted delay lapses. It SHALL hide immediately when hover clears, and a new target SHALL restart the delay. The delay SHALL apply to every tooltip target (entities, resources, shrouded cells). Re-hovering a target after hover cleared SHALL re-arm the delay and show the tooltip again once it lapses.
 
 #### Scenario: Delay before first appearance
 - **WHEN** the cursor hovers a target and then stops
@@ -34,9 +38,9 @@ The tooltip SHALL appear only after the cursor has hovered the same target conti
 - **WHEN** hover clears before the 0.5-second delay lapses
 - **THEN** the tooltip SHALL remain hidden
 
-#### Scenario: Visible tooltip tracks a new target without flicker
-- **WHEN** the tooltip is visible and the cursor moves onto a different target
-- **THEN** the tooltip SHALL remain visible and SHALL show the new target's label immediately
+#### Scenario: Tooltip reappears on the same target after hover clears
+- **WHEN** hover clears (e.g. the cursor passes over the sidebar) and the cursor later hovers the same target again
+- **THEN** the tooltip SHALL re-arm the delay and SHALL show the target's label once the delay lapses
 
 ### Requirement: Friendly and neutral entities show their real name
 For an entity owned by the local player (friendly), the tooltip SHALL display the entity's real `display_name`. For a neutral entity (different player, same team, or ownerless with `player_id == -1`), the tooltip SHALL also display the real `display_name`.

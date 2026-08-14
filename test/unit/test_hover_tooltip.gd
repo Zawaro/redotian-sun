@@ -84,6 +84,7 @@ func test_neutral_shows_real_name() -> void:
         TestHelper.fail("PlayerManager not injected")
         return
     var neutral: PlayerData = _pm.get_player_data(2)
+    var saved_team_id: int = neutral.team_id
     neutral.team_id = 1
     var entity := _make_entity("Friendly Faction Unit", 2, EntityData.EntityType.VEHICLE)
     var label := HOVER_TOOLTIP_SCRIPT.resolve_label(entity) as String
@@ -95,6 +96,7 @@ func test_neutral_shows_real_name() -> void:
             "same-team other-player (neutral) entity shows its real display name",
         )
     )
+    neutral.team_id = saved_team_id
     entity.free()
 
 
@@ -285,33 +287,37 @@ func test_show_hide_on_hover_changed() -> void:
     fixture["entity"].free()
 
 
-func test_target_change_swaps_without_flicker() -> void:
+func test_reappears_on_same_entity_after_sidebar_detour() -> void:
     if _sm == null:
         TestHelper.fail("SelectionManager not injected")
         return
     var tooltip := _make_tooltip()
-    var rifle := _make_selectable("Rifleman", 0, EntityData.EntityType.INFANTRY)
-    var tank := _make_selectable("Mammoth Tank", 0, EntityData.EntityType.VEHICLE)
-    var label: Label = tooltip.get_node("Label") as Label
-    _sm.set_hover_preview(true, rifle["select_comp"] as SelectComponent)
+    var fixture := _make_selectable("Rifleman", 0, EntityData.EntityType.INFANTRY)
+    var select_comp := fixture["select_comp"] as SelectComponent
+    _sm.set_hover_preview(true, select_comp)
     tooltip._on_delay_timeout()
-    TestHelper.assert_eq(label.text, "RIFLEMAN", "first target shown after the delay")
-    _sm.set_hover_preview(true, tank["select_comp"] as SelectComponent)
-    TestHelper.assert_true(
-        tooltip.visible, "moving onto a new target keeps the tooltip visible (no flicker)"
-    )
+    TestHelper.assert_true(tooltip.visible, "tooltip shown on the first hover")
+    _sm.clear_hover_preview()
+    tooltip._cancel_pending()
+    TestHelper.assert_true(not tooltip.visible, "tooltip hidden after hover clears")
+    _sm.set_hover_preview(true, select_comp)
     (
         TestHelper
-        . assert_eq(
-            label.text,
-            "MAMMOTH TANK",
-            "an already-visible tooltip swaps to the new target immediately",
+        . assert_true(
+            not tooltip._delay_timer.is_stopped(),
+            "re-hovering the same entity after a clear re-arms the delay",
         )
     )
-    _sm.clear_hover_preview()
+    tooltip._on_delay_timeout()
+    (
+        TestHelper
+        . assert_true(
+            tooltip.visible,
+            "tooltip reappears on the same entity once the re-armed delay lapses",
+        )
+    )
     tooltip.free()
-    rifle["entity"].free()
-    tank["entity"].free()
+    fixture["entity"].free()
 
 
 func test_tooltip_has_visible_size() -> void:
