@@ -981,7 +981,8 @@ func test_chase_replan_throttle():
 
 func test_chase_stop_position_clamped_off_building():
     # Destination invariant: a range-circle stop landing on a building cell is
-    # relocated to a passable cell before the move is issued.
+    # relocated to a passable cell before the move is issued, and the relocated
+    # stop stays within weapon range so the attacker fires on arrival.
     var setup: Array = _make_chase_attacker()
     if setup.is_empty():
         return
@@ -995,8 +996,18 @@ func test_chase_stop_position_clamped_off_building():
     var building_cell := CellUtil.world_to_cell(Vector3(10.0, 0.0, 0.0))
     SpatialHash.instance.register_building_cells([building_cell])
     cc.set_target(target)
-    var dest_cell := CellUtil.world_to_cell(mc.get_target_position())
+    var dest_pos: Vector3 = mc.get_target_position()
+    var dest_cell := CellUtil.world_to_cell(dest_pos)
     var blocked: bool = SpatialHash.instance.get_blocked_cells().has(CellUtil.cell_key(dest_cell))
+    var weapon := cc.get_current_weapon()
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    var in_range: bool = (
+        (
+            Vector2(dest_pos.x - target.global_position.x, dest_pos.z - target.global_position.z)
+            . length()
+        )
+        <= range_world + 0.01
+    )
     SpatialHash.instance.unregister_building_cells([building_cell])
     root.remove_child(entity)
     root.remove_child(target)
@@ -1012,6 +1023,7 @@ func test_chase_stop_position_clamped_off_building():
             ),
         )
     )
+    TestHelper.assert_true(in_range, "relocated chase stop stays within weapon range")
 
 
 func test_chase_replans_out_of_wait_state():

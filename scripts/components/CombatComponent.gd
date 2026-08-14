@@ -275,6 +275,30 @@ func _move_toward_target(force: bool = false) -> void:
         stop_pos = CellUtil.cell_to_world(
             mc.find_nearest_free_cell(CellUtil.world_to_cell(stop_pos))
         )
+        # Relocation can push the stop beyond weapon range (short-range units).
+        # Pull it back inside the range circle so the attacker fires on arrival
+        # instead of idling out of range and re-planning forever. If it still
+        # cannot be kept in range and passable, back off like a failed path.
+        var re_to_target := _target.global_position - stop_pos
+        var re_dist := Vector3(re_to_target.x, 0.0, re_to_target.z).length()
+        if re_dist > range_world + 0.01:
+            var approach := Vector3(to_target.x, 0.0, to_target.z).normalized()
+            var inner := maxf(range_world - CellUtil.CELL_SIZE, range_world * 0.5)
+            stop_pos = _target.global_position - approach * inner
+            stop_pos = CellUtil.cell_to_world(
+                mc.find_nearest_free_cell(CellUtil.world_to_cell(stop_pos))
+            )
+            var re2 := (
+                Vector3(
+                    _target.global_position.x - stop_pos.x,
+                    0.0,
+                    _target.global_position.z - stop_pos.z,
+                )
+                . length()
+            )
+            if re2 > range_world + 0.01:
+                _chase_retry_after = _now() + CHASE_RETRY_BACKOFF
+                return
     _combat_move = true
     _chase_leg_enemy_cell = CellUtil.world_to_cell(_target.global_position)
     _last_chase_replan_time = _now()
