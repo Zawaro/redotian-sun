@@ -6,11 +6,14 @@ extends Node
 var _slot_emitted_flag := false
 var _timeout_emitted_flag := false
 var _timeout_docker_ref: Node = null
+var _em: Node = null
 
 # --- helpers ---
 
 
-func _make_entity(dock_id: String = "GDI_REFINERY", storage: int = 700) -> Node3D:
+func _make_entity(
+    dock_id: String = "GDI_REFINERY", storage: int = 700, owner_id: int = -1
+) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestHarvester"
 
@@ -28,6 +31,12 @@ func _make_entity(dock_id: String = "GDI_REFINERY", storage: int = 700) -> Node3
     var harvest := HarvestComponent.new()
     harvest.name = "HarvestComponent"
     entity.add_child(harvest)
+
+    if owner_id >= 0:
+        var stats := StatsComponent.new()
+        stats.name = "StatsComponent"
+        stats.player_id = owner_id
+        entity.add_child(stats)
 
     return entity
 
@@ -736,6 +745,87 @@ func test_dock_unload_stops_on_undocked():
         )
     )
 
+    dock_entity.queue_free()
+
+
+func test_dock_unload_credits_harvester_owner():
+    if _em == null:
+        TestHelper.fail("EconomyManager not injected")
+        return
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    var entity := _make_entity("GDI_REFINERY", 700, 300)
+    add_child(entity)
+
+    var dock_comp := _get_dock_comp(dock_entity)
+    var harvest := _get_harvest(entity)
+    _init_harvest(harvest)
+    _init_dock(dock_comp, dock_entity)
+    var dock_unload := _get_dock_unload(dock_entity)
+    dock_unload._economy_manager = _em
+    var docked: bool = dock_comp.request_dock(harvest)
+
+    var owner_before: int = _em.get_balance(300)
+    var local_before: int = _em.get_balance(PlayerManager.get_local_player_id())
+    dock_unload._process(0.5)
+    var owner_after: int = _em.get_balance(300)
+    var local_after: int = _em.get_balance(PlayerManager.get_local_player_id())
+
+    (
+        TestHelper
+        . assert_true(
+            docked and owner_after > owner_before,
+            (
+                "unload credits harvester owner: docked=%s, owner %d->%d"
+                % [docked, owner_before, owner_after]
+            ),
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            local_after == local_before,
+            "unload must not credit local player: local %d->%d" % [local_before, local_after],
+        )
+    )
+
+    entity.queue_free()
+    dock_entity.queue_free()
+
+
+func test_dock_unload_unset_owner_credits_local():
+    if _em == null:
+        TestHelper.fail("EconomyManager not injected")
+        return
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    var entity := _make_entity()
+    add_child(entity)
+
+    var dock_comp := _get_dock_comp(dock_entity)
+    var harvest := _get_harvest(entity)
+    _init_harvest(harvest)
+    _init_dock(dock_comp, dock_entity)
+    var dock_unload := _get_dock_unload(dock_entity)
+    dock_unload._economy_manager = _em
+    var docked: bool = dock_comp.request_dock(harvest)
+
+    var local_before: int = _em.get_balance(PlayerManager.get_local_player_id())
+    dock_unload._process(0.5)
+    var local_after: int = _em.get_balance(PlayerManager.get_local_player_id())
+
+    (
+        TestHelper
+        . assert_true(
+            docked and local_after > local_before,
+            (
+                "unset owner falls back to local player: docked=%s, local %d->%d"
+                % [docked, local_before, local_after]
+            ),
+        )
+    )
+
+    entity.queue_free()
     dock_entity.queue_free()
 
 
