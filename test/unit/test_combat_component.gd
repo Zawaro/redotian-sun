@@ -836,3 +836,296 @@ func test_range_horizontal_distance_used():
     root.remove_child(target)
     entity.free()
     target.free()
+
+
+# --- Follow-attack blocker routing (#277) ---
+
+
+func _make_chase_attacker() -> Array:
+    # A ground attacker with a MovementController, in the tree so global
+    # positions resolve. Returns [entity, mc, cc].
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return []
+    _ts.init_grid(32, 32)
+    if SpatialHash.instance:
+        SpatialHash.instance._grid.clear()
+        SpatialHash.instance._building_cells.clear()
+    var root: Node = Engine.get_main_loop().root
+    var entity := _make_combat_entity(true, 0)
+    root.add_child(entity)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    mc._parent = entity
+    entity.global_position = Vector3(0, 0, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    return [entity, mc, cc]
+
+
+func _chase_move_count(mc: MovementController) -> Array:
+    # Signal counter for movement_started on this controller.
+    var counter := [0]
+    mc.movement_started.connect(func(): counter[0] += 1)
+    return counter
+
+
+func _path_crosses_cell(waypoints: PackedVector3Array, cell: Vector2i) -> bool:
+    for i in range(1, waypoints.size()):
+        if CellUtil.world_to_cell(waypoints[i]) == cell:
+            return true
+    return false
+
+
+func test_chase_replans_around_building():
+    # Regression (#277): a target moving behind a building must trigger an
+    # obstacle-aware re-plan whose path never enters the building footprint.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(30.0, 0.0, 0.0)
+    var building_cell := CellUtil.world_to_cell(Vector3(10.0, 0.0, 0.0))
+    SpatialHash.instance.register_building_cells([building_cell])
+    var count := _chase_move_count(mc)
+    cc.set_target(target)
+    var first_path_clear: bool = not _path_crosses_cell(mc._waypoints, building_cell)
+    var replans_after_order: int = count[0]
+    cc._last_chase_replan_time = 0.0
+    target.global_position = Vector3(30.0, 0.0, 4.0)
+    cc._physics_process(0.1)
+    var replanned: bool = count[0] > replans_after_order
+    var second_path_clear: bool = not _path_crosses_cell(mc._waypoints, building_cell)
+    var target_preserved: bool = cc._target == target
+    SpatialHash.instance.unregister_building_cells([building_cell])
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(first_path_clear, "initial chase path routes around the building cell")
+    TestHelper.assert_true(replanned, "chase re-plans when the target crosses a cell boundary")
+    TestHelper.assert_true(second_path_clear, "re-planned path avoids the building cell")
+    TestHelper.assert_true(target_preserved, "attack target preserved across re-plan")
+
+
+func test_chase_stationary_target_no_replans():
+    # A target that never changes cell must produce exactly one chase move.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(30.0, 0.0, 0.0)
+    var count := _chase_move_count(mc)
+    cc.set_target(target)
+    var initial_dest: Vector3 = mc.get_target_position()
+    var after_order: int = count[0]
+    for i in 5:
+        cc._physics_process(0.1)
+    var dest_unchanged: bool = mc.get_target_position().is_equal_approx(initial_dest)
+    var no_replans: bool = count[0] == after_order
+    var target_kept: bool = cc._target == target
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_eq(after_order, 1, "set_target issues exactly one chase move")
+    TestHelper.assert_true(no_replans, "stationary target triggers no re-plans")
+    TestHelper.assert_true(dest_unchanged, "chase destination unchanged for stationary target")
+    TestHelper.assert_true(target_kept, "attack target preserved")
+
+
+func test_chase_replan_throttle():
+    # Boundary: a cell-crossing target re-plans at most once per throttle
+    # interval; the same stale leg re-plans once the interval elapses.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(30.0, 0.0, 0.0)
+    var count := _chase_move_count(mc)
+    cc.set_target(target)
+    var first_dest: Vector3 = mc.get_target_position()
+    cc._last_chase_replan_time = cc._now()
+    target.global_position = Vector3(30.0, 0.0, 4.0)
+    cc._physics_process(0.1)
+    var throttled: bool = count[0] == 1
+    var dest_held: bool = mc.get_target_position().is_equal_approx(first_dest)
+    cc._last_chase_replan_time = 0.0
+    cc._physics_process(0.1)
+    var replanned: bool = count[0] == 2
+    var dest_updated: bool = not mc.get_target_position().is_equal_approx(first_dest)
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(throttled, "re-plan suppressed within the throttle interval")
+    TestHelper.assert_true(dest_held, "destination held while throttled")
+    TestHelper.assert_true(replanned, "stale leg re-plans once the throttle elapses")
+    TestHelper.assert_true(dest_updated, "destination updated after re-plan")
+
+
+func test_chase_stop_position_clamped_off_building():
+    # Destination invariant: a range-circle stop landing on a building cell is
+    # relocated to a passable cell before the move is issued.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(20.0, 0.0, 0.0)
+    var building_cell := CellUtil.world_to_cell(Vector3(10.0, 0.0, 0.0))
+    SpatialHash.instance.register_building_cells([building_cell])
+    cc.set_target(target)
+    var dest_cell := CellUtil.world_to_cell(mc.get_target_position())
+    var blocked: bool = SpatialHash.instance.get_blocked_cells().has(CellUtil.cell_key(dest_cell))
+    SpatialHash.instance.unregister_building_cells([building_cell])
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    (
+        TestHelper
+        . assert_true(
+            dest_cell != building_cell and not blocked,
+            (
+                "chase stop position relocated off a building cell (dest_cell=%s, building=%s)"
+                % [dest_cell, building_cell]
+            ),
+        )
+    )
+
+
+func test_chase_replans_out_of_wait_state():
+    # A WAIT-state attacker with an out-of-range target must leave WAIT and
+    # issue a new approach move instead of freezing.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(30.0, 0.0, 0.0)
+    cc.set_target(target)
+    mc._state = MovementController.State.WAIT
+    cc._physics_process(0.1)
+    var left_wait: bool = mc._state != MovementController.State.WAIT
+    var target_kept: bool = cc._target == target
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(left_wait, "WAIT attacker re-plans when target out of range")
+    TestHelper.assert_true(target_kept, "attack target preserved after WAIT re-plan")
+
+
+func test_chase_in_range_wait_fires_without_replan():
+    # An in-range WAIT attacker fires normally and must NOT re-plan.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(3.0, 0.0, 0.0)
+    cc.set_target(target)
+    mc._state = MovementController.State.WAIT
+    cc._physics_process(0.1)
+    var health: int = target.get_node("HealthComponent").current_health
+    var fired: bool = health < 100
+    var stayed_wait: bool = mc._state == MovementController.State.WAIT
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(fired, "in-range WAIT attacker fires")
+    TestHelper.assert_true(stayed_wait, "in-range WAIT attacker does not re-plan")
+
+
+func test_chase_pathfinding_failure_backoff():
+    # A failed chase path must gate re-plans behind a backoff (no per-tick A*
+    # storm) while still allowing fire-in-place for an in-range target.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(30.0, 0.0, 0.0)
+    var count := _chase_move_count(mc)
+    cc.set_target(target)
+    cc._on_pathfinding_failed()
+    var find_calls: int = Pathfinder.find_path_call_count
+    var dest_before: Vector3 = mc.get_target_position()
+    target.global_position = Vector3(30.0, 0.0, 4.0)
+    for i in 3:
+        cc._physics_process(0.1)
+    var no_replan: bool = count[0] == 1
+    var dest_held: bool = mc.get_target_position().is_equal_approx(dest_before)
+    var no_a_star: bool = Pathfinder.find_path_call_count == find_calls
+    target.get_node("HealthComponent").current_health = 100
+    target.global_position = Vector3(3.0, 0.0, 0.0)
+    cc._physics_process(0.1)
+    var health: int = target.get_node("HealthComponent").current_health
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(no_replan, "no re-plan during pathfinding-failure backoff")
+    TestHelper.assert_true(dest_held, "destination held during backoff")
+    TestHelper.assert_true(no_a_star, "no A* retried per tick during backoff")
+    TestHelper.assert_true(health < 100, "in-range target still fired during backoff")
+
+
+func test_chase_replan_keeps_target_then_player_move_clears():
+    # Re-plans must preserve the attack target; a player move order must clear it.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(30.0, 0.0, 0.0)
+    cc.set_target(target)
+    cc._last_chase_replan_time = 0.0
+    target.global_position = Vector3(30.0, 0.0, 4.0)
+    cc._physics_process(0.1)
+    var kept_after_replan: bool = cc._target == target
+    mc.set_target_position(Vector3(5, 0, 5))
+    var cleared_after_player_move: bool = cc._target == null
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(kept_after_replan, "attack target kept across chase re-plan")
+    TestHelper.assert_true(cleared_after_player_move, "player move order clears the attack target")
