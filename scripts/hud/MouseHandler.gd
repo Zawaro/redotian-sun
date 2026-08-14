@@ -126,6 +126,16 @@ func _process(_delta):
 
     var over_build := hovered and UIUtil.is_inside_node(hovered, "Sidebar")
 
+    # Drop stale hover state when the cursor enters UI, so returning to the
+    # same target re-emits hover_changed (the tooltip would otherwise stay
+    # hidden forever — set_hover_preview dedupes on the still-set entity).
+    if (
+        (over_sidebar or over_debug or over_build)
+        and selection_manager
+        and selection_manager.is_hovering
+    ):
+        selection_manager.clear_hover_preview()
+
     if not over_sidebar and not over_debug and not over_build:
         var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
 
