@@ -345,6 +345,10 @@ func is_moving() -> bool:
     return _state != State.IDLE
 
 
+func is_waiting() -> bool:
+    return _state == State.WAIT
+
+
 func get_assigned_slot() -> int:
     return _assigned_slot
 
@@ -1124,6 +1128,29 @@ func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
                     continue
                 return true
     return false
+
+
+## Nearest passable cell to `cell`: the cell itself when passable, otherwise a
+## spiral search for the closest free cell. Considers blocked cells, building
+## footprints, and present units. Public for chasing destinations
+## (CombatComponent) that must never aim into a blocked or building cell.
+func find_nearest_free_cell(cell: Vector2i) -> Vector2i:
+    if _is_destination_clear(cell):
+        return cell
+    return CellUtil.spiral_first_free(
+        cell, 4, func(c: Vector2i) -> bool: return not _is_destination_clear(c)
+    )
+
+
+func _is_destination_clear(cell: Vector2i) -> bool:
+    var key: int = CellUtil.cell_key(cell)
+    if SpatialHash.instance.get_blocked_cells().has(key):
+        return false
+    if SpatialHash.instance._grid.has(key):
+        for entry in SpatialHash.instance._grid[key]:
+            if entry.node != _parent:
+                return false
+    return true
 
 
 func _find_nearest_free_cell(cell: Vector2i) -> Vector2i:
