@@ -620,6 +620,7 @@ func sell_building(building_node: Node3D) -> bool:
         SelectionManager.deselect_entity(select_comp)
     # Emit signal before freeing
     building_sold.emit(building_node, entity_data)
+    GhostDepot.capture_entity(building_node)
     # Free the node
     building_node.queue_free()
     return true

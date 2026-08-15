@@ -363,6 +363,18 @@ func is_cell_visible_to_local(cell: Vector2i) -> bool:
     return not is_fog_enabled()
 
 
+## Effective fog state (STATE_VISIBLE / STATE_FOG / STATE_SHROUD) of a cell for
+## the local player, honoring the master shroud/fog toggles. Single source of
+## truth for the "is this cell fogged" predicate shared by the renderers and the
+## ghost depot.
+func cell_state_to_local(cell: Vector2i) -> int:
+    if is_cell_visible_to_local(cell):
+        return STATE_VISIBLE
+    if is_explored(PlayerManager.get_local_player_id(), cell):
+        return STATE_FOG
+    return STATE_SHROUD
+
+
 ## Reveal gate for an entity's render + command targeting. Buildings are
 ## revealed when ANY foundation cell has ever been explored (persists in fog);
 ## with shroud off every building is revealed. Non-buildings keep the single

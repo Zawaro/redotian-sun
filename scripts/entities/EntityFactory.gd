@@ -77,6 +77,7 @@ func _on_entity_death(entity: Node3D) -> void:
         and not voice.voice_data.get_event(VoiceData.EVENT_DIE).is_empty()
     ):
         AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_DIE)
+    GhostDepot.capture_entity(entity)
     entity.queue_free()
 
 
