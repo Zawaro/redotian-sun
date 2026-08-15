@@ -19,8 +19,13 @@ func _make_refinery_entity(player_id: int) -> Node3D:
     return entity
 
 
-func _make_non_refinery_entity() -> Node3D:
+func _make_non_refinery_entity(player_id: int = 0) -> Node3D:
     var entity := Node3D.new()
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.id = "GDI_POWER_PLANT"
+    stats.player_id = player_id
+    entity.add_child(stats)
     var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
     sc.name = "SelectComponent"
     sc.select_box_type = SelectComponent.SelectBoxType.Structure
@@ -52,7 +57,10 @@ func test_refinery_builds_storage_bar():
         TestHelper
         . assert_true(
             absf(sc._storage_bar.scale.x - 0.5) < 0.001,
-            "storage bar fill is balance/capacity: expected 0.5, got %f" % sc._storage_bar.scale.x,
+            (
+                "storage bar fill length = span x (balance/capacity): expected 0.5, got %f"
+                % sc._storage_bar.scale.x
+            ),
         )
     )
     var expected_z: float = 1.0 - SelectComponent.HEALTH_BAR_CUBE_SIZE / 2.0

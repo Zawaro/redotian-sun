@@ -58,6 +58,7 @@ func add(
 
 
 func get_storage_capacity(_player_id: int, category: String = DEFAULT_CATEGORY) -> int:
+    # ponytail: flat 2000 until silo summation lands; _player_id kept for the future signature.
     return TIBERIUM_CAPACITY if category == DEFAULT_CATEGORY else 0
 
 

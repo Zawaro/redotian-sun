@@ -27,7 +27,7 @@ The system SHALL expose a displayable balance — free credits plus the sum of s
 - **THEN** it returns the hidden category's stored value (100) even though it is excluded from the displayable total
 
 ### Requirement: Per-category storage capacity
-The system SHALL provide a storage capacity per resource category via `EconomyManager.get_storage_capacity(player_id, category)`. The `"tiberium"` category SHALL have capacity 2000 for now; unknown categories SHALL return 0. Capacity constrains stored value, not free credits.
+The system SHALL provide a storage capacity per resource category via `EconomyManager.get_storage_capacity(player_id, category)`. The `"tiberium"` category SHALL have capacity 2000 for now; unknown categories SHALL return 0. Capacity drives the storage bar denominator and the displayable fill ratio; free credits never count toward it. Enforcement of the cap on the stored value (harvester wait-at-full-storage, no deposit past capacity) is deferred.
 
 #### Scenario: Tiberium capacity default
 - **WHEN** `EconomyManager.get_storage_capacity(player_id, "tiberium")` is called
