@@ -56,7 +56,7 @@ func _physics_process(_delta: float) -> void:
             set_physics_process(false)
         return
     if cell != _registered_cell:
-        ShroudSystem.move_revealer(_registered_player_id, _registered_key, cell)
+        ShroudSystem.move_revealer(_registered_player_id, _registered_key, cell, _viewer_height())
         _registered_cell = cell
 
 

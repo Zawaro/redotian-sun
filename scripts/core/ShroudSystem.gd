@@ -119,7 +119,18 @@ func unregister_revealer(player_id: int, key: int) -> void:
 ## approximation: an overlap cell whose line-of-sight flips at a terrain shadow
 ## edge keeps its previously stamped state until it leaves the disc (or the
 ## revealer dies), then self-corrects.
-func move_revealer(player_id: int, key: int, new_cell: Vector2i) -> void:
+##
+## When `viewer_height` is supplied (>= 0) and differs from the revealer's stored
+## height, the whole disc is re-evaluated from the new vantage instead of just
+## the crescent: the unit climbed/descended, so reachability can flip anywhere
+## in the overlap. This is rare (only on elevation change) and re-stamps the
+## symmetric difference so counts never leak.
+func move_revealer(
+    player_id: int,
+    key: int,
+    new_cell: Vector2i,
+    viewer_height: float = -1.0,
+) -> void:
     if not _states.has(player_id):
         return
     var st: Dictionary = _states[player_id]
@@ -128,10 +139,18 @@ func move_revealer(player_id: int, key: int, new_cell: Vector2i) -> void:
         return
     var info: Dictionary = revealers[key]
     var old_cell := info["center"] as Vector2i
-    if old_cell == new_cell or _cell_count <= 0 or _cell_index(new_cell) < 0:
+    if _cell_count <= 0 or _cell_index(new_cell) < 0:
+        return
+    var height_changed: bool = (
+        viewer_height >= 0.0 and not is_equal_approx(viewer_height, info["viewer_height"] as float)
+    )
+    if old_cell == new_cell and not height_changed:
+        return
+    if height_changed:
+        _recompute_at(st, info, new_cell, viewer_height)
         return
     var radius := info["radius"] as int
-    var viewer_height := info["viewer_height"] as float
+    var stored_height := info["viewer_height"] as float
     var blocks_terrain := info["blocks_terrain"] as bool
     var cells := info["cells"] as Dictionary
     info["center"] = new_cell
@@ -151,10 +170,34 @@ func move_revealer(player_id: int, key: int, new_cell: Vector2i) -> void:
             elif in_new and not in_old:
                 if (
                     not cells.has(candidate)
-                    and _cell_reachable(new_cell, candidate, viewer_height, blocks_terrain)
+                    and _cell_reachable(new_cell, candidate, stored_height, blocks_terrain)
                 ):
                     cells[candidate] = true
                     _apply_cell(st, candidate, 1)
+
+
+## Re-evaluates a revealer's whole disc from a new center and viewer height,
+## stamping the symmetric difference so counts never leak. Used when a unit
+## climbs/descends (viewer height changed), where reachability can flip anywhere
+## in the overlap — the crescent fast path only handles pure center moves.
+func _recompute_at(
+    st: Dictionary,
+    info: Dictionary,
+    center: Vector2i,
+    viewer_height: float,
+) -> void:
+    var radius := info["radius"] as int
+    var blocks_terrain := info["blocks_terrain"] as bool
+    var cells := info["cells"] as Dictionary
+    for cell in cells.keys():
+        _apply_cell(st, cell, -1)
+    cells.clear()
+    info["center"] = center
+    info["viewer_height"] = viewer_height
+    var new_cells := _reveal_cells(center, radius, viewer_height, blocks_terrain)
+    for cell in new_cells:
+        cells[cell] = true
+        _apply_cell(st, cell, 1)
 
 
 func _stamp_cells(st: Dictionary, cells: Array, delta: int) -> void:
@@ -272,8 +315,11 @@ func _cell_reachable(
 
 
 func _cell_blocks(cell: Vector2i, viewer_height: float) -> bool:
-    if _terrain and _terrain.get_cell_max_height(cell) > viewer_height + _max_height_delta:
-        return true
+    if _terrain:
+        if _terrain.get_cell_grade_steps(cell) == 1:
+            return false
+        if _terrain.get_cell_max_height(cell) > viewer_height + _max_height_delta:
+            return true
     return false
 
 
