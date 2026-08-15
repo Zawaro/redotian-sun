@@ -134,9 +134,28 @@ func get_visual_stage() -> int:
         return 2
 
 
+## The currently-visible stage container, used by fog-ghost freeze to reparent
+## the harvest-stage visual. Returns null before the visual is staged.
+func get_active_stage_node() -> Node3D:
+    if _current_visual_stage < 0 or _current_visual_stage >= _cube_nodes.size():
+        return null
+    return _cube_nodes[_current_visual_stage]
+
+
+## Re-applies the current harvest stage after a fog ghost is released. The
+## stage may have changed (harvest under fog) while the visual was frozen in
+## the depot, so a released ghost must snap to the live health stage.
+func refresh_visual() -> void:
+    _update_visual()
+
+
 func _update_visual() -> void:
     var parent := get_parent()
     if not parent:
+        return
+    if _is_visual_frozen():
+        # The harvest stage lives in the fog depot while frozen; leave its
+        # visibility untouched so the ghost keeps the last-known visual.
         return
     var stage := get_visual_stage()
     if stage == _current_visual_stage:
@@ -147,6 +166,16 @@ func _update_visual() -> void:
             var node := _cube_nodes[i] as Node3D
             if node:
                 node.visible = (i == stage)
+
+
+## True while the harvest stage container has been reparented into the fog
+## depot (GhostDepot), i.e. the visual is frozen at its fog-entry state.
+func _is_visual_frozen() -> bool:
+    var parent := get_parent()
+    if not parent:
+        return false
+    var active := get_active_stage_node()
+    return is_instance_valid(active) and active.get_parent() != parent
 
 
 func update_slope_positions() -> void:

@@ -15,6 +15,7 @@ var _entity_type: int = -1
 var _is_remappable: bool = false
 var _registered: bool = false
 var _entity_root: Node3D = null
+var _model_root: Node3D = null
 
 
 func _ready() -> void:
@@ -128,6 +129,7 @@ func _finalize_model(scene: PackedScene) -> void:
     var instance := scene.instantiate()
     add_child(instance)
     instance.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else owner
+    _model_root = instance
     if not art_data.texture_path.is_empty() and ResourceLoader.exists(art_data.texture_path):
         var tex := load(art_data.texture_path) as Texture2D
         if tex:
@@ -138,6 +140,40 @@ func _finalize_model(scene: PackedScene) -> void:
     # receives it; the async path is already post-connection but stays uniform this way.
     model_loaded.emit.call_deferred()
     _request_registration(instance)
+    _maybe_freeze_into_depot(instance)
+
+
+## The loaded GLB instance, used by fog-ghost freeze to reparent it into the
+## depot. Non-GLB entities (e.g. tiberium cubes) return null.
+func get_model_root() -> Node3D:
+    return _model_root
+
+
+## A model that finishes loading while its entity is already fogged parents
+## straight into the ghost depot so it never flashes live under fog. Units are
+## exempt: their GLB tree stays hidden and the MultiMesh handles the freeze.
+func _maybe_freeze_into_depot(instance: Node3D) -> void:
+    if Engine.is_editor_hint():
+        return
+    if _eligible_for_instancing():
+        return
+    if not is_instance_valid(_entity_root):
+        return
+    var depot := GhostDepot.get_instance()
+    if depot == null or depot.has_ghost(_entity_root):
+        return
+    if not GhostDepot.is_frozen_candidate(_entity_root):
+        return
+    (
+        depot
+        . reparent_in(
+            _entity_root,
+            instance,
+            self,
+            CellUtil.world_to_cell(_entity_root.global_position),
+            false,
+        )
+    )
 
 
 ## Unit-type entities render through the UnitMeshRenderer MultiMesh buckets
@@ -210,6 +246,16 @@ func _add_placeholder() -> void:
     instance.material_override = mat
     add_child(instance)
     instance.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else owner
+    _model_root = instance
+    if Engine.is_editor_hint():
+        return
+    # Placeholders render through the node tree, not a baked MultiMesh: units
+    # register with the renderer (fog freeze via slot -1), non-units freeze
+    # into the ghost depot like their GLB counterparts.
+    if _eligible_for_instancing():
+        _request_registration(instance)
+    else:
+        _maybe_freeze_into_depot(instance)
 
 
 func _setup_animation_player() -> void:

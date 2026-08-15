@@ -21,6 +21,10 @@ var _registry: Dictionary = {}
 ## bucket: {mmi, multimesh, active_count}
 var _buckets: Dictionary = {}
 var _active_count: int = 0
+## instance_id -> {model_path, region, slot, cell} — frozen MultiMesh ghosts of
+## units destroyed in fog, released when their cell leaves fog.
+var _tombstones: Dictionary = {}
+var ghost_depot: GhostDepot = null
 
 
 func _ready() -> void:
@@ -28,12 +32,21 @@ func _ready() -> void:
     # transforms reflect the current physics step rather than the previous one.
     process_physics_priority = 100
     set_physics_process(false)
+    if Engine.is_editor_hint():
+        return
+    ghost_depot = GhostDepot.new()
+    ghost_depot.name = "GhostDepot"
+    add_child(ghost_depot)
+    ShroudSystem.state_changed.connect(_reconcile)
+    TerrainSystem.grid_initialized.connect(_on_grid_reinit)
 
 
 ## Registers a unit whose model_root (GLB instance) is a child of the entity's
 ## ArtComponent. The GLB node tree is hidden on success — gameplay never reads
 ## mesh-child transforms (hitboxes are Area3D, movement rotates the entity
 ## root). Returns false when ineligible, unknown model, or no free slot.
+## Empty model_path registers a node-tree entity (placeholder art, no baked
+## mesh): it gets slot -1 and the fog/ghost logic drives the GLB tree directly.
 func register(
     entity_root: Node3D,
     model_path: String,
@@ -46,20 +59,21 @@ func register(
     if (
         not is_instance_valid(entity_root)
         or not is_instance_valid(model_root)
-        or model_path.is_empty()
         or _registry.has(entity_root)
     ):
         return false
     if not _can_register(entity_root):
         return false
-    var mesh: ArrayMesh = _ensure_mesh(model_path, is_remappable)
-    if mesh == null:
-        return false
     var region := _region_key(entity_root.global_position)
-    var slot := _alloc_slot(model_path, region, mesh)
-    if slot < 0:
-        push_warning("UnitMeshRenderer: region %s full for %s" % [region, model_path])
-        return false
+    var slot: int = -1
+    if not model_path.is_empty():
+        var mesh: ArrayMesh = _ensure_mesh(model_path, is_remappable)
+        if mesh == null:
+            return false
+        slot = _alloc_slot(model_path, region, mesh)
+        if slot < 0:
+            push_warning("UnitMeshRenderer: region %s full for %s" % [region, model_path])
+            return false
     _registry[entity_root] = {
         "model_path": model_path,
         "model_root": model_root,
@@ -69,21 +83,42 @@ func register(
         "is_remappable": is_remappable,
         "hidden": false,
         "fogged": false,
+        "ghost_invalid": false,
+        "cell": CellUtil.world_to_cell(entity_root.global_position),
         "stats": entity_root.get_node_or_null("StatsComponent") as StatsComponent,
     }
-    model_root.visible = false
+    model_root.visible = slot < 0
     _active_count += 1
     set_physics_process(true)
     return true
 
 
-func unregister(entity_root: Node3D) -> void:
+func unregister(entity_root: Node3D, force: bool = false) -> void:
     if not _registry.has(entity_root):
         return
     var entry: Dictionary = _registry[entity_root]
     _registry.erase(entity_root)
+    var slot: int = entry["slot"]
+    var fogged: bool = entry["fogged"]
+    if not force and fogged and not _tombstone_still_fogged(entry):
+        # The cell left fog while frozen: release the slot normally, no ghost.
+        fogged = false
+    if not force and fogged:
+        if slot >= 0:
+            # A unit destroyed in fog keeps its frozen instance as a tombstone.
+            _tombstones[entity_root.get_instance_id()] = {
+                "model_path": entry["model_path"],
+                "region": entry["region"],
+                "slot": slot,
+                "cell": entry["cell"],
+            }
+            return
+        # Node-tree fallback: its frozen visual is already a depot ghost.
+        if ghost_depot:
+            ghost_depot.mark_dead(entity_root)
     _active_count -= 1
-    _release_slot(entry["model_path"], entry["region"], entry["slot"])
+    if slot >= 0:
+        _release_slot(entry["model_path"], entry["region"], slot)
     if _active_count <= 0:
         set_physics_process(false)
 
@@ -171,6 +206,11 @@ func _release_slot(model_path: String, region: Vector2i, slot: int) -> void:
             ):
                 entry["slot"] = slot
                 break
+        for tkey in _tombstones:
+            var t: Dictionary = _tombstones[tkey]
+            if t["model_path"] == model_path and t["region"] == region and t["slot"] == last:
+                t["slot"] = slot
+                break
     bucket["active_count"] = last
     multimesh.visible_instance_count = last
     multimesh.set_instance_transform(last, Transform3D(Basis(), HIDDEN_POSITION))
@@ -219,29 +259,55 @@ func _physics_process(_delta: float) -> void:
         if state == _FOG_HIDDEN:
             entry["fogged"] = false
             entry["hidden"] = true
-            if multimesh and entry["slot"] >= 0:
+            if entry["slot"] >= 0 and multimesh:
                 multimesh.set_instance_transform(
                     entry["slot"], Transform3D(Basis(), HIDDEN_POSITION)
                 )
+            else:
+                _set_model_visible(model_root, false)
+            if ghost_depot:
+                ghost_depot.release_entry(entity_node)
             continue
         if state == _FOG_GHOST:
             entry["hidden"] = false
+            if entry["ghost_invalid"]:
+                # The ghost's anchor cell was revealed while the entity was
+                # elsewhere: keep it gone until the entity is visible again.
+                _hide_ghost_visual(entry, model_root, multimesh)
+                if ghost_depot:
+                    ghost_depot.release_entry(entity_node)
+                continue
+            if entry["fogged"] and not _tombstone_still_fogged(entry):
+                # The frozen anchor cell left fog (revealed or shroud-revert)
+                # while the entity is still not visible: the ghost must vanish,
+                # not slide to the entity's current position.
+                _invalidate_ghost(entity_node, entry, model_root, multimesh)
+                continue
             if not entry["fogged"]:
                 # Freeze at the current (last-known) transform once on fog entry.
                 entry["fogged"] = true
-                if multimesh and entry["slot"] >= 0:
+                entry["cell"] = CellUtil.world_to_cell(entity_node.global_position)
+                if entry["slot"] >= 0 and multimesh:
                     multimesh.set_instance_transform(
                         entry["slot"], entity_node.global_transform * entry["offset"]
                     )
+                else:
+                    _freeze_fallback(entity_node, model_root)
                 # ponytail: a ghost frozen in a region bucket whose key differs
                 # from its frozen position may frustum-cull late; negligible, and
                 # the slot re-migrates to the true position on reveal.
             continue
         entry["fogged"] = false
         entry["hidden"] = false
-        _set_model_visible(model_root, false)
+        entry["ghost_invalid"] = false
+        if entry["slot"] >= 0:
+            _set_model_visible(model_root, false)
+        else:
+            _set_model_visible(model_root, true)
+            if ghost_depot:
+                ghost_depot.release_entry(entity_node)
         var region := _region_key(entity_node.global_position)
-        if region != entry["region"]:
+        if entry["slot"] >= 0 and region != entry["region"]:
             _release_slot(entry["model_path"], entry["region"], entry["slot"])
             entry["region"] = region
             var migrated_mesh: ArrayMesh = _ensure_mesh(entry["model_path"], entry["is_remappable"])
@@ -254,6 +320,8 @@ func _physics_process(_delta: float) -> void:
                     )
                 )
                 _set_model_visible(model_root, true)
+                if ghost_depot:
+                    ghost_depot.release_entry(entity_node)
         if entry["slot"] >= 0:
             var synced: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
             if synced:
@@ -268,19 +336,124 @@ func _set_model_visible(model_root: Node3D, visible: bool) -> void:
 
 
 func _fog_state(entity_node: Node3D, entry: Dictionary) -> int:
-    if not ShroudSystem.is_shroud_enabled() and not ShroudSystem.is_fog_enabled():
-        return _FOG_VISIBLE
     var stats: StatsComponent = entry.get("stats")
     if not is_instance_valid(stats) or stats.player_id < 0:
         return _FOG_VISIBLE
     if not PlayerManager.is_enemy(PlayerManager.get_local_player_id(), stats.player_id):
         return _FOG_VISIBLE
-    var cell := CellUtil.world_to_cell(entity_node.global_position)
-    if ShroudSystem.is_cell_visible_to_local(cell):
+    var cell_state: int = ShroudSystem.cell_state_to_local(
+        CellUtil.world_to_cell(entity_node.global_position)
+    )
+    if cell_state == ShroudSystem.STATE_VISIBLE:
         return _FOG_VISIBLE
-    if ShroudSystem.is_explored(PlayerManager.get_local_player_id(), cell):
+    if cell_state == ShroudSystem.STATE_FOG:
         return _FOG_GHOST
     return _FOG_HIDDEN
+
+
+## Node-tree fallback freeze: the unit renders through its GLB tree (no
+## MultiMesh slot), so freezing means reparenting the model into the depot.
+func _freeze_fallback(entity_node: Node3D, model_root: Node3D) -> void:
+    var depot := ghost_depot
+    if depot == null or not is_instance_valid(model_root):
+        return
+    var original_parent := model_root.get_parent()
+    if original_parent == null or original_parent == depot:
+        return
+    # The GLB tree was hidden at registration; the ghost must render.
+    _set_model_visible(model_root, true)
+    (
+        depot
+        . reparent_in(
+            entity_node,
+            model_root,
+            original_parent,
+            CellUtil.world_to_cell(entity_node.global_position),
+            false,
+        )
+    )
+
+
+## Hides a ghost's visual without touching ghost membership — the invalidated
+## poll path uses this every frame so a stale ghost never re-renders.
+func _hide_ghost_visual(entry: Dictionary, model_root: Node3D, multimesh: MultiMesh) -> void:
+    if entry["slot"] >= 0 and multimesh:
+        multimesh.set_instance_transform(entry["slot"], Transform3D(Basis(), HIDDEN_POSITION))
+    else:
+        _set_model_visible(model_root, false)
+
+
+## A frozen ghost whose anchor cell left fog while the entity is still not
+## visible must vanish entirely (never slide to the entity's current position).
+## `ghost_invalid` suppresses re-freeze/re-render until the entity is visible.
+func _invalidate_ghost(
+    entity_node: Node3D, entry: Dictionary, model_root: Node3D, multimesh: MultiMesh
+) -> void:
+    entry["fogged"] = false
+    entry["ghost_invalid"] = true
+    _hide_ghost_visual(entry, model_root, multimesh)
+    if ghost_depot:
+        ghost_depot.release_entry(entity_node)
+
+
+## Grid-derived ghost truth: on every shroud state change, release ghosts whose
+## anchor cell is no longer fog and tombstone instances whose cell left fog.
+func _reconcile(_dirty: PackedInt32Array) -> void:
+    if Engine.is_editor_hint():
+        return
+    if ghost_depot:
+        ghost_depot.release_unfogged()
+    var local := PlayerManager.get_local_player_id()
+    for entity in _registry.keys():
+        var entry: Dictionary = _registry[entity]
+        if not entry["fogged"] or entry["ghost_invalid"]:
+            continue
+        if _tombstone_still_fogged(entry):
+            continue
+        if _fog_state(entity, entry) == _FOG_VISIBLE:
+            continue
+        var model_root: Node3D = entry["model_root"]
+        var multimesh: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
+        _invalidate_ghost(entity, entry, model_root, multimesh)
+    for key in _tombstones.keys():
+        var t: Dictionary = _tombstones[key]
+        var cell: Vector2i = t["cell"]
+        if ShroudSystem.is_cell_visible_to_local(cell):
+            _release_tombstone(key)
+        elif not ShroudSystem.is_explored(local, cell):
+            _release_tombstone(key)
+
+
+func _release_tombstone(key: int) -> void:
+    if not _tombstones.has(key):
+        return
+    var t: Dictionary = _tombstones[key]
+    _tombstones.erase(key)
+    _active_count -= 1
+    _release_slot(t["model_path"], t["region"], t["slot"])
+    if _active_count <= 0:
+        set_physics_process(false)
+
+
+func _tombstone_still_fogged(entry: Dictionary) -> bool:
+    if not ShroudSystem.is_fog_enabled():
+        return false
+    return ShroudSystem.cell_state_to_local(entry["cell"] as Vector2i) == ShroudSystem.STATE_FOG
+
+
+## Releases every tombstone and depot ghost — runtime fog toggle-off, grid
+## reinit, and map teardown all funnel here.
+func sweep_ghosts() -> void:
+    if Engine.is_editor_hint():
+        return
+    for key in _tombstones.keys():
+        _release_tombstone(key)
+    if ghost_depot:
+        ghost_depot.release_all()
+
+
+func _on_grid_reinit() -> void:
+    sweep_ghosts()
 
 
 func _current_scene_is_map_editor() -> bool:
@@ -289,5 +462,9 @@ func _current_scene_is_map_editor() -> bool:
 
 
 func clear_all() -> void:
+    for key in _tombstones.keys():
+        _release_tombstone(key)
     for entity in _registry.keys():
-        unregister(entity)
+        unregister(entity, true)
+    if ghost_depot:
+        ghost_depot.release_all()

@@ -48,6 +48,14 @@ var _material: ShaderMaterial
 var _material_opaque: ShaderMaterial
 var _last_states := PackedByteArray()
 var _buildings: Dictionary = {}
+var _overlays: Dictionary = {}
+
+## One deferred _sync_overlays() per frame while any overlay is unstaged, so K
+## unstaged crystals schedule linear work, not K deferred sweeps per node.
+const MAX_OVERLAY_RESYNC_TICKS: int = 3
+
+var _overlay_resync_pending: bool = false
+var _overlay_resync_ticks: int = 0
 
 ## Persistent textures/images: created once per grid init, updated in place on
 ## state changes (ImageTexture.update) instead of re-allocating per resolve.
@@ -115,15 +123,148 @@ func _sync_buildings() -> void:
         _sync_building(node)
 
 
+func _sync_overlays() -> void:
+    if Engine.is_editor_hint():
+        return
+    var scene := get_tree().current_scene
+    if scene != null and scene.has_meta("is_map_editor"):
+        return
+    var is_retry: bool = _overlay_resync_pending
+    if is_retry:
+        _overlay_resync_ticks += 1
+        if _overlay_resync_ticks > MAX_OVERLAY_RESYNC_TICKS:
+            # A never-staged crystal has burned the retry budget; stop re-queuing
+            # until the next real event resets it (a busy loop otherwise).
+            _overlay_resync_pending = false
+            return
+    else:
+        # Fresh event (shroud change, grid init): reset the retry budget.
+        _overlay_resync_ticks = 0
+    _overlay_resync_pending = false
+    for entity in _overlays.keys():
+        var node: Node3D = entity
+        if not is_instance_valid(node):
+            _overlays.erase(entity)
+            continue
+        _sync_overlay(node)
+
+
 func _sync_building(node: Node3D) -> void:
     var stats := node.get_node_or_null("StatsComponent") as StatsComponent
     if stats == null or stats.player_id < 0:
         return
     if not PlayerManager.is_enemy(PlayerManager.get_local_player_id(), stats.player_id):
         return
-    var revealed := ShroudSystem.is_entity_revealed_to_local(node)
-    if node.visible != revealed:
-        node.visible = revealed
+    if node.has_meta("_preview"):
+        return
+    var depot := GhostDepot.get_instance()
+    var art := node.get_node_or_null("ArtComponent") as ArtComponent
+    var model: Node3D = art.get_model_root() if art else null
+    var state := _entity_fog_state(node)
+    if state == ShroudSystem.STATE_VISIBLE:
+        node.visible = true
+        if depot:
+            depot.release_entry(node)
+        return
+    if state == ShroudSystem.STATE_FOG:
+        # Freeze the model in the depot; the building root carries no visual
+        # (door/construction appearance is frozen with the ghost).
+        if is_instance_valid(model):
+            node.visible = false
+            if depot:
+                (
+                    depot
+                    . reparent_in(
+                        node,
+                        model,
+                        model.get_parent(),
+                        CellUtil.world_to_cell(node.global_position),
+                        false,
+                    )
+                )
+            return
+        node.visible = true
+        return
+    node.visible = false
+    if depot:
+        depot.release_entry(node)
+
+
+## Fog/visible/shroud classification for an entity, using the building
+## foundation gate (visible when ANY foundation cell is visible; ghosted in
+## fog when any foundation cell has been explored).
+func _entity_fog_state(node: Node3D) -> int:
+    var foundation := Vector2i(1, 1)
+    var fc := node.get_node_or_null("FoundationComponent") as FoundationComponent
+    if fc:
+        foundation = fc.foundation
+    var origin := CellUtil.world_to_cell_origin(node.global_position, foundation)
+    for dx in foundation.x:
+        for dz in foundation.y:
+            if (
+                ShroudSystem.cell_state_to_local(origin + Vector2i(dx, dz))
+                == ShroudSystem.STATE_VISIBLE
+            ):
+                return ShroudSystem.STATE_VISIBLE
+    if ShroudSystem.is_entity_revealed_to_local(node):
+        return ShroudSystem.STATE_FOG
+    return ShroudSystem.STATE_SHROUD
+
+
+## Tiberium overlay freeze: the harvest-stage container is reparented into the
+## depot so the stage visible on fog entry stays frozen. A crystal that spawned
+## into fog was never revealed, so it has no last-known visual and stays hidden
+## until its cell reveals (`_overlays` tracks the ever-seen flag). Shroud-hide
+## is #276.
+func _sync_overlay(node: Node3D) -> void:
+    if not is_instance_valid(node):
+        return
+    var depot := GhostDepot.get_instance()
+    var rc := node.get_node_or_null("ResourceComponent") as ResourceComponent
+    var state := _overlay_fog_state(node)
+    var ever_seen: bool = _overlays.get(node, false)
+    if state == ShroudSystem.STATE_VISIBLE:
+        _overlays[node] = true
+        node.visible = true
+        if depot:
+            depot.release_entry(node)
+        return
+    if state == ShroudSystem.STATE_FOG:
+        if not ever_seen and not (depot and depot.has_ghost(node)):
+            node.visible = false
+            return
+        var stage: Node3D = rc.get_active_stage_node() if rc else null
+        if not is_instance_valid(stage):
+            # Stage containers build deferred in _ready (global_position must be
+            # settled), so a crystal has no stage on the node_added pass. Hide it
+            # and re-sync once the build lands so a seen crystal still freezes
+            # like any other. The flag dedupes to one deferred sweep regardless
+            # of how many crystals are unstaged (linear, not one per node).
+            node.visible = false
+            if not _overlay_resync_pending:
+                _overlay_resync_pending = true
+                _sync_overlays.call_deferred()
+            return
+        node.visible = true
+        if depot:
+            (
+                depot
+                . reparent_in(
+                    node,
+                    stage,
+                    stage.get_parent(),
+                    CellUtil.world_to_cell(node.global_position),
+                    false,
+                )
+            )
+        return
+    node.visible = true
+    if depot:
+        depot.release_entry(node)
+
+
+func _overlay_fog_state(node: Node3D) -> int:
+    return ShroudSystem.cell_state_to_local(CellUtil.world_to_cell(node.global_position))
 
 
 func _on_shroud_changed(dirty: PackedInt32Array) -> void:
@@ -145,6 +286,7 @@ func _on_shroud_changed(dirty: PackedInt32Array) -> void:
     # atomically; also force-reveals when both toggles are off (shroud off ->
     # is_entity_revealed_to_local returns true).
     _sync_buildings()
+    _sync_overlays()
     if not shroud and not fog:
         _set_plane_visible(false)
         _clear_textures()
@@ -179,6 +321,7 @@ func _on_grid_initialized() -> void:
     _set_plane_visible(true)
     _init_textures(ShroudSystem.get_effective_state(PlayerManager.get_local_player_id()))
     _sync_buildings()
+    _sync_overlays()
 
 
 ## Re-applies the shroud/fog toggles (uniforms + plane visibility + texture)
@@ -489,6 +632,15 @@ func _on_node_added(node: Node) -> void:
         return
     var n3d := node as Node3D
     if not n3d.is_in_group("entities"):
+        # Tiberium overlays (OVERLAY, ResourceComponent) are not in the entities
+        # group; they still freeze their harvest-stage visual in fog. The dict
+        # value is the "ever seen by local player" flag used to keep crystals
+        # that spawn into fog hidden until revealed.
+        if n3d.get_node_or_null("ResourceComponent") != null:
+            var rstats := n3d.get_node_or_null("StatsComponent") as StatsComponent
+            if rstats != null:
+                _overlays[n3d] = false
+                _sync_overlay(n3d)
         return
     var stats := n3d.get_node_or_null("StatsComponent") as StatsComponent
     if stats == null:
@@ -503,3 +655,7 @@ func _on_node_added(node: Node) -> void:
 
 func _on_node_removed(node: Node) -> void:
     _buildings.erase(node)
+    _overlays.erase(node)
+    var depot := GhostDepot.get_instance()
+    if depot:
+        depot.mark_dead(node as Node3D)
