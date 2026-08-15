@@ -13,6 +13,8 @@ class_name ResourceType extends Resource
 @export var value: float = 1.0
 ## Display color for UI elements (pip scale, minimap dots, selection highlights).
 @export var color: Color = Color.WHITE
+## Whether this category's stored value appears in the HUD credits and build prices.
+@export var display_in_hud: bool = true
 ## Fraction of max health added per growth tick (0.05 = 5% per tick).
 @export var grow_rate: float = 0.05
 ## Bales of resource created when this type spreads to a new cell (0.01-0.5).

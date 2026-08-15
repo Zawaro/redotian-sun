@@ -603,7 +603,7 @@ func sell_building(building_node: Node3D) -> bool:
     var em := get_node("/root/EconomyManager") as EconomyManager
     if em:
         var refund: int = int(entity_data.cost * 0.5)
-        em.add(pid, refund, "sell:%s" % entity_data.id)
+        em.add(pid, refund, "sell:%s" % entity_data.id, "tiberium", true)
     # Unregister from prerequisite system
     var ps := get_node_or_null("/root/PrerequisiteSystem")
     if ps:

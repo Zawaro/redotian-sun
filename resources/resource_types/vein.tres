@@ -10,6 +10,7 @@ category = "weed"
 parent_type = ""
 value = 10
 color = Color(0.8, 0.2, 0.8, 1)
+display_in_hud = false
 grow_rate = 0.01
 spread_amount = 0.2
 spread_max = 1

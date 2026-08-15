@@ -162,6 +162,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 ## Whether this building is a helipad (lands and reloads aircraft).
 # ponytail: schema-first, no consumer yet
 @export var helipad: bool = false
+## Per-category storage capacity this building grants (e.g. {"tiberium": 2000}).
+@export var storage_capacity: Dictionary = {}
 ## Whether units can reload ammunition at this building.
 # ponytail: schema-first, no consumer yet
 @export var unit_reload: bool = false

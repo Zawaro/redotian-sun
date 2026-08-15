@@ -114,7 +114,7 @@ func _make_player(
     data.spawn_index = spawn_index
     data.display_name = display_name
     data.is_bot = is_bot
-    data.credits = credits
+    data.free_credits = credits
     return data
 
 

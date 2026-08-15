@@ -217,7 +217,7 @@ func _on_clear_paths() -> void:
 
 func _on_add_credits() -> void:
     var player_id := PlayerManager.get_local_player_id()
-    EconomyManager.add(player_id, 100000, "debug_menu")
+    EconomyManager.add(player_id, 100000, "debug_menu", "tiberium", true)
 
 
 # --- Fog / shroud controls ---
