@@ -104,6 +104,38 @@ func _stamp_ridge_height(cell: Vector2i, height: int) -> void:
         _ts._set_vertex_no_cascade(corner.x, corner.y, height)
 
 
+## Stamps a graded one-step slope across `cell`'s four corners as
+## [nw, ne, sw, se] = [low, low, high, high], so the cell spans exactly one
+## height level (grade steps == 1).
+func _stamp_graded_slope(cell: Vector2i, low: int, high: int) -> void:
+    _ts._set_vertex_no_cascade(cell.x, cell.y, low)
+    _ts._set_vertex_no_cascade(cell.x + 1, cell.y, low)
+    _ts._set_vertex_no_cascade(cell.x, cell.y + 1, high)
+    _ts._set_vertex_no_cascade(cell.x + 1, cell.y + 1, high)
+
+
+## Stamps a diagonal stair across `cell`'s four corners as
+## [nw, ne, sw, se] = [0, 1, 1, 2]: the global span is two levels but every edge
+## rises one step, so the cell is walkable (edge rise == 1) despite grade span 2.
+func _stamp_stair_slope(cell: Vector2i) -> void:
+    _ts._set_vertex_no_cascade(cell.x, cell.y, 0)
+    _ts._set_vertex_no_cascade(cell.x + 1, cell.y, 1)
+    _ts._set_vertex_no_cascade(cell.x, cell.y + 1, 1)
+    _ts._set_vertex_no_cascade(cell.x + 1, cell.y + 1, 2)
+
+
+## Stamps a continuous two-step stair ramp across a column: every cell's four
+## corners are [nw, ne, sw, se] = [z, z+1, z+1, z+2] for z = 0..height-1, so the
+## global span rises two levels over two cells while each cell keeps edge rise 1
+## (walkable). Mirrors how the test map lays out 2-step slope tiles.
+func _stamp_stair_ramp(cell: Vector2i, height: int) -> void:
+    for z in height:
+        _ts._set_vertex_no_cascade(cell.x, cell.y + z, z)
+        _ts._set_vertex_no_cascade(cell.x + 1, cell.y + z, z + 1)
+        _ts._set_vertex_no_cascade(cell.x, cell.y + z + 1, z + 1)
+        _ts._set_vertex_no_cascade(cell.x + 1, cell.y + z + 1, z + 2)
+
+
 # ========================================
 # Grid init
 # ========================================
@@ -236,6 +268,103 @@ func test_air_revealer_ignores_blockers():
     TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 42)), "building cell visible to air")
     _ss.unregister_revealer(0, key)
     _sh.unregister_building_cells([Vector2i(40, 42)] as Array[Vector2i])
+    _teardown()
+
+
+func test_graded_slope_does_not_block_vision():
+    if not _guard():
+        return
+    _setup()
+    _stamp_graded_slope(Vector2i(40, 40), 0, 1)
+    var key: int = _ss.register_revealer(0, Vector2i(40, 35), 12, 0.0, true)
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 35)), "revealer cell visible")
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 36)), "cell below slope visible")
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 40)), "slope cell itself visible")
+    (
+        TestHelper
+        . assert_true(
+            _ss.is_visible(0, Vector2i(40, 45)),
+            "cell behind a graded one-step slope is revealed",
+        )
+    )
+    _ss.unregister_revealer(0, key)
+    _teardown()
+
+
+func test_two_step_stair_slope_does_not_block_vision():
+    if not _guard():
+        return
+    _setup()
+    _stamp_stair_ramp(Vector2i(40, 39), 6)
+    var key: int = _ss.register_revealer(0, Vector2i(40, 35), 12, 0.0, true)
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 35)), "revealer cell visible")
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 36)), "cell below slope visible")
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 40)), "slope cell itself visible")
+    (
+        TestHelper
+        . assert_true(
+            _ss.is_visible(0, Vector2i(40, 45)),
+            "cell behind a two-step stair ramp is revealed (walkable stairs never block)",
+        )
+    )
+    _ss.unregister_revealer(0, key)
+    _teardown()
+
+
+func test_flat_plateau_blocks_vision_from_below():
+    if not _guard():
+        return
+    _setup()
+    _stamp_ridge_height(Vector2i(40, 40), 2)
+    _stamp_ridge_height(Vector2i(40, 41), 2)
+    _stamp_ridge_height(Vector2i(40, 42), 2)
+    var key: int = _ss.register_revealer(0, Vector2i(40, 35), 12, 0.0, true)
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 35)), "revealer cell visible")
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 36)), "cell below plateau visible")
+    (
+        TestHelper
+        . assert_true(
+            not _ss.is_visible(0, Vector2i(40, 40)),
+            "flat plateau top not visible from below",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            not _ss.is_visible(0, Vector2i(40, 45)),
+            "cell behind flat plateau is not revealed from low ground",
+        )
+    )
+    _ss.unregister_revealer(0, key)
+    _teardown()
+
+
+func test_climbing_plateau_raises_viewer_height_reveals_behind():
+    if not _guard():
+        return
+    _setup()
+    _stamp_ridge_height(Vector2i(40, 40), 2)
+    _stamp_ridge_height(Vector2i(40, 41), 2)
+    _stamp_ridge_height(Vector2i(40, 42), 2)
+    var key: int = _ss.register_revealer(0, Vector2i(40, 35), 12, 0.0, true)
+    (
+        TestHelper
+        . assert_true(
+            not _ss.is_visible(0, Vector2i(40, 45)),
+            "plateau behind stays hidden from base before climbing",
+        )
+    )
+    var plateau_eye: float = TerrainSystem.HEIGHT_STEP * 2.0
+    _ss.move_revealer(0, key, Vector2i(40, 40), plateau_eye)
+    TestHelper.assert_true(_ss.is_visible(0, Vector2i(40, 40)), "revealer cell visible")
+    (
+        TestHelper
+        . assert_true(
+            _ss.is_visible(0, Vector2i(40, 45)),
+            "climbing onto plateau with raised viewer height reveals behind it",
+        )
+    )
+    _ss.unregister_revealer(0, key)
     _teardown()
 
 

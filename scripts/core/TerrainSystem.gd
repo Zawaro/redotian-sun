@@ -344,6 +344,29 @@ func get_cell_snapshot_corners_raw(cell: Vector2i) -> Array:
     return _snapshot_corners(cell)
 
 
+## Steepest adjacent-corner rise of a cell in raw height units (unscaled by
+## HEIGHT_STEP): the maximum height difference across the cell's four edges
+## [nw-ne, sw-se, nw-sw, ne-se]. A flat cell, out-of-diamond cells, and stair
+## patterns (e.g. [0,1,1,2], where each edge rises one step but the span is two)
+## read as 1 or less; a true cliff face whose single edge jumps two or more
+## levels reads as 2 or more. Used by LOS blocking to exempt walkable graded
+## faces (edge rise <= 1, matching Foot/Track climb_tolerance) from the
+## height-delta check while keeping sheer cliff faces blocking.
+func get_cell_grade_steps(cell: Vector2i) -> int:
+    var corners := _snapshot_corners(cell)
+    if corners.is_empty():
+        return 0
+    var h_nw := corners[0] as int
+    var h_ne := corners[1] as int
+    var h_sw := corners[2] as int
+    var h_se := corners[3] as int
+    var edge_rise := maxi(
+        maxi(absi(h_nw - h_ne), absi(h_sw - h_se)),
+        maxi(absi(h_nw - h_sw), absi(h_ne - h_se)),
+    )
+    return edge_rise
+
+
 func get_cell_at_world(world_pos: Vector3) -> Dictionary:
     var cell := CellUtil.world_to_cell(world_pos)
     return get_cell(cell)
