@@ -28,6 +28,11 @@ static var _shared_select_box_material: ORMMaterial3D = null
 var health_bar: MeshInstance3D
 var _building_select_box: MeshInstance3D
 var _health_bar_grid: MeshInstance3D
+var _storage_bar: MeshInstance3D = null
+var _storage_bar_grid: MeshInstance3D = null
+var _storage_owner_id: int = -1
+var _storage_bar_span: float = 0.0
+var _storage_bar_span_min: float = 0.0
 var _rally_component: RallyPointComponent = null
 var _move_line_timer: Timer = null
 var _movement_controller: MovementController = null
@@ -151,103 +156,34 @@ func _ready():
             var health_value: float = (
                 float(health_component.current_health) / float(health_component.max_health)
             )
-            var health_bar_length = (max_z - min_z) * health_value
-            var health_bar_z_pos: float = -((max_z - min_z) - health_bar_length) / 2
-            health_bar = MeshInstance3D.new()
-            health_bar.mesh = BoxMesh.new()
+            var health_parts := _build_segmented_bar(
+                min_z,
+                max_z,
+                min_x,
+                min_x + HEALTH_BAR_CUBE_SIZE,
+                max_y - HEALTH_BAR_CUBE_SIZE,
+                max_y,
+                health_value,
+                get_health_color(health_value),
+                false,
+            )
+            health_bar = health_parts.fill as MeshInstance3D
             health_bar.name = "HealthBar"
-            health_bar.scale = Vector3(
-                HEALTH_BAR_CUBE_SIZE - 0.02, HEALTH_BAR_CUBE_SIZE - 0.02, health_bar_length
-            )
-            health_bar.position = Vector3(
-                min_x + HEALTH_BAR_CUBE_SIZE / 2, max_y - HEALTH_BAR_CUBE_SIZE / 2, health_bar_z_pos
-            )
-            health_bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-            var health_bar_material = ORMMaterial3D.new()
-            health_bar_material.albedo_color = get_health_color(health_value)
-            health_bar.material_override = health_bar_material
             health_bar.visible = false
             add_child(health_bar)
+            _health_bar_grid = health_parts.grid as MeshInstance3D
+            _health_bar_grid.name = "HealthBarGrid"
+            _health_bar_grid.visible = false
+            add_child(_health_bar_grid)
 
-            # draw health bar grid
-            var health_bar_grid_material = ORMMaterial3D.new()
-            health_bar_grid_material.albedo_color = Color(0, 0, 0)
-            health_bar_grid_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-            var health_bar_grid_length = max_z - min_z
-            var health_bar_grid = MeshInstance3D.new()
-            var health_bar_grid_mesh = ImmediateMesh.new()
-            health_bar_grid.mesh = health_bar_grid_mesh
-            health_bar_grid.cast_shadow = false
-            # Create vertex for each health bar cube segment
-            var health_bar_grid_segments: int = int(
-                ceil(health_bar_grid_length / HEALTH_BAR_CUBE_SIZE)
-            )
-            for i in range(health_bar_grid_segments):
-                var health_bar_grid_around_lines = [
-                    [
-                        Vector3(
-                            min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z + i * HEALTH_BAR_CUBE_SIZE
-                        ),
-                        Vector3(min_x, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE)
-                    ],
-                    [
-                        Vector3(
-                            min_x + HEALTH_BAR_CUBE_SIZE,
-                            max_y - HEALTH_BAR_CUBE_SIZE,
-                            min_z + i * HEALTH_BAR_CUBE_SIZE
-                        ),
-                        Vector3(
-                            min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE
-                        )
-                    ],
-                    [
-                        Vector3(
-                            min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z + i * HEALTH_BAR_CUBE_SIZE
-                        ),
-                        Vector3(
-                            min_x + HEALTH_BAR_CUBE_SIZE,
-                            max_y - HEALTH_BAR_CUBE_SIZE,
-                            min_z + i * HEALTH_BAR_CUBE_SIZE
-                        )
-                    ],
-                    [
-                        Vector3(min_x, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE),
-                        Vector3(
-                            min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z + i * HEALTH_BAR_CUBE_SIZE
-                        )
-                    ],
-                ]
-
-                for line in health_bar_grid_around_lines:
-                    health_bar_grid_mesh.surface_begin(
-                        Mesh.PRIMITIVE_LINES, health_bar_grid_material
-                    )
-                    health_bar_grid_mesh.surface_add_vertex(line[0])
-                    health_bar_grid_mesh.surface_add_vertex(line[1])
-                    health_bar_grid_mesh.surface_end()
-            var health_bar_grid_length_lines = [
-                [Vector3(min_x, max_y, min_z), Vector3(min_x, max_y, max_z)],
-                [
-                    Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, min_z),
-                    Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y, max_z)
-                ],
-                [
-                    Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, min_z),
-                    Vector3(min_x, max_y - HEALTH_BAR_CUBE_SIZE, max_z)
-                ],
-                [
-                    Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, min_z),
-                    Vector3(min_x + HEALTH_BAR_CUBE_SIZE, max_y - HEALTH_BAR_CUBE_SIZE, max_z)
-                ],
-            ]
-
-            for line in health_bar_grid_length_lines:
-                health_bar_grid_mesh.surface_begin(Mesh.PRIMITIVE_LINES, health_bar_grid_material)
-                health_bar_grid_mesh.surface_add_vertex(line[0])
-                health_bar_grid_mesh.surface_add_vertex(line[1])
-                health_bar_grid_mesh.surface_end()
-            add_child(health_bar_grid)
-            _health_bar_grid = health_bar_grid
+        # Refinery storage bar — full-width bar at the building's base showing
+        # tiberium storage fill. Mesh + data lookups are runtime-only (@tool).
+        if not Engine.is_editor_hint():
+            var stats := get_parent().get_node_or_null("StatsComponent") as StatsComponent
+            if stats and not stats.id.is_empty() and stats.player_id >= 0:
+                var data := EntityFactory.get_entity_data(stats.id)
+                if data and data.refinery:
+                    _build_storage_bar(hit_box_size, stats.player_id)
 
     # Rally line — green line from building center to rally point, drawn via the
     # shared MoveLineRenderer (change-only: re-registered when the rally point moves).
@@ -289,14 +225,177 @@ func update_health_bar():
         var health_value = (
             float(health_component.current_health) / float(health_component.max_health)
         )
-        var health_bar_length = (max_z - min_z) * health_value
-        var health_bar_z_pos = -((max_z - min_z) - health_bar_length) / 2
-        health_bar.position = Vector3(
-            health_bar.position.x, health_bar.position.y, health_bar_z_pos
+        var length: float = (max_z - min_z) * health_value
+        health_bar.scale.x = maxf(length, 0.001)
+        health_bar.position.z = min_z + length / 2.0
+        health_bar.material_override.albedo_color = get_health_color(health_value)
+
+
+## Builds a segmented bar: a fill BoxMesh plus a black unshaded grid channel
+## spanning the given world axis (X or Z). The fill runs from span_min, growing
+## toward span_max by `ratio`. Returns {"fill": MeshInstance3D, "grid": MeshInstance3D}.
+func _build_segmented_bar(
+    span_min: float,
+    span_max: float,
+    cross_min: float,
+    cross_max: float,
+    y_lo: float,
+    y_hi: float,
+    ratio: float,
+    fill_color: Color,
+    span_is_x: bool,
+) -> Dictionary:
+    var grid_material := ORMMaterial3D.new()
+    grid_material.albedo_color = Color(0, 0, 0)
+    grid_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+    var grid := MeshInstance3D.new()
+    var grid_mesh := ImmediateMesh.new()
+    grid.mesh = grid_mesh
+    grid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+    var segments: int = int(ceil((span_max - span_min) / HEALTH_BAR_CUBE_SIZE))
+    for i in segments:
+        var u: float = span_min + i * HEALTH_BAR_CUBE_SIZE
+        var cross_lines := [
+            [
+                _bar_point(u, y_lo, cross_min, span_is_x),
+                _bar_point(u, y_hi, cross_min, span_is_x),
+            ],
+            [
+                _bar_point(u, y_lo, cross_max, span_is_x),
+                _bar_point(u, y_hi, cross_max, span_is_x),
+            ],
+            [
+                _bar_point(u, y_lo, cross_min, span_is_x),
+                _bar_point(u, y_lo, cross_max, span_is_x),
+            ],
+            [
+                _bar_point(u, y_hi, cross_min, span_is_x),
+                _bar_point(u, y_hi, cross_max, span_is_x),
+            ],
+        ]
+        for line in cross_lines:
+            grid_mesh.surface_begin(Mesh.PRIMITIVE_LINES, grid_material)
+            grid_mesh.surface_add_vertex(line[0])
+            grid_mesh.surface_add_vertex(line[1])
+            grid_mesh.surface_end()
+
+    var edge_lines := [
+        [
+            _bar_point(span_min, y_hi, cross_min, span_is_x),
+            _bar_point(span_max, y_hi, cross_min, span_is_x),
+        ],
+        [
+            _bar_point(span_min, y_hi, cross_max, span_is_x),
+            _bar_point(span_max, y_hi, cross_max, span_is_x),
+        ],
+        [
+            _bar_point(span_min, y_lo, cross_min, span_is_x),
+            _bar_point(span_max, y_lo, cross_min, span_is_x),
+        ],
+        [
+            _bar_point(span_min, y_lo, cross_max, span_is_x),
+            _bar_point(span_max, y_lo, cross_max, span_is_x),
+        ],
+    ]
+    for line in edge_lines:
+        grid_mesh.surface_begin(Mesh.PRIMITIVE_LINES, grid_material)
+        grid_mesh.surface_add_vertex(line[0])
+        grid_mesh.surface_add_vertex(line[1])
+        grid_mesh.surface_end()
+
+    var length: float = (span_max - span_min) * ratio
+    var fill := MeshInstance3D.new()
+    fill.mesh = BoxMesh.new()
+    fill.scale = Vector3(
+        maxf(length, 0.001), HEALTH_BAR_CUBE_SIZE - 0.02, HEALTH_BAR_CUBE_SIZE - 0.02
+    )
+    if span_is_x:
+        fill.position = Vector3(
+            span_min + length / 2.0, (y_lo + y_hi) / 2.0, (cross_min + cross_max) / 2.0
         )
-        health_bar.scale = Vector3(health_bar.scale.x, health_bar.scale.y, health_bar_length)
-        var health_bar_material = health_bar.material_override
-        health_bar_material.albedo_color = get_health_color(health_value)
+    else:
+        fill.position = Vector3(
+            (cross_min + cross_max) / 2.0, (y_lo + y_hi) / 2.0, span_min + length / 2.0
+        )
+        fill.rotation_degrees.y = -90.0
+    fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    var fill_material := ORMMaterial3D.new()
+    fill_material.albedo_color = fill_color
+    fill.material_override = fill_material
+
+    return {"fill": fill, "grid": grid}
+
+
+func _bar_point(u: float, y: float, v: float, span_is_x: bool) -> Vector3:
+    if span_is_x:
+        return Vector3(u, y, v)
+    return Vector3(v, y, u)
+
+
+func _build_storage_bar(hit_box_size: Vector3, owner_id: int) -> void:
+    var min_x: float = hit_box_size.x / -2
+    var max_x: float = hit_box_size.x / 2
+    var min_y: float = 0.01
+    var max_z: float = hit_box_size.z / 2
+
+    var fill_color := Color(0.2, 0.8, 0.2, 1)
+    var rules := EntityFactory.get_global_rules()
+    var rt: ResourceType = rules.get_resource_type("tiberium") if rules else null
+    if rt:
+        fill_color = rt.color
+
+    _storage_owner_id = owner_id
+    _storage_bar_span = max_x - min_x
+    _storage_bar_span_min = min_x
+
+    var parts := _build_segmented_bar(
+        min_x,
+        max_x,
+        max_z - HEALTH_BAR_CUBE_SIZE,
+        max_z,
+        min_y,
+        min_y + HEALTH_BAR_CUBE_SIZE,
+        0.0,
+        fill_color,
+        true,
+    )
+    _storage_bar = parts.fill as MeshInstance3D
+    _storage_bar.name = "StorageBar"
+    _storage_bar.visible = false
+    add_child(_storage_bar)
+    _storage_bar_grid = parts.grid as MeshInstance3D
+    _storage_bar_grid.name = "StorageBarGrid"
+    _storage_bar_grid.visible = false
+    add_child(_storage_bar_grid)
+    update_storage_bar()
+    EconomyManager.credits_changed.connect(_on_credits_changed)
+
+
+func update_storage_bar() -> void:
+    if not is_instance_valid(_storage_bar) or _storage_owner_id < 0:
+        return
+    var capacity: int = EconomyManager.get_storage_capacity(_storage_owner_id)
+    if capacity <= 0:
+        return
+    var ratio := clampf(
+        float(EconomyManager.get_balance(_storage_owner_id, "tiberium")) / float(capacity),
+        0.0,
+        1.0,
+    )
+    var length: float = _storage_bar_span * ratio
+    _storage_bar.scale.x = maxf(length, 0.001)
+    _storage_bar.position.x = _storage_bar_span_min + length / 2.0
+
+
+func _on_credits_changed(player_id: int, _balance: int, _reason: String, category: String) -> void:
+    if (
+        is_instance_valid(_storage_bar)
+        and player_id == _storage_owner_id
+        and category == "tiberium"
+    ):
+        update_storage_bar()
 
 
 func _on_health_changed(_new_health, _old_health) -> void:

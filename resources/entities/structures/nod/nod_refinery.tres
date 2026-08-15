@@ -32,4 +32,8 @@ dock_position = Vector3(6, 0, 2)
 dock_rotation = -90.0
 dock_unload = true
 accepted_resource_categories = PackedStringArray("tiberium")
+refinery = true
+storage_capacity = {
+"tiberium": 2000
+}
 bib_cells = Array[Vector2i]([Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2)])
