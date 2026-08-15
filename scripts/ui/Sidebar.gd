@@ -547,7 +547,9 @@ func _handle_right_click(pm: ProductionManager, data: EntityData, shift: bool) -
             break
 
 
-func _on_credits_changed(player_id: int, new_balance: int, _reason: String) -> void:
+func _on_credits_changed(
+    player_id: int, new_balance: int, _reason: String, _category: String
+) -> void:
     if player_id != PlayerManager.get_local_player_id():
         return
     credits_label.text = "$%d" % new_balance
