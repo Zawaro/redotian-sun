@@ -109,11 +109,13 @@ func _begin_unload() -> void:
         dock_unload.begin_unload()
 
 
-func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
-    if _state != State.IDLE:
-        return
-    if _retry_cooldown > 0.0:
-        return
+## Attempt to begin docking. Returns true when the client engaged (entered
+## MOVING or QUEUED), false when it could not (client busy, retry cooldown, or
+## no compatible host found). Callers use the result to schedule a retry rather
+## than assuming the seek succeeded.
+func seek_dock(parent: Node3D, specific_host: Node3D = null) -> bool:
+    if _state != State.IDLE or _retry_cooldown > 0.0:
+        return false
 
     _disconnect_host_signal()
 
@@ -122,23 +124,23 @@ func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
             _target_host = specific_host
             _state = State.MOVING
             _move_to_dock(specific_host)
-            return
+            return true
         _queued_host = specific_host
         _state = State.QUEUED
         var host_dock := specific_host.get_node_or_null("DockHostComponent") as DockHostComponent
         if host_dock:
             _move_to_cell(host_dock.find_wait_cell())
-        return
+        return true
 
     var host := find_nearest_host(parent)
     if not host:
         dock_slot_failed.emit()
-        return
+        return false
     if _try_bind_host(host):
         _target_host = host
         _state = State.MOVING
         _move_to_dock(host)
-        return
+        return true
 
     # Host occupied — queue at the nearest.
     _queued_host = host
@@ -146,6 +148,7 @@ func seek_dock(parent: Node3D, specific_host: Node3D = null) -> void:
     var dock := host.get_node_or_null("DockHostComponent") as DockHostComponent
     if dock:
         _move_to_cell(dock.find_wait_cell())
+    return true
 
 
 func _move_to_dock(host: Node3D) -> void:
