@@ -150,7 +150,7 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     # Resource groups.
     if data.resource_category != "":
         entity.add_to_group("resources")
-        _add_interact_hitbox(entity)
+        _add_interact_hitbox(entity, data)
     if data.resource_category == "tiberium_tree":
         entity.add_to_group("resource_trees")
     return entity
@@ -511,11 +511,18 @@ func _add_ice_component(entity: Node3D, data: EntityData) -> void:
     entity.add_to_group("ice")
 
 
-func _add_interact_hitbox(entity: Node3D) -> void:
+func _add_interact_hitbox(entity: Node3D, data: EntityData) -> void:
     var component := HITBOX_COMPONENT_SCENE.instantiate()
     component.name = "HitboxComponent"
     component.collision_layer = 1 << 16  # layer 17 — interaction (resource, dock)
     component.collision_mask = 0
-    component.size = Vector3(1.5, 1.5, 1.5)
+    # Overlays (tiberium, riparius) sit on the terrain as flat ground patches:
+    # a full-cell slab keeps clicks on the cell resolving to it, while a
+    # full-height cube steals angled raycasts aimed at neighboring cells.
+    # Terrain trees keep the tall cube so their canopy stays clickable.
+    var hit_height := (
+        CellUtil.CELL_SIZE if data.entity_type == EntityData.EntityType.TERRAIN else 0.01
+    )
+    component.size = Vector3(CellUtil.CELL_SIZE, hit_height, CellUtil.CELL_SIZE)
     entity.add_child(component)
     component.owner = entity

@@ -289,7 +289,8 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
         var target := _find_entity_parent(collider)
         if target:
             var target_cell := CellUtil.world_to_cell(target.global_position)
-            _try_execute_orders(target, target_cell, target.global_position, modifiers)
+            if _try_execute_orders(target, target_cell, target.global_position, modifiers):
+                return
 
     # No entity — deselect and issue movement command.
     if selection_manager and not selection_manager.selected_entities.is_empty():
