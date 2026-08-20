@@ -7,6 +7,10 @@ var _slot_emitted_flag := false
 var _timeout_emitted_flag := false
 var _timeout_docker_ref: Node = null
 var _em: Node = null
+var _pm: Node = null
+var _ts: Node = null
+var _sh: Node = null
+var _move_starts: int = 0
 
 # --- helpers ---
 
@@ -98,6 +102,10 @@ func _init_dock(dock_comp: DockHostComponent, dock_entity: Node3D) -> void:
     dock_comp._dock_cell = CellUtil.world_to_cell(
         top_left + dock_entity.global_transform.basis * dock_comp.dock_position
     )
+
+
+func _on_harvest_move_started() -> void:
+    _move_starts += 1
 
 
 func _on_slot_signal() -> void:
@@ -344,6 +352,200 @@ func test_harvest_set_target_node_transitions_to_seek_node():
         )
     )
     resource.queue_free()
+    entity.queue_free()
+
+
+func test_harvest_retarget_while_seeking_reissues_move():
+    if _ts:
+        _ts.init_grid(32, 32)
+    if _sh:
+        _sh.rebuild()
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+    var mc := entity.get_node("MovementController") as MovementController
+    mc._parent = entity
+
+    var cell_a := Vector2i(30, 30)
+    var cell_b := Vector2i(34, 32)
+    # Off-tree nodes report global_position as (0,0,0), so resources must live
+    # in the real tree for their cell to differ from the harvester's own cell.
+    var tree_root: Node = (Engine.get_main_loop() as SceneTree).root
+    var res_a := Node3D.new()
+    res_a.name = "ResA"
+    var rc_a := ResourceComponent.new()
+    rc_a.name = "ResourceComponent"
+    res_a.add_child(rc_a)
+    res_a.position = CellUtil.cell_to_world(cell_a)
+    tree_root.add_child(res_a)
+    var res_b := Node3D.new()
+    res_b.name = "ResB"
+    var rc_b := ResourceComponent.new()
+    rc_b.name = "ResourceComponent"
+    res_b.add_child(rc_b)
+    res_b.position = CellUtil.cell_to_world(cell_b)
+    tree_root.add_child(res_b)
+
+    var starts := 0
+    _move_starts = 0
+    mc.movement_started.connect(_on_harvest_move_started)
+
+    harvest.set_target_node(res_a)
+    (
+        TestHelper
+        . assert_true(
+            _move_starts == 1 and harvest._current_resource == res_a,
+            (
+                "first order issued move: starts=%d current=%s"
+                % [_move_starts, str(harvest._current_resource)]
+            ),
+        )
+    )
+
+    harvest.set_target_node(res_b)
+    (
+        TestHelper
+        . assert_true(
+            _move_starts == 2,
+            "retarget while seeking re-issues move: starts=%d (expected 2)" % _move_starts,
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            harvest._current_resource == res_b,
+            "retarget set current resource: current=%s" % str(harvest._current_resource),
+        )
+    )
+    var final_cell := CellUtil.world_to_cell(mc.get_target_position())
+    (
+        TestHelper
+        . assert_true(
+            final_cell == cell_b,
+            "retarget moves to new cell: got %s expected %s" % [final_cell, cell_b],
+        )
+    )
+
+    res_a.queue_free()
+    res_b.queue_free()
+    entity.queue_free()
+
+
+func test_harvest_full_cargo_retarget_to_specific_cell_while_delivering():
+    if _ts:
+        _ts.init_grid(32, 32)
+    if _sh:
+        _sh.rebuild()
+    var tree_root: Node = (Engine.get_main_loop() as SceneTree).root
+
+    # Harvester at (16,16) with full cargo, in the tree (via a Node3D container)
+    # so get_parent() resolves to a Node3D and global_position is real.
+    var container := Node3D.new()
+    container.position = CellUtil.cell_to_world(Vector2i(16, 16))
+    tree_root.add_child(container)
+    var entity := _make_entity()
+    var dc := DockClientComponent.new()
+    dc.name = "DockClientComponent"
+    entity.add_child(dc)
+    container.add_child(entity)
+    var mc := entity.get_node("MovementController") as MovementController
+    var harvest := _get_harvest(entity)
+    var transport := _get_transport(entity)
+    transport.cargo = {"tiberium_green": 700.0}
+
+    # 4 tiberium cells in the tree at distinct cells.
+    var tib_cells := [
+        Vector2i(17, 16),
+        Vector2i(16, 17),
+        Vector2i(17, 17),
+        Vector2i(18, 16),
+    ]
+    var tibs: Array[Node3D] = []
+    for c in tib_cells:
+        var tib := Node3D.new()
+        var rc := ResourceComponent.new()
+        rc.name = "ResourceComponent"
+        tib.add_child(rc)
+        tib.position = CellUtil.cell_to_world(c)
+        tree_root.add_child(tib)
+        tibs.append(tib)
+    var tib_a: Node3D = tibs[0]
+
+    # Refinery the full-cargo harvester will deliver to.
+    var dock_entity := _make_dock_entity()
+    dock_entity.position = CellUtil.cell_to_world(Vector2i(20, 16))
+    dock_entity.add_to_group("entities")
+    tree_root.add_child(dock_entity)
+
+    # 1) Command to the specific cell A → must seek there.
+    harvest.set_target_node(tib_a)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.SEEK_NODE,
+            "full-cargo command to cell A enters SEEK_NODE: state=%d" % harvest._state,
+        )
+    )
+    var first_cell := CellUtil.world_to_cell(mc.get_target_position())
+    (
+        TestHelper
+        . assert_true(
+            first_cell == tib_cells[0],
+            "command to cell A lands there: got %s expected %s" % [first_cell, tib_cells[0]],
+        )
+    )
+
+    # 2) Arrive at the field → cargo full → starts delivering (moves to refinery).
+    harvest.on_arrived(entity.global_position)
+    harvest._process(0.1)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.DELIVERING,
+            "arrival with full cargo transitions to DELIVERING: state=%d" % harvest._state,
+        )
+    )
+    var dock_target := CellUtil.world_to_cell(mc.get_target_position())
+    (
+        TestHelper
+        . assert_true(
+            dock_target == Vector2i(20, 16),
+            (
+                "delivering moves toward refinery: got %s expected %s"
+                % [dock_target, Vector2i(20, 16)]
+            ),
+        )
+    )
+
+    # 3) Re-command to the same specific cell while en route to the refinery.
+    harvest.set_target_node(tib_a)
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.SEEK_NODE,
+            "re-command while delivering returns to SEEK_NODE: state=%d" % harvest._state,
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            harvest._current_resource == tib_a,
+            "re-command keeps the specific cell: current=%s" % str(harvest._current_resource),
+        )
+    )
+    var final_cell := CellUtil.world_to_cell(mc.get_target_position())
+    (
+        TestHelper
+        . assert_true(
+            final_cell == tib_cells[0],
+            "re-command moves back to cell A: got %s expected %s" % [final_cell, tib_cells[0]],
+        )
+    )
+
+    for t in tibs:
+        t.queue_free()
+    dock_entity.queue_free()
+    container.queue_free()
     entity.queue_free()
 
 
@@ -1083,4 +1285,213 @@ func test_harvest_order_queued_modifier():
     TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
 
     resource_entity.queue_free()
+    entity.queue_free()
+
+
+func test_full_harvester_harvest_order_walks_field_then_delivers():
+    var entity := _make_entity()
+    add_child(entity)
+    var harvest := _get_harvest(entity)
+    harvest._state = HarvestComponent.State.IDLE
+
+    var resource := Node3D.new()
+    resource.name = "TestResource"
+    var rc := ResourceComponent.new()
+    rc.name = "ResourceComponent"
+    resource.add_child(rc)
+    resource.position = Vector3(100.0, 0.0, 100.0)
+    add_child(resource)
+
+    var order := harvest.get_order_for_target(resource, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order != null, "full harvester + resource click -> order not null")
+    (
+        TestHelper
+        . assert_eq(
+            order.cursor,
+            CursorState.Type.HARVEST,
+            "cursor stays HARVEST when cargo is full (TS-authentic)",
+        )
+    )
+
+    order.execute.call()
+    (
+        TestHelper
+        . assert_true(
+            harvest._state != HarvestComponent.State.DELIVERING,
+            (
+                "full harvester walks to the field before unloading (TS-authentic): state=%d"
+                % harvest._state
+            ),
+        )
+    )
+
+    harvest.on_arrived(resource.global_position)
+    harvest._process(1.0)
+    (
+        TestHelper
+        . assert_eq(
+            harvest._state,
+            HarvestComponent.State.DELIVERING,
+            "full harvester routes to the refinery after reaching the field",
+        )
+    )
+
+    resource.queue_free()
+    entity.queue_free()
+
+
+func test_full_harvester_deliver_arms_retry_when_seek_cannot_engage():
+    var entity := _make_entity()
+    add_child(entity)
+    var dc := DockClientComponent.new()
+    dc.name = "DockClientComponent"
+    entity.add_child(dc)
+    var harvest := _get_harvest(entity)
+    harvest.dock_client = dc
+
+    dc._state = DockClientComponent.State.MOVING
+    dc._target_host = null
+
+    harvest._deliver_cargo(entity)
+
+    (
+        TestHelper
+        . assert_eq(
+            harvest._state,
+            HarvestComponent.State.DELIVERING,
+            "cargo full -> DELIVERING",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            harvest._deliver_retry > 0.0,
+            (
+                "deliver retry armed when seek_dock cannot engage (busy client): retry=%s"
+                % harvest._deliver_retry
+            ),
+        )
+    )
+
+    entity.queue_free()
+
+
+func test_delivering_retry_re_arms_when_seek_still_cannot_engage():
+    var entity := _make_entity()
+    add_child(entity)
+    var dc := DockClientComponent.new()
+    dc.name = "DockClientComponent"
+    entity.add_child(dc)
+    var harvest := _get_harvest(entity)
+    harvest.dock_client = dc
+
+    dc._state = DockClientComponent.State.MOVING
+    dc._target_host = null
+
+    harvest._deliver_cargo(entity)
+    harvest._process(HarvestComponent.DELIVER_RETRY + 0.1)
+
+    (
+        TestHelper
+        . assert_true(
+            harvest._deliver_retry > 0.0,
+            (
+                "DELIVERING retry re-arms when the seek still cannot engage: retry=%s"
+                % harvest._deliver_retry
+            ),
+        )
+    )
+
+    entity.queue_free()
+
+
+func test_full_harvester_harvest_order_cancels_inflight_dock():
+    var entity := _make_entity()
+    var dc := DockClientComponent.new()
+    dc.name = "DockClientComponent"
+    entity.add_child(dc)
+    var dock_entity := _make_dock_entity()
+    dock_entity.add_to_group("entities")
+    _init_dock(_get_dock_comp(dock_entity), dock_entity)
+
+    # Mount in the real scene tree so find_nearest_host's group scan works.
+    var root := _pm.get_tree().root
+    root.add_child(entity)
+    root.add_child(dock_entity)
+    var harvest := _get_harvest(entity)
+    harvest.dock_client = dc
+    harvest._state = HarvestComponent.State.IDLE
+
+    # Simulate an in-flight auto-deliver: dock client busy toward the refinery.
+    dc._state = DockClientComponent.State.MOVING
+    dc._target_host = dock_entity
+    dc._reserved_host = dock_entity
+
+    var resource := Node3D.new()
+    resource.name = "TestResource"
+    var rc := ResourceComponent.new()
+    rc.name = "ResourceComponent"
+    resource.add_child(rc)
+    resource.position = Vector3(100.0, 0.0, 100.0)
+    root.add_child(resource)
+
+    var order := harvest.get_order_for_target(resource, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order != null, "full harvester + resource click -> order not null")
+    order.execute.call()
+
+    (
+        TestHelper
+        . assert_eq(
+            dc._state,
+            DockClientComponent.State.IDLE,
+            "in-flight dock cancelled at order time (was busy): state=%d" % dc._state,
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            dc._target_host == null,
+            "in-flight dock reservation released: target_host=%s" % dc._target_host,
+        )
+    )
+    (
+        TestHelper
+        . assert_eq(
+            harvest._state,
+            HarvestComponent.State.SEEK_NODE,
+            "full harvester walks to the field after cancelling the dock",
+        )
+    )
+
+    harvest.on_arrived(resource.global_position)
+    harvest._process(1.0)
+
+    # The post-arrival unload routing re-engages the (now-clean) dock client and
+    # finds the refinery in the real scene tree — the full walk→deliver chain.
+    (
+        TestHelper
+        . assert_eq(
+            harvest._state,
+            HarvestComponent.State.DELIVERING,
+            "full harvester routes to the refinery after reaching the field",
+        )
+    )
+    (
+        TestHelper
+        . assert_eq(
+            dc._state,
+            DockClientComponent.State.MOVING,
+            "dock re-engaged toward the refinery after the walk: state=%d" % dc._state,
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            dc._target_host == dock_entity,
+            "dock client re-seeked the refinery host: target=%s" % dc._target_host,
+        )
+    )
+
+    resource.queue_free()
+    dock_entity.queue_free()
     entity.queue_free()

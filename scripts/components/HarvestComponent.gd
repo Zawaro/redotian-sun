@@ -15,6 +15,10 @@ var _current_resource: Node3D = null
 var _entity_factory: Node = null
 var _seek_timeout: float = 0.0
 var dock_client: DockClientComponent = null
+## True while a resource target came from an explicit player command
+## (`set_target_node`), not from auto-seek. Player-commanded targets are honored
+## even when the resource cell is already reserved; auto-seek abandons instead.
+var _player_commanded: bool = false
 
 var _harvest_accumulator: float = 0.0
 var _last_field_position: Vector3 = Vector3.ZERO
@@ -121,11 +125,14 @@ func _process(delta: float) -> void:
             # No dock reachable — retry on a cooldown instead of re-seeking
             # synchronously (which recurses via dock_slot_failed). Retries
             # indefinitely; self-heals when a refinery becomes reachable.
+            # A seek that cannot engage (busy client / retry cooldown) re-arms
+            # the cooldown so the loop persists instead of stranding the
+            # harvester after one attempt.
             # ponytail: no "stuck" signal — add one if the AI/UI needs to react.
             if _deliver_retry > 0.0:
                 _deliver_retry -= delta
-                if _deliver_retry <= 0.0 and dock_client:
-                    dock_client.seek_dock(entity_parent)
+                if _deliver_retry <= 0.0:
+                    _seek_dock_or_arm_retry(entity_parent)
 
         State.HIBERNATE:
             # Field exhausted — wait, then re-scan for nearby resources.
@@ -139,17 +146,28 @@ func _process(delta: float) -> void:
 func _deliver_cargo(entity_parent: Node3D) -> void:
     _deliver_retry = 0.0
     _change_state(State.DELIVERING)
-    if dock_client:
-        dock_client.seek_dock(entity_parent)
+    _seek_dock_or_arm_retry(entity_parent)
+
+
+## Ask the dock client to seek; if it cannot engage (busy client, retry
+## cooldown, or no compatible host), arm the DELIVERING retry so the loop
+## re-attempts instead of stranding the harvester.
+func _seek_dock_or_arm_retry(entity_parent: Node3D, specific_host: Node3D = null) -> void:
+    if dock_client and not dock_client.seek_dock(entity_parent, specific_host):
+        _deliver_retry = DELIVER_RETRY
 
 
 func set_target_node(node: Node3D) -> void:
     if node and node.get_node_or_null("ResourceComponent"):
+        _player_commanded = true
+        _release_resource_cell()
         _current_resource = node
-        _change_state(State.SEEK_NODE)
+        if dock_client:
+            dock_client.cancel()
+        _reenter_seek_node()
 
 
-func cancel_harvest(_player_commanded: bool = false) -> void:
+func cancel_harvest(_from_player: bool = false) -> void:
     _release_resource_cell()
     _current_resource = null
     _deliver_retry = 0.0
@@ -166,7 +184,7 @@ func set_target_refinery(node: Node3D) -> void:
         _release_resource_cell()
         _current_resource = null
         _change_state(State.DELIVERING)
-        dock_client.seek_dock(get_parent() as Node3D, node)
+        _seek_dock_or_arm_retry(get_parent() as Node3D, node)
 
 
 func on_arrived(_position: Vector3) -> void:
@@ -194,6 +212,7 @@ func _on_dock_cancelled() -> void:
 ## Scan for resources; deliver if loaded, else hibernate (auto-retry).
 ## IDLE is reserved for explicit player stop (cancel_harvest).
 func _assess_next_action() -> void:
+    _player_commanded = false
     var entity_parent := get_parent() as Node3D
     if not entity_parent:
         _change_state(State.IDLE)
@@ -206,15 +225,19 @@ func _assess_next_action() -> void:
         resource = _find_nearest_resource(_last_field_position)
     if resource:
         _current_resource = resource
-        # Reset to IDLE so _change_state(SEEK_NODE) re-runs entry logic
-        # (movement setup). Without this, a SEEK_NODE→SEEK_NODE transition
-        # is a no-op and the harvester sits idle with a valid target.
-        _state = State.IDLE
-        _change_state(State.SEEK_NODE)
+        _reenter_seek_node()
     elif get_cargo() > 0.0:
         _deliver_cargo(entity_parent)
     else:
         _change_state(State.HIBERNATE)
+
+
+## Force a SEEK_NODE transition from any state. `_change_state` no-ops on a
+## SEEK_NODE→SEEK_NODE transition (same-state guard), so reset to IDLE first to
+## re-run the SEEK entry logic and re-issue the move.
+func _reenter_seek_node() -> void:
+    _state = State.IDLE
+    _change_state(State.SEEK_NODE)
 
 
 func _change_state(new_state: int) -> void:
@@ -238,19 +261,14 @@ func _change_state(new_state: int) -> void:
             if is_instance_valid(_current_resource):
                 var tib_cell := CellUtil.world_to_cell(_current_resource.global_position)
                 var my_cell := CellUtil.world_to_cell(entity_parent.global_position)
-                if tib_cell == my_cell:
-                    if SpatialHash.instance:
-                        if not SpatialHash.instance.reserve_cell(tib_cell):
-                            _current_resource = null
-                            call_deferred("_assess_next_action")
-                            return
-                    _change_state(State.HARVESTING)
-                    return
-                if SpatialHash.instance:
+                if SpatialHash.instance and not _player_commanded:
                     if not SpatialHash.instance.reserve_cell(tib_cell):
                         _current_resource = null
                         call_deferred("_assess_next_action")
                         return
+                if tib_cell == my_cell:
+                    _change_state(State.HARVESTING)
+                    return
                 _seek_timeout = SEEK_TIMEOUT
                 mc.set_target_position(_current_resource.global_position)
         State.DELIVERING:

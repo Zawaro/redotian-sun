@@ -420,6 +420,87 @@ func test_non_infantry_sharer_books_sub_slot():
     )
 
 
+func test_resource_entity_does_not_block_idle_cell():
+    var sh := SpatialHash.instance
+    if sh == null:
+        TestHelper.fail("SpatialHash not available")
+        return
+    sh._grid.clear()
+    var cell := Vector2i(20, 20)
+    var key := CellUtil.cell_key(cell)
+    var resource_node := Node3D.new()
+    resource_node.name = "TibField"
+    add_child(resource_node)
+    var resource_entry := {
+        "node": resource_node,
+        "mc": null,
+        "entity_type": EntityData.EntityType.TERRAIN,
+        "player_id": -1,
+    }
+    sh._grid[key] = [resource_entry]
+    var entity := Node3D.new()
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    var occupied: bool = mc._is_cell_occupied_by_idle(cell)
+    sh._grid.erase(key)
+    entity.queue_free()
+    resource_node.queue_free()
+    TestHelper.assert_eq(
+        occupied, false, "resource-only cell is not occupied: expected false, got true"
+    )
+
+
+func test_idle_unit_still_blocks_idle_cell():
+    var sh := SpatialHash.instance
+    if sh == null:
+        TestHelper.fail("SpatialHash not available")
+        return
+    sh._grid.clear()
+    var cell := Vector2i(21, 21)
+    var key := CellUtil.cell_key(cell)
+    var idle_root := Node3D.new()
+    var idle_mc := MovementController.new()
+    idle_root.add_child(idle_mc)
+    idle_mc._parent = idle_root
+    add_child(idle_root)
+    var entry := {
+        "node": idle_root,
+        "mc": idle_mc,
+        "entity_type": EntityData.EntityType.INFANTRY,
+        "player_id": 0,
+    }
+    sh._grid[key] = [entry]
+    var entity := Node3D.new()
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    var occupied: bool = mc._is_cell_occupied_by_idle(cell)
+    sh._grid.erase(key)
+    entity.queue_free()
+    idle_root.queue_free()
+    TestHelper.assert_eq(occupied, true, "idle unit cell is occupied: expected true, got false")
+
+
+func test_building_still_blocks_idle_cell():
+    var sh := SpatialHash.instance
+    if sh == null:
+        TestHelper.fail("SpatialHash not available")
+        return
+    sh._grid.clear()
+    var cell := Vector2i(22, 22)
+    var key := CellUtil.cell_key(cell)
+    sh._building_cells[key] = true
+    var entity := Node3D.new()
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    var occupied: bool = mc._is_cell_occupied_by_idle(cell)
+    sh._building_cells.erase(key)
+    entity.queue_free()
+    TestHelper.assert_eq(occupied, true, "building cell is occupied: expected true, got false")
+
+
 func test_non_sharing_vehicle_does_not_book():
     var cr := CellReservation.instance
     if cr == null or SpatialHash.instance == null or _ts == null:

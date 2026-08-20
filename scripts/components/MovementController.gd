@@ -1120,11 +1120,15 @@ func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
     if SpatialHash.instance.is_cell_blocked(cell):
         return true
     var key: int = CellUtil.cell_key(cell)
+    if SpatialHash.instance.get_building_cells().has(key):
+        return true
     if SpatialHash.instance._grid.has(key):
         for entry in SpatialHash.instance._grid[key]:
             if entry.node != _parent:
                 var entry_mc := entry.mc as MovementController
-                if _shares_cell and entry_mc and entry_mc.shares_cell():
+                if not entry_mc:
+                    continue
+                if _shares_cell and entry_mc.shares_cell():
                     continue
                 return true
     return false
