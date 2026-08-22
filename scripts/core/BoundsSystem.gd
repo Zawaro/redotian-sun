@@ -33,6 +33,20 @@ var show_bounds: bool = false:
 ## Camera pivot used to center the camera when a map is initialized.
 @export var camera_pivot: Node3D
 
+## FinalSun-style start-location cluster offsets around the map-center cell.
+## Player i defaults to center + offsets[i % 8]; the list is packed so the
+## first four players take the tight 2x2 grid right next to each other.
+const START_CLUSTER_OFFSETS: Array[Vector2i] = [
+    Vector2i(0, 0),
+    Vector2i(1, 0),
+    Vector2i(0, 1),
+    Vector2i(1, 1),
+    Vector2i(-1, 0),
+    Vector2i(0, -1),
+    Vector2i(-1, -1),
+    Vector2i(1, -1),
+]
+
 var map_bounds_mesh_instance: MeshInstance3D
 var visible_bounds_mesh_instance: MeshInstance3D
 var immediate_map_mesh: ImmediateMesh
@@ -50,6 +64,7 @@ func _ready() -> void:
             camera_pivot = _find_camera_pivot()
         if camera_pivot:
             _center_camera_on_diamond()
+        call_deferred("_resolve_camera_pivot")
         call_deferred("_position_cloud_overlay")
     create_bounds_edges()
     map_bounds_mesh_instance.visible = show_bounds
@@ -61,6 +76,7 @@ func _on_grid_initialized() -> void:
     if ts:
         grid_cells = ts.grid_cells
     create_bounds_edges()
+    _resolve_camera_pivot()
     if camera_pivot:
         _center_camera_on_diamond()
     call_deferred("_position_cloud_overlay")
@@ -69,15 +85,48 @@ func _on_grid_initialized() -> void:
 func _find_camera_pivot() -> Node3D:
     var root: Window = get_tree().root
     for child in root.get_children():
-        if child.get_node_or_null("Camera3D"):
-            return child
+        var cam: Camera3D = child.find_child("Camera3D", true, false) as Camera3D
+        if cam:
+            return cam.get_parent() as Node3D
     return null
+
+
+## Re-resolve the camera pivot after the main scene enters the tree. The
+## autoload _ready() runs before the gameplay scene exists, so the pivot can
+## only be discovered here (or on grid init) in real gameplay.
+func _resolve_camera_pivot() -> void:
+    if camera_pivot:
+        return
+    camera_pivot = _find_camera_pivot()
 
 
 func _center_camera_on_diamond() -> void:
     if not camera_pivot:
         return
     camera_pivot.global_position = Vector3(0.0, camera_pivot.global_position.y, 0.0)
+
+
+## Default start cell for a player: the map-center cell plus the player's
+## cluster offset. Always inside the diamond; shared by the MapEditor tool and
+## the gameplay camera so both agree on what "no override" means.
+func default_start_cell(player_id: int) -> Vector2i:
+    var center_cell := Vector2i(
+        (grid_cells.x + grid_cells.y) / 2, (grid_cells.x + grid_cells.y) / 2
+    )
+    var offset: Vector2i = START_CLUSTER_OFFSETS[player_id % START_CLUSTER_OFFSETS.size()]
+    var cell: Vector2i = center_cell + offset
+    if CellUtil.is_in_diamond(cell, grid_cells):
+        return cell
+    return center_cell
+
+
+## Center the camera pivot on a cell's world position, preserving the pivot's
+## current height (matches _center_camera_on_diamond, which only patches x/z).
+func center_camera_on_cell(cell: Vector2i) -> void:
+    if not camera_pivot:
+        return
+    var p := CellUtil.cell_to_world(cell)
+    camera_pivot.global_position = Vector3(p.x, camera_pivot.global_position.y, p.z)
 
 
 ## Restore visible-bounds insets from loaded map data (JSON v4), with a v3 fallback.
