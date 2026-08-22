@@ -61,6 +61,7 @@ func _ready() -> void:
     var env_node := _find_node("WorldEnvironment")
     if env_node:
         _world_environment = env_node as WorldEnvironment
+    add_to_group("lighting_controls")
     _capture_scene_defaults()
     _apply_all()
 
