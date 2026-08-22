@@ -49,6 +49,9 @@ var _selection_overlay: CanvasLayer = null
 ## Lighting controls
 @onready var lighting_controls: LightingControls = null
 
+## Tracks whether the lighting slider signals are wired.
+var _lighting_sliders_wired := false
+
 ## Stats label
 @onready var stats_label: Label = %StatsLabel
 
@@ -71,10 +74,6 @@ func _ready() -> void:
 
     # Cache selection overlay
     _selection_overlay = _find_selection_overlay()
-
-    # Find LightingControls in parent
-    if get_parent():
-        lighting_controls = get_parent().get_node_or_null("LightingControls")
 
     # Connect header buttons
     overlays_header.pressed.connect(_toggle_section.bind(overlays_content))
@@ -145,6 +144,8 @@ func _toggle_panel() -> void:
 
 func _toggle_section(section: Control) -> void:
     section.visible = not section.visible
+    if section == lighting_content:
+        _init_lighting_sliders()
 
 
 func _update_stats() -> void:
@@ -342,6 +343,14 @@ func _find_node_recursive(node: Node, target_name: String) -> Node:
 
 
 func _init_lighting_sliders() -> void:
+    if _lighting_sliders_wired:
+        return
+    # Resolve lazily: LightingControls registers in its group during _ready,
+    # which may not have happened yet when this panel readied first.
+    if not lighting_controls:
+        lighting_controls = (
+            get_tree().get_first_node_in_group("lighting_controls") as LightingControls
+        )
     if not lighting_controls:
         return
 
@@ -363,6 +372,8 @@ func _init_lighting_sliders() -> void:
                 if lighting_controls:
                     lighting_controls.sun_color = c
         )
+
+    _lighting_sliders_wired = true
 
 
 func _connect_lighting_slider(
