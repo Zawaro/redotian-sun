@@ -15,6 +15,17 @@ func _make_dock_client(dock_id: String = "GDI_REFINERY") -> DockClientComponent:
     return client
 
 
+func _add_owner(entity: Node, player_id: int = 0) -> void:
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    entity.add_child(stats)
+
+
+func _get_stats(entity: Node) -> StatsComponent:
+    return entity.get_node("StatsComponent") as StatsComponent
+
+
 func _make_dock_host(_dock_id: String = "GDI_REFINERY", queue_size: int = 0) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestRefinery"
@@ -25,6 +36,7 @@ func _make_dock_host(_dock_id: String = "GDI_REFINERY", queue_size: int = 0) -> 
     for i in queue_size:
         host.queue.append(Node.new())
     entity.add_child(host)
+    _add_owner(entity)
 
     return entity
 
@@ -39,6 +51,7 @@ func _make_entity_with_client(dock_id: String = "GDI_REFINERY") -> Node3D:
 
     var client := _make_dock_client(dock_id)
     entity.add_child(client)
+    _add_owner(entity)
 
     return entity
 
@@ -615,6 +628,7 @@ func _make_scene_dock_host(
     host.configure(data)
     host._dock_cell = dock_cell
     host_entity.add_child(host)
+    _add_owner(host_entity)
 
     host_entity.add_to_group("entities")
     Engine.get_main_loop().root.add_child(host_entity)
@@ -725,4 +739,66 @@ func test_find_nearest_host_no_host():
                 % [found]
             ),
         )
+    )
+
+
+func test_find_nearest_host_skips_foreign_owned():
+    var entity := _make_entity_with_client()
+    Engine.get_main_loop().root.add_child(entity)
+    # Enemy host nearer, own host one cell farther — must pick the own-side host.
+    var enemy_host := _make_scene_dock_host("GDI_REFINERY", Vector2i(49, 50))
+    (_get_stats(enemy_host) as StatsComponent).player_id = 1
+    var own_host := _make_scene_dock_host("GDI_REFINERY", Vector2i(51, 50))
+
+    var client := entity.get_node("DockClientComponent") as DockClientComponent
+    var found := client.find_nearest_host(entity)
+    _remove_scene_dock_host(enemy_host)
+    _remove_scene_dock_host(own_host)
+    entity.free()
+
+    (
+        TestHelper
+        . assert_true(
+            found == own_host,
+            (
+                (
+                    "find_nearest_host skips foreign-owned host: found=%s "
+                    + "(expected own-side host)"
+                )
+                % [found]
+            ),
+        )
+    )
+
+
+func test_find_nearest_host_only_foreign_returns_null():
+    var entity := _make_entity_with_client()
+    Engine.get_main_loop().root.add_child(entity)
+    var enemy_host := _make_scene_dock_host("GDI_REFINERY", Vector2i(50, 50))
+    (_get_stats(enemy_host) as StatsComponent).player_id = 1
+
+    var client := entity.get_node("DockClientComponent") as DockClientComponent
+    var found := client.find_nearest_host(entity)
+    _remove_scene_dock_host(enemy_host)
+    entity.free()
+
+    TestHelper.assert_true(
+        found == null,
+        "find_nearest_host returns null when only foreign hosts exist: found=%s" % [found]
+    )
+
+
+func test_find_nearest_host_ownerless_client_finds_nothing():
+    var entity := _make_entity_with_client()
+    Engine.get_main_loop().root.add_child(entity)
+    (_get_stats(entity) as StatsComponent).queue_free()
+    var host_entity := _make_scene_dock_host()
+
+    var client := entity.get_node("DockClientComponent") as DockClientComponent
+    var found := client.find_nearest_host(entity)
+    _remove_scene_dock_host(host_entity)
+    entity.free()
+
+    TestHelper.assert_true(
+        found == null, "find_nearest_host returns null for ownerless seeker: found=%s" % [found]
     )

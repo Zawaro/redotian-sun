@@ -118,9 +118,29 @@ func get_effective_queue_size() -> int:
     return queue.size() + 1
 
 
+## Owner id for an entity root or one of its components (-1 when unset).
+## Components live one level below their entity, so check the node itself,
+## then its parent.
+static func resolve_owner_id(node: Node) -> int:
+    if node == null:
+        return -1
+    var stats := node.get_node_or_null("StatsComponent") as StatsComponent
+    if stats == null and node.get_parent() != null:
+        stats = node.get_parent().get_node_or_null("StatsComponent") as StatsComponent
+    return stats.player_id if stats and stats.player_id >= 0 else -1
+
+
+## True when both nodes belong to the same player with a valid (>= 0) owner id.
+static func owners_match(a: Node, b: Node) -> bool:
+    var owner_id := resolve_owner_id(a)
+    return owner_id >= 0 and owner_id == resolve_owner_id(b)
+
+
 ## Accept a docker into the dock. Returns true if docked immediately, false if queued.
 func request_dock(docker: Node) -> bool:
     if docker == _vacating_docker:
+        return false
+    if not owners_match(self, docker):
         return false
     if current_docker == docker:
         return true

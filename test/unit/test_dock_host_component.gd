@@ -14,7 +14,21 @@ func _make_dock_host(wait_steps: int = 10, stale_timeout: float = 5.0) -> DockHo
     host.dock_wait_seconds = wait_steps * 0.1
     host.dock_types = ["harvest"]
     host.stale_timeout = stale_timeout
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = 0
+    host.add_child(stats)
     return host
+
+
+## Docker node with a valid owner so request_dock's ownership gate accepts it.
+func _make_docker(player_id: int = 0) -> Node:
+    var docker := Node.new()
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    docker.add_child(stats)
+    return docker
 
 
 func _on_timeout_signal(docker: Node) -> void:
@@ -27,7 +41,7 @@ func _on_timeout_signal(docker: Node) -> void:
 
 func test_request_dock_immediate():
     var host := _make_dock_host()
-    var docker := Node.new()
+    var docker := _make_docker()
     var result := host.request_dock(docker)
     (
         TestHelper
@@ -40,9 +54,9 @@ func test_request_dock_immediate():
 
 func test_request_dock_unlimited_queue():
     var host := _make_dock_host()
-    var docker1 := Node.new()
-    var docker2 := Node.new()
-    var docker3 := Node.new()
+    var docker1 := _make_docker()
+    var docker2 := _make_docker()
+    var docker3 := _make_docker()
     host.request_dock(docker1)  # becomes current_docker
     var r2 := host.request_dock(docker2)  # queued
     var r3 := host.request_dock(docker3)  # queued
@@ -58,10 +72,48 @@ func test_request_dock_unlimited_queue():
     )
 
 
+# --- Ownership gate ---
+
+
+func test_request_dock_rejects_foreign_owner():
+    var host := _make_dock_host()
+    var enemy := _make_docker(1)
+    TestHelper.assert_true(
+        not host.request_dock(enemy), "request_dock rejects docker owned by another player"
+    )
+    TestHelper.assert_true(
+        host.current_docker == null and host.queue.is_empty(),
+        "rejected foreign docker neither docked nor queued"
+    )
+
+
+func test_request_dock_rejects_missing_stats():
+    var host := _make_dock_host()
+    var ownerless := Node.new()
+    TestHelper.assert_true(
+        not host.request_dock(ownerless), "request_dock rejects docker without StatsComponent"
+    )
+    var ownerless_host := DockHostComponent.new()
+    var docker := _make_docker(0)
+    TestHelper.assert_true(
+        not ownerless_host.request_dock(docker),
+        "request_dock rejects when host has no StatsComponent"
+    )
+
+
+func test_request_dock_accepts_same_owner():
+    var host := _make_dock_host()
+    var friend := _make_docker(0)
+    TestHelper.assert_true(
+        host.request_dock(friend) and host.current_docker == friend,
+        "same-owner docker docks normally (positive path)"
+    )
+
+
 func test_get_queue_size():
     var host := _make_dock_host()
-    host.queue.append(Node.new())
-    host.queue.append(Node.new())
+    host.queue.append(_make_docker())
+    host.queue.append(_make_docker())
     (
         TestHelper
         . assert_true(
@@ -87,7 +139,7 @@ func test_has_dock_type():
 
 func test_stale_timer_resets_on_dock():
     var host := _make_dock_host(10, 0.1)
-    var docker := Node.new()
+    var docker := _make_docker()
     host.request_dock(docker)
     (
         TestHelper
@@ -100,7 +152,7 @@ func test_stale_timer_resets_on_dock():
 
 func test_stale_timer_increments():
     var host := _make_dock_host(10, 5.0)
-    var docker := Node.new()
+    var docker := _make_docker()
     host.request_dock(docker)
     host._process(1.0)
     (
@@ -117,7 +169,7 @@ func test_stale_timer_increments():
 
 func test_stale_eviction():
     var host := _make_dock_host(10, 0.1)
-    var docker := Node.new()
+    var docker := _make_docker()
     add_child(docker)
     host.request_dock(docker)
     # Simulate time passing beyond stale_timeout
@@ -137,7 +189,7 @@ func test_stale_eviction():
 
 func test_stale_eviction_emits_dock_timeout():
     var host := _make_dock_host(10, 0.1)
-    var docker := Node.new()
+    var docker := _make_docker()
     add_child(docker)
     host.request_dock(docker)
     _timeout_signal_emitted = false
@@ -159,8 +211,8 @@ func test_stale_eviction_emits_dock_timeout():
 
 func test_stale_eviction_promotes_next():
     var host := _make_dock_host(10, 0.1)
-    var docker_a := Node.new()
-    var docker_b := Node.new()
+    var docker_a := _make_docker()
+    var docker_b := _make_docker()
     add_child(docker_a)
     add_child(docker_b)
     host.request_dock(docker_a)
@@ -184,7 +236,7 @@ func test_stale_eviction_promotes_next():
 
 func test_stale_disabled_when_zero():
     var host := _make_dock_host(10, 0.0)
-    var docker := Node.new()
+    var docker := _make_docker()
     host.request_dock(docker)
     host._process(100.0)
     (
@@ -201,8 +253,8 @@ func test_stale_disabled_when_zero():
 
 func test_leave_dock_promotes_next():
     var host := _make_dock_host(10, 0.0)
-    var docker_a := Node.new()
-    var docker_b := Node.new()
+    var docker_a := _make_docker()
+    var docker_b := _make_docker()
     host.request_dock(docker_a)
     host.request_dock(docker_b)
     host.leave_dock(docker_a)
@@ -221,7 +273,7 @@ func test_leave_dock_promotes_next():
 
 func test_leave_dock_clears_queue_when_empty():
     var host := _make_dock_host(10, 0.0)
-    var docker := Node.new()
+    var docker := _make_docker()
     host.request_dock(docker)
     host.leave_dock(docker)
     (
@@ -238,9 +290,9 @@ func test_leave_dock_clears_queue_when_empty():
 
 func test_leave_dock_removes_from_queue():
     var host := _make_dock_host(10, 0.0)
-    var docker_a := Node.new()
-    var docker_b := Node.new()
-    var docker_c := Node.new()
+    var docker_a := _make_docker()
+    var docker_b := _make_docker()
+    var docker_c := _make_docker()
     host.request_dock(docker_a)
     host.request_dock(docker_b)
     host.request_dock(docker_c)
@@ -259,7 +311,7 @@ func test_leave_dock_removes_from_queue():
 
 func test_request_dock_same_docker_returns_true():
     var host := _make_dock_host()
-    var docker := Node.new()
+    var docker := _make_docker()
     host.request_dock(docker)
     var result := host.request_dock(docker)
     TestHelper.assert_true(
@@ -375,10 +427,10 @@ func test_clear_queue_notifies_clients():
     dock_entity.add_child(host)
 
     # Create two fake dockers with on_dock_cancelled method
-    var docker_a := Node.new()
+    var docker_a := _make_docker()
     docker_a.name = "DockerA"
     add_child(docker_a)
-    var docker_b := Node.new()
+    var docker_b := _make_docker()
     docker_b.name = "DockerB"
     add_child(docker_b)
 
@@ -407,10 +459,10 @@ func test_clear_queue_skips_dead_clients():
     dock_entity.add_child(host)
 
     # One alive, one freed
-    var docker_a := Node.new()
+    var docker_a := _make_docker()
     docker_a.name = "DockerA"
     add_child(docker_a)
-    var docker_b := Node.new()
+    var docker_b := _make_docker()
     docker_b.name = "DockerB"
     add_child(docker_b)
 
@@ -446,10 +498,10 @@ func test_process_promotes_from_queue_after_seconds():
     dock_entity.add_child(host)
 
     host.current_docker = null
-    var docker_a := Node.new()
+    var docker_a := _make_docker()
     docker_a.name = "DockerA"
     add_child(docker_a)
-    var docker_b := Node.new()
+    var docker_b := _make_docker()
     docker_b.name = "DockerB"
     add_child(docker_b)
 
@@ -502,10 +554,10 @@ func test_process_does_not_pop_queue_when_current_active():
     dock_entity.add_child(host)
 
     # Set up: current docker active, one client queued
-    var current := Node.new()
+    var current := _make_docker()
     current.name = "CurrentDocker"
     add_child(current)
-    var queued := Node.new()
+    var queued := _make_docker()
     queued.name = "QueuedDocker"
     add_child(queued)
 
@@ -537,10 +589,10 @@ func test_process_promotes_after_current_leaves():
     dock_entity.name = "TestRefinery"
     dock_entity.add_child(host)
 
-    var current := Node.new()
+    var current := _make_docker()
     current.name = "CurrentDocker"
     add_child(current)
-    var queued := Node.new()
+    var queued := _make_docker()
     queued.name = "QueuedDocker"
     add_child(queued)
 
@@ -573,13 +625,13 @@ func test_process_preserves_queue_order():
     dock_entity.name = "TestRefinery"
     dock_entity.add_child(host)
 
-    var a := Node.new()
+    var a := _make_docker()
     a.name = "A"
     add_child(a)
-    var b := Node.new()
+    var b := _make_docker()
     b.name = "B"
     add_child(b)
-    var c := Node.new()
+    var c := _make_docker()
     c.name = "C"
     add_child(c)
 
@@ -654,7 +706,7 @@ func test_process_waits_full_ticks_before_promoting():
     dock_entity.name = "TestRefinery"
     dock_entity.add_child(host)
 
-    var docker := Node.new()
+    var docker := _make_docker()
     docker.name = "Docker"
     add_child(docker)
     host.queue.append(docker)
@@ -694,7 +746,7 @@ func test_process_promotion_scales_with_delta():
     dock_entity.add_child(host)
 
     # Many tiny deltas that stay below the threshold must not promote.
-    var slow_docker := Node.new()
+    var slow_docker := _make_docker()
     slow_docker.name = "SlowDocker"
     add_child(slow_docker)
     host.current_docker = null
