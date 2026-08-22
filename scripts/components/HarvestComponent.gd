@@ -371,7 +371,7 @@ func get_order_for_target(
         )
     if target.get_node_or_null("DockHostComponent"):
         # Only enter same-owner docks; foreign docks fall through to other generators.
-        if get_parent() is Node3D and DockHostComponent.owners_match(get_parent(), target):
+        if DockHostComponent.owners_match(get_parent(), target):
             return OrderResult.new(
                 CursorState.Type.ENTER,
                 15,
