@@ -25,6 +25,9 @@ func _stamp_cell(x0: int, z0: int, heights: Array) -> void:
     ]
     for i in 4:
         _ts._set_vertex_no_cascade(corners[i].x, corners[i].y, heights[i])
+    # Direct vertex-grid mutation bypasses the snapshot; cached corners sampled
+    # earlier (e.g. by BoundsSystem pre-warm on grid_initialized) would go stale.
+    _ts.invalidate_height_snapshot()
 
 
 func test_sampler_flat_cell():
