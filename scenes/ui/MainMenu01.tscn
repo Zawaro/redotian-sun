@@ -34,6 +34,7 @@ text = "Exit"
 position = Vector2(1477, 77)
 scale = Vector2(1.4, 1.4)
 text = "Credits"
+is_disabled = true
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -75,6 +76,7 @@ layout_mode = 2
 position = Vector2(0, -4)
 scale = Vector2(1.4, 1.4)
 text = "Load Mission"
+is_disabled = true
 
 [node name="Control3" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
 layout_mode = 2
@@ -92,6 +94,7 @@ layout_mode = 2
 position = Vector2(0, -12)
 scale = Vector2(1.4, 1.4)
 text = "Internet"
+is_disabled = true
 
 [node name="Control5" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
 layout_mode = 2
@@ -100,6 +103,7 @@ layout_mode = 2
 position = Vector2(0, -12)
 scale = Vector2(1.4, 1.4)
 text = "Skirmish"
+is_disabled = true
 
 [node name="Control6" type="Control" parent="MarginContainer/HBoxContainer/VBoxContainer"]
 layout_mode = 2
@@ -108,6 +112,7 @@ layout_mode = 2
 position = Vector2(0, -12)
 scale = Vector2(1.4, 1.4)
 text = "Options"
+is_disabled = true
 
 [node name="FpsCounter" parent="." instance=ExtResource("4_v2ccv")]
 layout_mode = 1

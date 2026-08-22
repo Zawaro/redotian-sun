@@ -10,6 +10,8 @@ func _input(event):
         for child in get_children():
             # Ensure we are dealing with a button instance that contains a Label named "Text"
             if child.is_inside_tree() and child.has_method("get_node"):
+                if child.get("is_disabled"):
+                    continue
                 var lbl = child.get_node_or_null("Text")
                 if lbl and lbl.get_global_rect().has_point(mouse_pos):
                     _handle_click(lbl.text)
