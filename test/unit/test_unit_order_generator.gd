@@ -507,6 +507,25 @@ func test_orders_harvester_friendly_refinery_returns_enter():
     refinery.free()
 
 
+func test_orders_harvester_enemy_refinery_no_enter_order():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var harvester := _make_harvester_entity(local_id)
+    _setup_selection([harvester])
+    var enemy_refinery := _make_refinery_target(local_id + 1)
+    var gen := _get_generator()
+    var orders := gen.get_orders(enemy_refinery, Vector2i.ZERO, enemy_refinery.global_position, {})
+    for order in orders:
+        TestHelper.assert_true(
+            order.cursor != CursorState.Type.ENTER, "enemy refinery must not produce ENTER order"
+        )
+    _teardown_selection([harvester])
+    enemy_refinery.free()
+
+
 func test_orders_friendly_unit_no_order_returns_empty():
     if _sm == null:
         TestHelper.fail("SelectionManager not injected")

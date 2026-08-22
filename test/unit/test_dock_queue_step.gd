@@ -25,6 +25,10 @@ func _make_host(wait_steps: int = 10, stale: float = 5.0) -> Node3D:
     host.dock_wait_seconds = wait_steps * 0.1
     host.stale_timeout = stale
     entity.add_child(host)
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = 0
+    entity.add_child(stats)
     return entity
 
 
@@ -36,6 +40,10 @@ func _make_harvester(dock_id: String = "GDI_REFINERY") -> Node3D:
     entity.add_child(mc)
     var client := _make_client(dock_id)
     entity.add_child(client)
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = 0
+    entity.add_child(stats)
     return entity
 
 

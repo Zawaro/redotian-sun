@@ -81,11 +81,10 @@ func _process(delta: float) -> void:
     var credits_to_add := int(_credit_accumulator)
     _credit_accumulator -= float(credits_to_add)
     if credits_to_add > 0 and _economy_manager:
-        var owner_id := PlayerManager.get_local_player_id()
-        var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
-        if stats and stats.player_id >= 0:
-            owner_id = stats.player_id
-        _economy_manager.add(owner_id, credits_to_add, "harvest")
+        # Credits belong to the refinery, never to the docker.
+        var owner_id := DockHostComponent.resolve_owner_id(get_parent())
+        if owner_id >= 0:
+            _economy_manager.add(owner_id, credits_to_add, "harvest")
 
     if transport.get_cargo_total() <= 0.0:
         dock.leave_dock(docker_node)

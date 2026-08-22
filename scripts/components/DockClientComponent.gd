@@ -280,6 +280,8 @@ func find_nearest_host(parent: Node3D, exclude: Node3D = null) -> Node3D:
             continue
         if not can_dock_with.is_empty() and dock.get_entity_id() not in can_dock_with:
             continue
+        if not DockHostComponent.owners_match(parent, child):
+            continue
         var dock_cell := CellUtil.world_to_cell(CellUtil.cell_to_world(dock._dock_cell))
         var raw_dist := Vector2(parent_cell - dock_cell).length_squared()
         var queue_size: int = dock.get_effective_queue_size()

@@ -16,7 +16,7 @@ var _move_starts: int = 0
 
 
 func _make_entity(
-    dock_id: String = "GDI_REFINERY", storage: int = 700, owner_id: int = -1
+    dock_id: String = "GDI_REFINERY", storage: int = 700, owner_id: int = 0
 ) -> Node3D:
     var entity := Node3D.new()
     entity.name = "TestHarvester"
@@ -64,6 +64,11 @@ func _make_dock_entity(
     dock_unload.unload_rate = 100.0
     dock_entity.add_child(dock_unload)
 
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = 0
+    dock_entity.add_child(stats)
+
     return dock_entity
 
 
@@ -81,6 +86,10 @@ func _get_dock_comp(dock_entity: Node3D) -> DockHostComponent:
 
 func _get_dock_unload(dock_entity: Node3D) -> DockUnloadComponent:
     return dock_entity.get_node("DockUnloadComponent") as DockUnloadComponent
+
+
+func _get_stats(entity: Node3D) -> StatsComponent:
+    return entity.get_node("StatsComponent") as StatsComponent
 
 
 # Test node is not in scene tree, so _ready() never fires.
@@ -163,6 +172,54 @@ func test_harvest_cargo_full_transitions_to_delivering():
         )
     )
     entity.queue_free()
+
+
+func test_full_harvester_no_friendly_refinery_idles_with_retry():
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    # Enemy refinery (owner 0) discoverable by the scene-wide seek.
+    dock_entity.add_to_group("entities")
+    var entity := _make_entity("GDI_REFINERY", 700, 1)
+    # Client must exist before _ready() so HarvestComponent binds it.
+    var client := DockClientComponent.new()
+    client.name = "DockClientComponent"
+    client.can_dock_with = ["GDI_REFINERY"]
+    entity.add_child(client)
+    add_child(entity)
+
+    var harvest := _get_harvest(entity)
+    # No _ready() outside the tree — bind the client like _ready would.
+    harvest.dock_client = client
+    _init_harvest(harvest)
+    _init_dock(_get_dock_comp(dock_entity), dock_entity)
+    var transport := _get_transport(entity)
+
+    harvest._deliver_cargo(entity)
+
+    (
+        TestHelper
+        . assert_true(
+            harvest._state == HarvestComponent.State.DELIVERING and harvest._deliver_retry > 0.0,
+            (
+                "no friendly refinery: DELIVERING with retry armed (retry=%.1f)"
+                % harvest._deliver_retry
+            ),
+        )
+    )
+    TestHelper.assert_true(
+        client.get_state() == DockClientComponent.State.IDLE,
+        "dock client never engaged toward enemy refinery: state=%d" % client.get_state()
+    )
+    TestHelper.assert_true(
+        client._target_host == null and client._queued_host == null,
+        "no dock target or queue entry toward enemy refinery"
+    )
+    TestHelper.assert_true(
+        transport.get_cargo_total() >= 700.0,
+        "cargo retained while idling: total=%.1f" % transport.get_cargo_total()
+    )
+    entity.queue_free()
+    dock_entity.queue_free()
 
 
 func test_harvest_cancel_goes_to_idle():
@@ -950,7 +1007,7 @@ func test_dock_unload_stops_on_undocked():
     dock_entity.queue_free()
 
 
-func test_dock_unload_credits_harvester_owner():
+func test_dock_unload_credits_refinery_owner():
     if _em == null:
         TestHelper.fail("EconomyManager not injected")
         return
@@ -965,43 +1022,33 @@ func test_dock_unload_credits_harvester_owner():
     _init_dock(dock_comp, dock_entity)
     var dock_unload := _get_dock_unload(dock_entity)
     dock_unload._economy_manager = _em
+    # Same owner so the ownership gate accepts the dock.
+    (_get_stats(dock_entity) as StatsComponent).player_id = 300
     var docked: bool = dock_comp.request_dock(harvest)
 
     var owner_before: int = _em.get_balance(300)
-    var local_before: int = _em.get_balance(PlayerManager.get_local_player_id())
     dock_unload._process(0.5)
     var owner_after: int = _em.get_balance(300)
-    var local_after: int = _em.get_balance(PlayerManager.get_local_player_id())
 
     (
         TestHelper
         . assert_true(
             docked and owner_after > owner_before,
             (
-                "unload credits harvester owner: docked=%s, owner %d->%d"
+                "unload credits refinery owner: docked=%s, owner %d->%d"
                 % [docked, owner_before, owner_after]
             ),
         )
     )
-    (
-        TestHelper
-        . assert_true(
-            local_after == local_before,
-            "unload must not credit local player: local %d->%d" % [local_before, local_after],
-        )
-    )
-
-    entity.queue_free()
-    dock_entity.queue_free()
 
 
-func test_dock_unload_unset_owner_credits_local():
+func test_dock_unload_credits_refinery_not_docker():
     if _em == null:
         TestHelper.fail("EconomyManager not injected")
         return
     var dock_entity := _make_dock_entity()
     add_child(dock_entity)
-    var entity := _make_entity()
+    var entity := _make_entity("GDI_REFINERY", 700, 300)
     add_child(entity)
 
     var dock_comp := _get_dock_comp(dock_entity)
@@ -1010,21 +1057,104 @@ func test_dock_unload_unset_owner_credits_local():
     _init_dock(dock_comp, dock_entity)
     var dock_unload := _get_dock_unload(dock_entity)
     dock_unload._economy_manager = _em
-    var docked: bool = dock_comp.request_dock(harvest)
+    # Foreign dock: bind past the ownership gate to exercise attribution alone.
+    (_get_stats(dock_entity) as StatsComponent).player_id = 100
+    dock_comp.current_docker = harvest
 
+    var refinery_before: int = _em.get_balance(100)
+    var docker_before: int = _em.get_balance(300)
     var local_before: int = _em.get_balance(PlayerManager.get_local_player_id())
     dock_unload._process(0.5)
+    var refinery_after: int = _em.get_balance(100)
+    var docker_after: int = _em.get_balance(300)
     var local_after: int = _em.get_balance(PlayerManager.get_local_player_id())
 
-    (
-        TestHelper
-        . assert_true(
-            docked and local_after > local_before,
-            (
-                "unset owner falls back to local player: docked=%s, local %d->%d"
-                % [docked, local_before, local_after]
-            ),
-        )
+    TestHelper.assert_true(
+        refinery_after > refinery_before,
+        "unload credits refinery owner %d->%d" % [refinery_before, refinery_after]
+    )
+    TestHelper.assert_true(
+        docker_after == docker_before,
+        "unload must not credit docker owner: %d->%d" % [docker_before, docker_after]
+    )
+    TestHelper.assert_true(
+        local_after == local_before,
+        "unload must not credit local player: local %d->%d" % [local_before, local_after]
+    )
+
+
+func test_dock_unload_ownerless_pays_nobody():
+    if _em == null:
+        TestHelper.fail("EconomyManager not injected")
+        return
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    var entity := _make_entity("GDI_REFINERY", 700, 300)
+    add_child(entity)
+
+    var dock_comp := _get_dock_comp(dock_entity)
+    var harvest := _get_harvest(entity)
+    _init_harvest(harvest)
+    _init_dock(dock_comp, dock_entity)
+    var dock_unload := _get_dock_unload(dock_entity)
+    dock_unload._economy_manager = _em
+    # Ownerless building binds past the gate (no valid owner to compare).
+    var stats := _get_stats(dock_entity)
+    dock_entity.remove_child(stats)
+    stats.free()
+    dock_comp.current_docker = harvest
+
+    var docker_before: int = _em.get_balance(300)
+    var local_before: int = _em.get_balance(PlayerManager.get_local_player_id())
+    dock_unload._process(0.5)
+    var docker_after: int = _em.get_balance(300)
+    var local_after: int = _em.get_balance(PlayerManager.get_local_player_id())
+
+    TestHelper.assert_true(
+        docker_after == docker_before,
+        "ownerless refinery must not credit docker owner: %d->%d" % [docker_before, docker_after]
+    )
+    TestHelper.assert_true(
+        local_after == local_before,
+        "ownerless refinery must not credit local player: %d->%d" % [local_before, local_after]
+    )
+
+    entity.queue_free()
+    dock_entity.queue_free()
+
+
+func test_dock_unload_unset_owner_pays_nobody():
+    if _em == null:
+        TestHelper.fail("EconomyManager not injected")
+        return
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    var entity := _make_entity("GDI_REFINERY", 700, 0)
+    add_child(entity)
+
+    var dock_comp := _get_dock_comp(dock_entity)
+    var harvest := _get_harvest(entity)
+    _init_harvest(harvest)
+    _init_dock(dock_comp, dock_entity)
+    var dock_unload := _get_dock_unload(dock_entity)
+    dock_unload._economy_manager = _em
+    # Unset host owner: bind past the gate, then verify nobody is credited.
+    (_get_stats(dock_entity) as StatsComponent).player_id = -1
+    dock_comp.current_docker = harvest
+
+    var local_before: int = _em.get_balance(PlayerManager.get_local_player_id())
+    var docker_before: int = _em.get_balance(0)
+    dock_unload._process(0.5)
+    var local_after: int = _em.get_balance(PlayerManager.get_local_player_id())
+    var docker_after: int = _em.get_balance(0)
+
+    TestHelper.assert_true(
+        local_after == local_before,
+        "unset owner must not fall back to local player: %d->%d" % [local_before, local_after]
+    )
+    TestHelper.assert_true(
+        docker_after == docker_before,
+        "unset owner must not credit anyone: %d->%d" % [docker_before, docker_after]
     )
 
     entity.queue_free()
