@@ -292,6 +292,36 @@ func test_runtime_toggle_syncs_fog_uniform():
     TestHelper.assert_eq(
         mat.get_shader_parameter("fog_enabled"), false, "toggle back off syncs again"
     )
+
+
+func test_planes_hidden_in_map_editor() -> void:
+    _setup()
+    if _fr == null:
+        TestHelper.fail("FogRenderer not injected")
+        return
+    var tree := _tree()
+    var editor_scene := Node.new()
+    tree.root.add_child(editor_scene)
+    tree.current_scene = editor_scene
+    editor_scene.set_meta("is_map_editor", true)
+    var rules := GlobalRules.get_current()
+    rules.fog_of_war = true
+    rules.shroud_enabled = true
+    _ts.init_grid(50, 50)
+    ShroudSystem.register_revealer(0, Vector2i(40, 40), 1, 0.0, true)
+    _ss.resolve_dirty()
+    TestHelper.assert_true(not _plane().visible, "fog plane hidden while running the map editor")
+    var opaque := _fr.get_node_or_null("FogShroudPlane") as MeshInstance3D
+    TestHelper.assert_true(
+        opaque != null and not opaque.visible, "opaque shroud sheet hidden in map editor"
+    )
+    var tex: ImageTexture = _fr._material.get_shader_parameter("fog_grid")
+    TestHelper.assert_true(tex == null, "no fog texture built in map editor")
+    tree.current_scene = null
+    tree.root.remove_child(editor_scene)
+    editor_scene.free()
+    rules.fog_of_war = false
+    rules.shroud_enabled = true
     _teardown()
 
 

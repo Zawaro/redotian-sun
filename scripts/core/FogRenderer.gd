@@ -270,6 +270,10 @@ func _overlay_fog_state(node: Node3D) -> int:
 func _on_shroud_changed(dirty: PackedInt32Array) -> void:
     if Engine.is_editor_hint():
         return
+    if _is_map_editor():
+        _set_plane_visible(false)
+        _clear_textures()
+        return
     # Re-sync the toggle uniforms every signal: `_layout_plane` only runs on grid
     # init, so a runtime toggle (DebugMenu -> refresh) would otherwise leave
     # `fog_enabled`/`shroud_enabled` stale and the shader never show fog.
@@ -312,6 +316,10 @@ func _on_shroud_changed(dirty: PackedInt32Array) -> void:
 
 
 func _on_grid_initialized() -> void:
+    if _is_map_editor():
+        _set_plane_visible(false)
+        _clear_textures()
+        return
     _last_states = PackedByteArray()
     _layout_plane()
     if not ShroudSystem.is_shroud_enabled() and not ShroudSystem.is_fog_enabled():
@@ -614,6 +622,25 @@ func _clear_textures() -> void:
     _material_opaque.set_shader_parameter("fog_grid", null)
 
 
+## True when running the runtime MapEditor tool. The map editor owns terrain
+## authoring, so the fog-of-war overlay (and its shroud darkening) must stay off.
+func _is_map_editor() -> bool:
+    var scene := get_tree().current_scene
+    return scene != null and scene.has_meta("is_map_editor")
+
+
+## True when `node` hangs under the runtime MapEditor (any ancestor carries the
+## editor meta). `_is_map_editor()` only catches the whole-scene case, but
+## entities/building nodes added to the editor are subtree children.
+static func _is_under_map_editor(node: Node) -> bool:
+    var ancestor := node
+    while ancestor:
+        if ancestor.has_meta("is_map_editor"):
+            return true
+        ancestor = ancestor.get_parent()
+    return false
+
+
 func _set_plane_visible(visible: bool) -> void:
     # The fog plane carries the soft shroud band as well as the fog dim, so it
     # renders when either toggle is on (default state is shroud on / fog off).
@@ -629,6 +656,10 @@ func _set_plane_visible(visible: bool) -> void:
 
 func _on_node_added(node: Node) -> void:
     if not (node is Node3D):
+        return
+    if Engine.is_editor_hint():
+        return
+    if _is_under_map_editor(node):
         return
     var n3d := node as Node3D
     if not n3d.is_in_group("entities"):
