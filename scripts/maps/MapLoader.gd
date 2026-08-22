@@ -114,7 +114,47 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
                 hp.current_health = current_health
         parent.add_child(entity)
         result.append({"key": cell_str, "node": entity, "data": entry_dict})
+
+    if not parent.has_meta("is_map_editor"):
+        _frame_camera_to_local_start(json)
     return result
+
+
+## Gameplay-only: frame the camera on the local player's start location.
+## Maps with no `start_locations` key keep the existing default behavior and
+## are left untouched. When the key is present, the local player's override is
+## used if listed, otherwise the shared default cluster cell.
+static func _frame_camera_to_local_start(json: Dictionary) -> void:
+    if not json.has("start_locations"):
+        return
+    var start_data: Array = json["start_locations"] as Array
+    if not start_data is Array:
+        return
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    if not tree:
+        return
+    var bounds: Node = tree.root.get_node_or_null("BoundsSystem")
+    if bounds == null:
+        return
+    var local_player: int = 0
+    var pm: Node = tree.root.get_node_or_null("PlayerManager")
+    if pm and pm.has_method("get_local_player_id"):
+        local_player = pm.get_local_player_id()
+    var override_cell: Vector2i = Vector2i(-999, -999)
+    var found := false
+    for item in start_data:
+        var entry := item as Dictionary
+        if entry == null:
+            continue
+        if int(entry.get("player_id", -1)) != local_player:
+            continue
+        var parts := (entry.get("cell", "") as String).split(",")
+        if parts.size() == 2:
+            override_cell = Vector2i(parts[0].to_int(), parts[1].to_int())
+            found = true
+            break
+    var start: Vector2i = override_cell if found else bounds.default_start_cell(local_player)
+    bounds.center_camera_on_cell(start)
 
 
 ## World position for a map entity. Buildings are placed at the footprint

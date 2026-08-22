@@ -100,7 +100,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -108,7 +109,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -116,7 +118,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -124,7 +127,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -132,7 +136,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -140,7 +145,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -156,7 +162,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -164,7 +171,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -284,7 +292,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -292,7 +301,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -300,7 +310,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -308,7 +319,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -316,7 +328,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -324,7 +337,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -332,7 +346,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -340,7 +355,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -348,7 +364,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -356,7 +373,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -484,7 +502,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -492,7 +511,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -508,7 +528,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -516,7 +537,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -524,7 +546,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -532,7 +555,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -540,7 +564,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -548,7 +573,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -556,7 +582,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -564,7 +591,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -700,7 +728,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -708,7 +737,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -716,7 +746,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -724,7 +755,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope_saddle2_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 5
 		},
@@ -732,7 +764,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -740,7 +773,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -748,7 +782,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -756,7 +791,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -764,7 +800,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -772,7 +809,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -780,7 +818,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -940,7 +979,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -956,7 +996,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -964,7 +1005,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -972,7 +1014,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -980,7 +1023,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -996,7 +1040,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -1004,7 +1049,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -1012,7 +1058,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -1188,7 +1235,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -1196,7 +1244,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -1204,7 +1253,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -1212,7 +1262,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -1228,7 +1279,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -1236,7 +1288,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -1244,7 +1297,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -1252,7 +1306,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -1476,7 +1531,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -1484,7 +1540,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -1492,7 +1549,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -1500,7 +1558,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -1508,7 +1567,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -1764,7 +1824,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -1772,7 +1833,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -1780,7 +1842,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -5884,7 +5947,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -5892,7 +5956,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -5900,7 +5965,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -6356,7 +6422,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -6372,7 +6439,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -6900,7 +6968,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -6908,7 +6977,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -6916,7 +6986,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -6924,7 +6995,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -7404,7 +7476,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -7420,7 +7493,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -7924,7 +7998,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -7932,7 +8007,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -7940,7 +8016,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -10172,7 +10249,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -10180,7 +10258,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -10188,7 +10267,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -10772,7 +10852,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -10788,7 +10869,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -11388,7 +11470,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -11396,7 +11479,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -11404,7 +11488,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -15156,7 +15241,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -15172,7 +15258,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -15180,7 +15267,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -15612,7 +15700,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -15700,7 +15789,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -15788,7 +15878,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -15860,7 +15951,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -15868,7 +15960,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -15884,7 +15977,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -15892,7 +15986,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -15900,7 +15995,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -16252,7 +16348,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -16340,7 +16437,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -16428,7 +16526,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -16516,7 +16615,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -16580,7 +16680,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -16588,7 +16689,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -16596,7 +16698,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -16604,7 +16707,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -16612,7 +16716,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -16620,7 +16725,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -16628,7 +16734,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -16636,7 +16743,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -16644,7 +16752,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -16652,7 +16761,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -16660,7 +16770,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -16908,7 +17019,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -16996,7 +17108,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -17084,7 +17197,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -17260,7 +17374,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -17316,7 +17431,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -17324,7 +17440,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -17332,7 +17449,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -17340,7 +17458,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -17348,7 +17467,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -17356,7 +17476,8 @@
 			"direction": "north",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -17364,7 +17485,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -17372,7 +17494,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -17380,7 +17503,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -17388,7 +17512,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -17396,7 +17521,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -17404,7 +17530,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -17412,7 +17539,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -17492,7 +17620,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -17580,7 +17709,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -17668,7 +17798,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -17756,7 +17887,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18068,7 +18200,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18076,7 +18209,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18084,7 +18218,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -18092,7 +18227,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18100,7 +18236,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18108,7 +18245,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18116,7 +18254,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18124,7 +18263,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18132,7 +18272,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18140,7 +18281,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18148,7 +18290,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -18156,7 +18299,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18164,7 +18308,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18180,7 +18325,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope_saddle2_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 5
 		},
@@ -18188,7 +18334,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -18196,7 +18343,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18268,7 +18416,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18356,7 +18505,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18444,7 +18594,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18532,7 +18683,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18620,7 +18772,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -18796,7 +18949,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -18844,7 +18998,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18852,7 +19007,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18860,7 +19016,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -18868,7 +19025,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18876,7 +19034,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18884,7 +19043,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18892,7 +19052,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18900,7 +19061,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -18908,7 +19070,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18916,7 +19079,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -18924,7 +19088,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18932,7 +19097,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18940,7 +19106,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18964,7 +19131,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -18972,7 +19140,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -18988,7 +19157,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -19060,7 +19230,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -19148,7 +19319,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -19236,7 +19408,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -19324,7 +19497,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -19412,7 +19586,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -19500,7 +19675,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -19588,7 +19764,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -19636,7 +19813,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -19644,7 +19822,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -19652,7 +19831,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -19660,7 +19840,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -19668,7 +19849,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -19692,7 +19874,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -19700,7 +19883,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -19716,7 +19900,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -19724,7 +19909,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -19860,7 +20046,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -19868,7 +20055,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -19876,7 +20064,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -19948,7 +20137,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -20036,7 +20226,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -20124,7 +20315,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -20212,7 +20404,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -20300,7 +20493,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -20388,7 +20582,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -20532,7 +20727,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -20540,7 +20736,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope_saddle2_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 5
 		},
@@ -20548,7 +20745,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -20556,7 +20754,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -20564,7 +20763,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -20572,7 +20772,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -20580,7 +20781,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -20588,7 +20790,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -20596,7 +20799,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -20644,7 +20848,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -20652,7 +20857,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -20812,7 +21018,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -20988,7 +21195,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -21076,7 +21284,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -21164,7 +21373,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope_saddle2_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 5
 		},
@@ -21252,7 +21462,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -21308,7 +21519,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -21316,7 +21528,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -21324,7 +21537,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -21340,7 +21554,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -21348,7 +21563,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -21356,7 +21572,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -21364,7 +21581,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -21372,7 +21590,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -21380,7 +21599,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -21412,7 +21632,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -21420,7 +21641,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -21572,7 +21794,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -21748,7 +21971,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -21924,7 +22148,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22068,7 +22293,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22076,7 +22302,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22100,7 +22327,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -22108,7 +22336,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22116,7 +22345,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -22124,7 +22354,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -22132,7 +22363,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -22140,7 +22372,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22164,7 +22397,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -22404,7 +22638,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -22492,7 +22727,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -22580,7 +22816,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22668,7 +22905,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -22756,7 +22994,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22812,7 +23051,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -22820,7 +23060,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -22828,7 +23069,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -22844,7 +23086,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -22852,7 +23095,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -22860,7 +23104,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -22868,7 +23113,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -22876,7 +23122,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -22884,7 +23131,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -23220,7 +23468,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -23396,7 +23645,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -23484,7 +23734,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -23548,7 +23799,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -23556,7 +23808,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -23564,7 +23817,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -23572,7 +23826,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -23588,7 +23843,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -23596,7 +23852,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -23604,7 +23861,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -24268,7 +24526,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -24276,7 +24535,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -24292,7 +24552,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -24300,7 +24561,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -24308,7 +24570,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -24972,7 +25235,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -24988,7 +25252,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -24996,7 +25261,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -32612,7 +32878,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -32620,7 +32887,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -32628,7 +32896,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -32636,7 +32905,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -32644,7 +32914,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -32652,7 +32923,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -32660,7 +32932,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -36668,7 +36941,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -36684,7 +36958,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -36692,7 +36967,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -36700,7 +36976,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -36708,7 +36985,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -36716,7 +36994,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -36724,7 +37003,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -36732,7 +37012,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -36740,7 +37021,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -36748,7 +37030,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -36916,7 +37199,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -36924,7 +37208,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -36932,7 +37217,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37188,7 +37474,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37196,7 +37483,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37204,7 +37492,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37212,7 +37501,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37220,7 +37510,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37228,7 +37519,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37236,7 +37528,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37460,7 +37753,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37468,7 +37762,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37476,7 +37771,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37484,7 +37780,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37492,7 +37789,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37500,7 +37798,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37508,7 +37807,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37516,7 +37816,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37524,7 +37825,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37716,7 +38018,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37724,7 +38027,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37732,7 +38036,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37740,7 +38045,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37748,7 +38054,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37756,7 +38063,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -37772,7 +38080,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37780,7 +38089,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -37788,7 +38098,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -37796,7 +38107,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37956,7 +38268,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -37964,7 +38277,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37972,7 +38286,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37980,7 +38295,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -37988,7 +38304,8 @@
 			"direction": "north",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38012,7 +38329,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -38020,7 +38338,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38028,7 +38347,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38036,7 +38356,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38044,7 +38365,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope_saddle2_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 5
 		},
@@ -38052,7 +38374,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38180,7 +38503,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38188,7 +38512,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38196,7 +38521,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38204,7 +38530,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38212,7 +38539,8 @@
 			"direction": "east",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 270.0,
+			"object_id": "slope17_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 6
 		},
@@ -38220,7 +38548,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38228,7 +38557,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38236,7 +38566,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -38244,7 +38575,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38252,7 +38584,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38260,7 +38593,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38276,7 +38610,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38284,7 +38619,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -38292,7 +38628,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38388,7 +38725,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38396,7 +38734,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38404,7 +38743,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38412,7 +38752,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38420,7 +38761,8 @@
 			"direction": "east",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 270.0,
+			"object_id": "slope17_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 6
 		},
@@ -38428,7 +38770,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38436,7 +38779,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38444,7 +38788,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38452,7 +38797,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38460,7 +38806,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38468,7 +38815,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -38476,7 +38824,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38484,7 +38833,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38492,7 +38842,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38500,7 +38851,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38508,7 +38860,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38516,7 +38869,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38596,7 +38950,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38604,7 +38959,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38612,7 +38968,8 @@
 			"direction": "east",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 270.0,
+			"object_id": "slope17_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 6
 		},
@@ -38620,7 +38977,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38628,7 +38986,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38636,7 +38995,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38644,7 +39004,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38652,7 +39013,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38660,7 +39022,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -38676,7 +39039,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38692,7 +39056,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38708,7 +39073,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38716,7 +39082,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38788,7 +39155,8 @@
 			"direction": "south",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38796,7 +39164,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38804,7 +39173,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38812,7 +39182,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38820,7 +39191,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38836,7 +39208,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38844,7 +39217,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38852,7 +39226,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38860,7 +39235,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38868,7 +39244,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38876,7 +39253,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -38884,7 +39262,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -38892,7 +39271,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38900,7 +39280,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -38964,7 +39345,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38972,7 +39354,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -38980,7 +39363,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope_saddle2_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 5
 		},
@@ -38988,7 +39372,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -38996,7 +39381,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39004,7 +39390,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39012,7 +39399,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39020,7 +39408,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39028,7 +39417,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39036,7 +39426,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39044,7 +39435,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39052,7 +39444,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39060,7 +39453,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39140,7 +39534,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39148,7 +39543,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39156,7 +39552,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39164,7 +39561,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39172,7 +39570,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39188,7 +39587,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39196,7 +39596,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39204,7 +39605,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39212,7 +39614,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39220,7 +39623,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope13_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39228,7 +39632,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39292,7 +39697,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39300,7 +39706,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39308,7 +39715,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39316,7 +39724,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39324,7 +39733,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39332,7 +39742,8 @@
 			"direction": "east",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 270.0,
+			"object_id": "slope17_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 6
 		},
@@ -39340,7 +39751,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39348,7 +39760,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39356,7 +39769,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39364,7 +39778,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39428,7 +39843,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope13_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39436,7 +39852,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39444,7 +39861,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39452,7 +39870,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39460,7 +39879,8 @@
 			"direction": "south",
 			"height": 3,
 			"max_height": 4,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39468,7 +39888,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 4,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39476,7 +39897,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39484,7 +39906,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39492,7 +39915,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39500,7 +39924,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39508,7 +39933,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39516,7 +39942,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39564,7 +39991,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39572,7 +40000,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39580,7 +40009,8 @@
 			"direction": "east",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39588,7 +40018,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39596,7 +40027,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39604,7 +40036,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39612,7 +40045,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope09_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39620,7 +40054,8 @@
 			"direction": "east",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 270.0,
+			"object_id": "slope05_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39628,7 +40063,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope05_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39636,7 +40072,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39668,7 +40105,8 @@
 			"direction": "west",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39676,7 +40114,8 @@
 			"direction": "south",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39684,7 +40123,8 @@
 			"direction": "north",
 			"height": 2,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39692,7 +40132,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39700,7 +40141,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 0.0,
+			"object_id": "slope01_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39716,7 +40158,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope01_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39724,7 +40167,8 @@
 			"direction": "south",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 180.0,
+			"object_id": "slope05_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39732,7 +40176,8 @@
 			"direction": "north",
 			"height": 0,
 			"max_height": 2,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39740,7 +40185,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39764,7 +40210,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 90.0,
+			"object_id": "slope13_e",
+			"rotation": 270.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39772,7 +40219,8 @@
 			"direction": "north",
 			"height": 1,
 			"max_height": 3,
-			"rotation": 0.0,
+			"object_id": "slope13_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 4
 		},
@@ -39780,7 +40228,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39788,7 +40237,8 @@
 			"direction": "south",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 180.0,
+			"object_id": "slope09_w",
+			"rotation": 90.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39796,7 +40246,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope01_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39804,7 +40255,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope09_n",
+			"rotation": 0.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39812,7 +40264,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39820,7 +40273,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39844,7 +40298,8 @@
 			"direction": "west",
 			"height": 1,
 			"max_height": 2,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39876,7 +40331,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39884,7 +40340,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39916,7 +40373,8 @@
 			"direction": "east",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 270.0,
+			"object_id": "slope09_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 3
 		},
@@ -39924,7 +40382,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope01_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 1
 		},
@@ -39932,7 +40391,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -39956,7 +40416,8 @@
 			"direction": "west",
 			"height": 0,
 			"max_height": 1,
-			"rotation": 90.0,
+			"object_id": "slope05_s",
+			"rotation": 180.0,
 			"type": "slope",
 			"variant": 2
 		},
@@ -41883,6 +42344,20 @@
 		50,
 		50
 	],
+	"map_size": [
+		50,
+		50
+	],
+	"start_locations": [
+		{
+			"cell": "27,52",
+			"player_id": 0
+		},
+		{
+			"cell": "70,51",
+			"player_id": 1
+		}
+	],
 	"version": 4,
 	"vertices": {
 		"10,46": 1,
@@ -42302,5 +42777,11 @@
 		"96,50": 1,
 		"97,47": 1,
 		"97,48": 1
-	}
+	},
+	"visible_bounds": [
+		5,
+		5,
+		4,
+		4
+	]
 }

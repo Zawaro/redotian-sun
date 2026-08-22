@@ -50,7 +50,24 @@ func _on_save_file_selected(path: String) -> void:
             if data.has(key):
                 entity_entry[key] = data[key]
         entities_array.append(entity_entry)
-    TerrainSystem.export_to_json(path, {"entities": entities_array})
+    TerrainSystem.export_to_json(
+        path, {"entities": entities_array, "start_locations": editor._player_start_tool.save_data()}
+    )
+
+
+func _read_start_locations(path: String) -> Array:
+    var file := FileAccess.open(path, FileAccess.READ)
+    if not file:
+        return []
+    var parsed: Variant = JSON.parse_string(file.get_as_text())
+    file.close()
+    if (
+        parsed is Dictionary
+        and parsed.has("start_locations")
+        and parsed["start_locations"] is Array
+    ):
+        return parsed["start_locations"] as Array
+    return []
 
 
 func _on_load_file_selected(path: String) -> void:
@@ -60,6 +77,7 @@ func _on_load_file_selected(path: String) -> void:
             node.queue_free()
     editor._painted_entities.clear()
     var loaded := MapLoader.load_map_into(path, editor)
+    editor._player_start_tool.load_data(_read_start_locations(path))
     for entry in loaded:
         var key: String = entry.get("key", "")
         if key.is_empty():

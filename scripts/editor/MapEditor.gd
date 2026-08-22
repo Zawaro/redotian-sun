@@ -1,7 +1,7 @@
 @tool
 extends Node3D
 
-enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE, PLACE_ENTITY }
+enum Tool { NONE, PAINT_HEIGHT, PAINT_RESOURCE, PLACE_TREE, ERASE, PLACE_ENTITY, PLAYER_START }
 
 @export var map_size: Vector2 = Vector2(50.0, 50.0)
 @export var show_grid: bool = true
@@ -21,6 +21,9 @@ var _save_load: Node
 var _entity_selector: Node
 var _entity_properties: Node
 var _settings_popup: PopupMenu
+var _player_start_tool: Node
+var _selected_start_player: int = 0
+var _player_count: int = 2
 
 
 func _ready() -> void:
@@ -53,6 +56,7 @@ func _exit_tree() -> void:
         return
     _entity_placer.cleanup()
     _entity_selector.cleanup()
+    _player_start_tool.cleanup()
     _painted_entities.clear()
     TerrainSystem.clear()
     var renderer := get_node_or_null("TerrainRenderer")
@@ -75,21 +79,32 @@ func _input(event: InputEvent) -> void:
 
     if _active_tool == Tool.PAINT_HEIGHT:
         return
-
-    if _active_tool == Tool.NONE:
+    elif _active_tool == Tool.NONE:
         _entity_selector.handle_input(event)
-        return
-
-    if _active_tool == Tool.PLACE_TREE:
+    elif _active_tool == Tool.PLAYER_START:
+        _handle_player_start_input(event)
+    elif _active_tool == Tool.PLACE_TREE:
         _entity_placer.handle_tree_input(event)
-        return
-
-    if _active_tool == Tool.PLACE_ENTITY:
+    elif _active_tool == Tool.PLACE_ENTITY:
         _entity_placer.handle_input(event)
-        return
-
-    if _active_tool in [Tool.PAINT_RESOURCE, Tool.ERASE]:
+    elif _active_tool in [Tool.PAINT_RESOURCE, Tool.ERASE]:
         _resource_painter.handle_input(event)
+
+
+func _handle_player_start_input(event: InputEvent) -> void:
+    if not event is InputEventMouseButton or not event.pressed:
+        return
+    var cell := _hovered_cell
+    if event.button_index == MOUSE_BUTTON_LEFT:
+        if not CellUtil.is_in_diamond(cell, TerrainSystem.grid_cells):
+            push_warning("PlayerStartTool: start placement outside map diamond ignored")
+            return
+        _player_start_tool.assign(_selected_start_player, cell)
+    elif event.button_index == MOUSE_BUTTON_RIGHT:
+        if _player_start_tool.has_override(_selected_start_player):
+            var assigned: Vector2i = _player_start_tool.effective_cell(_selected_start_player)
+            if assigned == cell:
+                _player_start_tool.reset(_selected_start_player)
 
 
 func _setup_camera() -> void:
@@ -178,6 +193,7 @@ func _setup_ui() -> void:
         {"name": "Paint Height", "tool": Tool.PAINT_HEIGHT},
         {"name": "Paint Resource", "tool": Tool.PAINT_RESOURCE},
         {"name": "Place Tree", "tool": Tool.PLACE_TREE},
+        {"name": "Set Player Start", "tool": Tool.PLAYER_START},
         {"name": "Erase", "tool": Tool.ERASE},
     ]
     for t in tools:
@@ -191,6 +207,26 @@ func _setup_ui() -> void:
 
     var sep2 := VSeparator.new()
     tool_bar.add_child(sep2)
+
+    var player_label := Label.new()
+    player_label.text = "Player:"
+    tool_bar.add_child(player_label)
+    var player_spin := SpinBox.new()
+    player_spin.name = "PlayerSpinBox"
+    player_spin.min_value = 1.0
+    player_spin.max_value = 8.0
+    player_spin.step = 1.0
+    player_spin.value = 1.0
+    player_spin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    player_spin.custom_minimum_size = Vector2(60, 0)
+    player_spin.value_changed.connect(func(v: float) -> void: _selected_start_player = int(v) - 1)
+    tool_bar.add_child(player_spin)
+
+    _player_start_tool = preload("res://scripts/editor/PlayerStartTool.gd").new()
+    _player_start_tool.name = "PlayerStartTool"
+    add_child(_player_start_tool)
+    _player_start_tool.setup(self)
+    _player_start_tool.set_player_count(_player_count)
 
     _resource_painter = preload("res://scripts/editor/ResourcePainter.gd").new()
     _resource_painter.name = "ResourcePainter"
@@ -453,7 +489,7 @@ func _apply_new_map(
     width: int,
     height: int,
     _start_height: int,
-    _player_count: int,
+    player_count: int,
     left: int = 5,
     right: int = 5,
     top: int = 4,
@@ -468,6 +504,9 @@ func _apply_new_map(
     BoundsSystem.bottom_inset = bottom
     _prefill_terrain()
     _grid._draw_grid()
+    _player_count = maxi(player_count, 1)
+    _player_start_tool.set_player_count(_player_count)
+    _player_start_tool.clear()
 
 
 # ========================================
@@ -618,6 +657,7 @@ func _apply_map_settings(
     BoundsSystem.bottom_inset = bottom
     _prefill_terrain()
     _grid._draw_grid()
+    _player_start_tool.clear()
 
 
 func _on_tool_toggled(btn: Button, tool_id: int) -> void:

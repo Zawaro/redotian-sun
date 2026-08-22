@@ -80,3 +80,116 @@ func test_building_placement_without_data_defaults_cell_center():
             "missing data falls back to cell center: pos=%s expected=%s" % [pos, expected],
         )
     )
+
+
+func _write_map_json(path: String, include_starts: bool) -> void:
+    var data: Dictionary = {
+        "version": 4,
+        "grid_cells": [50, 50],
+        "map_size": [50, 50],
+        "vertices": {},
+        "cells": {},
+    }
+    if include_starts:
+        data["start_locations"] = [{"player_id": 0, "cell": "28,34"}]
+    var file := FileAccess.open(path, FileAccess.WRITE)
+    if file:
+        file.store_string(JSON.stringify(data))
+        file.close()
+
+
+func _get_bounds() -> Node:
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    return tree.root.get_node_or_null("BoundsSystem") if tree else null
+
+
+func _common_camera_setup() -> Array:
+    var bounds := _get_bounds()
+    var pivot := Node3D.new()
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    tree.root.add_child(pivot)
+    if bounds:
+        bounds.camera_pivot = pivot
+    pivot.global_position = Vector3(0.0, 7.0, 0.0)
+    return [bounds, pivot]
+
+
+func _teardown_camera(bounds: Node, pivot: Node3D) -> void:
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    if bounds:
+        bounds.camera_pivot = null
+    tree.root.remove_child(pivot)
+    pivot.free()
+    if bounds:
+        bounds.grid_cells = Vector2i(50, 50)
+
+
+func test_camera_frames_local_player_override():
+    TerrainSystem.init_grid(50, 50)
+    var setup: Array = _common_camera_setup()
+    var bounds: Node = setup[0] as Node
+    var pivot := setup[1] as Node3D
+    if bounds == null:
+        TestHelper.assert_true(false, "BoundsSystem autoload exists")
+        return
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+
+    var path := "user://test_map_loader_start.json"
+    _write_map_json(path, true)
+    var parent := Node3D.new()
+    tree.root.add_child(parent)
+    MapLoader.load_map_into(path, parent)
+
+    var expected: Vector3 = CellUtil.cell_to_world(Vector2i(28, 34))
+    (
+        TestHelper
+        . assert_true(
+            (
+                is_equal_approx(pivot.global_position.x, expected.x)
+                and is_equal_approx(pivot.global_position.z, expected.z)
+            ),
+            (
+                "camera framed on local player start override: pivot=%s expected=%s"
+                % [pivot.global_position, expected]
+            ),
+        )
+    )
+    TestHelper.assert_eq(pivot.global_position.y, 7.0, "camera framing preserves pivot height")
+
+    parent.free()
+    _teardown_camera(bounds, pivot)
+    TerrainSystem.clear()
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_camera_untouched_without_start_locations():
+    TerrainSystem.init_grid(50, 50)
+    var setup: Array = _common_camera_setup()
+    var bounds: Node = setup[0] as Node
+    var pivot := setup[1] as Node3D
+    if bounds == null:
+        TestHelper.assert_true(false, "BoundsSystem autoload exists")
+        return
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+
+    var path := "user://test_map_loader_no_start.json"
+    _write_map_json(path, false)
+    var parent := Node3D.new()
+    tree.root.add_child(parent)
+    MapLoader.load_map_into(path, parent)
+
+    (
+        TestHelper
+        . assert_true(
+            is_zero_approx(pivot.global_position.x) and is_zero_approx(pivot.global_position.z),
+            (
+                "absent start_locations keeps existing centered behavior: pivot=%s"
+                % pivot.global_position
+            ),
+        )
+    )
+
+    parent.free()
+    _teardown_camera(bounds, pivot)
+    TerrainSystem.clear()
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

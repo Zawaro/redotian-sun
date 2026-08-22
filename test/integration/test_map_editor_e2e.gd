@@ -198,6 +198,41 @@ func test_apply_new_map_second_call_clears_stale() -> void:
 # ── C. BoundsSystem + EditorGrid integration ────────────────────────
 
 
+## Map files authored with enemy buildings must load them into the editor
+## (regression: FogRenderer._on_node_added hid buildings whose fog state was
+## shrouded, since the editor has no revealers — unlike the gameplay batch
+## path, the per-node hook lacked the is_map_editor guard).
+func test_loaded_buildings_visible_in_editor() -> void:
+    if _ts == null:
+        _assert_true(false, "TerrainSystem is injected")
+        return
+    _ts.clear()
+    _ts.init_grid(50, 50)
+    var editor: Node3D = _create_map_editor()
+    var saveload: Node = editor.get_node_or_null("EditorSaveLoad")
+    if saveload == null:
+        _assert_true(false, "EditorSaveLoad exists on MapEditor scene")
+    else:
+        saveload.call("_on_load_file_selected", "res://assets/test_map01.json")
+        var building_nodes: Array = []
+        for child in editor.get_children():
+            var stats := child.get_node_or_null("StatsComponent") as StatsComponent
+            if stats and stats.entity_type == EntityData.EntityType.BUILDING:
+                building_nodes.append(child)
+        _assert_true(building_nodes.size() >= 4, "all four GDI buildings loaded")
+        for b in building_nodes:
+            var n3d := b as Node3D
+            _assert_true(
+                n3d.visible,
+                "building '%s' is visible after load (not hidden by fog renderer)" % b.name,
+            )
+        var painted_count: int = editor._painted_entities.size()
+        _assert_true(painted_count >= 318, "all map entities registered in _painted_entities")
+    _cleanup_map_editor(editor)
+    _ts.clear()
+    _ts.init_grid(50, 50)
+
+
 func test_apply_new_map_bounds_and_grid_updated() -> void:
     if _ts == null:
         _assert_true(false, "TerrainSystem is injected")
