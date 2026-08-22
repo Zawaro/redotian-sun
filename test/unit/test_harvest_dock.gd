@@ -1058,14 +1058,16 @@ func test_dock_unload_credits_refinery_not_docker():
     var dock_unload := _get_dock_unload(dock_entity)
     dock_unload._economy_manager = _em
     # Foreign dock: bind past the ownership gate to exercise attribution alone.
-    (_get_stats(dock_entity) as StatsComponent).player_id = 100
+    # Player 400: must not collide with other suites — EconomyManager is a
+    # shared autoload and test_economy_manager expects clean balances.
+    (_get_stats(dock_entity) as StatsComponent).player_id = 400
     dock_comp.current_docker = harvest
 
-    var refinery_before: int = _em.get_balance(100)
+    var refinery_before: int = _em.get_balance(400)
     var docker_before: int = _em.get_balance(300)
     var local_before: int = _em.get_balance(PlayerManager.get_local_player_id())
     dock_unload._process(0.5)
-    var refinery_after: int = _em.get_balance(100)
+    var refinery_after: int = _em.get_balance(400)
     var docker_after: int = _em.get_balance(300)
     var local_after: int = _em.get_balance(PlayerManager.get_local_player_id())
 
