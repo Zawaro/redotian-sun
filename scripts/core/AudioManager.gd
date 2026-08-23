@@ -117,8 +117,9 @@ func _scan_directory(path: String) -> void:
     dir.list_dir_begin()
     var file_name := dir.get_next()
     while file_name != "":
-        if file_name.ends_with(".tres"):
-            var full_path := path + file_name
+        var resource_path := file_name.trim_suffix(".remap")
+        if resource_path.ends_with(".tres"):
+            var full_path := path + resource_path
             var resource := load(full_path)
             if resource is AudioData:
                 _audio_cache[resource.id] = resource
