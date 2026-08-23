@@ -7,7 +7,13 @@ script = ExtResource("1_script")
 id = "TankOGas"
 display_name = "Tank O Gas"
 splash_radius = 8
-armor_damage_multipliers = PackedFloat32Array([0.9, 1.0, 0.6, 0.25, 0.1])
+armor_damage_multipliers = {
+"none": 0.900000,
+"wood": 1.000000,
+"light": 0.600000,
+"heavy": 0.250000,
+"concrete": 0.100000
+}
 can_damage_walls = true
 can_damage_wood = true
 can_damage_tiberium = true

@@ -7,7 +7,13 @@ script = ExtResource("1_script")
 id = "IonWH"
 display_name = "Ion Storm"
 splash_radius = 6
-armor_damage_multipliers = PackedFloat32Array([0.9, 0.75, 0.6, 0.25, 1.0])
+armor_damage_multipliers = {
+"none": 0.900000,
+"wood": 0.750000,
+"light": 0.600000,
+"heavy": 0.250000,
+"concrete": 1.000000
+}
 can_damage_walls = true
 can_damage_wood = true
 can_damage_tiberium = true
