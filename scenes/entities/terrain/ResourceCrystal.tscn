@@ -1,17 +1,19 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+
+[sub_resource type="CubeMesh" id="CubeMesh_resource"]
 
 [node name="TiberiumCrystal" type="Node3D"]
 
 [node name="Stage0" type="MeshInstance3D" parent="."]
 visible = true
-mesh = CubeMesh
+mesh = SubResource("CubeMesh_resource")
 
 [node name="Stage1" type="MeshInstance3D" parent="."]
 visible = false
-mesh = CubeMesh
+mesh = SubResource("CubeMesh_resource")
 
 [node name="Stage2" type="MeshInstance3D" parent="."]
 visible = false
-mesh = CubeMesh
+mesh = SubResource("CubeMesh_resource")

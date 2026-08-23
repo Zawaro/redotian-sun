@@ -157,8 +157,8 @@ func test_flatten_footprint_levels_to_max():
     _ts.init_grid(64, 64)
     var origin := Vector2i(5, 5)
     var size := Vector2i(2, 2)
-    var offset_x := _ts.grid_cells.x >> 1
-    var offset_z := _ts.grid_cells.y >> 1
+    var offset_x: int = _ts.grid_cells.x >> 1
+    var offset_z: int = _ts.grid_cells.y >> 1
     _ts.set_vertex(5 + offset_x, 5 + offset_z, 2)
     _ts.flatten_footprint(origin, size)
     var all_two := true

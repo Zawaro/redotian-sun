@@ -7,7 +7,13 @@ script = ExtResource("1_script")
 id = "VeinholeWH"
 display_name = "Veinhole"
 splash_radius = 1
-armor_damage_multipliers = PackedFloat32Array([1.0, 1.0, 1.0, 1.0, 1.0])
+armor_damage_multipliers = {
+"none": 1.000000,
+"wood": 1.000000,
+"light": 1.000000,
+"heavy": 1.000000,
+"concrete": 1.000000
+}
 can_damage_walls = false
 can_damage_wood = false
 can_damage_tiberium = false
