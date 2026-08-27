@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://resources/art/vehicles/gdi_wolverine_art.tres" id="2_art"]
+[ext_resource type="Resource" path="res://resources/weapons/assaultcannon.tres" id="3_weapon"]
 
 [resource]
 script = ExtResource("1_script")
@@ -25,5 +26,6 @@ buildable = true
 build_time = 28.8
 prerequisite = PackedStringArray("GDI_WAR_FACTORY")
 weight = 1.5
+weapons = [ExtResource("3_weapon")]
 
 buildable_queue = "VehicleType"
