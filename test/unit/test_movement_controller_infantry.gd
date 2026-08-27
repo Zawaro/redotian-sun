@@ -522,3 +522,169 @@ func test_non_sharing_vehicle_does_not_book():
     TestHelper.assert_true(
         claim == 0, "non-sharing vehicle books no sub-slot: expected 0 claims, got %d" % claim
     )
+
+
+# --- scatter/nudge ownership (#164) ---
+# Opponents must never move each other's units: a waiting unit's wait scatter
+# and cell nudges may only re-target own/allied idle units.
+
+const _SCATTER_A_CELL := Vector2i(30, 30)
+const _SCATTER_B_CELL := Vector2i(31, 30)
+
+
+func _reset_scatter_fixture() -> void:
+    var sh := SpatialHash.instance
+    if sh:
+        sh._grid.clear()
+        sh._blocked_cells.clear()
+        sh._building_cells.clear()
+        sh._shared_cell_counts.clear()
+        sh.clear_reservations()
+    MovementController._scattered_this_frame.clear()
+    if CellReservation.instance:
+        CellReservation.instance.clear()
+    if _ts:
+        _ts.init_grid(50, 50)
+        _ts.clear()
+    PlayerManager.get_player_data(0).team_id = 1
+    PlayerManager.get_player_data(1).team_id = 2
+
+
+func _make_scatter_unit(player: int, cell: Vector2i) -> Array:
+    var entity := Node3D.new()
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.entity_type = EntityData.EntityType.INFANTRY
+    stats.player_id = player
+    entity.add_child(stats)
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    Engine.get_main_loop().root.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(cell)
+    return [entity, mc]
+
+
+func _register_idle_blocker(entity: Node3D, mc: MovementController, cell: Vector2i) -> void:
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    var key := CellUtil.cell_key(cell)
+    SpatialHash.instance._grid[key] = [
+        {
+            "node": entity,
+            "mc": mc,
+            "entity_type": stats.entity_type if stats else -1,
+            "player_id": stats.player_id if stats else -1,
+            "state": mc._state,
+            "shares": false,
+        },
+    ]
+    SpatialHash.instance._blocked_cells[key] = true
+
+
+func _cleanup_scatter_units(pair_a: Array, pair_b: Array) -> void:
+    SpatialHash.instance._grid.erase(CellUtil.cell_key(_SCATTER_B_CELL))
+    SpatialHash.instance._blocked_cells.erase(CellUtil.cell_key(_SCATTER_B_CELL))
+    SpatialHash.instance.clear_reservations()
+    var root: Node = Engine.get_main_loop().root
+    root.remove_child(pair_a[0] as Node)
+    (pair_a[0] as Node).free()
+    root.remove_child(pair_b[0] as Node)
+    (pair_b[0] as Node).free()
+    PlayerManager.get_player_data(0).team_id = 1
+    PlayerManager.get_player_data(1).team_id = 2
+
+
+func _trigger_wait_scatter(mc: MovementController) -> void:
+    mc._state = MovementController.State.WAIT
+    mc._waypoints = PackedVector3Array([CellUtil.cell_to_world(_SCATTER_A_CELL)])
+    mc._wait_time = 0.0
+    mc._wait_threshold = 10.0
+    mc._physics_process(0.3)
+
+
+func _blocker_retargeted(mc: MovementController) -> bool:
+    return mc._waypoints.size() > 1 and mc._state != MovementController.State.IDLE
+
+
+func test_wait_scatter_moves_own_blocker():
+    _reset_scatter_fixture()
+    var pair_a := _make_scatter_unit(0, _SCATTER_A_CELL)
+    var pair_b := _make_scatter_unit(0, _SCATTER_B_CELL)
+    var mc_a: MovementController = pair_a[1]
+    var mc_b: MovementController = pair_b[1]
+    _register_idle_blocker(pair_b[0], mc_b, _SCATTER_B_CELL)
+    TestHelper.assert_true(
+        not PlayerManager.is_enemy(0, 0), "precondition: a unit is never its own enemy"
+    )
+    _trigger_wait_scatter(mc_a)
+    var retargeted: bool = _blocker_retargeted(mc_b)
+    _cleanup_scatter_units(pair_a, pair_b)
+    TestHelper.assert_true(retargeted, "wait scatter still re-targets a same-player idle blocker")
+
+
+func test_wait_scatter_moves_allied_blocker():
+    _reset_scatter_fixture()
+    PlayerManager.get_player_data(1).team_id = 1
+    var pair_a := _make_scatter_unit(0, _SCATTER_A_CELL)
+    var pair_b := _make_scatter_unit(1, _SCATTER_B_CELL)
+    var mc_a: MovementController = pair_a[1]
+    var mc_b: MovementController = pair_b[1]
+    _register_idle_blocker(pair_b[0], mc_b, _SCATTER_B_CELL)
+    TestHelper.assert_true(
+        not PlayerManager.is_enemy(0, 1), "precondition: same-team players are allied"
+    )
+    _trigger_wait_scatter(mc_a)
+    var retargeted: bool = _blocker_retargeted(mc_b)
+    _cleanup_scatter_units(pair_a, pair_b)
+    TestHelper.assert_true(retargeted, "wait scatter still re-targets an allied idle blocker")
+
+
+func test_wait_scatter_leaves_enemy_blocker_alone():
+    _reset_scatter_fixture()
+    var pair_a := _make_scatter_unit(0, _SCATTER_A_CELL)
+    var pair_b := _make_scatter_unit(1, _SCATTER_B_CELL)
+    var mc_a: MovementController = pair_a[1]
+    var mc_b: MovementController = pair_b[1]
+    _register_idle_blocker(pair_b[0], mc_b, _SCATTER_B_CELL)
+    TestHelper.assert_true(
+        PlayerManager.is_enemy(0, 1), "precondition: players 0 and 1 start on enemy teams"
+    )
+    _trigger_wait_scatter(mc_a)
+    var untouched: bool = (
+        mc_b._state == MovementController.State.IDLE and mc_b._waypoints.is_empty()
+    )
+    _cleanup_scatter_units(pair_a, pair_b)
+    TestHelper.assert_true(untouched, "wait scatter must not issue a move order to an enemy unit")
+
+
+func test_nudge_moves_own_blocker():
+    _reset_scatter_fixture()
+    var pair_a := _make_scatter_unit(0, _SCATTER_A_CELL)
+    var pair_b := _make_scatter_unit(0, _SCATTER_B_CELL)
+    var mc_a: MovementController = pair_a[1]
+    var mc_b: MovementController = pair_b[1]
+    _register_idle_blocker(pair_b[0], mc_b, _SCATTER_B_CELL)
+    var nudged: bool = mc_a.nudge_from_cell(_SCATTER_B_CELL)
+    var retargeted: bool = _blocker_retargeted(mc_b)
+    _cleanup_scatter_units(pair_a, pair_b)
+    TestHelper.assert_true(nudged, "nudge reports success for a same-player idle blocker")
+    TestHelper.assert_true(retargeted, "nudge still re-targets a same-player idle blocker")
+
+
+func test_nudge_leaves_enemy_blocker_alone():
+    _reset_scatter_fixture()
+    var pair_a := _make_scatter_unit(0, _SCATTER_A_CELL)
+    var pair_b := _make_scatter_unit(1, _SCATTER_B_CELL)
+    var mc_a: MovementController = pair_a[1]
+    var mc_b: MovementController = pair_b[1]
+    _register_idle_blocker(pair_b[0], mc_b, _SCATTER_B_CELL)
+    TestHelper.assert_true(
+        PlayerManager.is_enemy(0, 1), "precondition: players 0 and 1 start on enemy teams"
+    )
+    var nudged: bool = mc_a.nudge_from_cell(_SCATTER_B_CELL)
+    var untouched: bool = (
+        mc_b._state == MovementController.State.IDLE and mc_b._waypoints.is_empty()
+    )
+    _cleanup_scatter_units(pair_a, pair_b)
+    TestHelper.assert_true(not nudged, "nudge must not report success on an enemy unit")
+    TestHelper.assert_true(untouched, "nudge must not issue a move order to an enemy unit")
