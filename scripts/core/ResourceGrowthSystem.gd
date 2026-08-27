@@ -157,6 +157,10 @@ func _spawn_in_radius(
         for dz in range(-radius, radius + 1):
             if dx * dx + dz * dz > radius * radius:
                 continue
+            # The center cell holds the tree itself — never plant a resource
+            # on its root cell.
+            if dx == 0 and dz == 0:
+                continue
             var cell := center + Vector2i(dx, dz)
             if not _is_in_bounds(cell):
                 continue

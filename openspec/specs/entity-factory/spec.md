@@ -32,7 +32,7 @@ The factory SHALL add components based on these rules:
 - SpecialAbilityComponent: if any ability flag is true
 - ArtComponent: if `resource_category != "tiberium"` (skipped for tiberium resource entities)
 - ResourceTreeComponent: if `resource_category == "tiberium_tree"`
-- ResourceComponent: if `resource_category != ""`
+- ResourceComponent: if `resource_category != ""` and `resource_category != "tiberium_tree"` (trees are spawners, not harvestable nodes)
 - HarvestComponent: if `harvester == true`
 - DockHostComponent: if `dock_position != Vector3.ZERO`
 - DockClientComponent: if `dock != ""`
