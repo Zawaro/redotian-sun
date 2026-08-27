@@ -9,6 +9,26 @@ const TAB_ENTITY_TYPES: Dictionary = {
     2: [EntityData.EntityType.VEHICLE, EntityData.EntityType.AIRCRAFT],
     3: [],
 }
+## Rank for entity types absent from the derived rank map (e.g. TERRAIN) —
+## sorts last.
+const UNKNOWN_TYPE_RANK: int = 999
+
+## Lazily-built rank per entity type, derived from TAB_ENTITY_TYPES order so
+## tabs with mixed types (e.g. Vehicles = ground vehicles + aircraft) always
+## list earlier tab types before later ones.
+static var _type_rank: Dictionary = {}
+
+
+static func _get_type_rank(etype: EntityData.EntityType) -> int:
+    if _type_rank.is_empty():
+        var next := 0
+        for tab_index in range(TAB_ENTITY_TYPES.size()):
+            for tab_type in TAB_ENTITY_TYPES[tab_index]:
+                _type_rank[tab_type] = next
+                next += 1
+    return _type_rank.get(etype, UNKNOWN_TYPE_RANK)
+
+
 const CAMEO_W: int = 125
 const CAMEO_H: int = 90
 const GRID_COLS: int = 3
@@ -160,7 +180,32 @@ func _get_current_entities() -> Array[EntityData]:
                 result.append(data)
             elif not ps:
                 result.append(data)
-    return result
+    return sort_buildables(result)
+
+
+## Returns a copy sorted into sidebar order: entity type group (rank derived
+## from TAB_ENTITY_TYPES order — e.g. ground vehicles before aircraft in the
+## Vehicles tab), then ascending tech_level (-1 = always available first),
+## then display_name, then id. Deterministic tie-breaking prevents
+## load-order flicker between rebuilds.
+static func sort_buildables(items: Array[EntityData]) -> Array[EntityData]:
+    var sorted := items.duplicate()
+    sorted.sort_custom(
+        func(a: EntityData, b: EntityData) -> bool: return _compare_build_items(a, b) < 0
+    )
+    return sorted
+
+
+static func _compare_build_items(a: EntityData, b: EntityData) -> int:
+    var rank_a := _get_type_rank(a.entity_type)
+    var rank_b := _get_type_rank(b.entity_type)
+    if rank_a != rank_b:
+        return rank_a - rank_b
+    if a.tech_level != b.tech_level:
+        return a.tech_level - b.tech_level
+    if a.display_name != b.display_name:
+        return a.display_name.naturalnocasecmp_to(b.display_name)
+    return a.id.naturalnocasecmp_to(b.id)
 
 
 ## Coalesce the many production/prerequisite signals into a single deferred
