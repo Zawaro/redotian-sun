@@ -1,0 +1,34 @@
+[gd_scene load_steps=5 format=3 uid="uid://dq8projm20ct1"]
+
+[ext_resource type="Script" uid="uid://cprojctl51vw8" path="res://scripts/components/ProjectileController.gd" id="1_proj"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_proj"]
+radius = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_proj"]
+resource_local_to_scene = true
+albedo_color = Color(1, 1, 1, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_proj"]
+material = SubResource("StandardMaterial3D_proj")
+radius = 0.15
+height = 0.3
+
+[node name="Projectile" type="Area3D"]
+collision_layer = 0
+collision_mask = 0
+monitoring = false
+monitorable = false
+script = ExtResource("1_proj")
+
+[node name="ShapeCast3D" type="ShapeCast3D" parent="."]
+shape = SubResource("SphereShape3D_proj")
+target_position = Vector3(0, 0, 0)
+collision_mask = 0
+collide_with_areas = true
+collide_with_bodies = false
+enabled = false
+
+[node name="Visual" type="MeshInstance3D" parent="."]
+surface_material_override/0 = SubResource("StandardMaterial3D_proj")
+mesh = SubResource("SphereMesh_proj")
