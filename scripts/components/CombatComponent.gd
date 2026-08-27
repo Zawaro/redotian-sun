@@ -15,6 +15,9 @@ class_name CombatComponent extends Node3D
 
 signal weapon_fired(weapon: WeaponData, target: Node3D)
 
+## Instantiated for each shot when the weapon's projectile id resolves.
+const PROJECTILE_SCENE: PackedScene = preload("res://scenes/components/Projectile.tscn")
+
 ## World-space separation at which airborne attackers stop nudging each other.
 const MIN_AIR_SEPARATION: float = 1.5
 
@@ -199,25 +202,60 @@ func _physics_process(delta: float) -> void:
 
 
 func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:
-    var health := target.get_node_or_null("HealthComponent") as HealthComponent
-    if not health:
-        return
-    var damage := get_effective_damage(weapon)
-    var target_stats := target.get_node_or_null("StatsComponent") as StatsComponent
-    var target_armor := target_stats.armor if target_stats else "none"
-    var rules := GlobalRules.get_current()
-    if rules:
-        var mult := rules.get_warhead_armor_multiplier(weapon.warhead, target_armor)
-        if mult > 0.0:
-            damage = clampi(roundi(damage * mult), rules.min_damage, rules.max_damage)
-        else:
-            damage = 0
-    health.take_damage(damage, weapon.warhead)
+    var projectile_data: ProjectileData = _resolve_projectile(weapon)
+    if projectile_data:
+        _spawn_projectile(projectile_data, weapon, target)
+    else:
+        _apply_hitscan_damage(weapon, target)
     _fire_count += 1
     var rof: float = maxf(weapon.rate_of_fire, 0.001)
     _cooldowns[_current_weapon_index] = 60.0 / rof
     _play_fire_sound(weapon)
     weapon_fired.emit(weapon, target)
+
+
+## Resolves weapon.projectile through the GlobalRules registry; null when the
+## id is empty or unresolvable, which falls back to direct hitscan damage.
+func _resolve_projectile(weapon: WeaponData) -> ProjectileData:
+    if weapon.projectile.is_empty():
+        return null
+    var rules := GlobalRules.get_current()
+    if not rules:
+        return null
+    return rules.get_projectile(weapon.projectile)
+
+
+func _spawn_projectile(data: ProjectileData, weapon: WeaponData, target: Node3D) -> void:
+    var shooter := get_parent() as Node3D
+    if not shooter:
+        return
+    var projectile := PROJECTILE_SCENE.instantiate() as ProjectileController
+    if not projectile:
+        return
+    projectile.setup(data, weapon, shooter, target)
+    var container: Node = null
+    var tree := shooter.get_tree()
+    if tree:
+        container = tree.current_scene
+    if not container:
+        container = shooter.get_parent()
+    if not container:
+        push_error("CombatComponent: no container for projectile spawn — shot consumed")
+        projectile.free()
+        return
+    container.add_child(projectile)
+
+
+func _apply_hitscan_damage(weapon: WeaponData, target: Node3D) -> void:
+    var health := target.get_node_or_null("HealthComponent") as HealthComponent
+    if not health:
+        return
+    var target_stats := target.get_node_or_null("StatsComponent") as StatsComponent
+    var target_armor := target_stats.armor if target_stats else "none"
+    var damage := GlobalRules.compute_warhead_damage(
+        get_effective_damage(weapon), weapon.warhead, target_armor
+    )
+    health.take_damage(damage, weapon.warhead)
 
 
 func _play_fire_sound(weapon: WeaponData) -> void:
