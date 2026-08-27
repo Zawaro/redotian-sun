@@ -1222,22 +1222,27 @@ func _scatter_blockers() -> void:
                 var push_cell := ncell + push_dir
                 if SpatialHash.instance.is_cell_blocked(push_cell):
                     continue
+                var scatter_targets: Array[MovementController] = []
+                for entry in SpatialHash.instance.get_entries(ncell):
+                    var mc := entry.mc as MovementController
+                    if mc and mc != self and mc._state == State.IDLE and not _is_enemy_unit(mc):
+                        scatter_targets.append(mc)
+                if scatter_targets.is_empty():
+                    continue
                 if not SpatialHash.instance.reserve_cell(push_cell):
                     continue
                 _scattered_this_frame[nkey] = true
                 SpatialHash.instance.force_reserve(ncell)
-                for entry in SpatialHash.instance.get_entries(ncell):
-                    var mc := entry.mc as MovementController
-                    if mc and mc._state == State.IDLE and mc != self:
-                        (
-                            mc
-                            . set_target_position(
-                                CellUtil.cell_to_world(push_cell),
-                                false,
-                                mc.is_airborne_jumpjet(),
-                                true,
-                            )
+                for target in scatter_targets:
+                    (
+                        target
+                        . set_target_position(
+                            CellUtil.cell_to_world(push_cell),
+                            false,
+                            target.is_airborne_jumpjet(),
+                            true,
                         )
+                    )
 
 
 func nudge_from_cell(blocking_cell: Vector2i) -> bool:
@@ -1245,12 +1250,30 @@ func nudge_from_cell(blocking_cell: Vector2i) -> bool:
     for entry in entries:
         var mc := entry.mc as MovementController
         if mc and mc._state == State.IDLE:
+            if _is_enemy_unit(mc):
+                continue
             var free := _find_nearest_free_idle_cell(blocking_cell)
             mc.set_target_position(
                 CellUtil.cell_to_world(free), false, mc.is_airborne_jumpjet(), true
             )
             return true
     return false
+
+
+## True when `other` is owned by an enemy player. Units without a resolvable
+## owner on either side (missing StatsComponent or unset player_id) cannot be
+## classified and are treated as non-hostile, matching the deploy scatter
+## precedent (#164: opponents must never move each other's units).
+func _is_enemy_unit(other: MovementController) -> bool:
+    if other == null or other._parent == null:
+        return false
+    var own_stats := _parent.get_node_or_null("StatsComponent") as StatsComponent
+    var other_stats := other._parent.get_node_or_null("StatsComponent") as StatsComponent
+    if own_stats == null or other_stats == null:
+        return false
+    if own_stats.player_id < 0 or other_stats.player_id < 0:
+        return false
+    return PlayerManager.is_enemy(own_stats.player_id, other_stats.player_id)
 
 
 func _snap_if_idle_cell_changed() -> void:
