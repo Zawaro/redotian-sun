@@ -26,7 +26,7 @@ build_time = 67.2
 prerequisite = PackedStringArray("NOD_REFINERY")
 harvester = true
 dock = "NOD_REFINERY"
-storage = 1
+storage = 28
 crusher = true
 weight = 3.0
 
