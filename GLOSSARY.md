@@ -94,6 +94,10 @@ are 45°-rotated rectangles, i.e. diamonds.
 | `weight` | Crush pairing + ice-breakage threshold (`ice_cracking_weight`). Explicitly not a speed factor. | [entity-data](openspec/specs/entity-data/spec.md) · [ice-drowning](openspec/specs/ice-drowning/spec.md) |
 | hitscan | Damage applied instantly at fire time, no projectile travel. | [combat-firing](openspec/specs/combat-firing/spec.md) |
 | threat posed | AI targeting priority hint on EntityData. | [combat-firing](openspec/specs/combat-firing/spec.md) |
+| flight model | Per-projectile behavior chosen by `ProjectileData` flags: teleport-detonate (`is_invisible`) vs real flight (straight + optional homing). One branch set inside ProjectileController — mirrors the locomotor pattern, not component nodes. | [projectile-system change](openspec/changes/archive/2026-08-27-projectile-system/specs/projectile-runtime/spec.md) · scripts/components/ProjectileController.gd |
+| teleport-detonate | Invisible projectiles skip flight: spawn at the muzzle, position at the target coordinate, detonate at dispatch (same tick as the legacy hitscan path) through the hitbox pipeline. Behavior-preserving against the legacy hitscan path. | [projectile-system change](openspec/changes/archive/2026-08-27-projectile-system/specs/projectile-runtime/spec.md) |
+| detonation trigger | Ordered first-match causes a projectile detonates: contact, close proximity while armed, overshoot (target distance stops decreasing), max range. Close detonations snap onto the victim's center. | [projectile-system change](openspec/changes/archive/2026-08-27-projectile-system/specs/projectile-runtime/spec.md) |
+| arming | `ProjectileData.arm_delay` frames after spawn during which a projectile cannot detonate at all. Frame-based, not distance-based (original engine armed by distance). | scripts/data/ProjectileData.gd |
 
 ## Movement
 
