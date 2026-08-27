@@ -47,6 +47,26 @@
 [ext_resource type="Resource" path="res://resources/locomotors/Jumpjet.tres" id="44_lm_jumpjet"]
 [ext_resource type="Resource" path="res://resources/locomotors/Subterranean.tres" id="45_lm_subterranean"]
 [ext_resource type="Resource" path="res://resources/locomotors/Ship.tres" id="46_lm_ship"]
+[ext_resource type="Resource" path="res://resources/projectiles/aaheatseeker.tres" id="47_pj_aaheatseeker"]
+[ext_resource type="Resource" path="res://resources/projectiles/aaheatseeker2.tres" id="48_pj_aaheatseeker2"]
+[ext_resource type="Resource" path="res://resources/projectiles/ballistic.tres" id="49_pj_ballistic"]
+[ext_resource type="Resource" path="res://resources/projectiles/cannon.tres" id="50_pj_cannon"]
+[ext_resource type="Resource" path="res://resources/projectiles/cannon2.tres" id="51_pj_cannon2"]
+[ext_resource type="Resource" path="res://resources/projectiles/chemmissile.tres" id="52_pj_chemmissile"]
+[ext_resource type="Resource" path="res://resources/projectiles/dogshard.tres" id="53_pj_dogshard"]
+[ext_resource type="Resource" path="res://resources/projectiles/heatseeker.tres" id="54_pj_heatseeker"]
+[ext_resource type="Resource" path="res://resources/projectiles/invisible.tres" id="55_pj_invisible"]
+[ext_resource type="Resource" path="res://resources/projectiles/invisible2.tres" id="56_pj_invisible2"]
+[ext_resource type="Resource" path="res://resources/projectiles/invisible3.tres" id="57_pj_invisible3"]
+[ext_resource type="Resource" path="res://resources/projectiles/lline.tres" id="58_pj_lline"]
+[ext_resource type="Resource" path="res://resources/projectiles/lline2.tres" id="59_pj_lline2"]
+[ext_resource type="Resource" path="res://resources/projectiles/lobbed.tres" id="60_pj_lobbed"]
+[ext_resource type="Resource" path="res://resources/projectiles/lobbed2.tres" id="61_pj_lobbed2"]
+[ext_resource type="Resource" path="res://resources/projectiles/multimissile.tres" id="62_pj_multimissile"]
+[ext_resource type="Resource" path="res://resources/projectiles/null.tres" id="63_pj_null"]
+[ext_resource type="Resource" path="res://resources/projectiles/protonblast.tres" id="64_pj_protonblast"]
+[ext_resource type="Resource" path="res://resources/projectiles/protontorpedo.tres" id="65_pj_protontorpedo"]
+[ext_resource type="Resource" path="res://resources/projectiles/pulspr.tres" id="66_pj_pulspr"]
 
 [resource]
 script = ExtResource("1_script")
@@ -85,6 +105,28 @@ warheads = {
 "SAMWH": ExtResource("30_samwh"),
 "RPG": ExtResource("31_rpg"),
 "EMPuls": ExtResource("32_empuls"),
+}
+projectiles = {
+"AAHeatSeeker": ExtResource("47_pj_aaheatseeker"),
+"AAHeatSeeker2": ExtResource("48_pj_aaheatseeker2"),
+"Ballistic": ExtResource("49_pj_ballistic"),
+"Cannon": ExtResource("50_pj_cannon"),
+"Cannon2": ExtResource("51_pj_cannon2"),
+"ChemMissile": ExtResource("52_pj_chemmissile"),
+"DogShard": ExtResource("53_pj_dogshard"),
+"HeatSeeker": ExtResource("54_pj_heatseeker"),
+"Invisible": ExtResource("55_pj_invisible"),
+"Invisible2": ExtResource("56_pj_invisible2"),
+"Invisible3": ExtResource("57_pj_invisible3"),
+"LLine": ExtResource("58_pj_lline"),
+"LLine2": ExtResource("59_pj_lline2"),
+"Lobbed": ExtResource("60_pj_lobbed"),
+"Lobbed2": ExtResource("61_pj_lobbed2"),
+"MultiMissile": ExtResource("62_pj_multimissile"),
+"Null": ExtResource("63_pj_null"),
+"ProtonBlast": ExtResource("64_pj_protonblast"),
+"ProtonTorpedo": ExtResource("65_pj_protontorpedo"),
+"PulsPr": ExtResource("66_pj_pulspr")
 }
 resource_types = {
 "tiberium": ExtResource("2_tib"),

@@ -119,6 +119,13 @@ class_name GlobalRules extends Resource
 ## Warhead registry — maps warhead id to WarheadData resource.
 @export var warheads: Dictionary = {}
 
+@export_group("Projectiles")
+## Projectile registry — maps projectile id to ProjectileData resource.
+@export var projectiles: Dictionary = {}
+## Fallback flight speed in world units per second when neither
+## ProjectileData.speed_override nor WeaponData.speed is set.
+@export var default_projectile_speed: float = 12.0
+
 @export_group("Resource Types")
 ## Resource type definitions — maps resource ID to ResourceType.
 ## Each holds value, grow_rate, spread_amount, spread_max, color.
@@ -163,6 +170,25 @@ func get_armor_ids() -> Array[String]:
 
 func get_warhead(warhead_id: String) -> WarheadData:
     return warheads.get(warhead_id) as WarheadData
+
+
+func get_projectile(projectile_id: String) -> ProjectileData:
+    return projectiles.get(projectile_id) as ProjectileData
+
+
+## Shared damage math for both dispatch paths (direct hitscan fallback and
+## projectile payloads): warhead armor multiplier for the victim's armor type,
+## clamped to [min_damage, max_damage]; a zero multiplier means no damage.
+## Returns base_damage unchanged when no rules are active. Single source of
+## truth so the two paths cannot drift.
+static func compute_warhead_damage(base_damage: int, warhead_id: String, armor_id: String) -> int:
+    var rules := get_current()
+    if not rules:
+        return base_damage
+    var mult := rules.get_warhead_armor_multiplier(warhead_id, armor_id)
+    if mult > 0.0:
+        return clampi(roundi(base_damage * mult), rules.min_damage, rules.max_damage)
+    return 0
 
 
 func get_land_type(land_type_id: String) -> LandType:
