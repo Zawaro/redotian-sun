@@ -393,7 +393,7 @@ func _fallback_target(target: Vector3) -> Vector3:
         cell,
         8,
         func(c: Vector2i) -> bool:
-            if not _is_in_order_area(c):
+            if not BoundsSystem.is_in_order_area(c):
                 return true
             return not SpatialHash.instance.reserve_cell(c)
     )
@@ -440,10 +440,6 @@ func _bounded_player_target(world: Vector3) -> Vector3:
     return BoundsSystem.clamp_to_visible_diamond(world, BoundsSystem.ORDER_EDGE_INSET)
 
 
-func _is_in_order_area(cell: Vector2i) -> bool:
-    return BoundsSystem.is_in_play_area_with_margin(cell, BoundsSystem.ORDER_EDGE_INSET)
-
-
 func request_set_rally_point(target_position: Vector3) -> void:
     var clamped := BoundsSystem.clamp_to_visible_diamond(
         target_position, BoundsSystem.ORDER_EDGE_INSET
@@ -468,7 +464,7 @@ func _find_sharer_cell(target_position: Vector3) -> Vector2i:
         target,
         4,
         func(cell: Vector2i) -> bool:
-            if not _is_in_order_area(cell):
+            if not BoundsSystem.is_in_order_area(cell):
                 return true
             if CellReservation.instance.is_cell_full(cell):
                 return true
