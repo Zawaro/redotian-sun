@@ -1,17 +1,13 @@
-[gd_scene load_steps=4 format=3 uid="uid://c6s5n02jefgmd"]
+[gd_scene load_steps=3 format=3 uid="uid://c6s5n02jefgmd"]
 
 [ext_resource type="PackedScene" uid="uid://bqgqoidrni3ed" path="res://scenes/ui/MainMenu01.tscn" id="1_echbf"]
 [ext_resource type="PackedScene" uid="uid://evckb76qoeyd" path="res://scenes/LoadingScreen.tscn" id="2_ibiss"]
-[ext_resource type="Script" path="res://scripts/core/EconomyAudioListener.gd" id="3_econ"]
 
 [node name="Window" type="Window"]
 oversampling_override = 1.0
 size = Vector2i(1920, 1080)
 
 [node name="Gameplay" type="Node" parent="."]
-
-[node name="EconomyAudioListener" type="Node" parent="Gameplay"]
-script = ExtResource("3_econ")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 layer = 256

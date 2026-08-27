@@ -109,12 +109,16 @@ func test_noise_reasons_stay_silent():
 
 
 func test_harvest_income_plays_sound_on_sfx_bus():
-    if not _am:
-        TestHelper.fail("AudioManager not injected")
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
         return
-    var listener := _make_listener()
-    if not listener:
-        return
+    (
+        TestHelper
+        . assert_true(
+            (Engine.get_main_loop() as SceneTree).root.has_node("EconomyAudioListener"),
+            "EconomyAudioListener registered as autoload",
+        )
+    )
     _arm_retrigger()
     var before := _count_audio_players()
     _em.add(260, 500, "harvest")
@@ -125,15 +129,11 @@ func test_harvest_income_plays_sound_on_sfx_bus():
         TestHelper.assert_true(last != null, "income player is a non-spatial AudioStreamPlayer")
         if last:
             TestHelper.assert_eq(last.get_bus(), "SFX", "income sound routes to SFX bus")
-    _drop_listener(listener)
 
 
 func test_production_deduction_plays_spend_sound_on_sfx_bus():
-    if not _am:
-        TestHelper.fail("AudioManager not injected")
-        return
-    var listener := _make_listener()
-    if not listener:
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
         return
     _arm_retrigger()
     var before := _count_audio_players()
@@ -148,21 +148,16 @@ func test_production_deduction_plays_spend_sound_on_sfx_bus():
         TestHelper.assert_true(last != null, "spend player is a non-spatial AudioStreamPlayer")
         if last:
             TestHelper.assert_eq(last.get_bus(), "SFX", "spend sound routes to SFX bus")
-    _drop_listener(listener)
 
 
 func test_debug_credits_stay_silent():
-    if not _am:
-        TestHelper.fail("AudioManager not injected")
-        return
-    var listener := _make_listener()
-    if not listener:
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
         return
     _arm_retrigger()
     var before := _count_audio_players()
     _em.add(262, 100000, "debug_menu", "tiberium", true)
     TestHelper.assert_eq(_count_audio_players(), before, "debug credits spawn no player")
-    _drop_listener(listener)
 
 
 func test_econ_sounds_declared_and_imported():
