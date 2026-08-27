@@ -6,9 +6,6 @@ extends Node
 ## deductions. Listens to EconomyManager.credits_changed so EconomyManager stays
 ## audio-agnostic ("signal up, call down"). Mounted as a node under Gameplay in
 ## MainScene.tscn.
-##
-## ponytail: placeholder blips (ECON_INCOME/ECON_SPEND) — real content lands
-## with #251; only the .wav/.tres files need swapping, wiring stays.
 
 const SOUND_INCOME: String = "ECON_INCOME"
 const SOUND_SPEND: String = "ECON_SPEND"

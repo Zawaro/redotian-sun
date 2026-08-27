@@ -176,6 +176,6 @@ func test_econ_sounds_declared_and_imported():
             TestHelper.assert_eq(audio.bus, "SFX", "%s declared on SFX bus" % id)
             TestHelper.assert_true(not audio.path.is_empty(), "%s has a stream path" % id)
             TestHelper.assert_true(
-                ResourceLoader.exists(audio.path), "%s wav imported and loadable" % id
+                ResourceLoader.exists(audio.path), "%s stream imported and loadable" % id
             )
             TestHelper.assert_true(not audio.is_spatial, "%s plays non-spatial" % id)

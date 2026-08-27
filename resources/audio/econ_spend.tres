@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 id = "ECON_SPEND"
-path = "res://assets/audio/econ_spend.wav"
+path = "res://external_assets/audio/creddwn1.ogg"
 bus = "SFX"
 priority = 10
 volume_db = 0.0
