@@ -11,6 +11,8 @@ var place_anywhere: bool = false
 var _is_open: bool = false
 var _sidebar: Control = null
 var _selection_overlay: CanvasLayer = null
+var _inspected_entity: Node3D = null
+var _inspected_health: HealthComponent = null
 
 ## Node references
 @onready var content: Control = $Content
@@ -283,16 +285,15 @@ func _on_selection_changed(selected: Array[SelectComponent]) -> void:
 func _show_inspection(entity: Node3D) -> void:
     if not inspect_content or not inspect_label:
         return
+    _disconnect_inspection_signals()
     inspect_content.visible = true
 
     var text := ""
 
     # Health summary at top
-    var health := entity.get_node_or_null("HealthComponent")
+    var health := entity.get_node_or_null("HealthComponent") as HealthComponent
     if health:
-        var current: int = health.get("current_health") if health.get("current_health") else 0
-        var max_h: int = health.get("max_health") if health.get("max_health") else 0
-        text += "[b]Health[/b] %d / %d\n\n" % [current, max_h]
+        text += "[b]Health[/b] %d / %d\n\n" % [health.current_health, health.max_health]
 
     var children := entity.get_children()
     for child: Node in children:
@@ -314,12 +315,31 @@ func _show_inspection(entity: Node3D) -> void:
 
     inspect_label.text = text
 
+    _inspected_entity = entity
+    _inspected_health = health
+    if _inspected_health:
+        _inspected_health.health_changed.connect(_on_inspected_health_changed)
+
+
+func _on_inspected_health_changed(_new_health: int, _old_health: int) -> void:
+    if is_instance_valid(_inspected_entity):
+        _show_inspection(_inspected_entity)
+
 
 func clear_inspection() -> void:
+    _disconnect_inspection_signals()
+    _inspected_entity = null
+    _inspected_health = null
     if inspect_content:
         inspect_content.visible = false
     if inspect_label:
         inspect_label.text = ""
+
+
+func _disconnect_inspection_signals() -> void:
+    if _inspected_health and is_instance_valid(_inspected_health):
+        if _inspected_health.health_changed.is_connected(_on_inspected_health_changed):
+            _inspected_health.health_changed.disconnect(_on_inspected_health_changed)
 
 
 # --- Lighting sliders ---
