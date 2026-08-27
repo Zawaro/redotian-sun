@@ -467,7 +467,9 @@ func _add_resource_tree_component(entity: Node3D, data: EntityData) -> void:
 
 
 func _add_resource_component(entity: Node3D, data: EntityData) -> void:
-    if data.resource_category != "":
+    # Trees are spawners, not harvestable nodes: a ResourceComponent would
+    # register the tree's root cell as a resource and draw crystals on it (#168).
+    if data.resource_category != "" and data.resource_category != "tiberium_tree":
         var component := Node.new()
         component.name = "ResourceComponent"
         component.set_script(RESOURCE_COMPONENT_SCRIPT)
