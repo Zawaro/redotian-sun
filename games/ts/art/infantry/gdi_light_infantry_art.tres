@@ -6,3 +6,4 @@
 script = ExtResource("1_script")
 id = "GDI_LIGHT_INFANTRY"
 placeholder_size = Vector3(0.4, 1.0, 0.4)
+color = Color(0.2, 0.75, 0.3, 1)
