@@ -10,6 +10,8 @@ var _sub_viewport: SubViewport
 var _camera: Camera3D
 var _terrain_mesh: MeshInstance3D
 var _viewport_rect_mesh: MeshInstance3D
+var _entity_dots_mesh: MeshInstance3D
+var _entity_dots_material: ORMMaterial3D
 var _needs_rebuild: bool = false
 var _game_camera: Camera3D = null
 var _game_camera_pivot: Node3D = null
@@ -21,6 +23,7 @@ func _ready() -> void:
     _setup_camera()
     _setup_terrain_visualization()
     _setup_viewport_rect()
+    _setup_entity_dots()
     TerrainSystem.cell_changed.connect(_on_cell_changed)
     TerrainSystem.grid_initialized.connect(_on_grid_initialized)
 
@@ -31,6 +34,7 @@ func _process(_delta: float) -> void:
         _update_visualization()
     _update_camera_size()
     _update_viewport_rect()
+    _update_entity_dots()
 
 
 func set_game_camera(cam: Camera3D, pivot: Node3D) -> void:
@@ -94,6 +98,66 @@ func _setup_viewport_rect() -> void:
 func _is_in_diamond(world_pos: Vector3) -> bool:
     var cell := CellUtil.world_to_cell(world_pos)
     return CellUtil.is_in_diamond(cell, TerrainSystem.grid_cells)
+
+
+func _setup_entity_dots() -> void:
+    _entity_dots_mesh = MeshInstance3D.new()
+    _entity_dots_mesh.name = "EntityDots"
+    _entity_dots_material = ORMMaterial3D.new()
+    _entity_dots_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    _entity_dots_material.vertex_color_use_as_albedo = true
+    _sub_viewport.add_child(_entity_dots_mesh)
+    _update_entity_dots()
+
+
+## One small world-axis-aligned quad per entity that resolves to a minimap
+## color (see ArtData.minimap_color). Rebuilt every frame like the viewport
+## rect — entity counts in the editor are small.
+func _update_entity_dots() -> void:
+    var mesh := ImmediateMesh.new()
+    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _entity_dots_material)
+    var half: float = CellUtil.CELL_SIZE * 0.25
+    for entity in get_tree().get_nodes_in_group("entities"):
+        if not is_instance_valid(entity) or not entity is Node3D:
+            continue
+        var color: Variant = _resolve_entity_color(entity)
+        if color == null:
+            continue
+        _add_dot(mesh, (entity as Node3D).global_position + Vector3(0.0, 0.3, 0.0), half, color)
+    mesh.surface_end()
+    _entity_dots_mesh.mesh = mesh
+
+
+## (entity) → minimap Color or null, combining ArtData resolution with the
+## owner player's color lookup.
+func _resolve_entity_color(entity: Node) -> Variant:
+    var art_comp := entity.get_node_or_null("ArtComponent")
+    var art: ArtData = (art_comp as ArtComponent).art_data if art_comp else null
+    var owner_color: Variant = null
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and stats.player_id >= 0:
+        var player := PlayerManager.get_player_data(stats.player_id)
+        if player:
+            owner_color = player.color
+    return ArtData.minimap_color(art, owner_color)
+
+
+func _add_dot(mesh: ImmediateMesh, center: Vector3, half: float, color: Variant) -> void:
+    var x0 := center.x - half
+    var x1 := center.x + half
+    var z0 := center.z - half
+    var z1 := center.z + half
+    var c: Color = color
+    for corner in [
+        Vector3(x0, center.y, z0),
+        Vector3(x1, center.y, z0),
+        Vector3(x1, center.y, z1),
+        Vector3(x0, center.y, z0),
+        Vector3(x1, center.y, z1),
+        Vector3(x0, center.y, z1),
+    ]:
+        mesh.surface_add_color(c)
+        mesh.surface_add_vertex(corner)
 
 
 func _update_visualization() -> void:
