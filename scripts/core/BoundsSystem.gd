@@ -227,6 +227,13 @@ func is_in_play_area_with_margin(cell: Vector2i, inset_cells: float = 1.0) -> bo
     return _in_play_diamond(cell, inset_cells)
 
 
+## True when a cell is inside the player-order diamond — the visible outline
+## shrunk inward by `ORDER_EDGE_INSET`. Player-issued order targets and
+## relocation spirals are bounded to this area; AI/automatic movement is not.
+func is_in_order_area(cell: Vector2i) -> bool:
+    return _in_play_diamond(cell, ORDER_EDGE_INSET)
+
+
 # Uses the same half-open raster ownership as CellUtil.is_in_diamond.
 func _in_play_diamond(cell: Vector2i, extra_inset: float) -> bool:
     var w: float = float(grid_cells.x)
