@@ -6,6 +6,10 @@ context: |
   Engine: Redot 26.2 LTS (Forward Plus renderer)
   Language: GDScript only — no C# bindings (.gdnlib / .gdns files exist in project yet)
   Genre: RTS remake of Command & Conquer: Tiberian Sun
+  Glossary: GLOSSARY.md at the repo root is the canonical term directory — check
+  it before using domain terms and propose updates for any new term surfaced
+  while planning or clarifying (including prompt-only terms). Its Undecided
+  section lists terms that must not be guessed.
   
 rules:
   proposal:
