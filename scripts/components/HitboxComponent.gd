@@ -18,13 +18,15 @@ const LAYER_PROJECTILE: int = 1 << 4
 
 
 func _ready() -> void:
-    area_entered.connect(_try_deal_damage)
-    body_entered.connect(_try_deal_damage)
+    area_entered.connect(receive_damage_source)
+    body_entered.connect(receive_damage_source)
 
 
 ## Checks if the entering node deals damage and forwards to HealthComponent.
 ## Projectiles should implement get_damage_info() -> { "amount": int, "type": String }.
-func _try_deal_damage(node: Node3D) -> void:
+## Public so projectile controllers can deliver damage directly from motion-segment
+## casts, which bypass area_entered detection by design.
+func receive_damage_source(node: Node3D) -> void:
     if not health_component:
         return
     if not node.has_method("get_damage_info"):
