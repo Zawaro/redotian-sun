@@ -187,6 +187,9 @@ class_name ArtData extends Resource
 
 ## Rendering
 @export_group("Rendering")
+## Minimap dot color. TRANSPARENT (default) = invisible on the minimap;
+## overridden by the owner player's color when is_remappable is true.
+@export var color: Color = Color.TRANSPARENT
 ## Whether UV coordinates are normalized (0–1 range instead of pixel coords).
 # ponytail: schema-first, no consumer yet
 @export var normalized: bool = false
@@ -233,3 +236,17 @@ func validate() -> PackedStringArray:
         if anim and anim.anim_name.is_empty():
             errors.append("%s: active_anim has empty anim_name" % id)
     return errors
+
+
+## Minimap color resolution (issue #178):
+## - no ArtData or no authored color (alpha 0, e.g. the TRANSPARENT default)
+##   → null: the entity is invisible on the minimap.
+## - is_remappable and a known owner color → the owner player's color wins.
+## - is_remappable but unknown owner (null) → authored color fallback.
+## - otherwise → authored color.
+static func minimap_color(art_data: ArtData, owner_color: Variant = null) -> Variant:
+    if art_data == null or art_data.color.a <= 0.0:
+        return null
+    if art_data.is_remappable and owner_color != null:
+        return owner_color
+    return art_data.color
