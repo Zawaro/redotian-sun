@@ -379,15 +379,17 @@ func test_find_sharer_cell_at_capacity():
     if _ts:
         _ts.init_grid(50, 50)
     CellReservation.instance.clear()
-    var target := Vector2i(10, 10)
+    # In-visible cell on 50×50 (orders only target inside the visible diamond);
+    # a full cell here must spiral to an in-area neighbor, not an off-map cell.
+    var target := Vector2i(30, 30)
     var claimers: Array[Node3D] = []
     for i in CellSubPositions.get_slot_count():
         var claimer := Node3D.new()
         add_child(claimer)
         claimers.append(claimer)
         CellReservation.instance.reserve_sub_slot(target, claimer)
-    # Centered coords: cell (10,10) on 50×50 grid → world (-79, 0, -79)
-    var result: Vector2i = _sm._find_sharer_cell(Vector3(-79, 0, -79))
+    # Centered coords: cell (30,30) on 50×50 grid → world (-39, 0, -39)
+    var result: Vector2i = _sm._find_sharer_cell(Vector3(-39, 0, -39))
     for claimer in claimers:
         claimer.queue_free()
     CellReservation.instance.clear()
