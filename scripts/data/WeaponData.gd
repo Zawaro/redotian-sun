@@ -20,6 +20,8 @@ class_name WeaponData extends Resource
 @export var warhead: String = "HE"
 ## Projectile ID reference (e.g., "Invisible", "Cannon", "AAHeatSeeker2").
 @export var projectile: String = ""
+## Projectile flight speed in world units per second (0 = use GlobalRules default).
+@export var speed: float = 0.0
 
 ## Fire position offset (Front-Length-Height) in voxels relative to the unit.
 @export var fire_offset: Vector3 = Vector3.ZERO
