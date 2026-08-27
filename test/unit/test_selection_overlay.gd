@@ -131,6 +131,87 @@ func test_collect_ignores_untracked_group_entities():
     cam.free()
 
 
+func _make_transport_entity(storage_count: int, max_passengers: int) -> Node3D:
+    var entity := Node3D.new()
+    var transport := TransportComponent.new()
+    transport.name = "TransportComponent"
+    transport.storage = storage_count
+    transport.passengers = max_passengers
+    entity.add_child(transport)
+    _sm.add_child(entity)
+    return entity
+
+
+func _assert_row_clears_bracket(pips: Array[Dictionary], bracket_rect: Rect2, what: String):
+    TestHelper.assert_true(not pips.is_empty(), what + ": pips are present")
+    var pip_h: float = (pips[0]["rect"] as Rect2).size.y
+    for pip in pips:
+        var pip_rect: Rect2 = pip["rect"]
+        var gap: float = bracket_rect.end.y - pip_rect.end.y
+        # The bracket line and the pip outline are both 1 px strokes centered on
+        # their edges, so they overlap once gap < 1.0; 1.5 demands a visible
+        # separation. The old 0.1 * pip_h offset left ~0.4 px and flickered.
+        TestHelper.assert_true(gap >= 1.5, what + ": pip clears the bracket line (gap=%.2f)" % gap)
+        TestHelper.assert_true(
+            gap <= pip_h, what + ": pips stay attached to the bracket (gap=%.2f)" % gap
+        )
+
+
+func test_cargo_pips_clear_bottom_bracket():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    var entity := _make_transport_entity(10, 0)
+    var transport := entity.get_node("TransportComponent") as TransportComponent
+    transport.cargo = {"tiberium_green": 5.0}
+
+    var rect := Rect2(0, 0, 60, 40)
+    var cargo_pips: Array[Dictionary] = []
+    var pass_pips: Array[Dictionary] = []
+    overlay._gather_pips(entity, rect, rect, cargo_pips, pass_pips)
+
+    TestHelper.assert_eq(
+        cargo_pips.size(), overlay.MAX_CARGO_SLOTS, "cargo pips fill the slot grid"
+    )
+    TestHelper.assert_true(pass_pips.is_empty(), "no passenger pips without passengers")
+    _assert_row_clears_bracket(cargo_pips, rect, "cargo row")
+
+    entity.free()
+
+
+func test_passenger_pips_clear_bottom_bracket_when_rows_stack():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    var entity := _make_transport_entity(10, 3)
+    var transport := entity.get_node("TransportComponent") as TransportComponent
+    transport.cargo = {"tiberium_green": 5.0}
+    transport.current_passengers = 2
+
+    var rect := Rect2(0, 0, 60, 40)
+    var cargo_pips: Array[Dictionary] = []
+    var pass_pips: Array[Dictionary] = []
+    overlay._gather_pips(entity, rect, rect, cargo_pips, pass_pips)
+
+    TestHelper.assert_true(not pass_pips.is_empty(), "passenger row drawn for loaded transport")
+    var cargo_bottom: float = (cargo_pips[0]["rect"] as Rect2).end.y
+    var passenger_top: float = (pass_pips[0]["rect"] as Rect2).position.y
+    TestHelper.assert_true(
+        passenger_top >= cargo_bottom, "stacked passenger row sits below the cargo row"
+    )
+    _assert_row_clears_bracket(pass_pips, rect, "passenger row")
+
+    entity.free()
+
+
 func test_collect_entities_tracks_hovered():
     if _sm == null:
         TestHelper.fail("SelectionManager not injected")

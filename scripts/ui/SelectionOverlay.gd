@@ -7,6 +7,9 @@ const LINE_WIDTH := 1.0
 const MAX_CARGO_SLOTS := 10
 const MAX_PASSENGER_SLOTS := 5
 const PIP_GAP_RATIO := 0.002
+## Fixed-px gap between the bottom pip row and the bracket line. Strokes are
+## fixed-width, so a ratio would shrink below the line width on small rects.
+const PIP_BRACKET_CLEARANCE_PX := 2.0
 const SEGMENT_PX_PER_UNIT := 20.0
 
 
@@ -321,7 +324,7 @@ func _gather_pips(
 
     var grid_h := float(num_rows) * (pip_h + pip_gap) - pip_gap
     var grid_left := bracket_rect.position.x + pip_w * 0.2
-    var grid_top := bracket_rect.end.y - grid_h - pip_h * 0.1
+    var grid_top := bracket_rect.end.y - grid_h - PIP_BRACKET_CLEARANCE_PX
 
     var cargo_filled: float = transport.get_cargo_total() if has_cargo else 0.0
     var filled_pips := 0
