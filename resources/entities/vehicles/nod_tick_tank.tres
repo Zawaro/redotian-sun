@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://resources/art/vehicles/nod_tick_tank_art.tres" id="2_art"]
+[ext_resource type="Resource" path="res://resources/weapons/90mm.tres" id="3_weapon"]
 
 [resource]
 script = ExtResource("1_script")
@@ -25,6 +26,7 @@ buildable = true
 build_time = 33.6
 prerequisite = PackedStringArray("NOD_WAR_FACTORY")
 weight = 2.0
+weapons = [ExtResource("3_weapon")]
 
 buildable_queue = "VehicleType"
 crusher = true
