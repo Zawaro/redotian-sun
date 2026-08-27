@@ -1,4 +1,3 @@
-class_name EconomyAudioListener
 extends Node
 
 ## Plays a UI-level credit SFX when the economy changes: income sounds for
