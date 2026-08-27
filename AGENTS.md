@@ -8,6 +8,8 @@ applyTo: '**'
 
 Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Redot Engine 26.1 LTS** (Forward Plus). Fully 3D, preserving core RTS mechanics — base building, unit production, combat, fog of war, economy. Pure GDScript, no C#.
 
+Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing specs/designs or using domain vocabulary; `openspec/specs/` stays authoritative. Propose glossary updates whenever a new term surfaces during planning or clarifying (including prompt-only terms); check **Undecided** there before coining names like `archetype`/`template`.
+
 ## Engine & Runtime
 
 | Detail | Value |
