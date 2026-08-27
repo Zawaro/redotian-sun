@@ -6,6 +6,10 @@ var grid_cells: Vector2i = Vector2i(64, 64)
 
 const DEFAULT_VISIBLE_INSETS := Vector4i(5, 5, 4, 4)
 
+## Two-cell inward inset applied to player-issued order targets so destinations
+## land inside the visible boundary instead of riding its edge.
+const ORDER_EDGE_INSET: float = 2.0
+
 ## Visible-bounds insets from each map edge, in cells.
 @export var left_inset: int = DEFAULT_VISIBLE_INSETS.x:
     set = _set_left_inset
@@ -219,8 +223,8 @@ func is_in_play_area(cell: Vector2i) -> bool:
     return _in_play_diamond(cell, 0.0)
 
 
-func is_in_play_area_with_margin(cell: Vector2i) -> bool:
-    return _in_play_diamond(cell, 1.0)
+func is_in_play_area_with_margin(cell: Vector2i, inset_cells: float = 1.0) -> bool:
+    return _in_play_diamond(cell, inset_cells)
 
 
 # Uses the same half-open raster ownership as CellUtil.is_in_diamond.
@@ -257,18 +261,23 @@ func clamp_to_map_diamond(p: Vector3) -> Vector3:
     return _clamp_to_diamond(p, grid_cells)
 
 
-func clamp_to_visible_diamond(p: Vector3) -> Vector3:
+func clamp_to_visible_diamond(p: Vector3, inset_cells: float = 0.0) -> Vector3:
     var cs: float = CellUtil.CELL_SIZE
     var w: float = float(grid_cells.x)
     var h: float = float(grid_cells.y)
     if w <= 0.0 or h <= 0.0:
         return p
     # Visible diamond is a rectangle in the sum/diff frame with per-edge insets:
-    # sum ∈ [-h + top, h - bottom], diff ∈ [-w + left, w - right].
+    # sum ∈ [-h + top, h - bottom], diff ∈ [-w + left, w - right]. A positive
+    # `inset_cells` shrinks the diamond (clamps to a point inside the boundary).
     var ux: float = p.x / cs
     var uz: float = p.z / cs
-    var a: float = clampf(ux + uz, -h + top_inset, h - bottom_inset)
-    var b: float = clampf(ux - uz, -w + left_inset, w - right_inset)
+    var a: float = clampf(
+        ux + uz, -h + float(top_inset) + inset_cells, h - float(bottom_inset) - inset_cells
+    )
+    var b: float = clampf(
+        ux - uz, -w + float(left_inset) + inset_cells, w - float(right_inset) - inset_cells
+    )
     ux = (a + b) * 0.5
     uz = (a - b) * 0.5
     return Vector3(ux * cs, p.y, uz * cs)

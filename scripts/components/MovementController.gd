@@ -433,6 +433,7 @@ func set_target_position(
     internal: bool = false,
     cost_cache: Pathfinder.PathCostCache = null,
     terrain: Node = null,
+    bounded: bool = false,
 ) -> void:
     if (
         is_nan(target.x)
@@ -481,12 +482,12 @@ func set_target_position(
             # Never fly into an occupied landing cell: relocate up front, like
             # the ground branch, before booking so arrival is clean.
             if _is_cell_occupied_by_idle(target_cell):
-                var free := _find_nearest_free_idle_cell(target_cell)
+                var free := _find_nearest_free_idle_cell(target_cell, bounded)
                 target = CellUtil.cell_to_world(free)
                 target_cell = free
             _assign_sub_slot_at_cell(target_cell)
             if not _has_sub_slot:
-                var free_cell := _find_nearest_free_sub_slot_cell(target_cell)
+                var free_cell := _find_nearest_free_sub_slot_cell(target_cell, bounded)
                 _assign_sub_slot_at_cell(free_cell)
                 if _has_sub_slot:
                     target = _sub_slot_position
@@ -498,13 +499,13 @@ func set_target_position(
     else:
         # Ground move: normal infantry booking, then walk pathfinding.
         if _is_cell_occupied_by_idle(target_cell):
-            var free := _find_nearest_free_idle_cell(target_cell)
+            var free := _find_nearest_free_idle_cell(target_cell, bounded)
             target = CellUtil.cell_to_world(free)
             target_cell = free
         if _shares_cell:
             _assign_sub_slot_at_cell(target_cell)
             if not _has_sub_slot:
-                var free_cell := _find_nearest_free_sub_slot_cell(target_cell)
+                var free_cell := _find_nearest_free_sub_slot_cell(target_cell, bounded)
                 _assign_sub_slot_at_cell(free_cell)
                 target_cell = free_cell
                 if _has_sub_slot:
@@ -1165,12 +1166,35 @@ func _is_destination_clear(cell: Vector2i) -> bool:
     return true
 
 
-func _find_nearest_free_idle_cell(cell: Vector2i) -> Vector2i:
-    return CellUtil.spiral_first_free(cell, 4, _is_cell_occupied_by_idle)
+func _find_nearest_free_idle_cell(cell: Vector2i, bounded: bool = false) -> Vector2i:
+    return CellUtil.spiral_first_free(
+        cell,
+        4,
+        func(c: Vector2i) -> bool:
+            if bounded and not _is_in_order_area(c):
+                return true
+            return _is_cell_occupied_by_idle(c)
+    )
 
 
-func _find_nearest_free_sub_slot_cell(cell: Vector2i) -> Vector2i:
-    return CellUtil.spiral_first_free(cell, 4, _is_cell_unavailable_for_sub_slot)
+func _find_nearest_free_sub_slot_cell(cell: Vector2i, bounded: bool = false) -> Vector2i:
+    return CellUtil.spiral_first_free(
+        cell,
+        4,
+        func(c: Vector2i) -> bool:
+            if bounded and not _is_in_order_area(c):
+                return true
+            return _is_cell_unavailable_for_sub_slot(c)
+    )
+
+
+## True when a cell is inside the player-order diamond (the visible outline
+## inset by `BoundsSystem.ORDER_EDGE_INSET`). Player-issued relocation spirals
+## reject cells outside it so an occupied-cell sidestep can't push the
+## destination past the inset margin; AI/auto controllers leave `bounded`
+## false and keep unbounded behavior.
+func _is_in_order_area(cell: Vector2i) -> bool:
+    return BoundsSystem.is_in_play_area_with_margin(cell, BoundsSystem.ORDER_EDGE_INSET)
 
 
 func _is_cell_unavailable_for_sub_slot(cell: Vector2i) -> bool:

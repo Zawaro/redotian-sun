@@ -298,7 +298,7 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
         if not is_instance_valid(parent):
             continue
         var assigned_cell := _find_sharer_cell(target_position)
-        var cell_center := CellUtil.cell_to_world(assigned_cell)
+        var cell_center: Vector3 = _bounded_player_target(CellUtil.cell_to_world(assigned_cell))
         _pending_moves.append([sharer, cell_center])
 
     for ent in vehicles:
@@ -320,6 +320,7 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
                 target_position
                 + Vector3(cell_offset.x * CellUtil.CELL_SIZE, 0, cell_offset.y * CellUtil.CELL_SIZE)
             )
+        target = _bounded_player_target(target)
         var cell := CellUtil.world_to_cell(target)
         if not SpatialHash.instance.reserve_cell(cell):
             target = _fallback_target(target)
@@ -380,7 +381,7 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
         return
     var mc := parent.get_node("MovementController") as MovementController
     if is_instance_valid(mc):
-        mc.set_target_position(position, false, false, false, _cost_cache, _terrain)
+        mc.set_target_position(position, false, false, false, _cost_cache, _terrain, true)
     var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
     if harvest:
         harvest.cancel_harvest(true)
@@ -389,7 +390,12 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
 func _fallback_target(target: Vector3) -> Vector3:
     var cell := CellUtil.world_to_cell(target)
     var result := CellUtil.spiral_first_free(
-        cell, 8, func(c: Vector2i) -> bool: return not SpatialHash.instance.reserve_cell(c)
+        cell,
+        8,
+        func(c: Vector2i) -> bool:
+            if not _is_in_order_area(c):
+                return true
+            return not SpatialHash.instance.reserve_cell(c)
     )
     if result == cell:
         return target
@@ -426,8 +432,23 @@ func _is_entity_selectable(entity: SelectComponent) -> bool:
     return ShroudSystem.is_entity_revealed_to_local(parent)
 
 
+## Player-issued destinations stay inside the visible order diamond (the
+## visible outline inset by `BoundsSystem.ORDER_EDGE_INSET`). Applied after
+## formation offsets and fallback relocation so a unit positioned near the
+## boundary cannot leak its destination outside the inset margin.
+func _bounded_player_target(world: Vector3) -> Vector3:
+    return BoundsSystem.clamp_to_visible_diamond(world, BoundsSystem.ORDER_EDGE_INSET)
+
+
+func _is_in_order_area(cell: Vector2i) -> bool:
+    return BoundsSystem.is_in_play_area_with_margin(cell, BoundsSystem.ORDER_EDGE_INSET)
+
+
 func request_set_rally_point(target_position: Vector3) -> void:
-    var cell := CellUtil.world_to_cell(target_position)
+    var clamped := BoundsSystem.clamp_to_visible_diamond(
+        target_position, BoundsSystem.ORDER_EDGE_INSET
+    )
+    var cell := CellUtil.world_to_cell(clamped)
     for ent in selected_entities:
         if not is_instance_valid(ent):
             continue
@@ -447,6 +468,8 @@ func _find_sharer_cell(target_position: Vector3) -> Vector2i:
         target,
         4,
         func(cell: Vector2i) -> bool:
+            if not _is_in_order_area(cell):
+                return true
             if CellReservation.instance.is_cell_full(cell):
                 return true
             if SpatialHash.instance.is_cell_blocked(cell):
