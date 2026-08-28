@@ -14,9 +14,37 @@ extends Node
 const SIDEBAR_SCENE: PackedScene = preload("res://scenes/ui/Sidebar.tscn")
 const INCOME_STREAM_PATH: String = "res://external_assets/audio/credup1.ogg"
 const SPEND_STREAM_PATH: String = "res://external_assets/audio/creddwn1.ogg"
+# The real econ streams are TS rips under gitignored external_assets/ — absent
+# in CI. Tick tests run against the committed fixture tone instead (same
+# pattern as test_audio_manager.gd); the declaration test asserts the committed
+# wiring without loading the external binary.
+const FIXTURE_TONE_PATH: String = "res://test/fixtures/audio/test_tone.wav"
 
 var _em: Node = null
 var _am: Node = null
+var _saved_econ: Dictionary = {}
+
+
+func _install_econ_fixtures() -> void:
+    for id in ["ECON_INCOME", "ECON_SPEND"]:
+        if not _saved_econ.has(id):
+            _saved_econ[id] = _am._audio_cache.get(id)
+        var audio := AudioData.new()
+        audio.id = id
+        audio.path = FIXTURE_TONE_PATH
+        audio.bus = "SFX"
+        audio.is_spatial = false
+        _am._audio_cache[id] = audio
+
+
+func _restore_econ_fixtures() -> void:
+    for id in _saved_econ:
+        var saved: AudioData = _saved_econ[id]
+        if saved:
+            _am._audio_cache[id] = saved
+        else:
+            _am._audio_cache.erase(id)
+    _saved_econ.clear()
 
 
 func _ready() -> void:
@@ -83,6 +111,7 @@ func test_gain_animates_with_up_ticks():
     if not _am or not _em:
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
+    _install_econ_fixtures()
     var sidebar := _make_sidebar()
     sidebar.call("_force_display_credits", 500)
     _em.credits_changed.emit(_local_id(), 1000, "harvest", "tiberium")
@@ -105,8 +134,8 @@ func test_gain_animates_with_up_ticks():
         (
             TestHelper
             . assert_true(
-                player.stream != null and player.stream.resource_path == INCOME_STREAM_PATH,
-                "up-tick plays the ECON_INCOME stream",
+                player.stream != null and player.stream.resource_path == FIXTURE_TONE_PATH,
+                "up-tick plays the fixture-backed ECON_INCOME stream",
             )
         )
 
@@ -124,6 +153,7 @@ func test_gain_animates_with_up_ticks():
     before = _count_audio_players()
     sidebar.call("_step_counter", 0.1)
     TestHelper.assert_eq(_count_audio_players(), before, "settled counter plays no tick")
+    _restore_econ_fixtures()
     _drop_sidebar(sidebar)
 
 
@@ -131,6 +161,7 @@ func test_small_gain_uses_min_step():
     if not _am or not _em:
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
+    _install_econ_fixtures()
     var sidebar := _make_sidebar()
     sidebar.call("_force_display_credits", 1000)
     _em.credits_changed.emit(_local_id(), 1003, "harvest", "tiberium")
@@ -149,6 +180,7 @@ func test_small_gain_uses_min_step():
     sidebar.call("_step_counter", 0.0)
     TestHelper.assert_eq(_label(sidebar).text, "$1003", "small gain settles exactly at target")
     TestHelper.assert_eq(_count_audio_players(), before, "settled counter stays silent")
+    _restore_econ_fixtures()
     _drop_sidebar(sidebar)
 
 
@@ -156,6 +188,7 @@ func test_spend_counts_down_slower():
     if not _am or not _em:
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
+    _install_econ_fixtures()
     var sidebar := _make_sidebar()
     sidebar.call("_force_display_credits", 1000)
     _em.credits_changed.emit(_local_id(), 500, "build:gaweap", "tiberium")
@@ -182,10 +215,11 @@ func test_spend_counts_down_slower():
         (
             TestHelper
             . assert_true(
-                player.stream != null and player.stream.resource_path == SPEND_STREAM_PATH,
-                "down-tick plays the ECON_SPEND stream",
+                player.stream != null and player.stream.resource_path == FIXTURE_TONE_PATH,
+                "down-tick plays the fixture-backed ECON_SPEND stream",
             )
         )
+    _restore_econ_fixtures()
     _drop_sidebar(sidebar)
 
 
@@ -237,14 +271,22 @@ func test_econ_sounds_declared_and_imported():
     if not _am:
         TestHelper.fail("AudioManager not injected")
         return
-    for id in ["ECON_INCOME", "ECON_SPEND"]:
+    # The .tres declarations are committed and load without the stream binaries
+    # (path is a plain string, not an ext_resource). The .ogg rips themselves
+    # live in gitignored external_assets/ — provided locally, absent in CI — so
+    # this asserts the committed wiring (id, bus, exact external path), never
+    # the binary.
+    var expected_paths := {
+        "ECON_INCOME": INCOME_STREAM_PATH,
+        "ECON_SPEND": SPEND_STREAM_PATH,
+    }
+    for id in expected_paths:
         var audio: AudioData = _am.get_audio_data(id)
         TestHelper.assert_true(audio != null, "%s registered from resources/audio scan" % id)
         if audio:
             TestHelper.assert_eq(audio.bus, "SFX", "%s declared on SFX bus" % id)
-            TestHelper.assert_true(not audio.path.is_empty(), "%s has a stream path" % id)
-            TestHelper.assert_true(
-                ResourceLoader.exists(audio.path), "%s stream imported and loadable" % id
+            TestHelper.assert_eq(
+                audio.path, expected_paths[id], "%s declares its external stream path" % id
             )
             TestHelper.assert_true(not audio.is_spatial, "%s plays non-spatial" % id)
             TestHelper.assert_eq(
