@@ -593,3 +593,42 @@ func test_retrigger_allows_after_interval():
         )
     )
     _release_players(_stack_players(fixture.bus))
+
+
+func test_retrigger_override_shrinks_window():
+    if not _am:
+        return
+    var overridden := _stack_fixture("RETRIGGER_F", 0.0)
+    overridden.retrigger_ms = 50.0
+    TestHelper.assert_eq(
+        _am._effective_retrigger_ms(overridden), 50.0, "positive override wins over global"
+    )
+    var global := _stack_fixture("RETRIGGER_G", 0.0)
+    (
+        TestHelper
+        . assert_eq(
+            _am._effective_retrigger_ms(global),
+            _am.RETRIGGER_INTERVAL_MS,
+            "zero override falls back to the global interval",
+        )
+    )
+
+    # A play 60 ms ago sits inside the 100 ms default window but outside a
+    # 50 ms override window — the override must allow the replay.
+    _am.play_sound(overridden.id, Vector3(0, 0, 0))
+    _am._last_played_at[overridden.id] = Time.get_ticks_msec() - 60
+    _am.play_sound(overridden.id, Vector3(0, 0, 0))
+    var override_players := _stack_players(overridden.bus)
+    TestHelper.assert_eq(
+        override_players.size(), 2, "50 ms override allows replay 60 ms after first play"
+    )
+    _release_players(override_players)
+
+    _am.play_sound(global.id, Vector3(0, 0, 0))
+    _am._last_played_at[global.id] = Time.get_ticks_msec() - 60
+    _am.play_sound(global.id, Vector3(0, 0, 0))
+    var global_players := _stack_players(global.bus)
+    TestHelper.assert_eq(
+        global_players.size(), 1, "default window still suppresses replay 60 ms after play"
+    )
+    _release_players(global_players)

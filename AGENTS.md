@@ -18,7 +18,7 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | Main scene | `scenes/MainScene.tscn` |
 | Viewport | 1920×1080, stretch mode = viewport |
 
-### Autoloads (22 singletons, all registered in `project.godot`)
+### Autoloads (24 singletons, all registered in `project.godot`)
 
 | Singleton | Script | Purpose |
 |-----------|--------|---------|
@@ -27,6 +27,7 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | `SelectionManager` | `scripts/core/SelectionManager.gd` | Entity selection tracking |
 | `OrderSystem` | `scripts/core/OrderSystem.gd` | Order/cursor resolution funnel |
 | `DebugVisualizer` | `scripts/core/DebugVisualizer.gd` | Debug mesh overlays |
+| `MoveLineRenderer` | `scripts/core/MoveLineRenderer.gd` | Draw unit move-order lines |
 | `SpatialHashSingleton` | `scripts/core/SpatialHash.gd` | Spatial partitioning |
 | `CellReservationSingleton` | `scripts/core/CellReservation.gd` | In-flight sub-slot cell reservation |
 | `TerrainSystem` | `scripts/core/TerrainSystem.gd` | Terrain grid management |
@@ -44,6 +45,7 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | `UnitMeshRenderer` | `scripts/core/UnitMeshRenderer.gd` | MultiMesh unit rendering |
 | `AudioManager` | `scripts/core/AudioManager.gd` | Audio buses, SFX/voice playback |
 | `ShroudSystem` | `scripts/core/ShroudSystem.gd` | Per-player fog-of-war grid |
+| `FogRenderer` | `scripts/core/FogRenderer.gd` | Renders the fog-of-war overlay |
 
 ## Folder Structure
 

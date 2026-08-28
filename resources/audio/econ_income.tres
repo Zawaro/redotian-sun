@@ -10,3 +10,4 @@ bus = "SFX"
 priority = 10
 volume_db = 0.0
 is_spatial = false
+retrigger_ms = 50.0

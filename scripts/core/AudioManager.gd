@@ -135,6 +135,12 @@ func get_audio_data(id: String) -> AudioData:
     return _audio_cache.get(id, null) as AudioData
 
 
+## Effective retrigger window for a sound: its own override when set (> 0),
+## else the global RETRIGGER_INTERVAL_MS default.
+func _effective_retrigger_ms(audio: AudioData) -> float:
+    return audio.retrigger_ms if audio.retrigger_ms > 0.0 else RETRIGGER_INTERVAL_MS
+
+
 func get_voice_data(id: String) -> VoiceData:
     return _voice_cache.get(id, null) as VoiceData
 
@@ -153,7 +159,7 @@ func play_sound(id: String, position: Vector3 = Vector3.INF) -> void:
         return
 
     var now_ms := Time.get_ticks_msec()
-    if now_ms - (_last_played_at.get(id, -1) as int) < RETRIGGER_INTERVAL_MS:
+    if now_ms - (_last_played_at.get(id, -1) as int) < _effective_retrigger_ms(audio):
         return
     _last_played_at[id] = now_ms
 

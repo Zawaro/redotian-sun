@@ -16,3 +16,5 @@ class_name AudioData extends Resource
 @export var volume_db: float = 0.0
 ## Play positionally at the caller's world position when true.
 @export var is_spatial: bool = true
+## Minimum ms between plays of this sound; 0 uses the AudioManager default.
+@export var retrigger_ms: float = 0.0
