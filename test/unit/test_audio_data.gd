@@ -9,6 +9,7 @@ func test_audio_data_defaults():
     TestHelper.assert_eq(audio.priority, 10, "default priority is 10")
     TestHelper.assert_true(audio.is_spatial, "default is spatial")
     TestHelper.assert_eq(audio.volume_db, 0.0, "default volume is 0 dB")
+    TestHelper.assert_eq(audio.retrigger_ms, 0.0, "default retrigger override is 0 (use global)")
 
 
 func test_audio_data_serialized_fields():
@@ -19,11 +20,13 @@ func test_audio_data_serialized_fields():
     audio.priority = 100
     audio.volume_db = -3.0
     audio.is_spatial = false
+    audio.retrigger_ms = 50.0
     TestHelper.assert_eq(audio.id, "INFGUN3", "id round-trips")
     TestHelper.assert_eq(audio.bus, "Voice", "bus round-trips")
     TestHelper.assert_eq(audio.priority, 100, "priority round-trips")
     TestHelper.assert_eq(audio.volume_db, -3.0, "volume round-trips")
     TestHelper.assert_true(not audio.is_spatial, "spatial flag round-trips")
+    TestHelper.assert_eq(audio.retrigger_ms, 50.0, "retrigger override round-trips")
 
 
 func test_voice_data_event_lookup():

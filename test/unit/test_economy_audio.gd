@@ -1,38 +1,46 @@
 extends Node
 
-# Economy SFX wiring tests — credits_changed routes to AudioManager.play_sound
-# with a distinct id per direction (income vs spend) via an explicit reason
-# allowlist. Unknown/noise reasons (debug_menu) stay silent.
+# Credit counter tick SFX tests — the sidebar credit counter steps toward its
+# target balance and plays one tick per displayed step: ECON_INCOME while
+# counting up, ECON_SPEND while counting down. Forced displays (scene ready)
+# are silent and instant, other players' balances never animate or tick, and
+# the animation completes even when the audio files are missing.
+#
+# Tests drive Sidebar._step_counter with synthetic deltas and run without
+# awaiting frames, so _process never interleaves and counts are deterministic.
+# Expected step sizes are derived independently (gap / 8 floored, clamped to
+# at least 1), not copied from production code.
 
-const LISTENER_PATH := "res://scripts/core/EconomyAudioListener.gd"
+const SIDEBAR_SCENE: PackedScene = preload("res://scenes/ui/Sidebar.tscn")
+const INCOME_STREAM_PATH: String = "res://external_assets/audio/credup1.ogg"
+const SPEND_STREAM_PATH: String = "res://external_assets/audio/creddwn1.ogg"
 
 var _em: Node = null
 var _am: Node = null
 
 
 func _ready() -> void:
-    if has_node("/root/EconomyManager"):
-        _em = get_node("/root/EconomyManager")
-    if has_node("/root/AudioManager"):
-        _am = get_node("/root/AudioManager")
+    _em = get_node_or_null("/root/EconomyManager")
+    _am = get_node_or_null("/root/AudioManager")
 
 
-func _make_listener() -> Node:
-    var script: GDScript = load(LISTENER_PATH)
-    TestHelper.assert_true(script != null, "EconomyAudioListener script loadable")
-    if not script or not _am:
-        TestHelper.fail("listener or AudioManager unavailable")
-        return null
-    var listener: Node = script.new()
-    # Add under the in-tree AudioManager autoload so _ready() wires the signal.
-    _am.add_child(listener)
-    return listener
+func _local_id() -> int:
+    return PlayerManager.get_local_player_id()
 
 
-func _drop_listener(listener: Node) -> void:
-    if listener and is_instance_valid(listener):
-        _am.remove_child(listener)
-        listener.free()
+func _make_sidebar() -> Control:
+    var sidebar: Control = SIDEBAR_SCENE.instantiate()
+    (Engine.get_main_loop() as SceneTree).root.add_child(sidebar)
+    return sidebar
+
+
+func _drop_sidebar(sidebar: Control) -> void:
+    if sidebar and is_instance_valid(sidebar):
+        sidebar.free()
+
+
+func _label(sidebar: Control) -> Label:
+    return sidebar.get_node("%CreditsLabel") as Label
 
 
 func _count_audio_players() -> int:
@@ -44,120 +52,185 @@ func _count_audio_players() -> int:
 
 
 func _arm_retrigger() -> void:
-    # Clear the per-id retrigger window so back-to-back test plays are observed.
+    # Clear the per-id retrigger window so each driven step's play is observed.
     _am._last_played_at.clear()
 
 
-func test_income_reasons_map_to_income_sound():
-    if not _am:
-        TestHelper.fail("AudioManager not injected")
-        return
-    var listener := _make_listener()
-    if not listener:
-        return
-    TestHelper.assert_eq(
-        listener.call("resolve_sound_id", "harvest"),
-        "ECON_INCOME",
-        "harvest dump maps to income sound"
-    )
-    TestHelper.assert_eq(
-        listener.call("resolve_sound_id", "sell:gacnst"),
-        "ECON_INCOME",
-        "sell refund maps to income sound"
-    )
-    _drop_listener(listener)
+func _last_player() -> AudioStreamPlayer:
+    var children := _am.get_children()
+    for i in range(children.size() - 1, -1, -1):
+        if children[i] is AudioStreamPlayer:
+            return children[i]
+    return null
 
 
-func test_spend_reasons_map_to_spend_sound():
-    if not _am:
-        TestHelper.fail("AudioManager not injected")
-        return
-    var listener := _make_listener()
-    if not listener:
-        return
-    TestHelper.assert_eq(
-        listener.call("resolve_sound_id", "build:gacnst"),
-        "ECON_SPEND",
-        "building placement maps to spend sound"
-    )
-    TestHelper.assert_eq(
-        listener.call("resolve_sound_id", "prod:mediumtank"),
-        "ECON_SPEND",
-        "production deduction maps to spend sound"
-    )
-    _drop_listener(listener)
-
-
-func test_noise_reasons_stay_silent():
-    if not _am:
-        TestHelper.fail("AudioManager not injected")
-        return
-    var listener := _make_listener()
-    if not listener:
-        return
-    TestHelper.assert_eq(
-        listener.call("resolve_sound_id", "debug_menu"), "", "debug cheat credits stay silent"
-    )
-    TestHelper.assert_eq(
-        listener.call("resolve_sound_id", "HARVEST"),
-        "",
-        "reason allowlist is case-sensitive: unknown casing stays silent"
-    )
-    TestHelper.assert_eq(listener.call("resolve_sound_id", "test"), "", "test reasons stay silent")
-    TestHelper.assert_eq(listener.call("resolve_sound_id", ""), "", "empty reason stays silent")
-    _drop_listener(listener)
-
-
-func test_harvest_income_plays_sound_on_sfx_bus():
+func test_ready_forces_display_silently():
     if not _am or not _em:
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
-    (
-        TestHelper
-        . assert_true(
-            (Engine.get_main_loop() as SceneTree).root.has_node("EconomyAudioListener"),
-            "EconomyAudioListener registered as autoload",
+    var before := _count_audio_players()
+    var sidebar := _make_sidebar()
+    var balance: int = _em.get_balance(_local_id())
+    TestHelper.assert_true(_label(sidebar) != null, "Sidebar has a %CreditsLabel node")
+    TestHelper.assert_eq(
+        _label(sidebar).text, "$%d" % balance, "ready shows the current balance instantly"
+    )
+    TestHelper.assert_eq(_count_audio_players(), before, "forced display plays no tick sound")
+    _drop_sidebar(sidebar)
+
+
+func test_gain_animates_with_up_ticks():
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
+        return
+    var sidebar := _make_sidebar()
+    sidebar.call("_force_display_credits", 500)
+    _em.credits_changed.emit(_local_id(), 1000, "harvest", "tiberium")
+
+    # No instant write: the label still shows the old value until a step runs.
+    TestHelper.assert_eq(_label(sidebar).text, "$500", "credit change does not jump the label")
+
+    # Known example: gap 500, first step = floor(500 / 8) = 62.
+    _arm_retrigger()
+    var before := _count_audio_players()
+    sidebar.call("_step_counter", 0.0)
+    TestHelper.assert_eq(
+        _label(sidebar).text, "$562", "first gain step advances by floor(500/8)=62"
+    )
+    TestHelper.assert_eq(_count_audio_players(), before + 1, "each gain step plays one tick")
+    var player := _last_player()
+    TestHelper.assert_true(player != null, "tick spawns an audio player")
+    if player:
+        TestHelper.assert_eq(player.get_bus(), "SFX", "up-tick routes to the SFX bus")
+        (
+            TestHelper
+            . assert_true(
+                player.stream != null and player.stream.resource_path == INCOME_STREAM_PATH,
+                "up-tick plays the ECON_INCOME stream",
+            )
         )
+
+    # Drive to settle: one step per call while counting up, tick per step.
+    var calls := 0
+    while _label(sidebar).text != "$1000" and calls < 100:
+        _arm_retrigger()
+        sidebar.call("_step_counter", 0.0)
+        calls += 1
+    TestHelper.assert_eq(_label(sidebar).text, "$1000", "counter settles exactly at the target")
+    TestHelper.assert_true(calls < 100, "gain burst animates sub-linearly, not one credit per step")
+
+    # Settled: no further ticks.
+    _arm_retrigger()
+    before = _count_audio_players()
+    sidebar.call("_step_counter", 0.1)
+    TestHelper.assert_eq(_count_audio_players(), before, "settled counter plays no tick")
+    _drop_sidebar(sidebar)
+
+
+func test_small_gain_uses_min_step():
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
+        return
+    var sidebar := _make_sidebar()
+    sidebar.call("_force_display_credits", 1000)
+    _em.credits_changed.emit(_local_id(), 1003, "harvest", "tiberium")
+
+    # 3 / 8 = 0, clamped to MIN_STEP 1: three single-credit steps, one tick each.
+    for expected in [1001, 1002, 1003]:
+        _arm_retrigger()
+        var before := _count_audio_players()
+        sidebar.call("_step_counter", 0.0)
+        TestHelper.assert_eq(_label(sidebar).text, "$%d" % expected, "small gain steps by MIN_STEP")
+        TestHelper.assert_eq(_count_audio_players(), before + 1, "small gain step still ticks once")
+
+    # Settled: no further ticks.
+    _arm_retrigger()
+    var before := _count_audio_players()
+    sidebar.call("_step_counter", 0.0)
+    TestHelper.assert_eq(_label(sidebar).text, "$1003", "small gain settles exactly at target")
+    TestHelper.assert_eq(_count_audio_players(), before, "settled counter stays silent")
+    _drop_sidebar(sidebar)
+
+
+func test_spend_counts_down_slower():
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
+        return
+    var sidebar := _make_sidebar()
+    sidebar.call("_force_display_credits", 1000)
+    _em.credits_changed.emit(_local_id(), 500, "build:gaweap", "tiberium")
+
+    # Below the spend step interval: time accumulates but no step applies.
+    _arm_retrigger()
+    var before := _count_audio_players()
+    sidebar.call("_step_counter", 0.04)
+    TestHelper.assert_eq(_label(sidebar).text, "$1000", "spend does not step below its interval")
+    TestHelper.assert_eq(_count_audio_players(), before, "spend does not tick below its interval")
+
+    # At the interval: exactly one step. Known example: gap -500, floor(500/8)=62.
+    _arm_retrigger()
+    before = _count_audio_players()
+    sidebar.call("_step_counter", 0.05)
+    TestHelper.assert_eq(
+        _label(sidebar).text, "$938", "first spend step advances by floor(500/8)=62"
     )
-    _arm_retrigger()
-    var before := _count_audio_players()
-    _em.add(260, 500, "harvest")
-    var after := _count_audio_players()
-    TestHelper.assert_eq(after, before + 1, "income credit spawns one audio player")
-    if after > before:
-        var last := _am.get_children()[-1] as AudioStreamPlayer
-        TestHelper.assert_true(last != null, "income player is a non-spatial AudioStreamPlayer")
-        if last:
-            TestHelper.assert_eq(last.get_bus(), "SFX", "income sound routes to SFX bus")
+    TestHelper.assert_eq(_count_audio_players(), before + 1, "each spend step plays one tick")
+    var player := _last_player()
+    TestHelper.assert_true(player != null, "down-tick spawns an audio player")
+    if player:
+        TestHelper.assert_eq(player.get_bus(), "SFX", "down-tick routes to the SFX bus")
+        (
+            TestHelper
+            . assert_true(
+                player.stream != null and player.stream.resource_path == SPEND_STREAM_PATH,
+                "down-tick plays the ECON_SPEND stream",
+            )
+        )
+    _drop_sidebar(sidebar)
 
 
-func test_production_deduction_plays_spend_sound_on_sfx_bus():
+func test_other_player_events_stay_silent():
     if not _am or not _em:
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
-    _arm_retrigger()
+    var sidebar := _make_sidebar()
+    sidebar.call("_force_display_credits", 1000)
     var before := _count_audio_players()
-    # Seed credits with an unlisted reason so seeding itself stays silent.
-    _em.add(261, 2000, "test")
-    var deducted: bool = _em.deduct(261, 300, "prod:mediumtank")
-    TestHelper.assert_true(deducted, "deduction succeeded so credits_changed fired")
-    var after := _count_audio_players()
-    TestHelper.assert_eq(after, before + 1, "spend deduction spawns one audio player")
-    if after > before:
-        var last := _am.get_children()[-1] as AudioStreamPlayer
-        TestHelper.assert_true(last != null, "spend player is a non-spatial AudioStreamPlayer")
-        if last:
-            TestHelper.assert_eq(last.get_bus(), "SFX", "spend sound routes to SFX bus")
+    _em.credits_changed.emit(_local_id() + 99, 5000, "harvest", "tiberium")
+    for i in range(10):
+        _arm_retrigger()
+        sidebar.call("_step_counter", 1.0)
+    TestHelper.assert_eq(
+        _label(sidebar).text, "$1000", "other players' credit changes never animate the counter"
+    )
+    TestHelper.assert_eq(_count_audio_players(), before, "other players' credit changes never tick")
+    _drop_sidebar(sidebar)
 
 
-func test_debug_credits_stay_silent():
+func test_animation_completes_with_missing_audio_file():
     if not _am or not _em:
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
-    _arm_retrigger()
+    var sidebar := _make_sidebar()
+    sidebar.call("_force_display_credits", 500)
+    _em.credits_changed.emit(_local_id(), 1000, "harvest", "tiberium")
+
+    var saved: AudioData = _am._audio_cache.get("ECON_INCOME", null)
+    _am._audio_cache["ECON_INCOME"] = null
     var before := _count_audio_players()
-    _em.add(262, 100000, "debug_menu", "tiberium", true)
-    TestHelper.assert_eq(_count_audio_players(), before, "debug credits spawn no player")
+    var calls := 0
+    while _label(sidebar).text != "$1000" and calls < 100:
+        _arm_retrigger()
+        sidebar.call("_step_counter", 0.05)
+        calls += 1
+    TestHelper.assert_eq(
+        _label(sidebar).text, "$1000", "counter settles even when the tick id is missing"
+    )
+    TestHelper.assert_eq(
+        _count_audio_players(), before, "missing audio file spawns no player (warn-and-continue)"
+    )
+    _am._audio_cache["ECON_INCOME"] = saved
+    _drop_sidebar(sidebar)
 
 
 func test_econ_sounds_declared_and_imported():
@@ -174,3 +247,155 @@ func test_econ_sounds_declared_and_imported():
                 ResourceLoader.exists(audio.path), "%s stream imported and loadable" % id
             )
             TestHelper.assert_true(not audio.is_spatial, "%s plays non-spatial" % id)
+            TestHelper.assert_eq(
+                audio.retrigger_ms, 50.0, "%s uses the snappy 50 ms retrigger override" % id
+            )
+
+
+# --- counter under real gradual production drain ---
+
+const FACTORY_ID: String = "test_audio_barracks"
+
+
+func _make_infantry(id: String, cost: int) -> EntityData:
+    var data := EntityData.new()
+    data.id = id
+    data.entity_type = EntityData.EntityType.INFANTRY
+    data.display_name = "Test Infantry"
+    data.cost = cost
+    data.build_time = 5.0
+    data.buildable_queue = "InfantryType"
+    data.buildable = true
+    return data
+
+
+func _ensure_local_factory(pid: int) -> void:
+    var factory_data := EntityData.new()
+    factory_data.id = FACTORY_ID
+    factory_data.entity_type = EntityData.EntityType.BUILDING
+    factory_data.display_name = "Test Barracks"
+    factory_data.factory = "InfantryType"
+    factory_data.buildable = true
+    EntityFactory._entity_cache[FACTORY_ID] = factory_data
+    var ps := _em.get_node_or_null("/root/PrerequisiteSystem")
+    if ps:
+        ps.register_building(pid, factory_data)
+
+
+func _cleanup_local_factory(pid: int) -> void:
+    var ps := _em.get_node_or_null("/root/PrerequisiteSystem")
+    var factory_data: EntityData = EntityFactory._entity_cache.get(FACTORY_ID, null)
+    if ps and factory_data:
+        ps.unregister_building(pid, factory_data)
+    EntityFactory._entity_cache.erase(FACTORY_ID)
+
+
+func test_counter_tracks_balance_during_gradual_production():
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
+        return
+    # The test object is not in the tree (the runner injects autoload vars),
+    # so resolve tree nodes through the in-tree _em, never via /root paths.
+    var pm := _em.get_node_or_null("/root/ProductionManager")
+    if not pm:
+        TestHelper.fail("ProductionManager not injected")
+        return
+    var pid := _local_id()
+    _ensure_local_factory(pid)
+    var sidebar := _make_sidebar()
+    # This test exercises the credit counter, not the production-overlay UI.
+    # Disconnect the overlay signals: their handlers do absolute-path lookups
+    # that are unreliable in the -s test harness and only add error noise.
+    var pm_node := _em.get_node_or_null("/root/ProductionManager")
+    if pm_node:
+        pm_node.production_started.disconnect(sidebar._on_production_started)
+        pm_node.production_progress.disconnect(sidebar._on_production_progress)
+        pm_node.production_completed.disconnect(sidebar._on_production_completed)
+        pm_node.production_cancelled.disconnect(sidebar._on_production_cancelled)
+        pm_node.production_paused.disconnect(sidebar._on_production_paused)
+    # Pin the balance regardless of what earlier suites left behind: known
+    # start 5000, known drain 240 → known end 4760.
+    _em.add(pid, 5000 - _em.get_balance(pid), "test")
+    sidebar.call("_force_display_credits", 5000)
+
+    var data := _make_infantry("test_audio_infantry", 600)
+    TestHelper.assert_true(
+        pm.start_production(pid, data), "production starts with a registered factory"
+    )
+    var key: String = pm.get_queue_key(pid, "InfantryType")
+
+    # Simulate 2 seconds of building. Each frame, ProductionManager deducts
+    # gradually (rate = cost / build_time = 120 credits/s here) and the sidebar
+    # counter gets its delta — mirroring the two _process callbacks in-game.
+    for i in range(120):
+        pm._process(1.0 / 60.0)
+        sidebar.call("_step_counter", 1.0 / 60.0)
+
+    # Known example: 120 credits/s over 2 s = 240 credits drained.
+    var balance: int = _em.get_balance(pid)
+    TestHelper.assert_eq(balance, 4760, "gradual deduction drains cost/build_time per second")
+    (
+        TestHelper
+        . assert_true(
+            _label(sidebar).text.trim_prefix("$").to_int() < 5000,
+            "counter counts down during continuous deduction, not only after the drain stops",
+        )
+    )
+
+    # Liveness: once the drain stops, the counter settles at the real balance.
+    var calls := 0
+    while _label(sidebar).text != "$%d" % balance and calls < 200:
+        sidebar.call("_step_counter", 0.05)
+        calls += 1
+    TestHelper.assert_eq(
+        _label(sidebar).text, "$%d" % balance, "counter settles at the drained balance"
+    )
+
+    pm.cancel_production(pid, key, 0)
+    _drop_sidebar(sidebar)
+    _cleanup_local_factory(pid)
+
+
+func test_spend_does_not_burst_after_sustained_income():
+    if not _am or not _em:
+        TestHelper.fail("AudioManager or EconomyManager not injected")
+        return
+    # Regression: the cadence accumulator grew unbounded while the counter was
+    # in flight behind income (gain interval 0 never drains it). The first
+    # spend frame then burned the stored time in one burst, collapsing the
+    # count-down animation to a jump. Drive a large gain that keeps the
+    # counter in flight for 30 frames, keep income arriving during the
+    # animation, then spend.
+    var sidebar := _make_sidebar()
+    sidebar.call("_force_display_credits", 1000)
+    var pid := _local_id()
+    _em.credits_changed.emit(pid, 6000, "harvest", "tiberium")
+    for i in range(1, 31):
+        _em.credits_changed.emit(pid, 6000 + 100 * i, "harvest", "tiberium")
+        sidebar.call("_step_counter", 1.0 / 60.0)
+    # Known example: gain steps are clamped by MAX_STEP 143, so 30 frames of
+    # counting up land exactly on 1000 + 30*143 = 5290.
+    TestHelper.assert_eq(_label(sidebar).text, "$5290", "in-flight gain counts at the MAX_STEP cap")
+
+    # Spend while the income animation is still catching up (gap 3710 to the
+    # last target, now a -10 spend). First spend frame: delta 1/60 is below
+    # the spend step interval, so the clamped accumulator applies no step —
+    # the un-clamped version burst 10 steps and jumped straight to $5280.
+    _em.credits_changed.emit(pid, 5280, "build:gaweap", "tiberium")
+    sidebar.call("_step_counter", 1.0 / 60.0)
+    (
+        TestHelper
+        . assert_eq(
+            _label(sidebar).text,
+            "$5290",
+            "first spend frame after in-flight income applies no burst step",
+        )
+    )
+
+    # Normal cadence from there: one step per spend interval until settled.
+    var calls := 0
+    while _label(sidebar).text != "$5280" and calls < 100:
+        sidebar.call("_step_counter", 0.05)
+        calls += 1
+    TestHelper.assert_eq(_label(sidebar).text, "$5280", "counter settles at the spend target")
+    _drop_sidebar(sidebar)
