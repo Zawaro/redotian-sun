@@ -20,7 +20,6 @@ height = 2.0
 owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 24.0
 prerequisite = PackedStringArray("GDI_WALL")
 capturable = false
 crewed = false

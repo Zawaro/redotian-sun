@@ -305,7 +305,8 @@ func _make_infantry(id: String, cost: int) -> EntityData:
     data.entity_type = EntityData.EntityType.INFANTRY
     data.display_name = "Test Infantry"
     data.cost = cost
-    data.build_time = 5.0
+    # Pin resolved duration to 5.0 s regardless of cost/rules via the multiplier knob.
+    data.build_time_mult = 5.0 / data.get_build_time()
     data.buildable_queue = "InfantryType"
     data.buildable = true
     return data

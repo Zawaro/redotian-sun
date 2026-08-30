@@ -25,7 +25,6 @@ owner = PackedStringArray("GDI")
 threat_posed = 15
 buildable = true
 buildable_queue = "InfantryType"
-build_time = 28.8
 prerequisite_necessary = PackedStringArray("GDI_BARRACKS", "GDI_RADAR")
 crushable = false
 weapons = [ExtResource("3_weapon")]

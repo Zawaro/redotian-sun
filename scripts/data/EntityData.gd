@@ -268,9 +268,9 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export_group("Build Menu")
 ## Whether this entity appears in the build sidebar.
 @export var buildable: bool = false
-## Production time in game seconds (scales with Engine.time_scale).
-## If 0, calculated from cost: cost * 0.048 (TS BuildSpeed=0.8 formula).
-@export var build_time: float = 0.0
+## Multiplier on the cost-derived build duration (TS formula). 1.0 = default,
+## 0.5 = half duration, 2.0 = double. Leave unset unless tuning an entity.
+@export var build_time_mult: float = 1.0
 ## Max count per player (0 = unlimited).
 @export var build_limit: int = 0
 
@@ -348,20 +348,18 @@ static func is_movement_zone_compatible(locomotor_id: String, zone: String) -> b
     return zones.has(zone)
 
 
-## Returns effective build time in seconds. Uses explicit build_time if set,
-## otherwise calculates from cost using TS formula. An explicit build_speed
+## Returns effective build time in seconds, calculated from cost using the TS
+## formula and scaled by the per-entity build_time_mult. An explicit build_speed
 ## overrides the game-wide factor from GlobalRules (falling back to
 ## DEFAULT_BUILD_SPEED when rules are unavailable).
 func get_build_time(build_speed: float = -1.0) -> float:
-    if build_time > 0.0:
-        return build_time
     if build_speed < 0.0:
         build_speed = DEFAULT_BUILD_SPEED
         var rules := EntityFactory.get_global_rules() as GlobalRules
         if rules:
             build_speed = rules.build_speed
-    # TS formula: (cost / 1000) * BuildSpeed * 60
-    return cost * build_speed * 60.0 / 1000.0
+    # TS formula: (cost / 1000) * BuildSpeed * 60, scaled by per-entity multiplier.
+    return cost * build_speed * 60.0 / 1000.0 * build_time_mult
 
 
 func validate() -> PackedStringArray:

@@ -22,6 +22,5 @@ owner = PackedStringArray("Nod")
 threat_posed = 0
 buildable = true
 buildable_queue = "InfantryType"
-build_time = 33.6
 prerequisite_necessary = PackedStringArray("NOD_HAND_OF_NOD", "NOD_TECH_CENTER")
 crushable = false

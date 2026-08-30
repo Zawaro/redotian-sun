@@ -24,7 +24,8 @@ func _make_infantry(id: String = "test_infantry", cost: int = 100) -> EntityData
     data.entity_type = EntityData.EntityType.INFANTRY
     data.display_name = "Test Infantry"
     data.cost = cost
-    data.build_time = 5.0
+    # Pin resolved duration to 5.0 s regardless of cost/rules via the multiplier knob.
+    data.build_time_mult = 5.0 / data.get_build_time()
     data.buildable_queue = "InfantryType"
     data.buildable = true
     return data
@@ -840,7 +841,7 @@ func test_find_exit_cell_null_when_none_distinct():
 
 func test_get_build_time_from_build_speed():
     var data := _make_infantry("test_build_time", 1000)
-    data.build_time = 0.0
+    data.build_time_mult = 1.0
     var t: float = data.get_build_time()
     # TS rules.ini [General] BuildSpeed=.4: cost(1000) * 0.4 * 60 / 1000 = 24.0
     (

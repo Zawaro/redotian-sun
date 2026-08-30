@@ -24,6 +24,5 @@ owner = PackedStringArray("GDI")
 threat_posed = 20
 buildable = true
 buildable_queue = "InfantryType"
-build_time = 33.6
 prerequisite_necessary = PackedStringArray("GDI_BARRACKS", "GDI_TECH_CENTER")
 crushable = true

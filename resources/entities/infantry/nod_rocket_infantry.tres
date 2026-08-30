@@ -25,7 +25,6 @@ owner = PackedStringArray("Nod")
 threat_posed = 20
 buildable = true
 buildable_queue = "InfantryType"
-build_time = 12.0
 prerequisite = PackedStringArray("NOD_HAND_OF_NOD")
 crushable = true
 weapons = [ExtResource("4_weapon")]

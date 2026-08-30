@@ -24,7 +24,6 @@ rotation_speed = 180.0
 owner = PackedStringArray("GDI")
 threat_posed = 0
 buildable = true
-build_time = 67.2
 prerequisite = PackedStringArray("GDI_REFINERY")
 harvester = true
 dock = "GDI_REFINERY"

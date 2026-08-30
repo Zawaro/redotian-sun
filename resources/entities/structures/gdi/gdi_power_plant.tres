@@ -20,7 +20,6 @@ height = 2.0
 owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 14.4
 prerequisite = PackedStringArray("GDI_CONSTRUCTION_YARD")
 power = 100
 capturable = true

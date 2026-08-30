@@ -20,7 +20,6 @@ height = 1.0
 owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 2.4
 prerequisite = PackedStringArray("GDI_BARRACKS")
 capturable = false
 crewed = false
