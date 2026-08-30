@@ -350,7 +350,7 @@ func _get_production_speed(queue_key: String) -> float:
     var player_id := int(queue_key.get_slice(":", 0))
     var factory_type := queue_key.get_slice(":", 1)
     var result := _find_factories(player_id, factory_type)
-    var multiple_factory: float = 0.5
+    var multiple_factory: float = 0.4
     var rules := GlobalRules.get_current()
     if rules:
         multiple_factory = rules.multiple_factory

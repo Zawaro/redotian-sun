@@ -25,7 +25,7 @@ class_name GlobalRules extends Resource
 
 ## Income and production
 @export_group("Income and Production")
-@export var build_speed: float = 0.8
+@export var build_speed: float = 0.4
 @export var buildup_time: float = 0.06
 ## Minutes between crystal timer ticks (randomized ±60s).
 @export var growth_rate: float = 5.0
@@ -77,7 +77,8 @@ class_name GlobalRules extends Resource
 
 ## Production and power effects
 @export_group("Production and Power Effects")
-@export var multiple_factory: float = 0.5
+## TS rules.ini [General] MultipleFactory=.4 — speed bonus per extra factory.
+@export var multiple_factory: float = 0.4
 @export var min_production_speed: float = 0.5
 
 ## Movement coefficients
