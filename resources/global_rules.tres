@@ -71,6 +71,8 @@
 [resource]
 script = ExtResource("1_script")
 starting_credits = 10000
+build_speed = 0.4
+multiple_factory = 0.4
 harvester_fill_rate = 0.5
 tree_growth_rate = 0.1
 spread_amount = 50

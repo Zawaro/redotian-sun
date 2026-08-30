@@ -89,7 +89,7 @@ func _free_test_factories() -> void:
 
 ## Expected speed for a given factory count per the multiple-factory rule.
 func _expected_speed(factory_count: int) -> float:
-    var multiple_factory: float = 0.5
+    var multiple_factory: float = 0.4
     var rules := GlobalRules.get_current()
     if rules:
         multiple_factory = rules.multiple_factory
@@ -842,11 +842,11 @@ func test_get_build_time_from_build_speed():
     var data := _make_infantry("test_build_time", 1000)
     data.build_time = 0.0
     var t: float = data.get_build_time()
-    # cost(1000) * 0.8 * 60 / 1000 = 48.0
+    # TS rules.ini [General] BuildSpeed=.4: cost(1000) * 0.4 * 60 / 1000 = 24.0
     (
         TestHelper
         . assert_true(
-            is_equal_approx(t, 48.0),
-            "get_build_time must compute from the default build-speed factor",
+            is_equal_approx(t, 24.0),
+            "get_build_time must compute from the TS default build-speed factor",
         )
     )

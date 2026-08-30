@@ -300,7 +300,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var voice_data: VoiceData = null
 
 ## Default build-speed factor when GlobalRules is unavailable (e.g. isolated tests).
-const DEFAULT_BUILD_SPEED: float = 0.8
+const DEFAULT_BUILD_SPEED: float = 0.4
 
 ## Movement zones compatible with each locomotor type. Zone is metadata (TS
 ## pathfinding domain class); passability is driven by the locomotor alone.
