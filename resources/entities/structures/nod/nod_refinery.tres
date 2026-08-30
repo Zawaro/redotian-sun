@@ -20,7 +20,6 @@ height = 2.0
 owner = PackedStringArray("Nod")
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 96.0
 prerequisite = PackedStringArray("NOD_POWER_PLANT")
 capturable = true
 free_unit = "NOD_HARVESTER"

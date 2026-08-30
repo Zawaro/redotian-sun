@@ -20,7 +20,6 @@ height = 2.0
 owner = PackedStringArray("GDI")
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 14.4
 prerequisite = PackedStringArray("GDI_POWER_PLANT")
 power = -20
 factory = "InfantryType"

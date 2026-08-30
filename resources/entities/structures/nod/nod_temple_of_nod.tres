@@ -20,7 +20,6 @@ height = 3.0
 owner = PackedStringArray("Nod")
 buildable = true
 buildable_queue = "BuildingType"
-build_time = 240.0
 prerequisite = PackedStringArray("NOD_TECH_CENTER")
 power = -200
 capturable = false

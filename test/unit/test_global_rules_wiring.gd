@@ -128,16 +128,16 @@ func test_build_time_uses_rules_speed():
     var data := EntityData.new()
     data.id = "TEST_BUILDING"
     data.cost = 1000
-    data.build_time = 0.0
     var with_rules := data.get_build_time(0.5)
     var fallback := data.get_build_time()
     TestHelper.assert_eq(with_rules, 30.0, "1000 cost at 0.5 build speed -> 30s")
     TestHelper.assert_true(with_rules != fallback, "non-default build_speed changes build time")
 
 
-func test_build_time_explicit_overrides():
+func test_build_time_mult_scales_derived_duration():
     var data := EntityData.new()
     data.id = "TEST_BUILDING"
     data.cost = 1000
-    data.build_time = 20.0
-    TestHelper.assert_eq(data.get_build_time(0.8), 20.0, "explicit build_time wins")
+    data.build_time_mult = 2.0
+    # 1000 * 0.8 * 60 / 1000 = 48.0 base, doubled by the per-entity multiplier.
+    TestHelper.assert_eq(data.get_build_time(0.8), 96.0, "build_time_mult scales derived duration")
