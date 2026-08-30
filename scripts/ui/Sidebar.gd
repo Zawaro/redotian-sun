@@ -19,7 +19,6 @@ const CAMEO_COLORS: Dictionary = {
     "Neutral": Color(0.5, 0.5, 0.5),
 }
 
-@onready var credits_label: Label = %CreditsLabel
 @onready var sell_button: Button = %SellButton
 @onready var repair_button: Button = %RepairButton
 @onready var tab_buttons: Array[Button] = [
@@ -38,27 +37,10 @@ var _cameo_buttons: Array[Button] = []
 var _cameo_progress: Dictionary = {}  # button → ColorRect (shader overlay)
 var _flicker_tweens: Dictionary = {}  # button → Tween
 var _shader: ShaderMaterial = null
-var _sell_mode: bool = false
-var _repair_mode: bool = false
 var _grid_dirty: bool = false
 
-## Debug "place anywhere" mode — direct entity placement bypassing production
-var _debug_place_mode: bool = false
-var _debug_skip_input: int = 0
-
-## Credit counter animation — how the displayed balance counts toward its target.
-## ponytail: knobs reproducing the classic counter feel, tune from playtesting.
-const GAIN_STEP_INTERVAL: float = 0.0  ## seconds between steps counting up (0 = every frame)
-const SPEND_STEP_INTERVAL: float = 0.05  ## seconds between steps counting down (slower, heavier)
-const STEP_DIVISOR: int = 8  ## step size = remaining gap / divisor, clamped below
-const MIN_STEP: int = 1  ## guarantees termination on odd balances
-const MAX_STEP: int = 143  ## caps the per-step jump so small gaps still tick a few times
-const SOUND_INCOME: String = "ECON_INCOME"
-const SOUND_SPEND: String = "ECON_SPEND"
-
-var _displayed_credits: int = 0
-var _target_credits: int = 0
-var _step_accumulator: float = 0.0
+## Credit counter animation lives on the CreditCounter script attached to
+## %CreditsLabel (scenes/ui/Sidebar.tscn); the Sidebar keeps no counter state.
 
 
 func _ready() -> void:
@@ -74,11 +56,11 @@ func _ready() -> void:
 
     sell_button.pressed.connect(_on_sell_pressed)
     repair_button.pressed.connect(_on_repair_pressed)
-
-    var em := get_node("/root/EconomyManager")
-    if em:
-        em.credits_changed.connect(_on_credits_changed)
-        _force_display_credits(em.get_balance(PlayerManager.get_local_player_id()))
+    # Button visuals sync from the mode owner's signal — sell/repair state is
+    # OrderSystem's active generator type; the Sidebar keeps no mode booleans.
+    OrderSystem.generator_changed.connect(_sync_action_buttons)
+    # Placing mode refreshes the grid (all entities shown while armed).
+    EntityPlacer.placing_mode_changed.connect(_on_placing_mode_changed)
 
     var ps := get_node("/root/PrerequisiteSystem") as Node
     if ps:
@@ -117,23 +99,6 @@ func _input(event: InputEvent) -> void:
                 get_viewport().set_input_as_handled()
 
 
-func _process(delta: float) -> void:
-    _step_counter(delta)
-    if not _debug_place_mode or not EntityPlacer.has_preview():
-        return
-    if _debug_skip_input > 0:
-        _debug_skip_input -= 1
-        _update_debug_preview_position()
-        return
-
-    _update_debug_preview_position()
-
-    if Input.is_action_just_pressed("select_entity"):
-        _finalize_debug_place()
-    elif Input.is_action_just_pressed("deselect_entity") or Input.is_key_pressed(KEY_ESCAPE):
-        exit_debug_place_mode()
-
-
 func _on_tab_pressed(tab_index: int) -> void:
     _switch_tab(tab_index)
 
@@ -169,9 +134,7 @@ func _get_current_entities() -> Array[EntityData]:
         for data in all:
             if not data.buildable:
                 continue
-            if _debug_place_mode:
-                result.append(data)
-            elif ps and ps.can_build(PlayerManager.get_local_player_id(), data):
+            if ps and ps.can_build(PlayerManager.get_local_player_id(), data):
                 result.append(data)
             elif not ps:
                 result.append(data)
@@ -180,6 +143,8 @@ func _get_current_entities() -> Array[EntityData]:
 
 ## Coalesce the many production/prerequisite signals into a single deferred
 ## grid rebuild per frame instead of rebuilding on every trigger.
+
+
 func _queue_refresh() -> void:
     if _grid_dirty:
         return
@@ -305,7 +270,11 @@ func _create_cameo(data: EntityData) -> Button:
     btn.set_meta("entity_id", data.id)
 
     # Show progress gradient if item has partial progress
-    var current_progress := _get_item_progress(data)
+    var pm := get_node_or_null("/root/ProductionManager") as ProductionManager
+    if not pm:
+        return
+    var player_id := PlayerManager.get_local_player_id()
+    var current_progress := pm.get_item_progress(player_id, data)
     if current_progress > 0.0 and progress_rect.material:
         progress_rect.visible = true
         (progress_rect.material as ShaderMaterial).set_shader_parameter(
@@ -313,7 +282,7 @@ func _create_cameo(data: EntityData) -> Button:
         )
 
     # Queue overlay for non-active queued items
-    if _is_queued_non_active(data):
+    if _is_queued_non_active(pm, data):
         var queue_overlay := ColorRect.new()
         queue_overlay.color = Color(1, 1, 1, 0.15)
         queue_overlay.custom_minimum_size = Vector2(CAMEO_W, CAMEO_H)
@@ -325,15 +294,18 @@ func _create_cameo(data: EntityData) -> Button:
         btn.add_child(queue_overlay)
 
     # Ready-to-place overlay for buildings
-    if data.entity_type == EntityData.EntityType.BUILDING and _is_ready_to_place(data):
+    if (
+        data.entity_type == EntityData.EntityType.BUILDING
+        and pm.is_ready_to_place(player_id, data.id)
+    ):
         _add_ready_overlay(btn)
 
     # Ready-to-spawn overlay for units that failed to spawn
-    elif _is_ready_to_spawn(data):
+    elif pm.is_ready_to_spawn(player_id, data.id):
         _add_ready_overlay(btn)
 
     # On hold overlay for paused items
-    elif _is_paused(data):
+    elif _is_paused(pm, data):
         var hold_label := Label.new()
         hold_label.text = "On hold"
         hold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -354,7 +326,7 @@ func _create_cameo(data: EntityData) -> Button:
         btn.modulate = Color(1.5, 1.5, 1.5, 1.0)
 
     # Queue count display
-    var queue_count := _get_queue_count(data)
+    var queue_count := pm.get_queue_count(player_id, data)
     if queue_count >= 1:
         var count_label := Label.new()
         count_label.text = str(queue_count)
@@ -392,41 +364,15 @@ func _get_cameo_color(data: EntityData) -> Color:
     return Color.GRAY
 
 
-func _is_ready_to_place(data: EntityData) -> bool:
-    var pm := get_node("/root/ProductionManager")
-    if not pm:
-        return false
-    var ready_buildings: Array = pm.get_ready_buildings(PlayerManager.get_local_player_id())
-    for item in ready_buildings:
-        if (item as EntityData).id == data.id:
-            return true
-    return false
+func _is_placing(data: EntityData) -> bool:
+    var bm := get_node("/root/BuildingManager") as BuildingManager
+    return bm and bm.is_build_mode and bm.current_building_type == data
 
 
-func _is_ready_to_spawn(data: EntityData) -> bool:
-    var pm := get_node("/root/ProductionManager")
-    if not pm:
-        return false
-    var ready_spawns: Array = pm.get_ready_spawns(PlayerManager.get_local_player_id())
-    for entry in ready_spawns:
-        var ed: EntityData = (entry as Dictionary)["entity_data"] as EntityData
-        if ed.id == data.id:
-            return true
-    return false
-
-
-func _get_queue_items_for_entity(data: EntityData) -> Array:
-    var pm := get_node("/root/ProductionManager")
-    if not pm:
-        return []
-    var queue_key: String = pm.get_queue_key(
-        PlayerManager.get_local_player_id(), data.buildable_queue
+func _is_paused(pm: ProductionManager, data: EntityData) -> bool:
+    var items: Array = pm.get_queue_items(
+        pm.get_queue_key(PlayerManager.get_local_player_id(), data.buildable_queue)
     )
-    return pm.get_queue_items(queue_key)
-
-
-func _is_paused(data: EntityData) -> bool:
-    var items := _get_queue_items_for_entity(data)
     for item in items:
         var pq: ProductionQueue = item as ProductionQueue
         if pq.entity_data.id == data.id and pq.is_paused:
@@ -434,10 +380,7 @@ func _is_paused(data: EntityData) -> bool:
     return false
 
 
-func _is_queued_non_active(data: EntityData) -> bool:
-    var pm := get_node("/root/ProductionManager")
-    if not pm:
-        return false
+func _is_queued_non_active(pm: ProductionManager, data: EntityData) -> bool:
     var queue_key: String = pm.get_queue_key(
         PlayerManager.get_local_player_id(), data.buildable_queue
     )
@@ -450,165 +393,26 @@ func _is_queued_non_active(data: EntityData) -> bool:
     return false
 
 
-func _is_placing(data: EntityData) -> bool:
-    var bm := get_node("/root/BuildingManager") as BuildingManager
-    return bm and bm.is_build_mode and bm.current_building_type == data
-
-
-func _get_queue_count(data: EntityData) -> int:
-    var items := _get_queue_items_for_entity(data)
-    var total := 0
-    for item in items:
-        var pq: ProductionQueue = item as ProductionQueue
-        if pq.entity_data.id == data.id:
-            total += pq.count
-    return total
-
-
-func _get_item_progress(data: EntityData) -> float:
-    var items := _get_queue_items_for_entity(data)
-    for item in items:
-        var pq: ProductionQueue = item as ProductionQueue
-        if pq.entity_data.id == data.id:
-            return pq.progress
-    return 0.0
-
-
 func _on_cameo_gui_input(event: InputEvent, data: EntityData) -> void:
     if not (event is InputEventMouseButton and (event as InputEventMouseButton).pressed):
         return
     var mb := event as InputEventMouseButton
 
-    if mb.button_index == MOUSE_BUTTON_LEFT:
-        var debug_menu := get_tree().get_first_node_in_group("debug_menu")
-        if debug_menu and debug_menu.place_anywhere:
-            _start_debug_place(data)
-            get_viewport().set_input_as_handled()
-            return
-        var pm := get_node("/root/ProductionManager") as ProductionManager
-        if not pm:
-            return
-        _handle_left_click(pm, data, mb.shift_pressed)
-        get_viewport().set_input_as_handled()
-    elif mb.button_index == MOUSE_BUTTON_RIGHT:
-        var pm := get_node("/root/ProductionManager") as ProductionManager
-        if not pm:
-            return
-        _handle_right_click(pm, data, mb.shift_pressed)
-        get_viewport().set_input_as_handled()
-
-
-func _handle_left_click(pm: ProductionManager, data: EntityData, shift: bool) -> void:
-    # Building ready to place → enter build mode
-    if data.entity_type == EntityData.EntityType.BUILDING and _is_ready_to_place(data):
-        pm.place_ready_building(PlayerManager.get_local_player_id(), data.id)
-        return
-
-    # Unit ready to spawn → retry spawn
-    if _is_ready_to_spawn(data):
-        pm.retry_ready_spawn(PlayerManager.get_local_player_id(), data.id)
-        return
-
-    # Check if item is already in queue — resume if paused
-    var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(PlayerManager.get_local_player_id(), factory_type)
-    var items: Array = pm.get_queue_items(queue_key)
-    for i in range(items.size()):
-        var item: ProductionQueue = items[i] as ProductionQueue
-        if item.entity_data.id == data.id and item.is_paused:
-            pm.resume_production(queue_key, i)
-            return
-
-    # No prerequisites + no factory → fall back to direct placement
+    # Place-anywhere cheat: the cameo arms a free-placement session directly,
+    # bypassing production routing entirely.
     var debug_menu := get_tree().get_first_node_in_group("debug_menu")
-    if debug_menu and debug_menu.no_prereqs and not factory_type.is_empty():
-        if not _factory_exists_for_queue(factory_type):
-            _start_debug_place(data)
-            return
-
-    # Not in queue or not paused — start/stack production
-    var count := 5 if shift else 1
-    pm.start_production(PlayerManager.get_local_player_id(), data, count)
-
-
-func _handle_right_click(pm: ProductionManager, data: EntityData, shift: bool) -> void:
-    # Ready-to-place building → cancel and refund
-    if data.entity_type == EntityData.EntityType.BUILDING and _is_ready_to_place(data):
-        pm.cancel_ready_building(PlayerManager.get_local_player_id(), data.id)
+    if debug_menu and debug_menu.place_anywhere:
+        EntityPlacer.start_placing(data)
+        get_viewport().set_input_as_handled()
         return
 
-    # Ready-to-spawn unit → cancel and refund
-    if _is_ready_to_spawn(data):
-        pm.cancel_ready_spawn(PlayerManager.get_local_player_id(), data.id)
+    var pm := get_node_or_null("/root/ProductionManager") as ProductionManager
+    if not pm:
         return
-
-    var factory_type := data.buildable_queue
-    var queue_key: String = pm.get_queue_key(PlayerManager.get_local_player_id(), factory_type)
-    var items: Array = pm.get_queue_items(queue_key)
-    for i in range(items.size()):
-        var item: ProductionQueue = items[i] as ProductionQueue
-        if item.entity_data.id == data.id:
-            if shift:
-                var cancel_count := 5 if item.count > 5 else item.count
-                pm.cancel_production(
-                    PlayerManager.get_local_player_id(), queue_key, i, cancel_count
-                )
-            elif item.is_paused:
-                pm.cancel_production(PlayerManager.get_local_player_id(), queue_key, i, 1)
-            elif i == pm.get_active_index(queue_key):
-                pm.pause_production(queue_key, i)
-            else:
-                pm.cancel_production(PlayerManager.get_local_player_id(), queue_key, i, 1)
-            break
-
-
-func _on_credits_changed(
-    player_id: int, new_balance: int, _reason: String, _category: String
-) -> void:
-    if player_id != PlayerManager.get_local_player_id():
-        return
-    # Reset the cadence accumulator only for a fresh animation. An in-flight
-    # animation keeps accumulating so per-frame target updates — gradual
-    # production deduction fires credits_changed nearly every frame — cannot
-    # starve the spend cadence and freeze the counter mid-drain.
-    if _displayed_credits == _target_credits:
-        _step_accumulator = 0.0
-    _target_credits = new_balance
-
-
-## Forced display (scene ready, balance resync): jump straight to the balance,
-## no animation, no tick.
-func _force_display_credits(balance: int) -> void:
-    _displayed_credits = balance
-    _target_credits = balance
-    _step_accumulator = 0.0
-    credits_label.text = "$%d" % balance
-
-
-## Advance the credit counter by `delta` seconds: accumulate time, apply one
-## step per elapsed interval — gains step every frame, spends every
-## SPEND_STEP_INTERVAL — playing one tick per applied step. Idle once the
-## displayed value equals the target. Split out from _process so tests can
-## drive it with synthetic deltas.
-func _step_counter(delta: float) -> void:
-    if _displayed_credits == _target_credits:
-        return
-    var interval := (
-        GAIN_STEP_INTERVAL if _target_credits > _displayed_credits else SPEND_STEP_INTERVAL
+    pm.handle_cameo_click(
+        PlayerManager.get_local_player_id(), data, mb.button_index, mb.shift_pressed
     )
-    # Clamp accumulated time to one interval: gain frames (interval 0) never
-    # drain the accumulator, so un-clamped time would burst out as extra steps
-    # on the first spend frame and collapse the count-down to a single jump.
-    _step_accumulator = minf(_step_accumulator + delta, interval)
-    while _step_accumulator >= interval and _displayed_credits != _target_credits:
-        var gap := _target_credits - _displayed_credits
-        var step := clampi(absi(gap) / STEP_DIVISOR, MIN_STEP, MAX_STEP)
-        _displayed_credits += signi(gap) * step
-        _step_accumulator -= interval
-        AudioManager.play_sound(SOUND_INCOME if gap > 0 else SOUND_SPEND)
-        if interval <= 0.0:
-            break
-    credits_label.text = "$%d" % _displayed_credits
+    get_viewport().set_input_as_handled()
 
 
 func _on_prerequisites_changed(_player_id: int) -> void:
@@ -676,45 +480,32 @@ func _on_production_paused(_queue_key: String) -> void:
 
 
 func _on_sell_pressed() -> void:
-    _sell_mode = not _sell_mode
-    _repair_mode = false
-    sell_button.button_pressed = _sell_mode
-    repair_button.button_pressed = false
-    if _sell_mode:
-        OrderSystem.set_generator(SellOrderGenerator.new())
-    else:
+    # Toggling the active mode off cancels; arming a mode only swaps the
+    # generator — button visuals come back through generator_changed.
+    if OrderSystem.is_sell_mode():
         OrderSystem.cancel()
+    else:
+        OrderSystem.set_generator(SellOrderGenerator.new())
 
 
 func _on_repair_pressed() -> void:
-    _repair_mode = not _repair_mode
-    _sell_mode = false
-    repair_button.button_pressed = _repair_mode
-    sell_button.button_pressed = false
-    if _repair_mode:
-        OrderSystem.set_generator(RepairOrderGenerator.new())
-    else:
+    if OrderSystem.is_repair_mode():
         OrderSystem.cancel()
+    else:
+        OrderSystem.set_generator(RepairOrderGenerator.new())
 
 
-func is_sell_mode() -> bool:
-    return _sell_mode
+func _sync_action_buttons() -> void:
+    sell_button.button_pressed = OrderSystem.is_sell_mode()
+    repair_button.button_pressed = OrderSystem.is_repair_mode()
 
 
-func is_repair_mode() -> bool:
-    return _repair_mode
+func _on_placing_mode_changed(_active: bool) -> void:
+    _queue_refresh()
 
 
 func is_debug_place_mode() -> bool:
-    return _debug_place_mode
-
-
-func exit_action_mode() -> void:
-    _sell_mode = false
-    _repair_mode = false
-    sell_button.button_pressed = false
-    repair_button.button_pressed = false
-    OrderSystem.cancel()
+    return EntityPlacer.is_placing()
 
 
 func _add_ready_overlay(btn: Button) -> void:
@@ -740,73 +531,14 @@ func _add_ready_overlay(btn: Button) -> void:
 
 
 # --- Debug "place anywhere" mode ---
+# The session lives on EntityPlacer (start/commit/cancel/reposition); the
+# Sidebar keeps one-line delegates for the DebugMenu entry points and reacts
+# to placing_mode_changed by refreshing the grid.
 
 
 func enter_debug_place_mode() -> void:
-    _debug_place_mode = true
-    _queue_refresh()
+    EntityPlacer.enter_placing_mode()
 
 
 func exit_debug_place_mode() -> void:
-    _debug_place_mode = false
-    EntityPlacer.cancel_preview()
-
-
-func _factory_exists_for_queue(factory_type: String) -> bool:
-    var factories := get_tree().get_nodes_in_group("factories")
-    for f in factories:
-        if not f is FactoryComponent:
-            continue
-        var fc := f as FactoryComponent
-        if factory_type in fc.produces:
-            return true
-    return false
-
-
-func _start_debug_place(data: EntityData) -> void:
-    exit_debug_place_mode()
-    _debug_place_mode = true
-    EntityPlacer.start_preview(data)
-    _debug_skip_input = 1
-
-
-func _finalize_debug_place() -> void:
-    if not EntityPlacer.has_preview():
-        exit_debug_place_mode()
-        return
-    EntityPlacer.finalize_preview(PlayerManager.get_local_player_id())
-    exit_debug_place_mode()
-
-
-func _update_debug_preview_position() -> void:
-    if not EntityPlacer.has_preview():
-        return
-    var cam := _get_camera_3d()
-    if not cam:
-        return
-    var mouse_pos := get_viewport().get_mouse_position()
-    var from := cam.project_ray_origin(mouse_pos)
-    var dir := cam.project_ray_normal(mouse_pos).normalized()
-    var ground_plane := Plane(Vector3.UP, 0.0)
-    var intersection = ground_plane.intersects_ray(from, dir)
-    if intersection == null:
-        return
-    var hit_pos := intersection as Vector3
-    for i in 4:
-        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
-        var adjusted := Plane(Vector3.UP, terrain_y)
-        var new_hit = adjusted.intersects_ray(from, dir)
-        if new_hit == null:
-            break
-        hit_pos = new_hit as Vector3
-    EntityPlacer.update_preview_position(hit_pos)
-
-
-func _get_camera_3d() -> Camera3D:
-    var root := get_tree().current_scene
-    if not root:
-        return null
-    var cam_ctrl := root.get_node_or_null("Camera")
-    if not cam_ctrl:
-        return null
-    return cam_ctrl.get_node_or_null("Camera3D") as Camera3D
+    EntityPlacer.exit_placing_mode()

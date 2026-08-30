@@ -93,10 +93,16 @@ func exit_build_mode() -> void:
     build_mode_changed.emit(false, PlayerManager.get_local_player_id())
 
 
+## The place-anywhere cheat bypasses placement validity only (bounds-only in
+## can_place); the charge still applies unless the item was production-paid.
+func _place_anywhere_active() -> bool:
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    return debug_menu != null and debug_menu.place_anywhere
+
+
 func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
     # Cheat mode: place anywhere (skip cell checks, keep bounds check)
-    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
-    if debug_menu and debug_menu.place_anywhere:
+    if _place_anywhere_active():
         return _is_in_bounds(origin_cell)
 
     # Bounds and play area — BuildingManager-only knowledge
@@ -285,23 +291,11 @@ func _update_preview_position() -> void:
     if not camera:
         return
 
-    var from := camera.project_ray_origin(mouse_pos)
-    var dir := camera.project_ray_normal(mouse_pos)
-
-    var ground_plane := Plane(Vector3.UP, 0.0)
-    var intersection = ground_plane.intersects_ray(from, dir)
-    if intersection == null:
+    var hit: Variant = TerrainSystem.mouse_ray_to_terrain(camera, mouse_pos)
+    if hit == null:
         _preview.visible = false
         return
-
-    var hit_pos := intersection as Vector3
-    for i in 4:
-        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
-        var adjusted := Plane(Vector3.UP, terrain_y)
-        var new_hit = adjusted.intersects_ray(from, dir)
-        if new_hit == null:
-            break
-        hit_pos = new_hit as Vector3
+    var hit_pos := hit as Vector3
 
     var mouse_cell := CellUtil.world_to_cell(hit_pos)
     var origin_cell := (
@@ -547,32 +541,29 @@ func _try_place_building() -> void:
     if not camera:
         return
 
-    var from := camera.project_ray_origin(mouse_pos)
-    var dir := camera.project_ray_normal(mouse_pos)
-
-    var ground_plane := Plane(Vector3.UP, 0.0)
-    var intersection = ground_plane.intersects_ray(from, dir)
-    if intersection == null:
+    var hit: Variant = TerrainSystem.mouse_ray_to_terrain(camera, mouse_pos)
+    if hit == null:
         return
-
-    var hit_pos := intersection as Vector3
-    for i in 4:
-        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
-        var adjusted := Plane(Vector3.UP, terrain_y)
-        var new_hit = adjusted.intersects_ray(from, dir)
-        if new_hit == null:
-            break
-        hit_pos = new_hit as Vector3
+    var hit_pos := hit as Vector3
 
     var mouse_cell := CellUtil.world_to_cell(hit_pos)
     var origin_cell := (
         mouse_cell
         - Vector2i(current_building_type.foundation.x >> 1, current_building_type.foundation.y >> 1)
     )
+    var pid := PlayerManager.get_local_player_id()
+    var pm := get_node_or_null("/root/ProductionManager")
+    var was_ready: bool = pm != null and pm.is_ready_to_place(pid, current_building_type.id)
     if not place_building(current_building_type, origin_cell):
+        # A failed attempt consumed the skip flag; re-arm it so retrying a
+        # production-paid building never charges a second time (#339).
+        if was_ready:
+            set_skip_next_deduction()
         # TODO: play invalid placement SFX
         push_warning("[BuildingManager] Cannot place here")
         return
+    if was_ready and pm:
+        pm.consume_ready_building(pid, current_building_type.id)
     exiting_build_mode = true
     exit_build_mode()
 

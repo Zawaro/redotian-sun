@@ -65,7 +65,7 @@ func test_credits_label_settles_on_credits_changed():
         sidebar.free()
         return
 
-    sidebar.call("_force_display_credits", 234)
+    _label(sidebar).call("_force_display_credits", 234)
     em.credits_changed.emit(local_pid, 1234, "harvest", "tiberium")
     TestHelper.assert_true(
         label.text != "$1234", "HUD counter does not jump straight to the new balance"
@@ -75,7 +75,7 @@ func test_credits_label_settles_on_credits_changed():
     # so this settle loop is the actual regression guard for the 4-arg signal.
     var calls := 0
     while label.text != "$1234" and calls < 1000:
-        sidebar.call("_step_counter", 0.05)
+        _label(sidebar).call("_step_counter", 0.05)
         calls += 1
     TestHelper.assert_eq(
         label.text, "$1234", "HUD counter settles at the target from the 4-argument signal"
@@ -102,7 +102,7 @@ func test_credits_label_ignores_other_players():
     var before: String = label.text
     em.credits_changed.emit(local_pid + 99, 999999, "harvest", "tiberium")
     for i in range(10):
-        sidebar.call("_step_counter", 0.1)
+        _label(sidebar).call("_step_counter", 0.1)
     TestHelper.assert_eq(
         label.text, before, "HUD counter ignores credits_changed for other players"
     )

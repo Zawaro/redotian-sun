@@ -22,16 +22,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## First ESC press belongs to active cancel-modes (build/sell/repair/debug-place),
 ## not to the pause menu — mirrors C&C where ESC exits the mode, then pauses.
-## Assumes mode-exit stays in _process polling: _unhandled_input runs first, so
-## the still-active mode is visible here and wins the frame.
+## Mode state comes from the owners: OrderSystem (sell/repair) and EntityPlacer
+## (free placement) — never from UI scripts.
 func _esc_busy() -> bool:
     var bm := get_node_or_null("/root/BuildingManager")
     if bm and bm.is_build_mode:
         return true
-    var sidebar := UIUtil.find_sidebar()
-    if sidebar:
-        return sidebar.is_sell_mode() or sidebar.is_repair_mode() or sidebar.is_debug_place_mode()
-    return false
+    if OrderSystem.is_action_mode():
+        return true
+    return EntityPlacer.is_placing()
 
 
 func _toggle_pause() -> void:

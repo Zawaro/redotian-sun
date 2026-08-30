@@ -18,6 +18,7 @@ Entry form: term → one-line meaning → anchor.
 | `footprint` | Runtime derived set of occupied cells computed from `foundation`: `FoundationComponent.footprint_cells()`. Never a data field. | [foundation-component](openspec/specs/foundation-component/spec.md) · scripts/components/FoundationComponent.gd |
 | `bib` | Part of the building foundation: blocks everything the building foundation does, but pathfinding may still pass through bib cells at a cost (`bib_cost_penalty`). | [bib-pathfinding-penalty](openspec/specs/bib-pathfinding-penalty/spec.md) |
 | build mode | BuildingManager lifecycle: pick entity → preview ghost → validate → place. | [building-manager](openspec/specs/building-manager/spec.md) |
+| placing (EntityPlacer session) | Free-placement lifecycle: pick entity → ghost preview → place or cancel; no validity checks (unlike build mode). `EntityPlacer.is_placing()` is the placement-mode truth. Not "arming" — that word belongs to projectiles. | sidebar-ui-thinning change |
 | placement blocking | Placement refused while moving units stand on the footprint. | [building-placement-blocking](openspec/specs/building-placement-blocking/spec.md) |
 | free unit | Unit spawned automatically when a building is placed (`EntityData.free_unit`; refinery → harvester). | [free-unit](openspec/specs/free-unit/spec.md) |
 | primary building | `FactoryComponent.is_primary` flag; ProductionManager routes production to it over same-type factories. | [primary-building](openspec/specs/primary-building/spec.md) |

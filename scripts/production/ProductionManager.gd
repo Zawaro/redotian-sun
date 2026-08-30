@@ -402,15 +402,32 @@ func place_ready_building(player_id: int, entity_id: String) -> bool:
     for i in range(list.size()):
         var data: EntityData = (list[i] as Dictionary)["data"] as EntityData
         if data.id == entity_id:
-            list.remove_at(i)
-            if list.is_empty():
-                _ready_to_place.erase(player_id)
             var bm := get_node("/root/BuildingManager") as BuildingManager
-            if bm:
-                bm.set_skip_next_deduction()
-                bm.enter_build_mode(data)
+            if not bm:
+                return false
+            # Entry survives until the building lands (#339): a cancelled
+            # placement keeps the paid item ready instead of losing it, so
+            # re-clicking the cameo never charges a second time.
+            if bm.is_build_mode and bm.current_building_type == data:
+                return true
+            bm.set_skip_next_deduction()
+            bm.enter_build_mode(data)
             return true
     return false
+
+
+## Consume a ready-to-place entry once the building physically landed (#339).
+func consume_ready_building(player_id: int, entity_id: String) -> void:
+    if not _ready_to_place.has(player_id):
+        return
+    var list: Array = _ready_to_place[player_id]
+    for i in range(list.size()):
+        var data: EntityData = (list[i] as Dictionary)["data"] as EntityData
+        if data.id == entity_id:
+            list.remove_at(i)
+            break
+    if list.is_empty():
+        _ready_to_place.erase(player_id)
 
 
 func cancel_ready_building(player_id: int, entity_id: String) -> bool:
@@ -442,6 +459,130 @@ func clear_waiting_for_placement(player_id: int) -> void:
     for key in _waiting_for_placement.keys():
         if key.begins_with("%d:" % player_id):
             _waiting_for_placement[key] = false
+
+
+# --- Cameo click policy + queue read API (moved from Sidebar, which stays pure view) ---
+
+
+## One entry point for build-cameo clicks. Left: routes place-ready buildings,
+## retry-ready spawns, resume-paused items, the no-prereqs direct-deploy
+## fallback, and start/stack production (shift = 5). Right: cancels/refunds
+## (shift = 5), pauses the active item, or cancels paused items one by one.
+func handle_cameo_click(player_id: int, data: EntityData, button: MouseButton, shift: bool) -> void:
+    if button == MOUSE_BUTTON_LEFT:
+        handle_cameo_left_click(player_id, data, shift)
+    elif button == MOUSE_BUTTON_RIGHT:
+        handle_cameo_right_click(player_id, data, shift)
+
+
+## True while a completed building waits for the player to place it.
+func is_ready_to_place(player_id: int, entity_id: String) -> bool:
+    for item in get_ready_buildings(player_id):
+        if (item as EntityData).id == entity_id:
+            return true
+    return false
+
+
+## True while a completed unit waits for a spawn retry.
+func is_ready_to_spawn(player_id: int, entity_id: String) -> bool:
+    for entry in get_ready_spawns(player_id):
+        var ed: EntityData = (entry as Dictionary)["entity_data"] as EntityData
+        if ed.id == entity_id:
+            return true
+    return false
+
+
+## Total queued count for an entity in its queue (cameo badge).
+func get_queue_count(player_id: int, data: EntityData) -> int:
+    var total := 0
+    var items := get_queue_items(get_queue_key(player_id, data.buildable_queue))
+    for item in items:
+        var pq: ProductionQueue = item as ProductionQueue
+        if pq.entity_data.id == data.id:
+            total += pq.count
+    return total
+
+
+## Progress of the entity's queued item, 0 when not queued (cameo bar).
+func get_item_progress(player_id: int, data: EntityData) -> float:
+    var items := get_queue_items(get_queue_key(player_id, data.buildable_queue))
+    for item in items:
+        var pq: ProductionQueue = item as ProductionQueue
+        if pq.entity_data.id == data.id:
+            return pq.progress
+    return 0.0
+
+
+## Whether any factory building on the map produces this queue type.
+func has_factory_for(queue_type: String) -> bool:
+    for f in get_tree().get_nodes_in_group("factories"):
+        var fc := f as FactoryComponent
+        if fc and queue_type in fc.produces:
+            return true
+    return false
+
+
+## Left-click cameo routing (production policy; the Sidebar holds no policy).
+func handle_cameo_left_click(player_id: int, data: EntityData, shift: bool) -> void:
+    # Building ready to place → enter build mode
+    if data.entity_type == EntityData.EntityType.BUILDING and is_ready_to_place(player_id, data.id):
+        place_ready_building(player_id, data.id)
+        return
+
+    # Unit ready to spawn → retry spawn
+    if is_ready_to_spawn(player_id, data.id):
+        retry_ready_spawn(player_id, data.id)
+        return
+
+    # Check if item is already in queue — resume if paused
+    var queue_key := get_queue_key(player_id, data.buildable_queue)
+    var items := get_queue_items(queue_key)
+    for i in range(items.size()):
+        var item: ProductionQueue = items[i] as ProductionQueue
+        if item.entity_data.id == data.id and item.is_paused:
+            resume_production(queue_key, i)
+            return
+
+    # No prerequisites cheat + no factory → direct deploy fallback (named
+    # session entry on EntityPlacer; spec'd under debug-menu, not a UI concern).
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    if debug_menu and debug_menu.no_prereqs and not data.buildable_queue.is_empty():
+        if not has_factory_for(data.buildable_queue):
+            EntityPlacer.start_direct_deploy(data)
+            return
+
+    # Not in queue or not paused — start/stack production (shift = 5)
+    var count := 5 if shift else 1
+    start_production(player_id, data, count)
+
+
+## Right-click cameo routing: refund/cancel-first policy.
+func handle_cameo_right_click(player_id: int, data: EntityData, shift: bool) -> void:
+    # Ready-to-place building → cancel and refund
+    if data.entity_type == EntityData.EntityType.BUILDING and is_ready_to_place(player_id, data.id):
+        cancel_ready_building(player_id, data.id)
+        return
+
+    # Ready-to-spawn unit → cancel and refund
+    if is_ready_to_spawn(player_id, data.id):
+        cancel_ready_spawn(player_id, data.id)
+        return
+
+    var queue_key := get_queue_key(player_id, data.buildable_queue)
+    var items := get_queue_items(queue_key)
+    for i in range(items.size()):
+        var item: ProductionQueue = items[i] as ProductionQueue
+        if item.entity_data.id == data.id:
+            if shift:
+                var cancel_count := 5 if item.count > 5 else item.count
+                cancel_production(player_id, queue_key, i, cancel_count)
+            elif item.is_paused:
+                cancel_production(player_id, queue_key, i, 1)
+            elif i == get_active_index(queue_key):
+                pause_production(queue_key, i)
+            else:
+                cancel_production(player_id, queue_key, i, 1)
+            break
 
 
 # --- Ready-to-spawn (units that failed to spawn, can retry or cancel) ---

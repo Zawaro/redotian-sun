@@ -5,11 +5,26 @@ extends Node
 ## mode (frozen, non-interactive, transparent until finalized).
 
 signal entity_placed(entity: Node3D, entity_data: EntityData)
+## Emitted when the free-placement mode arms or disarms (enter/exit/start/
+## commit/cancel), so UI can refresh what it shows without holding the flag.
+signal placing_mode_changed(active: bool)
 
 var _preview: Node3D = null
 var _preview_data: EntityData = null
 var _preview_original_layers: Dictionary = {}
 var _preview_original_surface_overrides: Dictionary = {}
+## Free-placement mode truth (glossary: "placing" — pick entity → ghost
+## preview → place or cancel, no validity checks, unlike build mode).
+var _placing_mode: bool = false
+## Process-frame stamp of the last consumed commit click, so MouseHandler
+## (which polls raw Input state that ignores event consumption) can skip the
+## same physical click when routing orders.
+var _consumed_click_frame: int = -1
+## Frames to ignore commit/cancel polls after arming: the Input singleton
+## records the arming cameo click even though GUI consumes it, so an
+## unguarded poll would place at the cameo's screen point (BuildingManager
+## keeps the same counter for the same reason).
+var _skip_input_frames: int = 0
 
 
 func place_entity(
@@ -95,6 +110,164 @@ func cancel_preview() -> void:
 
 func has_preview() -> bool:
     return is_instance_valid(_preview)
+
+
+# --- Placing session (free placement) ---
+
+
+## Arm the free-placement mode without a preview yet (grid shows all entities,
+## cameo clicks start placement). No skip-frame counters: the arming cameo
+## click is consumed as GUI input upstream and never reaches _unhandled_input.
+func enter_placing_mode() -> void:
+    if _placing_mode:
+        return
+    _placing_mode = true
+    placing_mode_changed.emit(true)
+
+
+## Disarm the mode and drop any live preview. The single exit path for the
+## session (toggle-off, commit, cancel, scene-change reset all route here).
+## Clears the commit latch first so a session teardown never leaves a stale
+## "consumed click" claim behind; the commit path re-arms the latch AFTER this
+## returns.
+func exit_placing_mode() -> void:
+    _consumed_click_frame = -1
+    _skip_input_frames = 0
+    if not _placing_mode and not has_preview():
+        return
+    _placing_mode = false
+    cancel_preview()
+    placing_mode_changed.emit(false)
+
+
+## Start placing a specific entity: arms the mode and shows the ghost preview.
+func start_placing(data: EntityData) -> void:
+    enter_placing_mode()
+    _skip_input_frames = 1
+    start_preview(data)
+
+
+## Direct deploy fallback (debug-menu spec): when the "No prerequisites" cheat
+## is on and no factory exists for the queue type, the cameo click places the
+## entity via this named session entry instead of starting production. Named
+## separately from the place-anywhere start path so both stay observable.
+func start_direct_deploy(data: EntityData) -> void:
+    start_placing(data)
+
+
+func is_placing() -> bool:
+    return _placing_mode
+
+
+## True on the same frame a commit click was consumed here. MouseHandler polls
+## raw Input state that ignores set_input_as_handled, so it checks this latch
+## before resolving orders — otherwise the commit click would also fire a unit
+## order on the freshly placed entity (mode is already disarmed by then).
+func did_consume_click_this_frame() -> bool:
+    return _consumed_click_frame == Engine.get_process_frames()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+    if not is_placing() or not has_preview():
+        return
+    if event.is_action_pressed("select_entity"):
+        _commit_placement()
+        get_viewport().set_input_as_handled()
+    elif event.is_action_pressed("deselect_entity") or event.is_action_pressed("ui_cancel"):
+        exit_placing_mode()
+        get_viewport().set_input_as_handled()
+
+
+## Dispatch a commit click by entity type: buildings route through
+## BuildingManager's grid machinery, everything else finalizes the ghost.
+func _commit_placement() -> void:
+    var data := _preview_data
+    if data and data.entity_type == EntityData.EntityType.BUILDING:
+        var hit: Variant = _ground_hit()
+        if hit != null:
+            _commit_building(data, hit as Vector3)
+        return
+    finalize_preview(PlayerManager.get_local_player_id())
+    exit_placing_mode()
+    _consumed_click_frame = Engine.get_process_frames()
+
+
+## Place a building at the snapped origin cell via BuildingManager (foundation
+## reservation, terrain leveling, registry — everything the raw ghost finalize
+## skips). With the place-anywhere cheat armed, can_place passes bounds-only,
+## so the session acts as free placement; a refused placement (no cheat,
+## invalid spot) keeps the session armed for a retry.
+func _commit_building(data: EntityData, ground_pos: Vector3) -> void:
+    var bm := get_node_or_null("/root/BuildingManager") as BuildingManager
+    if not bm:
+        return
+    var origin := building_origin_for(data, ground_pos)
+    if not bm.place_building(data, origin):
+        return
+    exit_placing_mode()
+    _consumed_click_frame = Engine.get_process_frames()
+
+
+## Foundation-snapped origin cell for a building ghost at the given ground
+## point (mouse cell minus half the footprint) — same math as _try_place_building.
+func building_origin_for(data: EntityData, ground_pos: Vector3) -> Vector2i:
+    var mouse_cell := CellUtil.world_to_cell(ground_pos)
+    return mouse_cell - Vector2i(data.foundation.x >> 1, data.foundation.y >> 1)
+
+
+## Camera ray → terrain hit, shared by preview repositioning and commit.
+func _ground_hit() -> Variant:
+    var cam := _get_camera_3d()
+    if not cam:
+        return null
+    return TerrainSystem.mouse_ray_to_terrain(cam, get_viewport().get_mouse_position())
+
+
+func _process(_delta: float) -> void:
+    if not is_placing() or not has_preview():
+        return
+    if _skip_input_frames > 0:
+        _skip_input_frames -= 1
+        _reposition_preview()
+        return
+    # Poll-based input: mouse events do not reliably reach _unhandled_input at
+    # runtime (the same reason MouseHandler and BuildingManager poll theirs);
+    # the _unhandled_input branches above stay as keyboard/test fallback.
+    if Input.is_action_just_pressed("deselect_entity") or Input.is_action_just_pressed("ui_cancel"):
+        exit_placing_mode()
+        return
+    if Input.is_action_just_pressed("select_entity"):
+        _commit_placement()
+        return
+    _reposition_preview()
+
+
+## Camera ray → terrain hit → ghost position (buildings snap to the foundation
+## grid, everything else tracks the terrain surface).
+func _reposition_preview() -> void:
+    var hit: Variant = _ground_hit()
+    if hit == null:
+        return
+    var pos := hit as Vector3
+    if _preview_data and _preview_data.entity_type == EntityData.EntityType.BUILDING:
+        var origin := building_origin_for(_preview_data, pos)
+        pos = CellUtil.cell_origin_to_world(origin, _preview_data.foundation)
+        pos.y = CellUtil.get_max_height(
+            origin,
+            _preview_data.foundation,
+            func(c: Vector2i) -> float: return TerrainSystem.get_cell_max_height(c)
+        )
+    update_preview_position(pos)
+
+
+func _get_camera_3d() -> Camera3D:
+    var root := get_tree().current_scene
+    if not root:
+        return null
+    var cam_ctrl := root.get_node_or_null("Camera")
+    if not cam_ctrl:
+        return null
+    return cam_ctrl.get_node_or_null("Camera3D") as Camera3D
 
 
 # --- Group management ---
