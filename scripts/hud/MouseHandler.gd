@@ -77,8 +77,10 @@ func _process(_delta):
         _skip_release = true
         return
 
-    var sidebar := UIUtil.find_sidebar()
-    if sidebar and sidebar.is_debug_place_mode():
+    # Free-placement session owns the mouse while armed; the latch also covers
+    # the commit frame — the mode is already disarmed when this poll runs, and
+    # the same physical click must not additionally issue an order.
+    if EntityPlacer.is_placing() or EntityPlacer.did_consume_click_this_frame():
         return
 
     # Deploy hotkey (Ctrl+D) or Stop hotkey (Ctrl+S) — above _skip_release so hotkeys always work.
@@ -165,15 +167,15 @@ func _process(_delta):
 
         # Right mouse button is RESERVED for deselect/cancel only — never issue commands.
         if Input.is_action_just_released("deselect_entity"):
-            if sidebar and (sidebar.is_sell_mode() or sidebar.is_repair_mode()):
-                sidebar.exit_action_mode()
+            if OrderSystem.is_action_mode():
+                OrderSystem.cancel()
             elif selection_manager:
                 selection_manager.deselect_all()
 
         # ESC key — exit sell/repair mode.
         if Input.is_key_pressed(KEY_ESCAPE):
-            if sidebar and (sidebar.is_sell_mode() or sidebar.is_repair_mode()):
-                sidebar.exit_action_mode()
+            if OrderSystem.is_action_mode():
+                OrderSystem.cancel()
 
         # Update drag rectangle while left mouse held and moving (polling).
         if mouse_dragging:
@@ -478,25 +480,12 @@ func _get_ground_position_at_mouse() -> Vector3:
         return Vector3.INF
 
     var mouse_pos := get_viewport().get_mouse_position() as Vector2
-    var from = camera.project_ray_origin(mouse_pos)
-    var dir := camera.project_ray_normal(mouse_pos).normalized()
-
-    var ground_plane := Plane(Vector3.UP, 0.0) as Plane
-    var intersection = ground_plane.intersects_ray(from, dir)
-
-    if intersection == null:
+    var hit: Variant = TerrainSystem.mouse_ray_to_terrain(camera, mouse_pos)
+    if hit == null:
         return Vector3.INF
+    var hit_pos := hit as Vector3
 
-    var hit_pos := intersection as Vector3
-    for i in 4:
-        var terrain_y := TerrainSystem.get_height_at_world_smooth(hit_pos)
-        var adjusted := Plane(Vector3.UP, terrain_y)
-        var new_hit = adjusted.intersects_ray(from, dir)
-        if new_hit == null:
-            break
-        hit_pos = new_hit as Vector3
-
-    var dist_sq: float = from.distance_squared_to(hit_pos)
+    var dist_sq: float = camera.project_ray_origin(mouse_pos).distance_squared_to(hit_pos)
     if 0.0 < dist_sq and dist_sq <= raycast_distance * raycast_distance:
         return hit_pos
 

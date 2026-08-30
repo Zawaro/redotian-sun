@@ -432,6 +432,30 @@ func get_normal_at_world(world_pos: Vector3) -> Vector3:
     return edge_z.cross(edge_x).normalized()
 
 
+## Cast a ray from `camera` through `screen_pos` and return the world position
+## where it meets the terrain surface, or null when the ray never reaches the
+## ground plane (e.g. the camera is pitched above the horizon). Intersects the
+## Y=0 plane first, then refines the hit against the smoothed heightfield for a
+## fixed 4 iterations. Single shared implementation for placement previews,
+## order ground targeting, and any future cursor-to-terrain consumer.
+func mouse_ray_to_terrain(camera: Camera3D, screen_pos: Vector2) -> Variant:
+    var from := camera.project_ray_origin(screen_pos)
+    var dir := camera.project_ray_normal(screen_pos)
+    var ground_plane := Plane(Vector3.UP, 0.0)
+    var intersection = ground_plane.intersects_ray(from, dir)
+    if intersection == null:
+        return null
+    var hit_pos := intersection as Vector3
+    for i in 4:
+        var terrain_y := get_height_at_world_smooth(hit_pos)
+        var adjusted := Plane(Vector3.UP, terrain_y)
+        var new_hit = adjusted.intersects_ray(from, dir)
+        if new_hit == null:
+            break
+        hit_pos = new_hit as Vector3
+    return hit_pos
+
+
 ## First point where a segment crosses the terrain surface, descending.
 ## Contract:
 ## - Returns the first t in [0,1] where the segment transitions from above the

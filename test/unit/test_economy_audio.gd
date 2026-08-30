@@ -113,7 +113,7 @@ func test_gain_animates_with_up_ticks():
         return
     _install_econ_fixtures()
     var sidebar := _make_sidebar()
-    sidebar.call("_force_display_credits", 500)
+    _label(sidebar).call("_force_display_credits", 500)
     _em.credits_changed.emit(_local_id(), 1000, "harvest", "tiberium")
 
     # No instant write: the label still shows the old value until a step runs.
@@ -122,7 +122,7 @@ func test_gain_animates_with_up_ticks():
     # Known example: gap 500, first step = floor(500 / 8) = 62.
     _arm_retrigger()
     var before := _count_audio_players()
-    sidebar.call("_step_counter", 0.0)
+    _label(sidebar).call("_step_counter", 0.0)
     TestHelper.assert_eq(
         _label(sidebar).text, "$562", "first gain step advances by floor(500/8)=62"
     )
@@ -143,7 +143,7 @@ func test_gain_animates_with_up_ticks():
     var calls := 0
     while _label(sidebar).text != "$1000" and calls < 100:
         _arm_retrigger()
-        sidebar.call("_step_counter", 0.0)
+        _label(sidebar).call("_step_counter", 0.0)
         calls += 1
     TestHelper.assert_eq(_label(sidebar).text, "$1000", "counter settles exactly at the target")
     TestHelper.assert_true(calls < 100, "gain burst animates sub-linearly, not one credit per step")
@@ -151,7 +151,7 @@ func test_gain_animates_with_up_ticks():
     # Settled: no further ticks.
     _arm_retrigger()
     before = _count_audio_players()
-    sidebar.call("_step_counter", 0.1)
+    _label(sidebar).call("_step_counter", 0.1)
     TestHelper.assert_eq(_count_audio_players(), before, "settled counter plays no tick")
     _restore_econ_fixtures()
     _drop_sidebar(sidebar)
@@ -163,21 +163,21 @@ func test_small_gain_uses_min_step():
         return
     _install_econ_fixtures()
     var sidebar := _make_sidebar()
-    sidebar.call("_force_display_credits", 1000)
+    _label(sidebar).call("_force_display_credits", 1000)
     _em.credits_changed.emit(_local_id(), 1003, "harvest", "tiberium")
 
     # 3 / 8 = 0, clamped to MIN_STEP 1: three single-credit steps, one tick each.
     for expected in [1001, 1002, 1003]:
         _arm_retrigger()
         var before := _count_audio_players()
-        sidebar.call("_step_counter", 0.0)
+        _label(sidebar).call("_step_counter", 0.0)
         TestHelper.assert_eq(_label(sidebar).text, "$%d" % expected, "small gain steps by MIN_STEP")
         TestHelper.assert_eq(_count_audio_players(), before + 1, "small gain step still ticks once")
 
     # Settled: no further ticks.
     _arm_retrigger()
     var before := _count_audio_players()
-    sidebar.call("_step_counter", 0.0)
+    _label(sidebar).call("_step_counter", 0.0)
     TestHelper.assert_eq(_label(sidebar).text, "$1003", "small gain settles exactly at target")
     TestHelper.assert_eq(_count_audio_players(), before, "settled counter stays silent")
     _restore_econ_fixtures()
@@ -190,20 +190,20 @@ func test_spend_counts_down_slower():
         return
     _install_econ_fixtures()
     var sidebar := _make_sidebar()
-    sidebar.call("_force_display_credits", 1000)
+    _label(sidebar).call("_force_display_credits", 1000)
     _em.credits_changed.emit(_local_id(), 500, "build:gaweap", "tiberium")
 
     # Below the spend step interval: time accumulates but no step applies.
     _arm_retrigger()
     var before := _count_audio_players()
-    sidebar.call("_step_counter", 0.04)
+    _label(sidebar).call("_step_counter", 0.04)
     TestHelper.assert_eq(_label(sidebar).text, "$1000", "spend does not step below its interval")
     TestHelper.assert_eq(_count_audio_players(), before, "spend does not tick below its interval")
 
     # At the interval: exactly one step. Known example: gap -500, floor(500/8)=62.
     _arm_retrigger()
     before = _count_audio_players()
-    sidebar.call("_step_counter", 0.05)
+    _label(sidebar).call("_step_counter", 0.05)
     TestHelper.assert_eq(
         _label(sidebar).text, "$938", "first spend step advances by floor(500/8)=62"
     )
@@ -228,12 +228,12 @@ func test_other_player_events_stay_silent():
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
     var sidebar := _make_sidebar()
-    sidebar.call("_force_display_credits", 1000)
+    _label(sidebar).call("_force_display_credits", 1000)
     var before := _count_audio_players()
     _em.credits_changed.emit(_local_id() + 99, 5000, "harvest", "tiberium")
     for i in range(10):
         _arm_retrigger()
-        sidebar.call("_step_counter", 1.0)
+        _label(sidebar).call("_step_counter", 1.0)
     TestHelper.assert_eq(
         _label(sidebar).text, "$1000", "other players' credit changes never animate the counter"
     )
@@ -246,7 +246,7 @@ func test_animation_completes_with_missing_audio_file():
         TestHelper.fail("AudioManager or EconomyManager not injected")
         return
     var sidebar := _make_sidebar()
-    sidebar.call("_force_display_credits", 500)
+    _label(sidebar).call("_force_display_credits", 500)
     _em.credits_changed.emit(_local_id(), 1000, "harvest", "tiberium")
 
     var saved: AudioData = _am._audio_cache.get("ECON_INCOME", null)
@@ -255,7 +255,7 @@ func test_animation_completes_with_missing_audio_file():
     var calls := 0
     while _label(sidebar).text != "$1000" and calls < 100:
         _arm_retrigger()
-        sidebar.call("_step_counter", 0.05)
+        _label(sidebar).call("_step_counter", 0.05)
         calls += 1
     TestHelper.assert_eq(
         _label(sidebar).text, "$1000", "counter settles even when the tick id is missing"
@@ -359,7 +359,7 @@ func test_counter_tracks_balance_during_gradual_production():
     # Pin the balance regardless of what earlier suites left behind: known
     # start 5000, known drain 240 → known end 4760.
     _em.add(pid, 5000 - _em.get_balance(pid), "test")
-    sidebar.call("_force_display_credits", 5000)
+    _label(sidebar).call("_force_display_credits", 5000)
 
     var data := _make_infantry("test_audio_infantry", 600)
     TestHelper.assert_true(
@@ -372,7 +372,7 @@ func test_counter_tracks_balance_during_gradual_production():
     # counter gets its delta — mirroring the two _process callbacks in-game.
     for i in range(120):
         pm._process(1.0 / 60.0)
-        sidebar.call("_step_counter", 1.0 / 60.0)
+        _label(sidebar).call("_step_counter", 1.0 / 60.0)
 
     # Known example: 120 credits/s over 2 s = 240 credits drained.
     var balance: int = _em.get_balance(pid)
@@ -388,7 +388,7 @@ func test_counter_tracks_balance_during_gradual_production():
     # Liveness: once the drain stops, the counter settles at the real balance.
     var calls := 0
     while _label(sidebar).text != "$%d" % balance and calls < 200:
-        sidebar.call("_step_counter", 0.05)
+        _label(sidebar).call("_step_counter", 0.05)
         calls += 1
     TestHelper.assert_eq(
         _label(sidebar).text, "$%d" % balance, "counter settles at the drained balance"
@@ -410,12 +410,12 @@ func test_spend_does_not_burst_after_sustained_income():
     # counter in flight for 30 frames, keep income arriving during the
     # animation, then spend.
     var sidebar := _make_sidebar()
-    sidebar.call("_force_display_credits", 1000)
+    _label(sidebar).call("_force_display_credits", 1000)
     var pid := _local_id()
     _em.credits_changed.emit(pid, 6000, "harvest", "tiberium")
     for i in range(1, 31):
         _em.credits_changed.emit(pid, 6000 + 100 * i, "harvest", "tiberium")
-        sidebar.call("_step_counter", 1.0 / 60.0)
+        _label(sidebar).call("_step_counter", 1.0 / 60.0)
     # Known example: gain steps are clamped by MAX_STEP 143, so 30 frames of
     # counting up land exactly on 1000 + 30*143 = 5290.
     TestHelper.assert_eq(_label(sidebar).text, "$5290", "in-flight gain counts at the MAX_STEP cap")
@@ -425,7 +425,7 @@ func test_spend_does_not_burst_after_sustained_income():
     # the spend step interval, so the clamped accumulator applies no step —
     # the un-clamped version burst 10 steps and jumped straight to $5280.
     _em.credits_changed.emit(pid, 5280, "build:gaweap", "tiberium")
-    sidebar.call("_step_counter", 1.0 / 60.0)
+    _label(sidebar).call("_step_counter", 1.0 / 60.0)
     (
         TestHelper
         . assert_eq(
@@ -438,7 +438,7 @@ func test_spend_does_not_burst_after_sustained_income():
     # Normal cadence from there: one step per spend interval until settled.
     var calls := 0
     while _label(sidebar).text != "$5280" and calls < 100:
-        sidebar.call("_step_counter", 0.05)
+        _label(sidebar).call("_step_counter", 0.05)
         calls += 1
     TestHelper.assert_eq(_label(sidebar).text, "$5280", "counter settles at the spend target")
     _drop_sidebar(sidebar)

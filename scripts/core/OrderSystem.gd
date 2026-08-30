@@ -1,5 +1,10 @@
 extends Node
 
+## Emitted after set_generator() installs a generator and after cancel()
+## resets to the unit generator, so UI (e.g. Sidebar buttons) can sync its
+## visual state from the signal instead of being told imperatively.
+signal generator_changed
+
 var active_generator: OrderGenerator = UnitOrderGenerator.get_instance()
 
 
@@ -73,10 +78,28 @@ func _fog_filter_target(target: Node3D, target_cell: Vector2i, modifiers: Dictio
     return {"target": null, "target_cell": target_cell, "modifiers": filtered}
 
 
+## Sell/repair mode is derived from the active generator's type — no parallel
+## booleans anywhere. is_action_mode() is the generic "not unit orders" query
+## for gameplay guards (MouseHandler order routing, PauseMenu ESC handling),
+## which must read these instead of any UI script's mode state.
+func is_sell_mode() -> bool:
+    return active_generator is SellOrderGenerator
+
+
+func is_repair_mode() -> bool:
+    return active_generator is RepairOrderGenerator
+
+
+func is_action_mode() -> bool:
+    return not active_generator is UnitOrderGenerator
+
+
 func set_generator(gen: OrderGenerator) -> void:
     active_generator = gen
+    generator_changed.emit()
 
 
 func cancel() -> void:
     active_generator.cancel()
     active_generator = UnitOrderGenerator.get_instance()
+    generator_changed.emit()
