@@ -352,6 +352,77 @@ func test_place_anywhere_commit_charges() -> void:
     _drop_fake_menu(fake_menu)
 
 
+func test_cheat_commit_of_paid_building_does_not_double_charge() -> void:
+    # A production-paid ready building committed through the place-anywhere
+    # ghost must reuse the payment and consume the entry (#339 review follow-up).
+    var placer := _placer()
+    var bm: Node = _ts.get_node_or_null("/root/BuildingManager") if _ts else null
+    var em: Node = _ts.get_node_or_null("/root/EconomyManager") if _ts else null
+    var pmgr: Node = _ts.get_node_or_null("/root/PlayerManager") if _ts else null
+    var pm: Node = _ts.get_node_or_null("/root/ProductionManager") if _ts else null
+    if not placer or not bm or not em or not pmgr or not pm:
+        TestHelper.fail("required autoloads unreachable")
+        return
+    placer.exit_placing_mode()
+    var data := _make_building_data()
+    var fake_menu := FakeDebugMenu.new()
+    fake_menu.place_anywhere = true
+    fake_menu.no_cost = false
+    _ts.get_tree().root.add_child(fake_menu)
+    fake_menu.add_to_group("debug_menu")
+    var scene_root := _mount_camera_scene(Vector3(2.0, 20.0, 2.0), Vector3(2.0, 0.0, 2.0))
+    var pid: int = pmgr.get_local_player_id()
+    pm._add_ready_to_place(pid, data, data.cost)
+    em.add(pid, data.cost, "test")
+    var balance_before: int = em.get_balance(pid)
+    var gc: Vector2i = _ts.grid_cells
+    var origin := Vector2i(-1, -1)
+    for x in gc.x - 1:
+        for y in gc.y - 1:
+            if (
+                BoundsSystem.is_in_map_bounds(Vector2i(x, y))
+                and BoundsSystem.is_in_map_bounds(Vector2i(x + 1, y))
+                and BoundsSystem.is_in_map_bounds(Vector2i(x, y + 1))
+                and BoundsSystem.is_in_map_bounds(Vector2i(x + 1, y + 1))
+            ):
+                origin = Vector2i(x, y)
+                break
+        if origin.x >= 0:
+            break
+    TestHelper.assert_true(origin.x >= 0, "setup: fixture grid has a placeable 2x2 origin")
+    if origin.x < 0:
+        placer.exit_placing_mode()
+        pm.cancel_ready_building(pid, BUILDING_ID)
+        _unmount_camera_scene(scene_root)
+        _drop_building_data()
+        _drop_fake_menu(fake_menu)
+        return
+    placer.start_placing(data)
+    var registry_before: int = (bm.get_all_buildings() as Array).size()
+    var ground := CellUtil.cell_to_world(origin + Vector2i(1, 1), gc)
+    placer._commit_building(data, ground)
+    TestHelper.assert_eq(
+        (bm.get_all_buildings() as Array).size(),
+        registry_before + 1,
+        "paid building lands through the cheat session"
+    )
+    TestHelper.assert_eq(
+        em.get_balance(pid),
+        balance_before,
+        "production-paid building is not charged a second time"
+    )
+    TestHelper.assert_true(
+        not pm.is_ready_to_place(pid, BUILDING_ID), "ready entry consumed once the building lands"
+    )
+    TestHelper.assert_true(not placer.is_placing(), "commit disarms the session")
+    placer.exit_placing_mode()
+    if (bm.get_all_buildings() as Array).size() == registry_before + 1:
+        (bm as Node)._buildings.pop_back()
+    _unmount_camera_scene(scene_root)
+    _drop_building_data()
+    _drop_fake_menu(fake_menu)
+
+
 func test_building_commit_refusal_keeps_session_armed() -> void:
     var placer := _placer()
     var bm: Node = _ts.get_node_or_null("/root/BuildingManager") if _ts else null

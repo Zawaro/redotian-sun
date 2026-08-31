@@ -407,10 +407,11 @@ func place_ready_building(player_id: int, entity_id: String) -> bool:
                 return false
             # Entry survives until the building lands (#339): a cancelled
             # placement keeps the paid item ready instead of losing it, so
-            # re-clicking the cameo never charges a second time.
+            # re-clicking the cameo never charges a second time. The charge
+            # skip itself is decided inside place_building via the readiness
+            # check.
             if bm.is_build_mode and bm.current_building_type == data:
                 return true
-            bm.set_skip_next_deduction()
             bm.enter_build_mode(data)
             return true
     return false
