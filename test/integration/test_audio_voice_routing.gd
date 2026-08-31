@@ -6,8 +6,46 @@ extends Node
 
 var _am: Node = null
 var _sm: Node = null
+var _ts: Node = null
+var _bounds_saved: bool = false
+var _saved_grid_cells: Vector2i
+var _saved_insets: Vector4i
 
 const TEST_TONE_PATH: String = "res://test/fixtures/audio/test_tone.wav"
+
+
+## The select-voice tests spawn a unit at the world origin and select it; that
+## requires a real playable map — selection is gated to the visible diamond.
+## BoundsSystem statics are process-wide, so the first call snapshots them and
+## _restore_bounds puts them back after the tests that touched the grid.
+func _ensure_playable_grid() -> void:
+    if not _bounds_saved:
+        _bounds_saved = true
+        _saved_grid_cells = BoundsSystem.grid_cells
+        _saved_insets = Vector4i(
+            BoundsSystem.left_inset,
+            BoundsSystem.right_inset,
+            BoundsSystem.top_inset,
+            BoundsSystem.bottom_inset,
+        )
+    if _ts:
+        _ts.init_grid(50, 50)
+    BoundsSystem.grid_cells = Vector2i(50, 50)
+    BoundsSystem.left_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.x
+    BoundsSystem.right_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.y
+    BoundsSystem.top_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.z
+    BoundsSystem.bottom_inset = BoundsSystem.DEFAULT_VISIBLE_INSETS.w
+
+
+func _restore_bounds() -> void:
+    if not _bounds_saved:
+        return
+    _bounds_saved = false
+    BoundsSystem.grid_cells = _saved_grid_cells
+    BoundsSystem.left_inset = _saved_insets.x
+    BoundsSystem.right_inset = _saved_insets.y
+    BoundsSystem.top_inset = _saved_insets.z
+    BoundsSystem.bottom_inset = _saved_insets.w
 
 
 func _ready() -> void:
@@ -62,6 +100,7 @@ func _make_unit_with_voice(player_id: int = 0) -> Node3D:
 
 func test_select_voice_plays_for_local_unit():
     TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    _ensure_playable_grid()
     var rules := GlobalRules.get_current()
     var saved_shroud: bool = rules.shroud_enabled
     var saved_fog: bool = rules.fog_of_war
@@ -87,10 +126,12 @@ func test_select_voice_plays_for_local_unit():
     entity.queue_free()
     rules.shroud_enabled = saved_shroud
     rules.fog_of_war = saved_fog
+    _restore_bounds()
 
 
 func test_select_voice_silent_for_enemy_unit():
     TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    _ensure_playable_grid()
     var entity := _make_unit_with_voice(1)
     TestHelper.assert_true(entity != null, "enemy unit created")
     if not entity or not _am:
@@ -109,6 +150,7 @@ func test_select_voice_silent_for_enemy_unit():
         )
         _sm.remove_entity(sc)
     entity.queue_free()
+    _restore_bounds()
 
 
 func test_weapon_fire_parses_comma_report():
@@ -206,6 +248,7 @@ func test_group_select_plays_one_voice():
     a.queue_free()
     b.queue_free()
     c.queue_free()
+    _restore_bounds()
 
 
 func test_northwest_most_picks_screen_top_unit():
@@ -228,3 +271,4 @@ func test_northwest_most_picks_screen_top_unit():
     a.queue_free()
     b.queue_free()
     c.queue_free()
+    _restore_bounds()
