@@ -407,9 +407,7 @@ func test_cheat_commit_of_paid_building_does_not_double_charge() -> void:
         "paid building lands through the cheat session"
     )
     TestHelper.assert_eq(
-        em.get_balance(pid),
-        balance_before,
-        "production-paid building is not charged a second time"
+        em.get_balance(pid), balance_before, "production-paid building is not charged a second time"
     )
     TestHelper.assert_true(
         not pm.is_ready_to_place(pid, BUILDING_ID), "ready entry consumed once the building lands"
