@@ -374,6 +374,12 @@ func _select_entities_2d_projected(rect: Rect2):
         if is_enemy:
             continue
 
+        # Selectability gate BEFORE unproject (cheapest cell math first): same
+        # predicate as the click path — visible bounds + shroud, so a shrouded
+        # unit cannot slip in via box-select when the click path rejects it.
+        if not selection_manager._is_entity_selectable(select_component):
+            continue
+
         if rect.has_point(camera.unproject_position(select_component.global_position)):
             if not selection_manager.is_entity_selected(select_component):
                 selection_manager.add_entity(select_component)

@@ -424,11 +424,26 @@ func _is_local_entity(select_comp: SelectComponent) -> bool:
     return _is_local_entity_node(parent)
 
 
-## Fog gate: shrouded entities cannot be selected when fog of war is enabled.
+## Visible-bounds gate: entities whose cell lies outside the visible play
+## diamond cannot be picked up by click or box select — every move order
+## clamps inward, so the player could not reposition them anyway. Programmatic
+## selection (add_entity) is intentionally not gated.
+func is_entity_in_visible_bounds(entity: SelectComponent) -> bool:
+    var parent := entity.get_parent() as Node3D
+    if not is_instance_valid(parent):
+        return true
+    return BoundsSystem.is_in_play_area(CellUtil.world_to_cell(parent.global_position))
+
+
+## Selectability gate: an entity must both lie inside the visible play diamond
+## and be revealed through shroud/fog. Both gates apply; neither bypasses the
+## other.
 func _is_entity_selectable(entity: SelectComponent) -> bool:
     var parent := entity.get_parent() as Node3D
     if not is_instance_valid(parent):
         return true
+    if not BoundsSystem.is_in_play_area(CellUtil.world_to_cell(parent.global_position)):
+        return false
     return ShroudSystem.is_entity_revealed_to_local(parent)
 
 
