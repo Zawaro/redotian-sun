@@ -10,7 +10,6 @@ var is_build_mode: bool = false
 var current_building_type: EntityData = null
 var _buildings: Array[Dictionary] = []
 var exiting_build_mode: bool = false
-var _skip_next_deduction: bool = false
 var _skip_input_frames: int = 0
 
 var building_types: Array[EntityData] = []
@@ -31,10 +30,6 @@ func _on_building_placed(_building: Node3D, entity_data: EntityData) -> void:
     var ps := get_node_or_null("/root/PrerequisiteSystem")
     if ps:
         ps.register_building(PlayerManager.get_local_player_id(), entity_data)
-
-
-func set_skip_next_deduction() -> void:
-    _skip_next_deduction = true
 
 
 func _load_building_types() -> void:
@@ -84,7 +79,6 @@ func enter_build_mode(building_type: EntityData) -> void:
 func exit_build_mode() -> void:
     is_build_mode = false
     current_building_type = null
-    _skip_next_deduction = false
     _show_preview(false)
     # Free preview building so its collision shapes leave the physics space
     for child in _preview.get_children():
@@ -149,16 +143,18 @@ func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -
 
 
 func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
-    # Consume skip-deduction flag early so it never leaks on early returns
-    var skip := _skip_next_deduction
-    _skip_next_deduction = false
     var pid := PlayerManager.get_local_player_id()
+    var pm := get_node_or_null("/root/ProductionManager")
+    # A production-paid building committing through any placement path (build
+    # mode or the cheat ghost) must not charge twice; its ready entry is
+    # consumed only once the building actually lands (#339).
+    var was_ready: bool = pm != null and pm.is_ready_to_place(pid, building_type.id)
 
     if not can_place(building_type, origin_cell):
         return false
 
-    # Deduct cost unless already paid via production queue
-    if not skip:
+    # Deduct cost unless already paid via the production queue
+    if not was_ready:
         var em := get_node("/root/EconomyManager") as EconomyManager
         var reason := "build:%s" % building_type.id
         if em and not em.deduct(pid, building_type.cost, reason):
@@ -216,9 +212,10 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
     building_placed.emit(building, building_type)
 
     # Resume production queue for this player
-    var pm := get_node_or_null("/root/ProductionManager")
     if pm:
         pm.clear_waiting_for_placement(pid)
+    if was_ready:
+        pm.consume_ready_building(pid, building_type.id)
 
     return true
 
@@ -551,19 +548,10 @@ func _try_place_building() -> void:
         mouse_cell
         - Vector2i(current_building_type.foundation.x >> 1, current_building_type.foundation.y >> 1)
     )
-    var pid := PlayerManager.get_local_player_id()
-    var pm := get_node_or_null("/root/ProductionManager")
-    var was_ready: bool = pm != null and pm.is_ready_to_place(pid, current_building_type.id)
     if not place_building(current_building_type, origin_cell):
-        # A failed attempt consumed the skip flag; re-arm it so retrying a
-        # production-paid building never charges a second time (#339).
-        if was_ready:
-            set_skip_next_deduction()
         # TODO: play invalid placement SFX
         push_warning("[BuildingManager] Cannot place here")
         return
-    if was_ready and pm:
-        pm.consume_ready_building(pid, current_building_type.id)
     exiting_build_mode = true
     exit_build_mode()
 
