@@ -419,9 +419,7 @@ func reset_state() -> void:
         rules.fog_of_war = false
     _sync_fog_toggles()
     _refresh_fog_renderer()
-    if _sidebar:
-        _sidebar.exit_debug_place_mode()
-    EntityPlacer.cancel_preview()
+    EntityPlacer.exit_placing_mode()
     cb_pathfinding.button_pressed = true
     cb_spatial_hash.button_pressed = false
     cb_entity_bounds.button_pressed = false
@@ -436,11 +434,10 @@ func reset_state() -> void:
 
 func _on_place_anywhere_toggled(v: bool) -> void:
     place_anywhere = v
-    if _sidebar:
-        if v:
-            _sidebar.enter_debug_place_mode()
-        else:
-            _sidebar.exit_debug_place_mode()
+    if v:
+        EntityPlacer.enter_placing_mode()
+    else:
+        EntityPlacer.exit_placing_mode()
 
 
 func _on_node_added(node: Node) -> void:

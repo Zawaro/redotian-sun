@@ -35,6 +35,6 @@
 ## 5. Wrap-up
 
 - [x] 5.1 Structural audit: grep `Sidebar.gd` contains no `_debug`, no skip counters, no `is_action_just_pressed`, no `project_ray_origin`, no mode booleans; `wc -l` ~550
-- [ ] 5.2 Full suite + `gdlint` + `gdformat --check` + tab grep; commit each phase as its own conventional commit (`refactor(scope): ... (#338)`)
+- [x] 5.2 Full suite + `gdlint` + `gdformat --check` + tab grep; commit each phase as its own conventional commit (`refactor(scope): ... (#338)`)
 - [x] 5.3 File the follow-up issue: unify BuildingManager build-mode session behind a characterization harness (buildings-only production funnel)
 - [x] 5.4 Update AGENTS.md if the autoload/feature docs mention Sidebar placement responsibilities

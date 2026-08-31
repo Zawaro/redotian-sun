@@ -272,7 +272,9 @@ func _create_cameo(data: EntityData) -> Button:
     # Show progress gradient if item has partial progress
     var pm := get_node_or_null("/root/ProductionManager") as ProductionManager
     if not pm:
-        return
+        # Autoloads make this unreachable in-game; hand back the dressed button
+        # (progress/overlays missing) instead of a null the grid would crash on.
+        return btn
     var player_id := PlayerManager.get_local_player_id()
     var current_progress := pm.get_item_progress(player_id, data)
     if current_progress > 0.0 and progress_rect.material:
@@ -504,10 +506,6 @@ func _on_placing_mode_changed(_active: bool) -> void:
     _queue_refresh()
 
 
-func is_debug_place_mode() -> bool:
-    return EntityPlacer.is_placing()
-
-
 func _add_ready_overlay(btn: Button) -> void:
     var label := Label.new()
     label.text = "Ready"
@@ -528,17 +526,3 @@ func _add_ready_overlay(btn: Button) -> void:
     flicker.tween_property(btn, "modulate", Color(1.3, 1.3, 1.3, 1.0), 0.4)
     flicker.tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.4)
     _flicker_tweens[btn] = flicker
-
-
-# --- Debug "place anywhere" mode ---
-# The session lives on EntityPlacer (start/commit/cancel/reposition); the
-# Sidebar keeps one-line delegates for the DebugMenu entry points and reacts
-# to placing_mode_changed by refreshing the grid.
-
-
-func enter_debug_place_mode() -> void:
-    EntityPlacer.enter_placing_mode()
-
-
-func exit_debug_place_mode() -> void:
-    EntityPlacer.exit_placing_mode()
