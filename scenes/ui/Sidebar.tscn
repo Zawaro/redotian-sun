@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/Sidebar.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/ui/CreditCounter.gd" id="2_counter"]
+[ext_resource type="Script" path="res://scripts/ui/PowerBar.gd" id="3_powerbar"]
 
 [node name="Sidebar" type="Control"]
 layout_mode = 3
@@ -112,10 +113,22 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 0.0
+offset_left = 9.0
 offset_top = 88.0
 offset_right = 0.0
 offset_bottom = -40.0
+
+[node name="PowerBar" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_top = 88.0
+offset_right = -391.0
+offset_bottom = -40.0
+script = ExtResource("3_powerbar")
 
 [node name="MarginContainer" type="MarginContainer" parent="PanelContainer"]
 layout_mode = 2
