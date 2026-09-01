@@ -68,3 +68,60 @@ func test_narrow_width_stacks_one_word_per_line_from_the_end():
         )
     )
     sidebar.free()
+
+
+func _count_cameo_rects(btn: Button) -> int:
+    var count := 0
+    for child in btn.get_children():
+        if child is TextureRect:
+            count += 1
+    return count
+
+
+func test_cameo_texture_added_when_art_has_cameo_path():
+    var sidebar := _sidebar()
+    var btn := Button.new()
+    var art := ArtData.new()
+    art.cameo_path = "res://assets/cameos/nod_power_plant_icon01.png"
+
+    sidebar._add_cameo_texture(btn, art)
+
+    TestHelper.assert_eq(_count_cameo_rects(btn), 1, "cameo path adds exactly one TextureRect")
+    var rect := btn.get_child(0) as TextureRect
+    TestHelper.assert_true(rect.texture != null, "cameo texture is loaded, not null")
+    (
+        TestHelper
+        . assert_true(
+            rect.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+            "cameo texture ignores mouse so clicks reach the button",
+        )
+    )
+    btn.free()
+    sidebar.free()
+
+
+func test_cameo_texture_skipped_for_empty_path_and_null_art():
+    var sidebar := _sidebar()
+    var btn := Button.new()
+
+    sidebar._add_cameo_texture(btn, null)
+    TestHelper.assert_eq(_count_cameo_rects(btn), 0, "null art_data adds no texture")
+
+    var art := ArtData.new()
+    sidebar._add_cameo_texture(btn, art)
+    TestHelper.assert_eq(_count_cameo_rects(btn), 0, "empty cameo_path adds no texture")
+    btn.free()
+    sidebar.free()
+
+
+func test_nod_power_plant_art_wires_model_and_cameo_paths():
+    var art: ArtData = load("res://resources/art/structures/nod/nod_power_plant_art.tres")
+    TestHelper.assert_true(art != null, "nod power plant art resource loads")
+    TestHelper.assert_eq(
+        art.model_path, "res://assets/models/nod_power_plant01.gltf", "model path wired"
+    )
+    TestHelper.assert_eq(
+        art.cameo_path, "res://assets/cameos/nod_power_plant_icon01.png", "cameo path wired"
+    )
+    TestHelper.assert_true(ResourceLoader.exists(art.model_path), "model file exists")
+    TestHelper.assert_true(ResourceLoader.exists(art.cameo_path), "cameo file exists")
