@@ -425,10 +425,10 @@ func _apply_tiny5_style(label: Label) -> void:
 ## given width, earlier lines stay short ("NOD" / "POWER PLANT" instead of
 ## "NOD POWER" / "PLANT"). Autowrap stays on as a safety net for words that
 ## alone exceed the width. No-op for names that fit one line.
-func _pack_words_to_end(name: String, max_width: float) -> String:
-    var words := name.split(" ", false)
+func _pack_words_to_end(display_name: String, max_width: float) -> String:
+    var words := display_name.split(" ", false)
     if words.size() < 2:
-        return name
+        return display_name
     var lines: Array[String] = []
     var current := ""
     for i in range(words.size() - 1, -1, -1):

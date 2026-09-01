@@ -126,13 +126,14 @@ func _do_draw(node: Node2D):
 ## "POWER = {output}\nDRAIN = {drain}" centered in the bracket for selected
 ## producers. Lines are centered individually — clamping to the bracket width
 ## autowraps mid-value on small buildings. Font scales with camera zoom;
-## outline weight tracks the live font size (75%).
+## outline weight tracks the live font size (50%).
 func _draw_power_label(node: Node2D, e: Dictionary) -> void:
     var label: String = e.get("power_label", "")
     if label.is_empty():
         return
     var font: FontFile = TINY5_FONT
-    var zoom_scale := POWER_LABEL_MIN_SCALE
+    # No camera (headless/tests) falls back to default zoom, not min scale.
+    var zoom_scale := 1.0
     var cam := node.get_viewport().get_camera_3d()
     if cam:
         zoom_scale = maxf(REFERENCE_CAMERA_SIZE / cam.size, POWER_LABEL_MIN_SCALE)
