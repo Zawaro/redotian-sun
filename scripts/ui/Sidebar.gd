@@ -33,11 +33,11 @@ const CAMEO_W: int = 125
 const CAMEO_H: int = 90
 const GRID_COLS: int = 3
 const GRID_ROWS: int = 5
-## Tiny5 pixel font. Cameo text is 16px with an outline that always tracks
-## 75% of the font size (12px at 16) — outline scales when the size changes.
+## Tiny5 pixel font. Cameo text is 14px with an outline that always tracks
+## 50% of the font size (7px at 14) — outline scales when the size changes.
 const TINY5_FONT: FontFile = preload("res://assets/fonts/Tiny5/Tiny5-Regular.ttf")
-const TINY5_CAMEO_SIZE: int = 16
-const TINY5_OUTLINE_RATIO := 0.75
+const TINY5_CAMEO_SIZE: int = 14
+const TINY5_OUTLINE_RATIO := 0.5
 const CAMEO_COLORS: Dictionary = {
     "GDI": Color(0.3, 0.4, 0.6),
     "Nod": Color(0.6, 0.3, 0.3),
@@ -412,7 +412,7 @@ func _create_cameo(data: EntityData) -> Button:
 
 
 ## Shared Tiny5 styling for cameo text labels: white with an outline that
-## tracks 75% of the font size (12 at 16px).
+## tracks 50% of the font size (7 at 14px).
 func _apply_tiny5_style(label: Label) -> void:
     label.add_theme_font_override("font", TINY5_FONT)
     label.add_theme_font_size_override("font_size", TINY5_CAMEO_SIZE)

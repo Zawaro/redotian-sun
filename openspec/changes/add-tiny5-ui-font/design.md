@@ -13,7 +13,7 @@ Font asset `assets/fonts/Tiny5/Tiny5-Regular.ttf` + `OFL.txt` are already added 
 
 **Goals:**
 - Pixel-crisp Tiny5 on cameo labels and the overlay power readout
-- Consistent text style: white, outline tracking 75% of font size, left-aligned on cameos, uppercase
+- Consistent text style: white, outline tracking 50% of font size, left-aligned on cameos, uppercase
 - Keep the zero-allocation overlay draw pattern intact
 
 **Non-Goals:**
@@ -37,18 +37,18 @@ Cameo labels: set the text via `data.display_name.to_upper()` — avoids the Lab
 The overlay's only Tiny5 text is the selected-producer power readout. Entity name labels were removed from scope after review — that display already exists behind the debug menu's entity-id toggle (`DebugVisualizer._draw_entity_ids`). The power readout gets no per-entity state beyond the existing dict (`_power_label_for`).
 
 ### D5: Outline ratio, not fixed pixels
-Outline weight = `75%` of the live font size (`TINY5_OUTLINE_RATIO := 0.75`), matching the user-tuned 12px outline on 16px text. Both surfaces derive outline from size, so resizing never desyncs. Cameo labels keep the user's 80%-alpha black outline color.
+Outline weight = `50%` of the live font size (`TINY5_OUTLINE_RATIO := 0.5`), matching the tuned outline on 14px text. Both surfaces derive outline from size, so resizing never desyncs. Cameo labels keep the user's 80%-alpha black outline color.
 
 ### D6: Font size 16 (user-tuned), smoke-test knob
-Cameo text is 16px. The name label anchors bottom-left with `VERTICAL_ALIGNMENT_BOTTOM`; `_pack_words_to_end()` pre-packs the uppercase name so the LAST line takes as many words as fit the cameo inner width (121px) — "NOD POWER PLANT" (136px) wraps to "NOD" / "POWER PLANT" (102px), keeping the top cameo art clear. Autowrap stays on purely as a safety net for single words wider than the cameo. Measured Tiny5 widths at 16px: "TIBERIUM SILO" 104px, "E.M.P. CANNON" 108px — single-line names stay whole.
+Cameo text is 14px. The name label anchors bottom-left with `VERTICAL_ALIGNMENT_BOTTOM`; `_pack_words_to_end()` pre-packs the uppercase name so the LAST line takes as many words as fit the cameo inner width (121px) — "NOD POWER PLANT" (136px at 16px; 119px at 14px) — at 14px it fits one line, longer names wrap to the fullest last line, keeping the top cameo art clear. Autowrap stays on purely as a safety net for single words wider than the cameo. Measured Tiny5 widths at 14px: "TIBERIUM SILO" 92px, "E.M.P. CANNON" 95px — single-line names stay whole.
 
 ### D7: Zoom-following power label via camera size
-The camera zooms by shrinking ortho `size` (Camera01: 10–50, default 20 — no `zoom` property), so the power label scale = `REFERENCE_CAMERA_SIZE (20) / camera.size`, floored at 0.5. That is the same 1/size relationship the projected health bar inherits for free. 16px at default zoom; 32px fully zoomed in; outline tracks at 75%.
+The camera zooms by shrinking ortho `size` (Camera01: 10–50, default 20 — no `zoom` property), so the power label scale = `REFERENCE_CAMERA_SIZE (20) / camera.size`, floored at 0.5. That is the same 1/size relationship the projected health bar inherits for free. 16px at default zoom; 32px fully zoomed in; outline tracks at 50%.
 
 ## Risks / Trade-offs
 
 - [16px Tiny5 may crowd the cameo or read small when zoomed out] → Smoke test decides; sizes are named constants and the outline self-adjusts
-- [Outline at 75% of size is very heavy on small text] → That weight is the user-tuned TS look; drop `TINY5_OUTLINE_RATIO` if it smears
+- [Outline at 50% of size is heavy on small text] → That weight is the tuned TS look; drop `TINY5_OUTLINE_RATIO` if it smears
 - [`.import` param names differ across Redot versions] → Verify keys against a freshly generated file before editing; keep the editor's auto-generated block otherwise
 - [Long uppercase names wrap to 3+ lines in small cameos] → Autowrap is word-smart and the label zone spans the full cameo; acceptable, ellipsis not implemented
 
