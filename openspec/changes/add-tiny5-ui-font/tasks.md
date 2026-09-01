@@ -28,9 +28,9 @@
 
 - [x] 5.1 Remove overlay entity name labels (`_draw_name_label`, `_display_name_for`, dict entry, consts) — debug menu toggle already covers entity names
 - [x] 5.2 Remove the 3 name-label tests from `test_selection_overlay.gd`
-- [x] 5.3 Make outline dynamic: `TINY5_OUTLINE_RATIO := 0.75` — cameo outline = `int(size * ratio)`; overlay outline = `int(live_font_size * ratio)`
+- [x] 5.3 Make outline dynamic: `TINY5_OUTLINE_RATIO := 0.5` — cameo outline = `int(size * ratio)`; overlay outline = `int(live_font_size * ratio)`
 - [x] 5.4 Cameo name label: bottom-left anchor (`VERTICAL_ALIGNMENT_BOTTOM`), font size 16
 - [x] 5.5 `_pack_words_to_end()`: pack words toward the last line ("NOD" / "POWER PLANT"); verified with measured Tiny5 widths (136px → wraps, 102px fits)
-- [x] 5.6 Power readout: base 16px, zoom-following via `REFERENCE_CAMERA_SIZE / camera.size` (min scale 0.5), outline tracks 75%
+- [x] 5.6 Power readout: base 16px, zoom-following via `REFERENCE_CAMERA_SIZE / camera.size` (min scale 0.5), outline tracks 50%
 - [x] 5.7 Re-run suite + lint after revision
-- [ ] 5.8 Smoke test (user): cameo name bottom-left with end-packed wrap, 12px outline on 16px text, power label scales with zoom
+- [ ] 5.8 Smoke test (user): cameo name bottom-left with end-packed wrap, 7px outline on 14px text, power label scales with zoom

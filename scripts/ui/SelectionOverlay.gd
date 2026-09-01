@@ -18,8 +18,8 @@ const SEGMENT_PX_PER_UNIT := 20.0
 const TINY5_FONT: FontFile = preload("res://assets/fonts/Tiny5/Tiny5-Regular.ttf")
 const POWER_LABEL_COLOR := Color(0.3, 1.0, 0.35)
 const POWER_LABEL_FONT_SIZE := 16
-## Outline weight = 75% of the current font size (matches sidebar styling).
-const OUTLINE_RATIO := 0.75
+## Outline weight = 50% of the current font size (matches sidebar styling).
+const OUTLINE_RATIO := 0.5
 ## Camera size at which the power label renders at POWER_LABEL_FONT_SIZE.
 ## Ortho camera zooms by shrinking `size`, so font scale = reference / size —
 ## the same 1/size relationship the projected health bar gets for free.
