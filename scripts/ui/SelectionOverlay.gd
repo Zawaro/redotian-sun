@@ -1,7 +1,8 @@
 extends CanvasLayer
 
-## Draws selection brackets, health bars, and cargo/passenger pips
-## directly via CanvasItem primitives — zero per-selection node allocations.
+## Draws selection brackets, health bars, cargo/passenger pips, and the
+## selected-producer power label directly via CanvasItem primitives —
+## zero per-selection node allocations.
 
 const LINE_WIDTH := 1.0
 const MAX_CARGO_SLOTS := 10
@@ -11,6 +12,10 @@ const PIP_GAP_RATIO := 0.002
 ## fixed-width, so a ratio would shrink below the line width on small rects.
 const PIP_BRACKET_CLEARANCE_PX := 2.0
 const SEGMENT_PX_PER_UNIT := 20.0
+## Selected-producer power readout: green "POWER = {output}\nDRAIN = {drain}"
+## grid totals, centered in the bracket (power-grid change).
+const POWER_LABEL_COLOR := Color(0.3, 1.0, 0.35)
+const POWER_LABEL_FONT_SIZE := 14
 
 
 class DrawNode:
@@ -91,7 +96,6 @@ func _rebuild_tracked(selected: Array[SelectComponent]):
 
 
 func _process(_delta):
-    _entities.clear()
     _collect_entities()
     _draw_node.queue_redraw()
     _health_bar_node.queue_redraw()
@@ -99,13 +103,74 @@ func _process(_delta):
 
 func _do_draw(node: Node2D):
     for e in _entities:
+        # Structures draw their own 3D wireframe select box (SelectComponent),
+        # so the overlay only contributes the power label for them.
+        if e.is_structure:
+            _draw_power_label(node, e)
+            continue
         _draw_health_bar_outline(node, e.bracket_rect)
         _draw_brackets(node, e.bracket_rect, e.is_selected)
         _draw_pips(node, e.cargo_pips, e.cargo_color, e.pass_pips)
+        _draw_power_label(node, e)
+
+
+## "POWER = {output}\nDRAIN = {drain}" centered in the bracket for selected
+## producers. Lines are centered individually — clamping to the bracket width
+## autowraps mid-value on small buildings.
+func _draw_power_label(node: Node2D, e: Dictionary) -> void:
+    var label: String = e.get("power_label", "")
+    if label.is_empty():
+        return
+    var font := ThemeDB.fallback_font
+    var rect: Rect2 = e.bracket_rect
+    var lines := label.split("\n")
+    var line_h := POWER_LABEL_FONT_SIZE * 1.2
+    var center_x := rect.position.x + rect.size.x * 0.5
+    var y := rect.position.y + rect.size.y * 0.5 - line_h * (lines.size() - 1) * 0.5
+    for line in lines:
+        var text_width := (
+            font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, POWER_LABEL_FONT_SIZE).x
+        )
+        (
+            node
+            . draw_string(
+                font,
+                Vector2(center_x - text_width * 0.5, y),
+                line,
+                HORIZONTAL_ALIGNMENT_LEFT,
+                -1,
+                POWER_LABEL_FONT_SIZE,
+                POWER_LABEL_COLOR,
+            )
+        )
+        y += line_h
+
+
+## "POWER = {output}\nDRAIN = {drain}" only for a SELECTED building whose
+## PowerComponent reports positive power (a producer). Numbers are the
+## owner's live grid totals pulled from PowerGrid each frame.
+func _power_label_for(entity: Node3D, is_selected: bool) -> String:
+    if not is_selected:
+        return ""
+    var pc := entity.get_node_or_null("PowerComponent") as PowerComponent
+    if pc == null or pc.power <= 0:
+        return ""
+    var grid := get_node_or_null("/root/PowerGrid")
+    if grid == null:
+        return ""
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats == null:
+        return ""
+    return (
+        "POWER = %d\nDRAIN = %d"
+        % [grid.get_output(stats.player_id), grid.get_drain(stats.player_id)]
+    )
 
 
 func _do_draw_health_bars(node: Node2D):
     for e in _entities:
+        if e.is_structure:
+            continue
         var bar_height: float = e.rect.size.y * 0.053
         var bar_y: float = e.bracket_rect.position.y - bar_height - e.rect.size.y * 0.02
         var bar_width: float = e.rect.size.x
@@ -135,6 +200,9 @@ func _do_draw_health_bars(node: Node2D):
 
 
 func _collect_entities():
+    # Self-cleaning so direct callers (unit tests) see exactly one pass —
+    # _process relies on the same guarantee every frame.
+    _entities.clear()
     var camera := get_viewport().get_camera_3d()
     if not camera:
         return
@@ -143,8 +211,6 @@ func _collect_entities():
         if not is_instance_valid(ent):
             continue
         if not (ent.is_selected or ent.is_hovering):
-            continue
-        if ent.select_box_type == 2:
             continue
 
         var parent: Node3D = ent.get_parent() as Node3D
@@ -191,12 +257,14 @@ func _collect_entities():
                     "rect": rect,
                     "bracket_rect": bracket_rect,
                     "is_selected": ent.is_selected,
+                    "is_structure": ent.select_box_type == SelectComponent.SelectBoxType.Structure,
                     "health_ratio": health_ratio,
                     "health_color": health_color,
                     "cargo_pips": cargo_pips,
                     "cargo_color": cargo_color,
                     "pass_pips": pass_pips,
                     "world_size": size,
+                    "power_label": _power_label_for(parent, ent.is_selected),
                 }
             )
         )
