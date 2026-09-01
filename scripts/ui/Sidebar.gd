@@ -33,9 +33,11 @@ const CAMEO_W: int = 125
 const CAMEO_H: int = 90
 const GRID_COLS: int = 3
 const GRID_ROWS: int = 5
-## Tiny5 pixel font (5x5 grid) — 10px is a crisp 2x integer scale (smoke-test knob).
+## Tiny5 pixel font. Cameo text is 16px with an outline that always tracks
+## 75% of the font size (12px at 16) — outline scales when the size changes.
 const TINY5_FONT: FontFile = preload("res://assets/fonts/Tiny5/Tiny5-Regular.ttf")
-const TINY5_CAMEO_SIZE: int = 10
+const TINY5_CAMEO_SIZE: int = 16
+const TINY5_OUTLINE_RATIO := 0.75
 const CAMEO_COLORS: Dictionary = {
     "GDI": Color(0.3, 0.4, 0.6),
     "Nod": Color(0.6, 0.3, 0.3),
@@ -255,11 +257,12 @@ func _create_cameo(data: EntityData) -> Button:
     pressed_style.bg_color = color.darkened(0.2)
     btn.add_theme_stylebox_override("pressed", pressed_style)
 
-    # Name label — Tiny5, white with 1px black outline, left-aligned, uppercase.
+    # Name label — Tiny5, white outline, bottom-left, uppercase. Words pack
+    # toward the end ("NOD" / "POWER PLANT") so the top cameo art stays clear.
     var label := Label.new()
-    label.text = data.display_name.to_upper()
+    label.text = _pack_words_to_end(data.display_name.to_upper(), CAMEO_W - 4.0)
     label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
     label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     label.anchor_left = 0.0
     label.anchor_top = 0.0
@@ -408,13 +411,39 @@ func _create_cameo(data: EntityData) -> Button:
     return btn
 
 
-## Shared Tiny5 styling for cameo text labels: white with a 1px black outline.
+## Shared Tiny5 styling for cameo text labels: white with an outline that
+## tracks 75% of the font size (12 at 16px).
 func _apply_tiny5_style(label: Label) -> void:
     label.add_theme_font_override("font", TINY5_FONT)
     label.add_theme_font_size_override("font_size", TINY5_CAMEO_SIZE)
     label.add_theme_color_override("font_color", Color.WHITE)
-    label.add_theme_color_override("font_outline_color", Color.BLACK)
-    label.add_theme_constant_override("outline_size", 1)
+    label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+    label.add_theme_constant_override("outline_size", int(TINY5_CAMEO_SIZE * TINY5_OUTLINE_RATIO))
+
+
+## Pack words toward the end: the LAST line takes as many words as fit the
+## given width, earlier lines stay short ("NOD" / "POWER PLANT" instead of
+## "NOD POWER" / "PLANT"). Autowrap stays on as a safety net for words that
+## alone exceed the width. No-op for names that fit one line.
+func _pack_words_to_end(name: String, max_width: float) -> String:
+    var words := name.split(" ", false)
+    if words.size() < 2:
+        return name
+    var lines: Array[String] = []
+    var current := ""
+    for i in range(words.size() - 1, -1, -1):
+        var candidate := words[i] if current.is_empty() else words[i] + " " + current
+        var candidate_width := (
+            TINY5_FONT.get_string_size(candidate, HORIZONTAL_ALIGNMENT_LEFT, -1, TINY5_CAMEO_SIZE).x
+        )
+        if not current.is_empty() and candidate_width > max_width:
+            lines.append(current)
+            current = words[i]
+        else:
+            current = candidate
+    lines.append(current)
+    lines.reverse()
+    return "\n".join(lines)
 
 
 func _get_cameo_color(data: EntityData) -> Color:

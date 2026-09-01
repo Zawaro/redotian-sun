@@ -12,8 +12,8 @@ Font asset `assets/fonts/Tiny5/Tiny5-Regular.ttf` + `OFL.txt` are already added 
 ## Goals / Non-Goals
 
 **Goals:**
-- Pixel-crisp Tiny5 on cameo labels, new overlay name labels, and the power readout
-- Consistent text style: white, 1px black outline, left-aligned on cameos, uppercase
+- Pixel-crisp Tiny5 on cameo labels and the overlay power readout
+- Consistent text style: white, outline tracking 75% of font size, left-aligned on cameos, uppercase
 - Keep the zero-allocation overlay draw pattern intact
 
 **Non-Goals:**
@@ -33,22 +33,22 @@ Cameo labels: set the text via `data.display_name.to_upper()` — avoids the Lab
 ### D3: One `preload` per file, no shared font helper
 `const TINY5_FONT := preload("res://assets/fonts/Tiny5/Tiny5-Regular.ttf")` in both `Sidebar.gd` and `SelectionOverlay.gd`. Two call sites do not justify a `UIFonts` autoload/const registry; revisit only when a third surface adopts Tiny5.
 
-### D4: Overlay name label follows the power-label draw pattern
-`_collect_entities()` adds `"display_name"` to the entity dict (via `parent.get_node_or_null("StatsComponent")` — the same lookup pattern as `DebugVisualizer.gd:397-401` and the overlay's own `_power_label_for`). A new `_draw_name_label()` draws `draw_string_outline()` then `draw_string()` centered below `bracket_rect` (the strip under the bracket is free — health bars sit above it). Hovered entities already flow through `_collect_entities` (`is_selected or is_hovering`, line 213), so hover labels come free. Alternatives rejected: per-entity `Label` nodes (breaks zero-allocation pattern), drawing inside the bracket (collides with power label / health bar).
+### D4: Overlay power label is the only selection text
+The overlay's only Tiny5 text is the selected-producer power readout. Entity name labels were removed from scope after review — that display already exists behind the debug menu's entity-id toggle (`DebugVisualizer._draw_entity_ids`). The power readout gets no per-entity state beyond the existing dict (`_power_label_for`).
 
-### D5: Outline via two APIs, both "1px"
-- Labels: `add_theme_color_override("font_outline_color", Color.BLACK)` + `add_theme_constant_override("outline_size", 1)`
-- Overlay: `draw_string_outline(..., 1, BLACK)` under `draw_string(..., WHITE)`
-Spec pins 1px in both places so a later "fix" to one surface doesn't drift.
+### D5: Outline ratio, not fixed pixels
+Outline weight = `75%` of the live font size (`TINY5_OUTLINE_RATIO := 0.75`), matching the user-tuned 12px outline on 16px text. Both surfaces derive outline from size, so resizing never desyncs. Cameo labels keep the user's 80%-alpha black outline color.
 
-### D6: Font size 10 (smoke-test knob)
-Tiny5's design grid is 5px; 10px is a clean 2x integer scale and stays crisp with AA off. Cameo name and cost both 10px. Power readout keeps its 14px size (softness acceptable; visible text is small). Named constants (`TINY5_CAMEO_SIZE := 10`) so the smoke test can retune in one place per file.
+### D6: Font size 16 (user-tuned), smoke-test knob
+Cameo text is 16px. The name label anchors bottom-left with `VERTICAL_ALIGNMENT_BOTTOM`; `_pack_words_to_end()` pre-packs the uppercase name so the LAST line takes as many words as fit the cameo inner width (121px) — "NOD POWER PLANT" (136px) wraps to "NOD" / "POWER PLANT" (102px), keeping the top cameo art clear. Autowrap stays on purely as a safety net for single words wider than the cameo. Measured Tiny5 widths at 16px: "TIBERIUM SILO" 104px, "E.M.P. CANNON" 108px — single-line names stay whole.
+
+### D7: Zoom-following power label via camera size
+The camera zooms by shrinking ortho `size` (Camera01: 10–50, default 20 — no `zoom` property), so the power label scale = `REFERENCE_CAMERA_SIZE (20) / camera.size`, floored at 0.5. That is the same 1/size relationship the projected health bar inherits for free. 16px at default zoom; 32px fully zoomed in; outline tracks at 75%.
 
 ## Risks / Trade-offs
 
-- [10px Tiny5 may read small on high-DPI displays] → Smoke test decides; bump the named constant (10→15 stays on-grid)
-- [Power label at 14px is off-grid, renders slightly soft] → Accepted for now; 15px is the on-grid fallback if the smoke test objects
-- [Outline rendering with AA off can look chunky at small sizes] → That chunk is the TS look; if it smears, drop `outline_size` to 0 on labels only
+- [16px Tiny5 may crowd the cameo or read small when zoomed out] → Smoke test decides; sizes are named constants and the outline self-adjusts
+- [Outline at 75% of size is very heavy on small text] → That weight is the user-tuned TS look; drop `TINY5_OUTLINE_RATIO` if it smears
 - [`.import` param names differ across Redot versions] → Verify keys against a freshly generated file before editing; keep the editor's auto-generated block otherwise
 - [Long uppercase names wrap to 3+ lines in small cameos] → Autowrap is word-smart and the label zone spans the full cameo; acceptable, ellipsis not implemented
 

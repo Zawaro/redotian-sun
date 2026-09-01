@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/Tiny5-Regular.ttf-88cd6e81cb781e3e8e70d89f4af
 [params]
 
 Rendering=null
-antialiasing=0
+antialiasing=1
 generate_mipmaps=false
 disable_embedded_bitmaps=true
 multichannel_signed_distance_field=false
@@ -30,7 +30,12 @@ Fallbacks=null
 fallbacks=[]
 Compress=null
 compress=true
-preload=[]
+preload=[{
+"chars": [],
+"glyphs": [],
+"name": "New Configuration",
+"size": Vector2i(16, 0)
+}]
 language_support={}
 script_support={}
 opentype_features={}

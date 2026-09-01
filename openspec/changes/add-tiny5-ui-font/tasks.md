@@ -7,22 +7,30 @@
 
 ## 2. Sidebar cameo labels
 
-- [x] 2.1 Add `TINY5_FONT` preload const and `TINY5_CAMEO_SIZE := 10` to `scripts/ui/Sidebar.gd`
-- [x] 2.2 Restyle name label in `_create_cameo()` (line ~255): Tiny5 font override, size 10, white, `outline_size 1` + black `font_outline_color`, `HORIZONTAL_ALIGNMENT_LEFT`, anchors widened to full cameo, text via `data.display_name.to_upper()`, autowrap kept
-- [x] 2.3 Restyle cost label (line ~276): same font/outline/alignment/uppercase treatment, size 10, stays in top zone
+- [x] 2.1 Add `TINY5_FONT` preload const and `TINY5_CAMEO_SIZE` to `scripts/ui/Sidebar.gd`
+- [x] 2.2 Restyle name label in `_create_cameo()`: Tiny5 font override, white, dynamic outline, `HORIZONTAL_ALIGNMENT_LEFT`, uppercase via `to_upper()`, autowrap kept
+- [x] 2.3 Restyle cost label: same font/outline/alignment/uppercase treatment, stays in top zone
 - [ ] 2.4 Smoke test in editor: cameo text crisp at 100% zoom, left-aligned, wraps long names, cost visible
 
-## 3. Selection overlay labels
+## 3. Selection overlay power readout
 
-- [x] 3.1 Add `TINY5_FONT` preload const and name-label size constant to `scripts/ui/SelectionOverlay.gd`
-- [x] 3.2 Add `"display_name"` to the `_entities` dict in `_collect_entities()` via `StatsComponent.get("display_name")`, empty-string safe
-- [x] 3.3 Implement `_draw_name_label()`: `draw_string_outline()` + `draw_string()` in Tiny5, white on 1px black outline, uppercase, centered below `bracket_rect`; skip empty names
-- [x] 3.4 Restyle `_draw_power_label()`: swap `ThemeDB.fallback_font` for Tiny5, add 1px black outline pass, keep green + size 14
-- [ ] 3.5 Smoke test in editor: select unit/building → name below bracket; hover alone → name shows; producer → power label still correct
+- [x] 3.1 Add `TINY5_FONT` preload const to `scripts/ui/SelectionOverlay.gd`
+- [x] 3.2 Restyle `_draw_power_label()`: swap `ThemeDB.fallback_font` for Tiny5, outline pass, keep green
+- [ ] 3.3 Smoke test in editor: selected producer → power label correct
 
 ## 4. Tests and lint
 
-- [ ] 4.1 Extend `test/unit/test_selection_overlay.gd`: collected entity dict carries `display_name` from `StatsComponent` (positive, empty-name, and missing-StatsComponent cases)
-- [ ] 4.2 Run `redot --headless -s test/run_tests.gd` — full suite green
-- [ ] 4.3 Run `gdlint` + `gdformat --check` on touched scripts; check for tabs after formatting
-- [ ] 4.4 Commit font asset (`.ttf`, `OFL.txt`, `.import`) separately from script changes (design migration order)
+- [x] 4.1 Run `redot --headless -s test/run_tests.gd` — full suite green (5878 passed, 0 failed)
+- [x] 4.2 Run `gdlint` + `gdformat --check` on touched scripts; check for tabs after formatting
+- [x] 4.3 Commit font asset (`.ttf`, `OFL.txt`, `.import`) separately from script changes (design migration order)
+
+## 5. Revision (user feedback)
+
+- [x] 5.1 Remove overlay entity name labels (`_draw_name_label`, `_display_name_for`, dict entry, consts) — debug menu toggle already covers entity names
+- [x] 5.2 Remove the 3 name-label tests from `test_selection_overlay.gd`
+- [x] 5.3 Make outline dynamic: `TINY5_OUTLINE_RATIO := 0.75` — cameo outline = `int(size * ratio)`; overlay outline = `int(live_font_size * ratio)`
+- [x] 5.4 Cameo name label: bottom-left anchor (`VERTICAL_ALIGNMENT_BOTTOM`), font size 16
+- [x] 5.5 `_pack_words_to_end()`: pack words toward the last line ("NOD" / "POWER PLANT"); verified with measured Tiny5 widths (136px → wraps, 102px fits)
+- [x] 5.6 Power readout: base 16px, zoom-following via `REFERENCE_CAMERA_SIZE / camera.size` (min scale 0.5), outline tracks 75%
+- [x] 5.7 Re-run suite + lint after revision
+- [ ] 5.8 Smoke test (user): cameo name bottom-left with end-packed wrap, 12px outline on 16px text, power label scales with zoom
