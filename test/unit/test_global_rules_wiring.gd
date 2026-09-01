@@ -141,3 +141,21 @@ func test_build_time_mult_scales_derived_duration():
     data.build_time_mult = 2.0
     # 1000 * 0.8 * 60 / 1000 = 48.0 base, doubled by the per-entity multiplier.
     TestHelper.assert_eq(data.get_build_time(0.8), 96.0, "build_time_mult scales derived duration")
+
+
+# --- Low power build rate coefficients ---
+
+
+func test_low_power_rate_coefficient_defaults():
+    # TS rules.ini [General]: WorstLowPowerBuildRate=.3, BestLowPowerBuildRate=.75
+    var rules := GlobalRules.new()
+    TestHelper.assert_eq(rules.worst_low_power_build_rate_coefficient, 0.3, "worst default 0.3")
+    TestHelper.assert_eq(rules.best_low_power_build_rate_coefficient, 0.75, "best default 0.75")
+
+
+func test_low_power_rate_coefficients_overridable():
+    var rules := GlobalRules.new()
+    rules.worst_low_power_build_rate_coefficient = 0.5
+    rules.best_low_power_build_rate_coefficient = 0.9
+    TestHelper.assert_eq(rules.worst_low_power_build_rate_coefficient, 0.5, "worst overridden")
+    TestHelper.assert_eq(rules.best_low_power_build_rate_coefficient, 0.9, "best overridden")

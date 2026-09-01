@@ -22,4 +22,5 @@ buildable = false
 capturable = false
 crewed = false
 explodes = false
+powered = true
 toggle_power = false

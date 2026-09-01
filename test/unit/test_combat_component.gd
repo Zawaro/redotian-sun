@@ -440,6 +440,64 @@ func test_weapon_fired_signal_emits():
     target.free()
 
 
+# --- Powered-down structures do not fire ---
+
+
+func _make_powered_combat_entity(powered: bool) -> Node3D:
+    var entity := _make_combat_entity(true, 0)
+    var pc := PowerComponent.new()
+    pc.name = "PowerComponent"
+    pc.power = -100
+    pc.powered = powered
+    entity.add_child(pc)
+    return entity
+
+
+func test_offline_structure_holds_fire_and_retains_target():
+    var entity := _make_powered_combat_entity(true)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var pc := entity.get_node("PowerComponent") as PowerComponent
+    var target := _make_target_with_health(0, 100)
+    var fired := [false]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D) -> void: fired[0] = true)
+    cc.set_target(target)
+    pc.set_online(false)
+    cc._physics_process(0.016)
+    TestHelper.assert_true(not fired[0], "offline structure fires nothing")
+    TestHelper.assert_true(cc._target == target, "target retained while offline")
+    pc.set_online(true)
+    cc._physics_process(0.016)
+    TestHelper.assert_true(fired[0], "restored structure resumes engagement")
+    entity.free()
+    target.free()
+
+
+func test_online_powered_entity_fires_normally():
+    var entity := _make_powered_combat_entity(true)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(0, 100)
+    var fired := [false]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D) -> void: fired[0] = true)
+    cc.set_target(target)
+    cc._physics_process(0.016)
+    TestHelper.assert_true(fired[0], "online powered entity fires as before")
+    entity.free()
+    target.free()
+
+
+func test_entity_without_power_component_unaffected():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(0, 100)
+    var fired := [false]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D) -> void: fired[0] = true)
+    cc.set_target(target)
+    cc._physics_process(0.016)
+    TestHelper.assert_true(fired[0], "no PowerComponent -> firing unchanged")
+    entity.free()
+    target.free()
+
+
 # --- Armor resolution (warhead vs armor) tests ---
 
 var _real_rules: GlobalRules = null

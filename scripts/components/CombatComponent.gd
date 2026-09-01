@@ -52,6 +52,11 @@ var _chase_leg_enemy_cell: Vector2i = Vector2i.ZERO
 var _last_chase_replan_time: float = 0.0
 var _chase_retry_after: float = 0.0
 var _logged_unreachable: Node3D = null
+## Sibling PowerComponent, resolved once — components attach before tree entry.
+## Non-null only for entities that require power; the offline gate then holds
+## fire while retaining the current target for seamless power restoration.
+var _power_component: PowerComponent = null
+var _power_resolved: bool = false
 
 
 func configure(data: EntityData) -> void:
@@ -178,6 +183,15 @@ func _attack(target: Node3D) -> void:
 
 func _physics_process(delta: float) -> void:
     if Engine.is_editor_hint():
+        return
+    if not _power_resolved:
+        _power_resolved = true
+        var parent := get_parent()
+        if parent:
+            _power_component = parent.get_node_or_null("PowerComponent") as PowerComponent
+    if _power_component and not _power_component.is_online:
+        # Powered down: hold fire and freeze the engagement — no acquisition,
+        # no shots, no chase moves. The target is kept so restoration resumes.
         return
     if not _attack_active or not _target:
         return
