@@ -257,6 +257,8 @@ func _create_cameo(data: EntityData) -> Button:
     pressed_style.bg_color = color.darkened(0.2)
     btn.add_theme_stylebox_override("pressed", pressed_style)
 
+    _add_cameo_texture(btn, data.art_data)
+
     # Name label — Tiny5, white outline, bottom-left, uppercase. Words pack
     # toward the end ("NOD" / "POWER PLANT") so the top cameo art stays clear.
     var label := Label.new()
@@ -409,6 +411,27 @@ func _create_cameo(data: EntityData) -> Button:
         tooltip += "\nPower: %+d" % data.power
     btn.tooltip_text = tooltip
     return btn
+
+
+## First-child cameo image (called before the labels are added) so the name,
+## cost, and progress overlays render on top of it. Entities without a cameo
+## path keep the faction-color background.
+func _add_cameo_texture(btn: Button, art_data: ArtData) -> void:
+    if art_data == null or art_data.cameo_path.is_empty():
+        return
+    var texture: Texture2D = load(art_data.cameo_path)
+    if texture == null:
+        return
+    var rect := TextureRect.new()
+    rect.texture = texture
+    rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    rect.stretch_mode = TextureRect.STRETCH_SCALE
+    rect.anchor_right = 1.0
+    rect.anchor_bottom = 1.0
+    rect.grow_horizontal = Control.GROW_DIRECTION_BOTH
+    rect.grow_vertical = Control.GROW_DIRECTION_BOTH
+    rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    btn.add_child(rect)
 
 
 ## Shared Tiny5 styling for cameo text labels: white with an outline that
