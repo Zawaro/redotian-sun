@@ -400,7 +400,10 @@ func _create_cameo(data: EntityData) -> Button:
     var rules := GlobalRules.get_current()
     var build_time := data.get_build_time(rules.build_speed) if rules else data.get_build_time()
     var time_str := "%.0fs" % build_time
-    btn.tooltip_text = "%s\n$%d\nTime: %s" % [data.display_name, data.cost, time_str]
+    var tooltip := "%s\n$%d\nTime: %s" % [data.display_name, data.cost, time_str]
+    if data.power != 0:
+        tooltip += "\nPower: %+d" % data.power
+    btn.tooltip_text = tooltip
     return btn
 
 
