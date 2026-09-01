@@ -234,3 +234,84 @@ func test_collect_entities_tracks_hovered():
     _assert_collected(overlay, 0, "collect_entities drops a cleared hover")
     fixture["entity"].free()
     cam.free()
+
+
+## Structures were previously skipped by _collect_entities entirely, which
+## starved the selected-producer power label — the label's primary subject.
+## Regression coverage for the structure-collection fix (power-grid task 4.3).
+func _make_structure(power: int) -> Dictionary:
+    var entity := Node3D.new()
+    entity.position = Vector3(0, 0, -5)
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = 0
+    entity.add_child(stats)
+    var pc := PowerComponent.new()
+    pc.name = "PowerComponent"
+    pc.power = power
+    entity.add_child(pc)
+    var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    sc.name = "SelectComponent"
+    sc.select_box_type = SelectComponent.SelectBoxType.Structure
+    entity.add_child(sc)
+    _sm.add_child(entity)
+    return {"entity": entity, "select_comp": sc}
+
+
+func test_collect_entities_includes_selected_structure_with_power_label():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    _sm.deselect_all()
+    var fixture := _make_structure(100)
+    var cam := _ensure_camera()
+
+    _sm.add_entity(fixture["select_comp"] as SelectComponent)
+    overlay._entities.clear()
+    overlay._collect_entities()
+    TestHelper.assert_true(overlay._entities.size() == 1, "selected structure is collected")
+    if overlay._entities.size() == 1:
+        var e: Dictionary = overlay._entities[0]
+        TestHelper.assert_true(e["is_structure"], "collected entry is tagged as structure")
+        var label: String = e["power_label"]
+        TestHelper.assert_true(not label.is_empty(), "selected producer structure has a label")
+        TestHelper.assert_true(
+            label.begins_with("POWER = "), "label leads with POWER = line: %s" % label
+        )
+        TestHelper.assert_true(label.contains("\nDRAIN = "), "label carries DRAIN = line")
+
+    _sm.deselect_all()
+    fixture["entity"].free()
+    cam.free()
+
+
+func test_selected_structure_consumer_has_no_power_label():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    _sm.deselect_all()
+    var fixture := _make_structure(-50)
+    var cam := _ensure_camera()
+
+    _sm.add_entity(fixture["select_comp"] as SelectComponent)
+    overlay._entities.clear()
+    overlay._collect_entities()
+    TestHelper.assert_true(overlay._entities.size() == 1, "selected structure is collected")
+    if overlay._entities.size() == 1:
+        var e: Dictionary = overlay._entities[0]
+        TestHelper.assert_true(e["is_structure"], "collected entry is tagged as structure")
+        TestHelper.assert_true(
+            (e["power_label"] as String).is_empty(), "consumer structure shows no label"
+        )
+
+    _sm.deselect_all()
+    fixture["entity"].free()
+    cam.free()
