@@ -119,11 +119,13 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
     return true
 
 
-## Buildings with `adjacent > 0` must be placed within `adjacent` cells (Chebyshev
-## distance) of an existing friendly building. `adjacent <= 0` = no requirement.
+## Buildings with `adjacent > 0` must be placed within `adjacent` empty cells
+## (Chebyshev gap) of an existing friendly building footprint, i.e. the nearest
+## cells may be at most `adjacent + 1` cells apart. Touching always qualifies.
+## `adjacent <= 0` = no requirement.
 func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -> bool:
-    var required := building_type.adjacent
-    if required <= 0:
+    var max_gap := building_type.adjacent
+    if max_gap <= 0:
         return true
     var pid := PlayerManager.get_local_player_id()
     var footprint := FoundationComponent.footprint_cells(building_type.foundation, origin_cell)
@@ -137,7 +139,7 @@ func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -
         var cells: Array = entry.get("cells", []) as Array
         for bc in cells:
             for fc in footprint:
-                if maxi(abs(fc.x - bc.x), abs(fc.y - bc.y)) <= required:
+                if maxi(abs(fc.x - bc.x), abs(fc.y - bc.y)) <= max_gap + 1:
                     return true
     return false
 
