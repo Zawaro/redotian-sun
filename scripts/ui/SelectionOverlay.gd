@@ -16,6 +16,12 @@ const SEGMENT_PX_PER_UNIT := 20.0
 ## grid totals, centered in the bracket (power-grid change).
 const POWER_LABEL_COLOR := Color(0.3, 1.0, 0.35)
 const POWER_LABEL_FONT_SIZE := 14
+## Entity name labels: Tiny5, white with a 1px black outline, centered below
+## the bracket rect. 10px is a crisp 2x scale of Tiny5's 5px grid.
+const TINY5_FONT: FontFile = preload("res://assets/fonts/Tiny5/Tiny5-Regular.ttf")
+const NAME_LABEL_FONT_SIZE := 10
+const NAME_LABEL_GAP_PX := 2.0
+const OUTLINE_SIZE_PX := 1
 
 
 class DrawNode:
@@ -107,11 +113,13 @@ func _do_draw(node: Node2D):
         # so the overlay only contributes the power label for them.
         if e.is_structure:
             _draw_power_label(node, e)
+            _draw_name_label(node, e)
             continue
         _draw_health_bar_outline(node, e.bracket_rect)
         _draw_brackets(node, e.bracket_rect, e.is_selected)
         _draw_pips(node, e.cargo_pips, e.cargo_color, e.pass_pips)
         _draw_power_label(node, e)
+        _draw_name_label(node, e)
 
 
 ## "POWER = {output}\nDRAIN = {drain}" centered in the bracket for selected
@@ -121,7 +129,7 @@ func _draw_power_label(node: Node2D, e: Dictionary) -> void:
     var label: String = e.get("power_label", "")
     if label.is_empty():
         return
-    var font := ThemeDB.fallback_font
+    var font: FontFile = TINY5_FONT
     var rect: Rect2 = e.bracket_rect
     var lines := label.split("\n")
     var line_h := POWER_LABEL_FONT_SIZE * 1.2
@@ -130,6 +138,19 @@ func _draw_power_label(node: Node2D, e: Dictionary) -> void:
     for line in lines:
         var text_width := (
             font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, POWER_LABEL_FONT_SIZE).x
+        )
+        (
+            node
+            . draw_string_outline(
+                font,
+                Vector2(center_x - text_width * 0.5, y),
+                line,
+                HORIZONTAL_ALIGNMENT_LEFT,
+                -1,
+                POWER_LABEL_FONT_SIZE,
+                OUTLINE_SIZE_PX,
+                Color.BLACK,
+            )
         )
         (
             node
@@ -164,6 +185,46 @@ func _power_label_for(entity: Node3D, is_selected: bool) -> String:
     return (
         "POWER = %d\nDRAIN = %d"
         % [grid.get_output(stats.player_id), grid.get_drain(stats.player_id)]
+    )
+
+
+## Uppercase display name from the entity's StatsComponent; "" when absent
+## (same lookup pattern as DebugVisualizer._draw_entity_ids).
+func _display_name_for(entity: Node3D) -> String:
+    var stats := entity.get_node_or_null("StatsComponent")
+    if stats == null:
+        return ""
+    var display_name: String = stats.get("display_name")
+    return display_name.to_upper()
+
+
+## Entity name in Tiny5, white with a 1px black outline, centered below the
+## bracket rect (the health bar sits above it, so the strip below is free).
+## Skipped when the entity has no display name.
+func _draw_name_label(node: Node2D, e: Dictionary) -> void:
+    var label: String = e.get("display_name", "")
+    if label.is_empty():
+        return
+    var rect: Rect2 = e.bracket_rect
+    var text_width: float = (
+        TINY5_FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_LABEL_FONT_SIZE).x
+    )
+    var center_x := rect.position.x + rect.size.x * 0.5
+    var pos := Vector2(
+        center_x - text_width * 0.5, rect.end.y + NAME_LABEL_GAP_PX + NAME_LABEL_FONT_SIZE
+    )
+    node.draw_string_outline(
+        TINY5_FONT,
+        pos,
+        label,
+        HORIZONTAL_ALIGNMENT_LEFT,
+        -1,
+        NAME_LABEL_FONT_SIZE,
+        OUTLINE_SIZE_PX,
+        Color.BLACK
+    )
+    node.draw_string(
+        TINY5_FONT, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_LABEL_FONT_SIZE, Color.WHITE
     )
 
 
@@ -265,6 +326,7 @@ func _collect_entities():
                     "pass_pips": pass_pips,
                     "world_size": size,
                     "power_label": _power_label_for(parent, ent.is_selected),
+                    "display_name": _display_name_for(parent),
                 }
             )
         )

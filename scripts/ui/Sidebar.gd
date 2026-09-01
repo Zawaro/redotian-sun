@@ -33,6 +33,9 @@ const CAMEO_W: int = 125
 const CAMEO_H: int = 90
 const GRID_COLS: int = 3
 const GRID_ROWS: int = 5
+## Tiny5 pixel font (5x5 grid) — 10px is a crisp 2x integer scale (smoke-test knob).
+const TINY5_FONT: FontFile = preload("res://assets/fonts/Tiny5/Tiny5-Regular.ttf")
+const TINY5_CAMEO_SIZE: int = 10
 const CAMEO_COLORS: Dictionary = {
     "GDI": Color(0.3, 0.4, 0.6),
     "Nod": Color(0.6, 0.3, 0.3),
@@ -252,14 +255,14 @@ func _create_cameo(data: EntityData) -> Button:
     pressed_style.bg_color = color.darkened(0.2)
     btn.add_theme_stylebox_override("pressed", pressed_style)
 
-    # Name label
+    # Name label — Tiny5, white with 1px black outline, left-aligned, uppercase.
     var label := Label.new()
-    label.text = data.display_name
-    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.text = data.display_name.to_upper()
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
     label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     label.anchor_left = 0.0
-    label.anchor_top = 0.65
+    label.anchor_top = 0.0
     label.anchor_right = 1.0
     label.anchor_bottom = 1.0
     label.offset_left = 2.0
@@ -268,14 +271,13 @@ func _create_cameo(data: EntityData) -> Button:
     label.offset_bottom = -2.0
     label.grow_horizontal = Control.GROW_DIRECTION_BOTH
     label.grow_vertical = Control.GROW_DIRECTION_END
-    label.add_theme_font_size_override("font_size", 12)
-    label.add_theme_color_override("font_color", Color.WHITE)
+    _apply_tiny5_style(label)
     btn.add_child(label)
 
-    # Cost label
+    # Cost label — same Tiny5 style, stays in the top zone.
     var cost_label := Label.new()
     cost_label.text = "$%d" % data.cost
-    cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
     cost_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
     cost_label.anchor_left = 0.0
     cost_label.anchor_top = 0.0
@@ -287,8 +289,7 @@ func _create_cameo(data: EntityData) -> Button:
     cost_label.offset_bottom = -2.0
     cost_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
     cost_label.grow_vertical = Control.GROW_DIRECTION_END
-    cost_label.add_theme_font_size_override("font_size", 11)
-    cost_label.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6))
+    _apply_tiny5_style(cost_label)
     btn.add_child(cost_label)
 
     # Angular progress overlay
@@ -405,6 +406,15 @@ func _create_cameo(data: EntityData) -> Button:
         tooltip += "\nPower: %+d" % data.power
     btn.tooltip_text = tooltip
     return btn
+
+
+## Shared Tiny5 styling for cameo text labels: white with a 1px black outline.
+func _apply_tiny5_style(label: Label) -> void:
+    label.add_theme_font_override("font", TINY5_FONT)
+    label.add_theme_font_size_override("font_size", TINY5_CAMEO_SIZE)
+    label.add_theme_color_override("font_color", Color.WHITE)
+    label.add_theme_color_override("font_outline_color", Color.BLACK)
+    label.add_theme_constant_override("outline_size", 1)
 
 
 func _get_cameo_color(data: EntityData) -> Color:
