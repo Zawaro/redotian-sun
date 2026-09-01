@@ -39,6 +39,18 @@ func _ready() -> void:
     if bm:
         bm.build_mode_changed.connect(_on_build_mode_changed)
     get_tree().node_added.connect(_on_node_added)
+    var power_grid := get_node_or_null("/root/PowerGrid")
+    if power_grid:
+        power_grid.grid_state_changed.connect(_on_power_grid_changed)
+
+
+func _on_power_grid_changed(player_id: int) -> void:
+    # Low-power build rate is baked into cached speeds — drop the player's
+    # stale entries so the next lookup recomputes with the new rate.
+    var prefix := "%d:" % player_id
+    for queue_key in _speed_cache.keys():
+        if String(queue_key).begins_with(prefix):
+            _speed_cache.erase(queue_key)
 
 
 func _on_node_added(node: Node) -> void:
@@ -355,6 +367,11 @@ func _get_production_speed(queue_key: String) -> float:
     if rules:
         multiple_factory = rules.multiple_factory
     var speed: float = 1.0 + (result.count - 1) * multiple_factory
+    # Low power slows (never halts) construction: multiply by the grid's
+    # interpolated build rate. Missing PowerGrid (isolated tests) -> 1.0.
+    var power_grid := get_node_or_null("/root/PowerGrid")
+    if power_grid:
+        speed *= power_grid.get_build_rate(player_id)
     _speed_cache[queue_key] = speed
     return speed
 

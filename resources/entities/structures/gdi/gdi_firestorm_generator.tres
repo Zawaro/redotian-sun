@@ -26,4 +26,5 @@ capturable = false
 adjacent = 2
 crewed = false
 explodes = false
+powered = true
 toggle_power = false

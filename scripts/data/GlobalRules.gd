@@ -80,6 +80,10 @@ class_name GlobalRules extends Resource
 ## TS rules.ini [General] MultipleFactory=.4 — speed bonus per extra factory.
 @export var multiple_factory: float = 0.4
 @export var min_production_speed: float = 0.5
+## TS rules.ini [General] WorstLowPowerBuildRate=.3 — production rate at full blackout.
+@export var worst_low_power_build_rate_coefficient: float = 0.3
+## TS rules.ini [General] BestLowPowerBuildRate=.75 — production rate just below full power.
+@export var best_low_power_build_rate_coefficient: float = 0.75
 
 ## Movement coefficients
 @export_group("Movement Coefficients")

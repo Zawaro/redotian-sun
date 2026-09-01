@@ -16,6 +16,8 @@ var _is_remappable: bool = false
 var _registered: bool = false
 var _entity_root: Node3D = null
 var _model_root: Node3D = null
+## Whether active_anims should be playing (online + model loaded).
+var _active_anims_running: bool = false
 
 
 func _ready() -> void:
@@ -55,6 +57,11 @@ func configure(data: EntityData) -> void:
     var exit := get_parent().get_node_or_null("ExitComponent")
     if exit and exit.has_signal("unit_spawned"):
         exit.unit_spawned.connect(_on_exit_unit_spawned)
+    # Powered-down structures freeze their active animations (power-grid).
+    var power := get_parent().get_node_or_null("PowerComponent") as PowerComponent
+    if power:
+        power.power_state_changed.connect(_on_power_state_changed)
+        _active_anims_running = power.is_online
 
 
 func _try_load_model() -> void:
@@ -141,6 +148,7 @@ func _finalize_model(scene: PackedScene) -> void:
     model_loaded.emit.call_deferred()
     _request_registration(instance)
     _maybe_freeze_into_depot(instance)
+    _start_active_anims_if_online()
 
 
 ## The loaded GLB instance, used by fog-ghost freeze to reparent it into the
@@ -269,6 +277,36 @@ func _setup_animation_player() -> void:
 func play_animation(anim_name: String) -> void:
     if _animation_player and _animation_player.has_animation(anim_name):
         _animation_player.play(anim_name)
+
+
+## Start/pause every active_anim. The Animation resource's loop mode follows
+## ActiveAnimData.loop. Missing animations are skipped silently (play_animation
+## guards on has_animation). Pausing preserves the playhead; play() resumes it.
+func set_active_anims_running(running: bool) -> void:
+    _active_anims_running = running
+    if art_data == null or _animation_player == null:
+        return
+    if not running:
+        _animation_player.pause()
+        return
+    for anim in art_data.active_anims:
+        if anim == null or anim.anim_name.is_empty():
+            continue
+        if not _animation_player.has_animation(anim.anim_name):
+            continue
+        if anim.loop:
+            _animation_player.get_animation(anim.anim_name).loop_mode = Animation.LOOP_LINEAR
+        _animation_player.play(anim.anim_name)
+
+
+func _on_power_state_changed(is_online: bool) -> void:
+    set_active_anims_running(is_online)
+
+
+## Kick active animations once the model (and its animations) has landed.
+func _start_active_anims_if_online() -> void:
+    if _active_anims_running:
+        set_active_anims_running(true)
 
 
 func _on_exit_unit_spawned(_unit: Node3D) -> void:

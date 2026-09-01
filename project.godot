@@ -34,6 +34,7 @@ BuildingManager="*res://scripts/buildings/BuildingManager.gd"
 EconomyManager="*res://scripts/economy/EconomyManager.gd"
 ResourceGrowthSystem="*res://scripts/core/ResourceGrowthSystem.gd"
 SelectionOverlay="*res://scripts/ui/SelectionOverlay.gd"
+PowerGrid="*res://scripts/core/PowerGrid.gd" ; Consumers connect in _ready — must be ready before PrerequisiteSystem/ProductionManager
 PrerequisiteSystem="*res://scripts/production/PrerequisiteSystem.gd"
 ProductionManager="*res://scripts/production/ProductionManager.gd"
 BoundsSystem="*res://scripts/core/BoundsSystem.gd"

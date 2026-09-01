@@ -159,6 +159,131 @@ func test_production_speed_recomputed_after_factory_added():
     _free_test_factories()
 
 
+# --- low power build rate ---
+
+
+## Plant + heavy consumer so PID's grid sits in deficit with a known ratio.
+func _add_power_entities(output: int, drain: int) -> Array:
+    var grid := _em.get_node_or_null("/root/PowerGrid")
+    if grid == null:
+        return []
+    var entities: Array = []
+    if output > 0:
+        entities.append(_make_power_entity(output, PID, false))
+    if drain > 0:
+        entities.append(_make_power_entity(-drain, PID, false))
+    for entity in entities:
+        _em.get_tree().root.add_child(entity)
+    return entities
+
+
+func _make_power_entity(power: int, pid: int, powered: bool) -> Node3D:
+    var entity := Node3D.new()
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = pid
+    entity.add_child(stats)
+    var pc := PowerComponent.new()
+    pc.name = "PowerComponent"
+    pc.power = power
+    pc.powered = powered
+    entity.add_child(pc)
+    return entity
+
+
+func _expected_low_power_rate(output: int, drain: int) -> float:
+    return 0.3 + (0.75 - 0.3) * (float(output) / float(drain))
+
+
+func test_low_power_slows_production_speed():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    var grid := _em.get_node_or_null("/root/PowerGrid")
+    if grid == null:
+        TestHelper.fail("PowerGrid autoload missing")
+        return
+    pm._speed_cache.clear()
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    _make_factory_node()
+    var entities := _add_power_entities(100, 150)
+    if entities.is_empty():
+        TestHelper.fail("PowerGrid not testable — entities not added")
+        _free_test_factories()
+        return
+    var slowed: float = pm._get_production_speed(key)
+    var expected: float = _expected_speed(1) * _expected_low_power_rate(100, 150)
+    var rate_matches: bool = absf(slowed - expected) < 1e-6
+    var grid_rate: float = grid.get_build_rate(PID)
+    (
+        TestHelper
+        . assert_true(
+            rate_matches and absf(grid_rate - _expected_low_power_rate(100, 150)) < 1e-6,
+            (
+                "deficit slows production by the interpolated rate: expected ~%f, got %f"
+                % [expected, slowed]
+            ),
+        )
+    )
+    for entity in entities:
+        entity.free()
+    _free_test_factories()
+
+
+func test_power_recovery_restores_full_speed():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    pm._speed_cache.clear()
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    _make_factory_node()
+    var entities := _add_power_entities(0, 100)
+    var slowed: float = pm._get_production_speed(key)
+    for entity in entities:
+        entity.free()
+    var recovered: float = pm._get_production_speed(key)
+    (
+        TestHelper
+        . assert_true(
+            absf(slowed - _expected_speed(1) * 0.3) < 1e-6 and recovered == _expected_speed(1),
+            "blackout rate 0.3, recovery returns full speed: got %f then %f" % [slowed, recovered],
+        )
+    )
+    _free_test_factories()
+
+
+func test_grid_state_change_invalidates_speed_cache():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    pm._speed_cache.clear()
+    var key: String = pm.get_queue_key(PID, "InfantryType")
+    var entities := _add_power_entities(100, 150)
+    _make_factory_node()
+    pm._get_production_speed(key)
+    var cached: bool = pm._speed_cache.has(key)
+    # Destroying the producer emits grid_state_changed -> cache entry dropped.
+    entities[0].free()
+    var invalidated: bool = not pm._speed_cache.has(key)
+    var refreshed: float = pm._get_production_speed(key)
+    var expected: float = _expected_speed(1) * 0.3
+    (
+        TestHelper
+        . assert_true(
+            cached and invalidated and absf(refreshed - expected) < 1e-6,
+            (
+                "grid change drops the cached speed and the next lookup uses the new rate: "
+                + "got refreshed %f, expected ~%f" % [refreshed, expected]
+            ),
+        )
+    )
+    entities[1].free()
+    _free_test_factories()
+
+
 func test_production_speed_recomputed_after_factory_destroyed():
     var pm := _get_pm()
     if pm == null or _em == null:
