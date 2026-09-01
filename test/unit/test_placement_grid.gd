@@ -5,13 +5,16 @@ extends Node
 var _bm: Node = null
 
 
-func _make_friendly_entry(cells: Array) -> Dictionary:
+func _make_friendly_entry(cells: Array, foundation: Vector2i = Vector2i(1, 1)) -> Dictionary:
     var node := Node3D.new()
     var stats := StatsComponent.new()
     stats.name = "StatsComponent"
     stats.player_id = PlayerManager.get_local_player_id()
     node.add_child(stats)
-    return {"node": node, "type": EntityData.new(), "origin": cells[0], "cells": cells}
+    var data := EntityData.new()
+    data.foundation = foundation
+    # Stored cells mirror place_building: non-bib occupied cells only.
+    return {"node": node, "type": data, "origin": cells[0], "cells": cells}
 
 
 func _with_buildings(entries: Array, check: Callable) -> void:
@@ -41,7 +44,7 @@ func test_white_region_known_example_dilation() -> void:
     # x in [-1, 8], z in [0, 7], i.e. 80 cells.
     var ghost := _make_ghost(Vector2i(3, 2), 1)
     var entry := _make_friendly_entry(
-        [Vector2i(3, 3), Vector2i(4, 3), Vector2i(3, 4), Vector2i(4, 4)]
+        [Vector2i(3, 3), Vector2i(4, 3), Vector2i(3, 4), Vector2i(4, 4)], Vector2i(2, 2)
     )
     _with_buildings(
         [entry],
@@ -125,7 +128,7 @@ func test_validator_acceptance_implies_footprint_inside_white() -> void:
     # footprint cell must lie in the white region (#352 display/validator agree).
     var ghost := _make_ghost(Vector2i(2, 2), 1)
     var entry := _make_friendly_entry(
-        [Vector2i(3, 3), Vector2i(4, 3), Vector2i(3, 4), Vector2i(4, 4)]
+        [Vector2i(3, 3), Vector2i(4, 3), Vector2i(3, 4), Vector2i(4, 4)], Vector2i(2, 2)
     )
     _with_buildings(
         [entry],
@@ -162,7 +165,7 @@ func test_white_cells_filtered_to_map_bounds() -> void:
     # Playable diamond for a 64x64 grid is centered near (63, 63); a building
     # near its edge produces white cells that fall outside the diamond.
     var entry := _make_friendly_entry(
-        [Vector2i(63, 3), Vector2i(64, 3), Vector2i(63, 4), Vector2i(64, 4)]
+        [Vector2i(63, 3), Vector2i(64, 3), Vector2i(63, 4), Vector2i(64, 4)], Vector2i(2, 2)
     )
     _with_buildings(
         [entry],
@@ -177,6 +180,53 @@ func test_white_cells_filtered_to_map_bounds() -> void:
             TestHelper.assert_true(all_in_bounds, "every returned cell is in map bounds")
             TestHelper.assert_true(
                 bounded.has(Vector2i(63, 3)), "sanity: friendly building cell stays in white"
+            )
+    )
+
+
+func test_bib_cells_extend_friendly_foundation_dilation() -> void:
+    if _bm == null:
+        TestHelper.fail("BuildingManager not injected")
+        return
+    # Refinery-style: 3x3 foundation at (5,5)-(7,7) with the bottom row as bib
+    # cells. place_building stores only non-bib cells in the registry, but the
+    # bib strip is part of the foundation: it must dilate the white region and
+    # satisfy adjacency like any other foundation cell.
+    var ghost := _make_ghost(Vector2i(1, 1), 1)
+    var entry := _make_friendly_entry(
+        [
+            Vector2i(5, 5),
+            Vector2i(6, 5),
+            Vector2i(7, 5),
+            Vector2i(5, 6),
+            Vector2i(6, 6),
+            Vector2i(7, 6)
+        ],
+        Vector2i(3, 3)
+    )
+    _with_buildings(
+        [entry],
+        func() -> void:
+            var white: Dictionary = _bm._adjacent_reachable_cells(ghost)
+            (
+                TestHelper
+                . assert_true(
+                    white.has(Vector2i(6, 9)),
+                    "cell past the bib strip is white (reachable only via bib dilation)",
+                )
+            )
+            TestHelper.assert_true(
+                white.has(Vector2i(6, 7)), "bib cell itself is part of the white foundation"
+            )
+            (
+                TestHelper
+                . assert_true(
+                    _bm._is_adjacency_satisfied(ghost, Vector2i(6, 9)),
+                    "ghost touching only the bib strip satisfies adjacency",
+                )
+            )
+            TestHelper.assert_true(
+                not white.has(Vector2i(6, 10)), "one past the bib dilation radius is outside"
             )
     )
 

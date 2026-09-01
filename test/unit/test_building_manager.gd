@@ -22,20 +22,22 @@ func _make_2x2_building() -> EntityData:
     return building_type
 
 
-## Registers a temporary friendly building with one occupied cell at (3, 3) and
-## a StatsComponent for the local player, runs check, then restores the previous
-## registry and frees the node. Returns check's result.
-func _with_friendly_neighbor(building_type: EntityData, check: Callable) -> bool:
+## Registers a temporary friendly 1x1 building with its single foundation cell
+## at (3, 3) and a StatsComponent for the local player, runs check, then
+## restores the previous registry and frees the node. Returns check's result.
+func _with_friendly_neighbor(_building_type: EntityData, check: Callable) -> bool:
     var pid: int = PlayerManager.get_local_player_id()
     var node := Node3D.new()
     var stats := StatsComponent.new()
     stats.name = "StatsComponent"
     stats.player_id = pid
     node.add_child(stats)
+    var neighbor_type := EntityData.new()
+    neighbor_type.foundation = Vector2i(1, 1)
     var saved: Array = _bm._buildings.duplicate()
     _bm._buildings.clear()
     _bm._buildings.append(
-        {"node": node, "type": building_type, "origin": Vector2i(3, 3), "cells": [Vector2i(3, 3)]}
+        {"node": node, "type": neighbor_type, "origin": Vector2i(3, 3), "cells": [Vector2i(3, 3)]}
     )
     var result: bool = check.call()
     _bm._buildings.assign(saved)
