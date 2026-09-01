@@ -5,4 +5,6 @@
 [resource]
 script = ExtResource("1_script")
 id = "NOD_POWER_PLANT"
+model_path = "res://assets/models/nod_power_plant01.gltf"
+cameo_path = "res://assets/cameos/nod_power_plant_icon01.png"
 placeholder_size = Vector3(4.0, 2.0, 4.0)
