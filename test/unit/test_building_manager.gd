@@ -271,3 +271,40 @@ func test_adjacent_2_rejects_three_cell_gap() -> void:
     TestHelper.assert_true(
         result == false, "adjacent=2 rejects 3-cell gap: expected false, got true"
     )
+
+
+func test_build_mode_renders_no_line_grid() -> void:
+    if _bm == null:
+        TestHelper.fail("BuildingManager not injected")
+        return
+    # Regression (#352): the line grid is gone; the highlight overlay is the
+    # only placement feedback node added to the preview.
+    TestHelper.assert_true(
+        not _bm.has_method("_add_grid_and_indicators"), "line-grid builder removed"
+    )
+    TerrainSystem.init_grid(64, 64)
+    var saved_type: EntityData = _bm.current_building_type
+    var saved_buildings: Array = _bm._buildings.duplicate()
+    _bm._buildings.clear()
+    # Headless runner never pumps frames, so queue_free'd previews from other
+    # suites may linger — purge before counting.
+    for child in _bm._preview.get_children():
+        _bm._preview.remove_child(child)
+        child.free()
+    _bm.current_building_type = _make_2x2_building()
+    _bm._update_preview_mesh(true, Vector2i(64, 64))
+    var children: Array = _bm._preview.get_children()
+    var overlay_count := 0
+    var stray_meshes := 0
+    for child in children:
+        if child is PlacementGridOverlay:
+            overlay_count += 1
+        elif child is MeshInstance3D:
+            stray_meshes += 1
+    TestHelper.assert_eq(overlay_count, 1, "exactly one PlacementGridOverlay in the preview")
+    TestHelper.assert_eq(stray_meshes, 0, "no per-cell or line-grid MeshInstance3D nodes")
+    _bm.current_building_type = saved_type
+    _bm._buildings.assign(saved_buildings)
+    for child in _bm._preview.get_children():
+        child.queue_free()
+    _bm._grid_overlay = null
