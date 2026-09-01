@@ -254,7 +254,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var capturable: bool = false
 
 @export_group("Building Properties")
-## Building adjacent cell requirement (number of cells the building must be placed next to).
+## Max empty-cell gap (Chebyshev) allowed between this building's footprint and
+## existing friendly footprints when placing. <= 0 = no requirement.
 @export var adjacent: int = 0
 ## Whether the building is crewed (affects survival on destruction).
 @export var crewed: bool = false
