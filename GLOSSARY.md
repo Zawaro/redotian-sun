@@ -82,6 +82,16 @@ are 45°-rotated rectangles, i.e. diamonds.
 | storage capacity | Per-player per-category cap; refineries declare their own share via `EntityData.storage_capacity`. | [resource-storage](openspec/specs/resource-storage/spec.md) |
 | production queue | Per-player list managed by ProductionManager; cost deducted gradually, multiple-factory speed bonus. | [production-manager](openspec/specs/production-manager/spec.md) |
 
+## Power
+
+| Term | Meaning | Where |
+|------|---------|-------|
+| power grid | Per-player aggregate of building power: `output` (Σ positive `power`) − `drain` (Σ \|negative\|). PowerGrid autoload is the authority; registered from tree add/remove of `PowerComponent`s. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · scripts/core/PowerGrid.gd |
+| low power | Grid state where `sum < 0`; immediate on registry change. `drain = 0` grids are never low power. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
+| powered-down | Runtime offline state (`PowerComponent.is_online == false`) of a structure that *requires* power, under low power. Combat holds fire, radar reports offline, active anims pause. Producers never power down in this phase. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
+| build rate | Production speed multiplier from power: 1.0 healthy; in low power `lerp(worst, best, output/drain)` (defaults 0.3 → 0.75). Slows production, never halts it. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · [add-power-grid design](openspec/changes/add-power-grid/design.md) |
+| power bar | TS-style twin bar on the sidebar's left edge: black column backing a green output fill with a red drain fill in front (red rises above green on deficit). Fills map through `(value/2000)^0.4` and ease toward live PowerGrid targets. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · scripts/ui/PowerBar.gd |
+
 ## Units & Combat
 
 | Term | Meaning | Where |
@@ -146,6 +156,7 @@ Full dictionaries: scripts/data/*.gd. Only ambiguous pairs listed here.
 | `passengers` vs `storage` | Infantry seat count on transports vs raw-bale carry capacity on harvesters. | scripts/data/EntityData.gd |
 | `strength` | Max hit points (legacy rules.ini name — do not rename casually). | scripts/data/EntityData.gd |
 | `tech_level` | Build availability gate; -1 = always available. | scripts/data/EntityData.gd |
+| `powered` vs `is_online` | Data-level "requires power to function" flag (`EntityData.powered`, copied to PowerComponent) vs runtime state (`PowerComponent.is_online`, driven by the grid). Deliberately different names — never write `is_powered()` for the runtime state. | scripts/data/EntityData.gd · [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
 
 ## Undecided
 
