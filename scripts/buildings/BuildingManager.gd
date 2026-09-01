@@ -17,6 +17,7 @@ var building_types: Array[EntityData] = []
 var _preview: Node3D = null
 var _building_preview: Node3D = null
 var _buildings_parent: Node3D = null
+var _grid_overlay: PlacementGridOverlay = null
 
 
 func _ready() -> void:
@@ -71,6 +72,7 @@ func enter_build_mode(building_type: EntityData) -> void:
     current_building_type = building_type
     is_build_mode = true
     _skip_input_frames = 1
+    _ensure_grid_overlay()
     _create_building_preview()
     _show_preview(true)
     build_mode_changed.emit(true, PlayerManager.get_local_player_id())
@@ -84,6 +86,7 @@ func exit_build_mode() -> void:
     for child in _preview.get_children():
         child.queue_free()
     _building_preview = null
+    _grid_overlay = null
     build_mode_changed.emit(false, PlayerManager.get_local_player_id())
 
 
@@ -120,15 +123,26 @@ func can_place(building_type: EntityData, origin_cell: Vector2i) -> bool:
 
 
 ## Buildings with `adjacent > 0` must be placed within `adjacent` empty cells
-## (Chebyshev gap) of an existing friendly building footprint, i.e. the nearest
-## cells may be at most `adjacent + 1` cells apart. Touching always qualifies.
-## `adjacent <= 0` = no requirement.
+## (Chebyshev gap) of an existing friendly building footprint, i.e. some
+## footprint cell within Chebyshev `adjacent + 1` of a friendly cell. Touching
+## always qualifies. `adjacent <= 0` = no requirement. Expressed as a set
+## dilation so the white overlay shares the same primitive (#352).
 func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -> bool:
     var max_gap := building_type.adjacent
     if max_gap <= 0:
         return true
+    var reach_radius := maxi(max_gap, 0) + 1
+    var reach := _dilate_cells(_friendly_building_cells(), reach_radius, reach_radius)
+    for fc in FoundationComponent.footprint_cells(building_type.foundation, origin_cell):
+        if reach.has(fc):
+            return true
+    return false
+
+
+## Footprint cells of every friendly (local-player) building in the registry.
+func _friendly_building_cells() -> Array[Vector2i]:
     var pid := PlayerManager.get_local_player_id()
-    var footprint := FoundationComponent.footprint_cells(building_type.foundation, origin_cell)
+    var cells: Array[Vector2i] = []
     for entry in _buildings:
         var node := entry.get("node") as Node3D
         if not is_instance_valid(node):
@@ -136,12 +150,43 @@ func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -
         var stats := node.get_node_or_null("StatsComponent") as StatsComponent
         if not stats or stats.player_id != pid:
             continue
-        var cells: Array = entry.get("cells", []) as Array
-        for bc in cells:
-            for fc in footprint:
-                if maxi(abs(fc.x - bc.x), abs(fc.y - bc.y)) <= max_gap + 1:
-                    return true
-    return false
+        for cell in entry.get("cells", []) as Array:
+            cells.append(cell)
+    return cells
+
+
+## Exact per-cell dilation of a cell set by per-axis radii (equal radii give
+## the Chebyshev disk). Per-cell rather than bounding-box so concave cell sets
+## (bibs) dilate exactly like the per-pair adjacency rule.
+func _dilate_cells(cells: Array[Vector2i], radius_x: int, radius_z: int) -> Dictionary:
+    var result := {}
+    for cell in cells:
+        for dx in range(-radius_x, radius_x + 1):
+            for dz in range(-radius_z, radius_z + 1):
+                result[Vector2i(cell.x + dx, cell.y + dz)] = true
+    return result
+
+
+## White-region rule (#352): friendly building footprints dilated by the
+## ghost's clamped `adjacent` value, then by the ghost's full foundation size
+## per XZ axis. The two box dilations compose additively per axis, so a single
+## pass with radii (adjacent + foundation.x, adjacent + foundation.y) is exact.
+func _adjacent_reachable_cells(building_type: EntityData) -> Dictionary:
+    var adjacent := maxi(building_type.adjacent, 0)
+    return _dilate_cells(
+        _friendly_building_cells(),
+        adjacent + building_type.foundation.x,
+        adjacent + building_type.foundation.y,
+    )
+
+
+## White region clamped to the map — out-of-bounds cells never render.
+func _white_cells_in_bounds(building_type: EntityData) -> Array[Vector2i]:
+    var cells: Array[Vector2i] = []
+    for cell in _adjacent_reachable_cells(building_type):
+        if _is_in_bounds(cell):
+            cells.append(cell)
+    return cells
 
 
 func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
@@ -276,6 +321,27 @@ func _create_preview() -> void:
     add_child(_preview)
 
 
+func _ensure_grid_overlay() -> void:
+    if _grid_overlay and is_instance_valid(_grid_overlay):
+        return
+    _grid_overlay = PlacementGridOverlay.new()
+    _grid_overlay.name = "PlacementGridOverlay"
+    _grid_overlay.cell_state_resolver = _resolve_highlight_cell_state
+    _preview.add_child(_grid_overlay)
+    if current_building_type:
+        _grid_overlay.set_white_cells(_white_cells_in_bounds(current_building_type))
+
+
+## HIDDEN = outside map (never drawn); FREE = in play area and unoccupied;
+## BLOCKED = everything else (#352).
+func _resolve_highlight_cell_state(cell: Vector2i) -> int:
+    if not _is_in_bounds(cell):
+        return PlacementGridOverlay.CellState.HIDDEN
+    if _is_in_play_area(cell) and _is_cell_free(cell):
+        return PlacementGridOverlay.CellState.FREE
+    return PlacementGridOverlay.CellState.BLOCKED
+
+
 func _show_preview(show: bool) -> void:
     if _preview:
         _preview.visible = show
@@ -311,21 +377,15 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
     if not _preview or not current_building_type:
         return
 
-    for child in _preview.get_children():
-        if child != _building_preview:
-            child.queue_free()
-
-    var green_mat := StandardMaterial3D.new()
-    green_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    green_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    green_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-    green_mat.albedo_color = Color(0, 1, 0, 0.75)
-
-    var red_mat := StandardMaterial3D.new()
-    red_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    red_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    red_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-    red_mat.albedo_color = Color(1, 0, 0, 0.75)
+    _ensure_grid_overlay()
+    (
+        _grid_overlay
+        . set_cursor(
+            origin_cell,
+            current_building_type.foundation,
+            current_building_type.adjacent > 0,
+        )
+    )
 
     var any_out_of_bounds := false
     for dx in current_building_type.foundation.x:
@@ -336,28 +396,6 @@ func _update_preview_mesh(_valid: bool, origin_cell: Vector2i) -> void:
                 break
         if any_out_of_bounds:
             break
-
-    for dx in current_building_type.foundation.x:
-        for dz in current_building_type.foundation.y:
-            var cell := origin_cell + Vector2i(dx, dz)
-            if not _is_in_bounds(cell):
-                continue
-
-            var mesh := _build_cell_mesh(cell)
-            if not mesh:
-                continue
-
-            var mesh_instance := MeshInstance3D.new()
-            mesh_instance.mesh = mesh
-            if not _is_in_play_area(cell):
-                mesh_instance.material_override = red_mat
-            else:
-                mesh_instance.material_override = green_mat if _is_cell_free(cell) else red_mat
-            var cell_world := CellUtil.cell_to_world(cell)
-            mesh_instance.position = Vector3(cell_world.x, 0, cell_world.z)
-            _preview.add_child(mesh_instance)
-
-    _add_grid_and_indicators(origin_cell, current_building_type.foundation, red_mat)
 
     if _building_preview:
         if any_out_of_bounds:
@@ -377,7 +415,7 @@ func _create_building_preview() -> void:
     _building_preview = EntityFactory.create_entity(current_building_type.id)
     if _building_preview:
         _building_preview.set_meta("_preview", true)
-        _set_node_transparency(_building_preview, 0.33)
+        _set_node_transparency(_building_preview, 0.75)
         _preview.add_child(_building_preview)
         # The model may load asynchronously; re-apply transparency once it arrives.
         var art := _building_preview.get_node_or_null("ArtComponent") as ArtComponent
@@ -387,140 +425,14 @@ func _create_building_preview() -> void:
 
 func _on_preview_model_loaded() -> void:
     if is_instance_valid(_building_preview):
-        _set_node_transparency(_building_preview, 0.33)
-
-
-func _build_cell_mesh(cell: Vector2i) -> ImmediateMesh:
-    var heights := TerrainSystem.get_cell_corner_heights(cell)
-    var cs := CellUtil.CELL_SIZE
-    var half := cs * 0.5
-
-    var mesh := ImmediateMesh.new()
-    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-    mesh.surface_add_vertex(Vector3(-half, heights[0], -half))
-    mesh.surface_add_vertex(Vector3(-half, heights[2], half))
-    mesh.surface_add_vertex(Vector3(half, heights[1], -half))
-    mesh.surface_add_vertex(Vector3(half, heights[1], -half))
-    mesh.surface_add_vertex(Vector3(-half, heights[2], half))
-    mesh.surface_add_vertex(Vector3(half, heights[3], half))
-    mesh.surface_end()
-    return mesh
-
-
-func _add_grid_and_indicators(
-    origin_cell: Vector2i,
-    footprint: Vector2i,
-    red_mat: StandardMaterial3D,
-) -> void:
-    var center := Vector2(
-        origin_cell.x + footprint.x * 0.5,
-        origin_cell.y + footprint.y * 0.5,
-    )
-    var radius := maxf(float(footprint.x), float(footprint.y)) * 0.5 + 3.0
-    var margin := 4
-    var grid_start := origin_cell - Vector2i(margin + 1, margin + 1)
-    var grid_end := origin_cell + footprint + Vector2i(margin + 1, margin + 1)
-    var thick := 0.05
-
-    var grid_mat := StandardMaterial3D.new()
-    grid_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    grid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    grid_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-    grid_mat.albedo_color = Color(1, 1, 1, 0.1)
-
-    var grid_mesh := ImmediateMesh.new()
-    grid_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-    var has_vertices := false
-
-    for z in range(grid_start.y, grid_end.y + 1):
-        for x in range(grid_start.x, grid_end.x + 1):
-            var cell := Vector2i(x, z)
-            if not _is_in_bounds(cell):
-                continue
-            var cell_center := Vector2(x + 0.5, z + 0.5)
-            if cell_center.distance_to(center) > radius:
-                continue
-
-            var in_footprint := (
-                x >= origin_cell.x
-                and x < origin_cell.x + footprint.x
-                and z >= origin_cell.y
-                and z < origin_cell.y + footprint.y
-            )
-
-            var show_red := false
-            if not in_footprint:
-                if not _is_cell_free(cell):
-                    show_red = true
-                elif not _is_in_play_area(cell):
-                    show_red = true
-
-            if show_red:
-                var indicator := _build_cell_mesh(cell)
-                if indicator:
-                    var inst := MeshInstance3D.new()
-                    inst.mesh = indicator
-                    inst.material_override = red_mat
-                    var cw := CellUtil.cell_to_world(cell)
-                    inst.position = Vector3(cw.x, 0, cw.z)
-                    _preview.add_child(inst)
-
-            var h: PackedFloat32Array = TerrainSystem.get_cell_corner_heights(cell)
-            var cs: float = CellUtil.CELL_SIZE
-            var cell_world: Vector3 = CellUtil.cell_to_world(cell)
-            var bx: float = cell_world.x - cs * 0.5
-            var bz: float = cell_world.z - cs * 0.5
-            var ht: float = thick * 0.5
-
-            var t0 := Vector3(bx, h[0], bz - ht)
-            var t1 := Vector3(bx + cs, h[1], bz - ht)
-            var t2 := Vector3(bx, h[0], bz + ht)
-            var t3 := Vector3(bx + cs, h[1], bz + ht)
-            _quad(grid_mesh, t0, t1, t2, t3)
-            has_vertices = true
-
-            var r0 := Vector3(bx + cs - ht, h[1], bz)
-            var r1 := Vector3(bx + cs + ht, h[1], bz)
-            var r2 := Vector3(bx + cs - ht, h[3], bz + cs)
-            var r3 := Vector3(bx + cs + ht, h[3], bz + cs)
-            _quad(grid_mesh, r0, r1, r2, r3)
-
-            var b0 := Vector3(bx, h[2], bz + cs - ht)
-            var b1 := Vector3(bx + cs, h[3], bz + cs - ht)
-            var b2 := Vector3(bx, h[2], bz + cs + ht)
-            var b3 := Vector3(bx + cs, h[3], bz + cs + ht)
-            _quad(grid_mesh, b0, b1, b2, b3)
-
-            var l0 := Vector3(bx - ht, h[0], bz)
-            var l1 := Vector3(bx + ht, h[0], bz)
-            var l2 := Vector3(bx - ht, h[2], bz + cs)
-            var l3 := Vector3(bx + ht, h[2], bz + cs)
-            _quad(grid_mesh, l0, l1, l2, l3)
-
-    if has_vertices:
-        grid_mesh.surface_end()
-
-        var grid_inst := MeshInstance3D.new()
-        grid_inst.mesh = grid_mesh
-        grid_inst.material_override = grid_mat
-        grid_inst.position.y = 0.001
-        _preview.add_child(grid_inst)
-
-
-func _quad(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
-    mesh.surface_add_vertex(a)
-    mesh.surface_add_vertex(c)
-    mesh.surface_add_vertex(b)
-    mesh.surface_add_vertex(b)
-    mesh.surface_add_vertex(c)
-    mesh.surface_add_vertex(d)
+        _set_node_transparency(_building_preview, 0.75)
 
 
 func _set_node_transparency(node: Node, alpha: float) -> void:
     var mat := StandardMaterial3D.new()
     mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    mat.albedo_color = Color(0.5, 0.5, 0.5, alpha)
+    mat.albedo_color = Color(0.75, 0.75, 0.75, alpha)
     _apply_transparency(node, mat)
 
 
