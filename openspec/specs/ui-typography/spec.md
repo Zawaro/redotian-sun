@@ -6,12 +6,12 @@ Font styling rules for in-game UI text: the Tiny5 pixel font asset and how text 
 
 ## Requirements
 
-### Requirement: Tiny5 font asset with pixel-crisp import
-The project SHALL provide the Tiny5 Regular font as a FontFile at `assets/fonts/Tiny5/Tiny5-Regular.ttf` with its SIL OFL license file, imported with antialiasing disabled, hinting disabled, and subpixel positioning disabled so the 5x5 pixel grid renders crisp.
+### Requirement: Tiny5 font asset import
+The project SHALL provide the Tiny5 Regular font as a FontFile at `assets/fonts/Tiny5/Tiny5-Regular.ttf` with its SIL OFL license file, imported with antialiasing enabled (grayscale), hinting disabled, and subpixel positioning disabled.
 
-#### Scenario: Font asset exists and imports without smoothing
+#### Scenario: Font asset imports with grayscale antialiasing
 - **WHEN** the project is opened and `assets/fonts/Tiny5/Tiny5-Regular.ttf` is imported
-- **THEN** the generated `.import` file has antialiasing off, hinting off, and subpixel positioning disabled
+- **THEN** the generated `.import` file has antialiasing on, hinting off, and subpixel positioning disabled
 - **AND** the OFL license file sits alongside the TTF
 
 ### Requirement: Sidebar cameo labels use Tiny5 style
