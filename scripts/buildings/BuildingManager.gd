@@ -139,7 +139,10 @@ func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -
     return false
 
 
-## Footprint cells of every friendly (local-player) building in the registry.
+## Foundation cells of every friendly (local-player) building in the registry.
+## Uses the full foundation rect (origin + EntityData.foundation), not the
+## stored non-bib cells: bib cells are part of the footprint and must dilate
+## adjacency/white exactly like regular foundation cells (#352 follow-up).
 func _friendly_building_cells() -> Array[Vector2i]:
     var pid := PlayerManager.get_local_player_id()
     var cells: Array[Vector2i] = []
@@ -150,8 +153,14 @@ func _friendly_building_cells() -> Array[Vector2i]:
         var stats := node.get_node_or_null("StatsComponent") as StatsComponent
         if not stats or stats.player_id != pid:
             continue
-        for cell in entry.get("cells", []) as Array:
-            cells.append(cell)
+        var data := entry.get("type") as EntityData
+        var origin: Vector2i = entry.get("origin", Vector2i.ZERO)
+        if data:
+            for cell in FoundationComponent.footprint_cells(data.foundation, origin):
+                cells.append(cell)
+        else:
+            for cell in entry.get("cells", []) as Array:
+                cells.append(cell)
     return cells
 
 
