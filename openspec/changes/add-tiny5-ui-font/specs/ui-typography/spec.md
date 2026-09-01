@@ -11,39 +11,42 @@ The project SHALL provide the Tiny5 Regular font as a FontFile at `assets/fonts/
 - **AND** the OFL license file sits alongside the TTF
 
 ### Requirement: Sidebar cameo labels use Tiny5 style
-Sidebar build-cameo text labels (entity name and cost) SHALL render in Tiny5 at 10px, white, with a 1px black outline, left-aligned, and rendered uppercase, with word-wrap enabled for long names. The cost label SHALL remain on the cameo (top zone); the tooltip continues to carry name, cost, time, and power.
+Sidebar build-cameo text labels (entity name and cost) SHALL render in Tiny5 at 16px, white, with an outline whose size dynamically tracks 75% of the current font size, left-aligned, and rendered uppercase, with word-wrap enabled for long names. The name label SHALL sit at the bottom of the cameo and pack words toward the end (e.g. "NOD" / "POWER PLANT", never "NOD POWER" / "PLANT") so the top cameo art stays visible. The cost label SHALL remain on the cameo (top zone); the tooltip continues to carry name, cost, time, and power.
 
 #### Scenario: Name label styling
 - **WHEN** a build cameo is created for an entity whose display name is "Tiberium Silo"
-- **THEN** the name label displays "TIBERIUM SILO" in Tiny5, white, with a 1px black outline, left-aligned
-- **AND** text longer than one line wraps within the cameo width
+- **THEN** the name label displays "TIBERIUM SILO" in Tiny5, white, with an outline of 75% of the font size, left-aligned at the bottom of the cameo
+- **AND** text longer than one line wraps with the fullest words on the last line
+
+#### Scenario: Word packing prefers the last line
+- **WHEN** a display name wraps at the cameo width (e.g. "NOD POWER PLANT")
+- **THEN** the label breaks as "NOD" / "POWER PLANT" — the last line carries as many words as fit
+
+#### Scenario: Outline scales with font size
+- **WHEN** the cameo font size constant changes (e.g. 16 → 20)
+- **THEN** the outline size follows at 75% of the new size without further edits
 
 #### Scenario: Cost label styling
 - **WHEN** a build cameo is created for an entity with a positive cost
-- **THEN** the cost label renders in Tiny5 with the same white color, 1px black outline, left alignment, and uppercase treatment as the name label
+- **THEN** the cost label renders in Tiny5 with the same white color, dynamic outline, left alignment, and uppercase treatment as the name label
 
 #### Scenario: Backward-compatible cameo structure
 - **WHEN** the sidebar grid rebuilds
 - **THEN** each cameo is still a Button with programmatic child labels (no `.tscn` changes required)
 
-### Requirement: Selection overlay draws entity name labels
-The selection overlay SHALL draw the display name of every tracked entity that is selected or hovered, centered below its bracket rectangle, in Tiny5, white, with a 1px black outline, uppercase. The name SHALL be sourced from the entity's `StatsComponent` display_name at collect time.
-
-#### Scenario: Selected unit shows name label
-- **WHEN** a unit with `StatsComponent.display_name` = "Light Infantry" is selected
-- **THEN** the overlay draws "LIGHT INFANTRY" centered below the unit's bracket rect
-
-#### Scenario: Hovered entity shows name label
-- **WHEN** the pointer hovers a selectable entity without an active selection
-- **THEN** the overlay draws the entity's uppercase name below its bracket
-
-#### Scenario: Entity without StatsComponent
-- **WHEN** a tracked entity has no `StatsComponent` or an empty display_name
-- **THEN** no name label is drawn for that entity and no error is raised
-
-### Requirement: Power readout uses Tiny5 with outline
-The selected-producer power readout ("POWER = / DRAIN =") SHALL render in Tiny5 with a 1px black outline, keeping its existing green color and 14px size.
+### Requirement: Power readout uses Tiny5 with zoom-following outline
+The selected-producer power readout ("POWER = / DRAIN =") SHALL render in Tiny5, keeping its existing green color, at a base size of 16px that scales dynamically with camera zoom (the same 1/camera-size relationship the projected health bar gets), with an outline whose size tracks 75% of the live font size.
 
 #### Scenario: Power label restyle
 - **WHEN** a selected producer reports a live power grid
-- **THEN** the power label draws in Tiny5, green, with a 1px black outline, centered in the bracket as before
+- **THEN** the power label draws in Tiny5, green, with an outline of 75% of its font size, centered in the bracket as before
+
+#### Scenario: Font follows camera zoom
+- **WHEN** the camera zooms in or out (orthographic size shrinks or grows from the default 20)
+- **THEN** the power label font size scales proportionally (16px at the default size), never below the minimum scale, with the outline tracking at 75%
+
+## REMOVED Requirements
+
+### Requirement: Selection overlay draws entity name labels
+**Reason**: Over-reach — name labels were only wanted for the power readout on producer structures. Entity name display already exists behind the debug menu's entity-id toggle (`DebugVisualizer._draw_entity_ids`).
+**Migration**: None — remove the overlay name-label draw; debug name display remains available via the debug menu toggle.
