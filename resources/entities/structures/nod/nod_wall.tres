@@ -22,6 +22,7 @@ buildable = true
 buildable_queue = "BuildingType"
 prerequisite = PackedStringArray("NOD_HAND_OF_NOD")
 capturable = false
+adjacent = 4
 crewed = false
 explodes = false
 toggle_power = false
