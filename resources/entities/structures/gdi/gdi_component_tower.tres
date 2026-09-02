@@ -22,6 +22,7 @@ buildable = true
 buildable_queue = "BuildingType"
 prerequisite = PackedStringArray("GDI_BARRACKS")
 capturable = true
+adjacent = 3
 crewed = false
 power = -10
 explodes = false
