@@ -17,8 +17,8 @@ During build mode, `BuildingManager._process` rebuilds the entire preview every 
 
 ## Decisions
 
-### D1: Flat cells at max corner height + 0.05 (not terrain-conforming)
-Current `_build_cell_mesh` conforms quads to per-corner heights. Highlight cells instead use a flat quad at `max(h[0..3]) + 0.05`, smoke-tested for visual fit.
+### D1: Flat cells at max corner height + offset (not terrain-conforming)
+Current `_build_cell_mesh` conforms quads to per-corner heights. Highlight cells instead use a flat quad at `max(h[0..3]) + PLANE_Y_OFFSET` — smoke-tested, tuned to 0.025.
 *Why:* never clips through terrain, and a flat shared mesh enables a single `MultiMesh` where the instance transform carries the Y position. Alternatives: conforming per-corner mesh (needs per-cell mesh generation, kills the MultiMesh win) or average-corner height (clips on slopes).
 
 ### D2: White region = two-step dilation
@@ -50,7 +50,7 @@ Blocked-cell detection reuses `_is_cell_free` / `_is_in_play_area` as today.
 
 ## Risks / Trade-offs
 
-- [Flat cells may look wrong on steep terrain] → smoke test per spec; fallback is raising the 0.05 offset or reverting to conforming quads (D1 notes the cost)
+- [Flat cells may look wrong on steep terrain] → smoke test per spec; fallback is raising the offset or reverting to conforming quads (D1 notes the cost)
 - [MultiMesh per-instance color needs vertex-color material support] → verified pattern in Godot/Redot `BaseMaterial3D` (`vertex_color_use_as_albedo`); unit-testable headless since mesh gen and color math are pure functions
 - [White region recomputed on building death mid-placement] → out of scope: placement session ends before buildings change in practice; `set_white_cells` API allows a refresh later if needed
 - [Existing tests assert preview child structure] → update `test_building_manager` / `test_asset_preview_scene` in the same change
@@ -61,5 +61,5 @@ Single-branch change on `feat/352-placement-grid-highlights`; no data or scene f
 
 ## Open Questions
 
-- Exact white/green/red alphas — smoke test in-engine (start near current values: white ~0.35, green/red 0.75)
-- Whether the 0.05 offset needs render_priority/depth bias tweaks — smoke test
+- ~~Exact white/green/red alphas — smoke test in-engine~~ resolved: white 0.35, green/red 0.7; offset tuned to 0.025
+- ~~Whether the offset needs render_priority/depth bias tweaks~~ resolved at 0.025; revisit only if z-fighting shows up
