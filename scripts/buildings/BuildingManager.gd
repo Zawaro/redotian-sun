@@ -72,7 +72,10 @@ func enter_build_mode(building_type: EntityData) -> void:
     current_building_type = building_type
     is_build_mode = true
     _skip_input_frames = 1
+    # Re-set white even when the overlay survives a type switch mid-session —
+    # _ensure_grid_overlay only populates it on creation.
     _ensure_grid_overlay()
+    _grid_overlay.set_white_cells(_white_cells_in_bounds(building_type))
     _create_building_preview()
     _show_preview(true)
     build_mode_changed.emit(true, PlayerManager.get_local_player_id())
@@ -131,7 +134,7 @@ func _is_adjacency_satisfied(building_type: EntityData, origin_cell: Vector2i) -
     var max_gap := building_type.adjacent
     if max_gap <= 0:
         return true
-    var reach_radius := maxi(max_gap, 0) + 1
+    var reach_radius := max_gap + 1
     var reach := _dilate_cells(_friendly_building_cells(), reach_radius, reach_radius)
     for fc in FoundationComponent.footprint_cells(building_type.foundation, origin_cell):
         if reach.has(fc):

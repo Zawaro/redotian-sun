@@ -149,7 +149,9 @@ func _build_cell_mesh() -> ArrayMesh:
 
 
 func _rebuild() -> void:
-    if _multimesh == null:
+    # No cursor yet -> nothing renders (avoids a full white-set flash between
+    # entering build mode and the first cursor update).
+    if _multimesh == null or not _has_cursor:
         return
     var cell_colors := compute_cell_colors()
     _multimesh.instance_count = cell_colors.size()
