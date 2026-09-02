@@ -290,7 +290,7 @@ func test_plane_y_uses_max_corner_height_plus_offset() -> void:
         . assert_eq(
             overlay._cell_plane_y(flat_cell),
             PlacementGridOverlay.PLANE_Y_OFFSET,
-            "flat terrain -> plane sits at the 0.05 offset",
+            "flat terrain -> plane sits at the configured offset",
         )
     )
     # Cell (4,4) corners are vertices (4..5, 4..5); raise one via the public API.
@@ -301,9 +301,25 @@ func test_plane_y_uses_max_corner_height_plus_offset() -> void:
         . assert_eq(
             overlay._cell_plane_y(flat_cell),
             expected,
-            "raised corner -> plane sits at max corner height + 0.05",
+            "raised corner -> plane sits at max corner height + offset",
         )
     )
+
+
+func test_rebuild_defers_rendering_until_cursor() -> void:
+    # Regression: set_white_cells before the first set_cursor must not render
+    # the full white set (avoided a one-frame red/white flash on build-mode
+    # entry while the mouse ray hasn't resolved yet).
+    var overlay := PlacementGridOverlay.new()
+    _bm.add_child(overlay)
+    overlay.set_white_cells([Vector2i(0, 0), Vector2i(1, 0)])
+    TestHelper.assert_eq(
+        overlay._multimesh.instance_count, 0, "no cursor yet -> multimesh stays empty"
+    )
+    overlay.set_cursor(Vector2i(0, 0), Vector2i(1, 1))
+    TestHelper.assert_true(overlay._multimesh.instance_count > 0, "cursor arrival -> cells render")
+    _bm.remove_child(overlay)
+    overlay.free()
 
 
 func test_compute_cell_colors_assignment() -> void:
