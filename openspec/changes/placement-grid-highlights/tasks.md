@@ -27,3 +27,15 @@
 - [x] 5.2 Red out-of-white ghost footprint cells when `adjacent > 0`
 - [x] 5.3 Tuning: cell coverage 95%, red/green alpha 0.7, ghost alpha 0.45
 - [x] 5.4 Update tests + spec/design; suite, gdlint, gdformat clean
+
+## 6. Bib dilation fix (user review round 2)
+
+- [x] 6.1 Regression test: 3x3 foundation with bottom-row bibs — cell past the bib strip is white and satisfies adjacency
+- [x] 6.2 Fix `_friendly_building_cells` to dilate the full foundation rect (origin + foundation) instead of stored non-bib cells
+- [x] 6.3 Pin test neighbor fixtures to explicit foundations; suite + lint + format clean
+
+## 7. Review fixes (user review round 2)
+
+- [x] 7.1 Refresh white region when the ghost type switches mid-session (regression test)
+- [x] 7.2 Defer overlay rendering until the first cursor update (regression test)
+- [x] 7.3 Nits: dead clamp in reach radius, drop unused helper param, value-agnostic test messages, spec/design record the smoke-tuned 0.025 offset
