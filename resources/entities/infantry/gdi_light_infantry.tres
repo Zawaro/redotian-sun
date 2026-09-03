@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://resources/art/infantry/gdi_light_infantry_art.tres" id="2_art"]
-[ext_resource type="Resource" path="res://resources/weapons/m1carbine.tres" id="3_weapon"]
+[ext_resource type="Resource" path="res://resources/weapons/minigun.tres" id="3_weapon"]
 [ext_resource type="Resource" path="res://resources/audio/gdi_infantry_voice.tres" id="4_voice"]
 
 [resource]

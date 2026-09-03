@@ -18,5 +18,5 @@ requires_charge = false
 is_laser = false
 anti_air = false
 fire_animation = ""
-sound_report = "INFGUN3"
+sound_report = "SLVKGUN1,INFGUN3,GOSTGUN1"
 ambient_damage = 0

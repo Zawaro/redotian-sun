@@ -13,6 +13,11 @@ const BUS_VOICE: String = "Voice"
 const REQUIRED_BUSES: Array[String] = [BUS_MASTER, BUS_MUSIC, BUS_SFX, BUS_VOICE]
 ## Hard cap on concurrent copies of one sound id; past this the oldest copy is dropped.
 const MAX_STACK_PER_ID: int = 12
+## Live copies of one report entry at which weapon-fire rotates to the next
+## entry in its sound_report list (original TS Report= behavior: the first
+## entry is the individual report; stacked fire rotates to later entries).
+## ponytail: knob, tune from playtesting.
+const REPORT_STACK_PER_ID: int = 3
 ## Skip starting a sound id that already played within this window. Kills the
 ## density wall from high-ROF weapons (M1 carbine at 20/s × 20 units = 400
 ## spawns/s): stacked fire then sounds like a single weapon.
@@ -135,6 +140,11 @@ func get_audio_data(id: String) -> AudioData:
     return _audio_cache.get(id, null) as AudioData
 
 
+## Live copy count for one sound id (read-only view of the tracking state).
+func get_active_count(id: String) -> int:
+    return (_active_players_by_id.get(id, []) as Array).size()
+
+
 ## Effective retrigger window for a sound: its own override when set (> 0),
 ## else the global RETRIGGER_INTERVAL_MS default.
 func _effective_retrigger_ms(audio: AudioData) -> float:
@@ -143,6 +153,26 @@ func _effective_retrigger_ms(audio: AudioData) -> float:
 
 func get_voice_data(id: String) -> VoiceData:
     return _voice_cache.get(id, null) as VoiceData
+
+
+## Stacking-driven weapon report selection (original TS Report= behavior):
+## walk the list in order and play the first entry whose live copies are below
+## REPORT_STACK_PER_ID; unknown ids warn and fall through; when every entry is
+## saturated, the last entry plays. No-op on an empty list.
+func play_report(ids: PackedStringArray, position: Vector3 = Vector3.INF) -> void:
+    if ids.is_empty():
+        return
+    for i in ids.size():
+        var id := ids[i].strip_edges()
+        if id.is_empty():
+            continue
+        if get_audio_data(id) == null:
+            push_warning("AudioManager: Unknown sound id in report list: %s" % id)
+            continue
+        if get_active_count(id) < REPORT_STACK_PER_ID:
+            play_sound(id, position)
+            return
+    play_sound(ids[ids.size() - 1].strip_edges(), position)
 
 
 func play_sound(id: String, position: Vector3 = Vector3.INF) -> void:
