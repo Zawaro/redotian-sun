@@ -9,7 +9,7 @@ class_name WeaponData extends Resource
 ## Damage
 @export_group("Damage")
 @export var damage: int = 0
-## Rate of fire — shots per minute (higher = faster). TS formula: ROF = 60 / seconds_between_shots.
+## Rate of fire — TS ROF= rearm-delay frames (logic 30 fps); seconds_between_shots = ROF / 30.
 @export var rate_of_fire: float = 1.0
 ## Maximum engagement range in cells.
 @export var attack_range: float = 1.0

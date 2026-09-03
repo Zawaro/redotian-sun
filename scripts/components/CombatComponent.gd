@@ -21,6 +21,10 @@ const PROJECTILE_SCENE: PackedScene = preload("res://scenes/components/Projectil
 ## World-space separation at which airborne attackers stop nudging each other.
 const MIN_AIR_SEPARATION: float = 1.5
 
+## Original TS logic rate: WeaponData.rate_of_fire is a rearm delay in these
+## frames (ModEnc ROF=), so seconds_between_shots = rate_of_fire / 30.
+const TS_LOGIC_FPS: float = 30.0
+
 ## Minimum seconds between chase re-plans; bounds re-plan cost to the enemy's
 ## actual motion rate (#284 budget) and stops target jitter from oscillating
 ## a MOVING leg.
@@ -223,7 +227,7 @@ func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:
         _apply_hitscan_damage(weapon, target)
     _fire_count += 1
     var rof: float = maxf(weapon.rate_of_fire, 0.001)
-    _cooldowns[_current_weapon_index] = 60.0 / rof
+    _cooldowns[_current_weapon_index] = rof / TS_LOGIC_FPS
     _play_fire_sound(weapon)
     weapon_fired.emit(weapon, target)
 

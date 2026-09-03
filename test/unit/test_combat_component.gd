@@ -376,6 +376,22 @@ func test_cooldown_blocks_fire():
     target.free()
 
 
+func test_cooldown_uses_rof_frames_at_ts_logic_rate():
+    # TS ROF= is a rearm delay in engine frames at 30 fps logic:
+    # seconds_between_shots = ROF / 30. ROF=30 → 1.0 s, not 60/30 = 2.0 s.
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var weapon := _make_weapon()
+    weapon.rate_of_fire = 30.0
+    cc.weapons = [weapon]
+    cc._init_cooldowns()
+    var target := _make_target_with_health(1, 100)
+    cc._fire_weapon(weapon, target)
+    TestHelper.assert_eq(cc._cooldowns[0], 1.0, "ROF=30 frames rearm delay → 1.0 s cooldown")
+    entity.free()
+    target.free()
+
+
 func test_fire_deals_damage_in_range():
     var entity := _make_combat_entity(true, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
