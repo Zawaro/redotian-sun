@@ -82,6 +82,45 @@ func _register_test_voice() -> VoiceData:
     return voice
 
 
+## Registers the committed-fixture tone under a custom id so report-selection
+## tests can seed and count per-id stacks without the gitignored .ogg files.
+func _register_tone_id(id: String) -> void:
+    if not _am:
+        return
+    _expire_retrigger(id)
+    var audio := AudioData.new()
+    audio.id = id
+    audio.path = TEST_TONE_PATH
+    audio.bus = "Voice"
+    _am._audio_cache[id] = audio
+
+
+## Builds an out-of-tree CombatComponent wired to a single weapon with the given
+## sound_report plus a damageable target. Returns [entity, combat, weapon, target].
+func _make_fire_setup(report: String) -> Array:
+    var entity := Node3D.new()
+    entity.name = "CombatEntity"
+    var combat := CombatComponent.new()
+    combat.name = "CombatComponent"
+    entity.add_child(combat)
+    var weapon := WeaponData.new()
+    weapon.id = "TEST_WEAPON"
+    weapon.damage = 1
+    weapon.attack_range = 1.0
+    weapon.rate_of_fire = 1.0
+    weapon.sound_report = report
+    combat.weapons = [weapon]
+    combat._init_cooldowns()
+    var target := Node3D.new()
+    var health := HealthComponent.new()
+    health.name = "HealthComponent"
+    health.max_health = 100
+    health.current_health = 100
+    target.add_child(health)
+    entity.global_position = Vector3(1, 0, 1)
+    return [entity, combat, weapon, target]
+
+
 func _give_test_voice(entity: Node3D) -> void:
     var voice_comp := entity.get_node_or_null("VoiceComponent") as VoiceComponent
     if voice_comp:
@@ -154,43 +193,129 @@ func test_select_voice_silent_for_enemy_unit():
 
 
 func test_weapon_fire_parses_comma_report():
-    # _play_fire_sound picks one id from a comma-separated report and routes it
-    # through AudioManager. Both ids resolve to the committed fixture, so
-    # playback spawns a player without the gitignored audio files.
+    # Stacking-driven report selection (original Report= behavior): with no
+    # stacked copies, the FIRST entry of a comma-separated report plays and
+    # later entries stay silent. Both ids resolve to the committed fixture.
     TestHelper.assert_true(_am != null, "AudioManager autoload present")
-    _register_test_voice()
-    var entity := Node3D.new()
-    entity.name = "CombatEntity"
-    var combat := CombatComponent.new()
-    combat.name = "CombatComponent"
-    entity.add_child(combat)
-    var weapon := WeaponData.new()
-    weapon.id = "TEST_WEAPON"
-    weapon.damage = 1
-    weapon.attack_range = 1.0
-    weapon.rate_of_fire = 1.0
-    weapon.sound_report = "TEST_TONE,TEST_TONE"
-    combat.weapons = [weapon]
-    combat._init_cooldowns()
-    var target := Node3D.new()
-    var health := HealthComponent.new()
-    health.name = "HealthComponent"
-    health.max_health = 100
-    health.current_health = 100
-    target.add_child(health)
-    entity.global_position = Vector3(1, 0, 1)
+    _register_tone_id("TEST_REPORT_FIRST_A")
+    _register_tone_id("TEST_REPORT_FIRST_B")
+    var setup := _make_fire_setup("TEST_REPORT_FIRST_A,TEST_REPORT_FIRST_B")
 
-    var before := _am.get_child_count()
-    combat._fire_weapon(weapon, target)
+    var setup_combat: CombatComponent = setup[1]
+    var setup_weapon: WeaponData = setup[2]
+    setup_combat._fire_weapon(setup_weapon, setup[3])
+    TestHelper.assert_eq(
+        _am.get_active_count("TEST_REPORT_FIRST_A"), 1, "first report entry plays when unstacked"
+    )
+    TestHelper.assert_eq(
+        _am.get_active_count("TEST_REPORT_FIRST_B"), 0, "later entries stay silent when unstacked"
+    )
+    setup[0].queue_free()
+    setup[3].queue_free()
+
+
+func test_report_rotates_when_first_entry_saturated():
+    # Seeding the rotation threshold of live copies on the first entry forces
+    # the next fire onto the later entry — the stacking-driven rotation.
+    TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    _register_tone_id("TEST_REPORT_ROT_A")
+    _register_tone_id("TEST_REPORT_ROT_B")
+    for i in _am.REPORT_STACK_PER_ID:
+        _expire_retrigger("TEST_REPORT_ROT_A")
+        _am.play_sound("TEST_REPORT_ROT_A")
     (
         TestHelper
-        . assert_true(
-            _am.get_child_count() >= before + 1,
-            "fire sound spawned a player from comma-separated report",
+        . assert_eq(
+            _am.get_active_count("TEST_REPORT_ROT_A"),
+            _am.REPORT_STACK_PER_ID,
+            "first entry seeded to the rotation threshold",
         )
     )
-    entity.queue_free()
-    target.queue_free()
+    var setup := _make_fire_setup("TEST_REPORT_ROT_A,TEST_REPORT_ROT_B")
+
+    var setup_combat: CombatComponent = setup[1]
+    var setup_weapon: WeaponData = setup[2]
+    setup_combat._fire_weapon(setup_weapon, setup[3])
+    TestHelper.assert_eq(
+        _am.get_active_count("TEST_REPORT_ROT_B"), 1, "stacked fire rotates to the later entry"
+    )
+    (
+        TestHelper
+        . assert_eq(
+            _am.get_active_count("TEST_REPORT_ROT_A"),
+            _am.REPORT_STACK_PER_ID,
+            "saturated first entry gains no copy",
+        )
+    )
+    setup[0].queue_free()
+    setup[3].queue_free()
+
+
+func test_report_all_saturated_plays_last_entry():
+    TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    _register_tone_id("TEST_REPORT_SAT_A")
+    _register_tone_id("TEST_REPORT_SAT_B")
+    for id in ["TEST_REPORT_SAT_A", "TEST_REPORT_SAT_B"]:
+        for i in _am.REPORT_STACK_PER_ID:
+            _expire_retrigger(id)
+            _am.play_sound(id)
+    # The seeded stacks represent already-ringing fire; the new shot must not
+    # be swallowed by the same-frame retrigger window of the last seed.
+    _expire_retrigger("TEST_REPORT_SAT_A")
+    _expire_retrigger("TEST_REPORT_SAT_B")
+    var setup := _make_fire_setup("TEST_REPORT_SAT_A,TEST_REPORT_SAT_B")
+
+    var setup_combat: CombatComponent = setup[1]
+    var setup_weapon: WeaponData = setup[2]
+    setup_combat._fire_weapon(setup_weapon, setup[3])
+    (
+        TestHelper
+        . assert_eq(
+            _am.get_active_count("TEST_REPORT_SAT_B"),
+            _am.REPORT_STACK_PER_ID + 1,
+            "fully saturated report plays the last entry",
+        )
+    )
+    (
+        TestHelper
+        . assert_eq(
+            _am.get_active_count("TEST_REPORT_SAT_A"),
+            _am.REPORT_STACK_PER_ID,
+            "saturated earlier entry gains no copy",
+        )
+    )
+    setup[0].queue_free()
+    setup[3].queue_free()
+
+
+func test_report_skips_unknown_id():
+    TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    _register_tone_id("TEST_REPORT_SKIP_B")
+    var setup := _make_fire_setup("NO_SUCH_REPORT_ID,TEST_REPORT_SKIP_B")
+
+    var setup_combat: CombatComponent = setup[1]
+    var setup_weapon: WeaponData = setup[2]
+    setup_combat._fire_weapon(setup_weapon, setup[3])
+    TestHelper.assert_eq(
+        _am.get_active_count("TEST_REPORT_SKIP_B"), 1, "unknown id is skipped, later entry plays"
+    )
+    setup[0].queue_free()
+    setup[3].queue_free()
+
+
+func test_single_entry_report_unchanged():
+    TestHelper.assert_true(_am != null, "AudioManager autoload present")
+    _register_tone_id("TEST_REPORT_ONE_A")
+    var setup := _make_fire_setup("TEST_REPORT_ONE_A")
+
+    var setup_combat: CombatComponent = setup[1]
+    var setup_weapon: WeaponData = setup[2]
+    setup_combat._fire_weapon(setup_weapon, setup[3])
+    TestHelper.assert_eq(
+        _am.get_active_count("TEST_REPORT_ONE_A"), 1, "single-entry report spawns one player"
+    )
+    setup[0].queue_free()
+    setup[3].queue_free()
 
 
 func test_weapon_fire_empty_report_silent():
