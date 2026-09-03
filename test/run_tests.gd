@@ -44,6 +44,7 @@ func _parse_args() -> void:
 func _discover_and_run_tests() -> void:
     var dirs := ["res://test/unit/", "res://test/integration/"]
     for dir_path in dirs:
+        var files: Array[String] = []
         var dir := DirAccess.open(dir_path)
         if not dir:
             continue
@@ -51,9 +52,14 @@ func _discover_and_run_tests() -> void:
         var file_name: String = dir.get_next()
         while file_name != "":
             if file_name.begins_with("test_") and file_name.ends_with(".gd"):
-                _run_test_file(dir_path + file_name)
+                files.append(file_name)
             file_name = dir.get_next()
         dir.list_dir_end()
+        # Suites leak process-wide singleton state, so results depend on which
+        # suites ran before them — run in sorted order on every machine.
+        files.sort()
+        for sorted_name in files:
+            _run_test_file(dir_path + sorted_name)
 
 
 func _run_test_file(path: String) -> void:
@@ -84,17 +90,20 @@ func _run_test_file(path: String) -> void:
         var failed := TestHelper._failed
         var asserts := passed + failed
         var duration_usec := Time.get_ticks_usec() - test_start
-        _records.append(
-            {
-                "suite": suite_name,
-                "path": path,
-                "name": method_name,
-                "passed": passed,
-                "failed": failed,
-                "asserts": asserts,
-                "duration_usec": duration_usec,
-                "errors": TestHelper._errors.duplicate(),
-            }
+        (
+            _records
+            . append(
+                {
+                    "suite": suite_name,
+                    "path": path,
+                    "name": method_name,
+                    "passed": passed,
+                    "failed": failed,
+                    "asserts": asserts,
+                    "duration_usec": duration_usec,
+                    "errors": TestHelper._errors.duplicate(),
+                }
+            )
         )
         _total_passed += passed
         _total_failed += failed
@@ -108,15 +117,18 @@ func _run_test_file(path: String) -> void:
     obj.free()
 
     if started_any:
-        _suites.append(
-            {
-                "name": suite_name,
-                "path": path,
-                "passed": suite_passed,
-                "failed": suite_failed,
-                "asserts": suite_asserts,
-                "duration_usec": Time.get_ticks_usec() - suite_start,
-            }
+        (
+            _suites
+            . append(
+                {
+                    "name": suite_name,
+                    "path": path,
+                    "passed": suite_passed,
+                    "failed": suite_failed,
+                    "asserts": suite_asserts,
+                    "duration_usec": Time.get_ticks_usec() - suite_start,
+                }
+            )
         )
 
 
@@ -245,16 +257,19 @@ func _render_ci() -> void:
     f.store_line("|---|---|---|---|---|")
     for rec in _records:
         var status := "PASS" if rec["failed"] == 0 else "FAIL"
-        f.store_line(
-            (
-                "| %s | %s | %s | %d | %s |"
-                % [
-                    rec["suite"],
-                    rec["name"],
-                    status,
-                    rec["asserts"],
-                    _format_ms(rec["duration_usec"]),
-                ]
+        (
+            f
+            . store_line(
+                (
+                    "| %s | %s | %s | %d | %s |"
+                    % [
+                        rec["suite"],
+                        rec["name"],
+                        status,
+                        rec["asserts"],
+                        _format_ms(rec["duration_usec"]),
+                    ]
+                )
             )
         )
     f.close()
