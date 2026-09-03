@@ -96,7 +96,7 @@ The system SHALL provide a `VoiceComponent` that holds a unit's `VoiceData` refe
 - **THEN** the entity has no `VoiceComponent`
 
 ### Requirement: Weapon fire and death sounds
-The system SHALL play weapon fire sounds using `WeaponData.sound_report` (a comma-separated list of audio ids) at the `CombatComponent._fire_weapon` choke point, spatially at the firing unit. One id SHALL be chosen at random from the comma-separated list when the list has multiple entries. On death (`HealthComponent.health_zero`), the system SHALL play the unit's `VoiceData.die` set when one exists; entities without a die voice set play nothing. Explosion/effect SFX for unvoiced entities SHALL be assigned in a future issue. Both SHALL honor the graceful-failure requirement when ids are missing.
+The system SHALL play weapon fire sounds using `WeaponData.sound_report` (a comma-separated list of audio ids) at the `CombatComponent._fire_weapon` choke point, spatially at the firing unit. When the list has multiple entries, the system SHALL select the report by stacking depth: entries SHALL be considered in list order and the first entry whose current live copy count is below the rotation threshold SHALL play; ids that do not resolve to a cached `AudioData` SHALL be skipped with a warning; when every entry is at or above the rotation threshold, the last entry SHALL play. On death (`HealthComponent.health_zero`), the system SHALL play the unit's `VoiceData.die` set when one exists; entities without a die voice set play nothing. Explosion/effect SFX for unvoiced entities SHALL be assigned in a future issue. Both SHALL honor the graceful-failure requirement when ids are missing.
 
 ### Requirement: Viewport-aware spatial falloff
 The system SHALL play spatial sounds (e.g. weapon fire) at full volume while the source is inside the camera's viewport, and attenuate with distance beyond the viewport edge. The spatial player's position SHALL be placed on the listener-relative bearing of the source at the source's distance past the viewport rectangle, using inverse-distance attenuation. Voices positioned at the camera are unaffected (distance zero → full volume). In headless/UI contexts without a camera, the sound SHALL play positionally at the source without falloff.
@@ -109,9 +109,21 @@ The system SHALL play spatial sounds (e.g. weapon fire) at full volume while the
 - **WHEN** a spatial sound source is beyond the viewport edge
 - **THEN** its player is placed past the listener along the source bearing, so the engine attenuates it by the off-screen distance
 
-#### Scenario: Weapon fire plays one report sound
-- **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires
-- **THEN** one of `INFGUN3` or `GOSTGUN1` plays at the firing unit's position
+#### Scenario: Weapon fire plays the first entry when unstacked
+- **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires while fewer than the rotation threshold of `INFGUN3` copies are live
+- **THEN** `INFGUN3` plays at the firing unit's position and no `GOSTGUN1` player spawns
+
+#### Scenario: Stacked fire rotates to later entries
+- **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires while `INFGUN3` already has the rotation threshold of live copies
+- **THEN** `GOSTGUN1` plays instead of `INFGUN3`
+
+#### Scenario: All entries saturated plays the last entry
+- **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires while both ids are at or above the rotation threshold
+- **THEN** `GOSTGUN1` plays (the last entry)
+
+#### Scenario: Unknown report id is skipped
+- **WHEN** a weapon fires with `sound_report = "NO_SUCH_ID,GOSTGUN1"` where `NO_SUCH_ID` has no cached `AudioData`
+- **THEN** a warning is raised and `GOSTGUN1` plays
 
 #### Scenario: Weapon with empty sound report is silent
 - **WHEN** a weapon with an empty `sound_report` fires
