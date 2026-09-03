@@ -18,11 +18,11 @@ CombatComponent SHALL maintain a `_target: Node3D` reference set via `set_target
 - **THEN** CombatComponent SHALL clear `_target` and stop attacking
 
 ### Requirement: Fire rate cooldown per weapon
-CombatComponent SHALL maintain a cooldown timer per weapon index. After firing, the timer SHALL be set to `60.0 / weapon.rate_of_fire` seconds. The weapon SHALL NOT fire while its cooldown timer is positive.
+CombatComponent SHALL maintain a cooldown timer per weapon index. After firing, the timer SHALL be set to `weapon.rate_of_fire / 30.0` seconds, treating `rate_of_fire` as the original Tiberian Sun `ROF=` rearm-delay frames at the engine's 30 fps logic rate. The weapon SHALL NOT fire while its cooldown timer is positive.
 
 #### Scenario: Fire rate timing
 - **WHEN** a weapon with `rate_of_fire = 20` fires
-- **THEN** the next shot from that weapon SHALL be delayed by 3.0 seconds (60/20)
+- **THEN** the next shot from that weapon SHALL be delayed by 0.667 seconds (20/30)
 
 #### Scenario: Cooldown ticks down
 - **WHEN** `_physics_process(delta)` runs with a positive cooldown
@@ -169,19 +169,19 @@ MovementController SHALL expose `func is_moving() -> bool` that returns `true` w
 - **THEN** `is_moving()` SHALL return `true`
 
 ### Requirement: Weapon fire sound
-On each shot in `_fire_weapon`, CombatComponent SHALL play one audio id chosen at random from `WeaponData.sound_report` (a comma-separated list) at the firing unit's world position via `AudioManager.play_sound`. An empty `sound_report` SHALL play nothing. A missing or unknown id SHALL log a warning and remain silent (graceful failure).
+On each shot in `_fire_weapon`, CombatComponent SHALL delegate the comma-separated `WeaponData.sound_report` list to `AudioManager.play_report`, which plays one audio id at the firing unit's world position, selecting the first entry whose live copy count is below the rotation threshold (stacking-driven selection; see the audio-system spec for the full selection requirement). An empty `sound_report` SHALL play nothing. A missing or unknown id SHALL log a warning and fall through to the next entry (graceful failure).
 
 #### Scenario: Fire plays a report sound
-- **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires
-- **THEN** one of the listed ids SHALL be played at the firing unit's position
+- **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires while unstacked
+- **THEN** the first listed entry SHALL play at the firing unit's position
 
 #### Scenario: Empty report is silent
 - **WHEN** a weapon with an empty `sound_report` fires
 - **THEN** no sound SHALL play
 
-#### Scenario: Missing id is silent
-- **WHEN** the chosen report id is not in the audio cache
-- **THEN** a warning SHALL be logged and no sound SHALL play
+#### Scenario: Missing id is skipped
+- **WHEN** a listed report id is not in the audio cache
+- **THEN** a warning SHALL be logged and selection SHALL fall through to the next entry (silent only when no entry resolves)
 
 
 ### Requirement: Powered-down structures do not fire
