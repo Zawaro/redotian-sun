@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "clear"
-display_name = "Clear"
-color = Color(0.4, 0.7, 0.3, 1)
-group = "Clear"
+id = "mold"
+display_name = "Mold"
+color = Color(0.45, 0.3, 0.4, 1)
+group = "Mold"

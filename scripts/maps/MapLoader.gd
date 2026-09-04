@@ -87,6 +87,11 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
             var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
             if stats:
                 stats.player_id = entry_player_id
+        # House ownership: explicit house_id wins; legacy entries fall back to
+        # mapping a player_id below the house-list size onto that house.
+        var house_id := resolve_house_id(entry_dict)
+        if not house_id.is_empty():
+            entity.set_meta("house_id", house_id)
         var cell_str: String = entry_dict.get("cell", "")
         if not cell_str.is_empty():
             var parts := cell_str.split(",")
@@ -118,6 +123,19 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
     if not parent.has_meta("is_map_editor"):
         _frame_camera_to_local_start(json)
     return result
+
+
+## House id for a map entity entry: an explicit "house_id" wins; legacy
+## entries fall back to a player_id below the house-list size mapped onto
+## that house. Returns "" when the entry carries no house information.
+static func resolve_house_id(entry: Dictionary) -> String:
+    var house_id: String = entry.get("house_id", "")
+    if not house_id.is_empty():
+        return house_id
+    var legacy_player: int = entry.get("player_id", -1)
+    if legacy_player >= 0 and legacy_player < Houses.IDS.size():
+        return Houses.IDS[legacy_player]
+    return ""
 
 
 ## Gameplay-only: frame the camera on the local player's start location.

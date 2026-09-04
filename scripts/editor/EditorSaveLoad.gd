@@ -36,23 +36,36 @@ func _on_save_file_selected(path: String) -> void:
     for cell_key in editor._painted_entities:
         var entry: Dictionary = editor._painted_entities[cell_key]
         var data: Dictionary = entry.get("data", {})
-        var entity_entry: Dictionary = {
-            "id": data.get("id", ""),
-            "cell": cell_key,
-        }
-        if data.has("player_id"):
-            entity_entry["player_id"] = int(data["player_id"])
-        if data.has("rotation_y"):
-            entity_entry["rotation_y"] = data["rotation_y"]
-        if data.has("current_health"):
-            entity_entry["current_health"] = data["current_health"]
-        for key in MapLoader.OVERRIDE_KEYS:
-            if data.has(key):
-                entity_entry[key] = data[key]
+        var entity_entry := build_entity_entry(data)
+        entity_entry["cell"] = cell_key
         entities_array.append(entity_entry)
     TerrainSystem.export_to_json(
         path, {"entities": entities_array, "start_locations": editor._player_start_tool.save_data()}
     )
+
+
+## Serializes one tracked-entity data dict into its JSON map entry.
+static func build_entity_entry(data: Dictionary) -> Dictionary:
+    var entity_entry: Dictionary = {
+        "id": data.get("id", ""),
+    }
+    if data.has("player_id"):
+        entity_entry["player_id"] = int(data["player_id"])
+    if data.has("house_id"):
+        entity_entry["house_id"] = data["house_id"]
+        # Keep the legacy alias in sync for older readers.
+        if not entity_entry.has("player_id"):
+            var house_index := Houses.index_for(String(data["house_id"]))
+            if house_index >= 0:
+                entity_entry["player_id"] = house_index
+    if data.has("rotation_y"):
+        entity_entry["rotation_y"] = data["rotation_y"]
+    if data.has("current_health"):
+        entity_entry["current_health"] = data["current_health"]
+    for key in MapLoader.OVERRIDE_KEYS:
+        if data.has(key):
+            entity_entry[key] = data[key]
+    return entity_entry
 
 
 func _read_start_locations(path: String) -> Array:

@@ -7,3 +7,4 @@ script = ExtResource("1_script")
 id = "water"
 display_name = "Water"
 color = Color(0.15, 0.4, 0.75, 1)
+group = "Water"

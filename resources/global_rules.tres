@@ -38,6 +38,11 @@
 [ext_resource type="Resource" path="res://resources/land_types/water.tres" id="36_lt_water"]
 [ext_resource type="Resource" path="res://resources/land_types/cliff.tres" id="37_lt_cliff"]
 [ext_resource type="Resource" path="res://resources/land_types/resource.tres" id="38_lt_resource"]
+[ext_resource type="Resource" path="res://resources/land_types/sand.tres" id="67_lt_sand"]
+[ext_resource type="Resource" path="res://resources/land_types/pavement.tres" id="68_lt_pavement"]
+[ext_resource type="Resource" path="res://resources/land_types/green.tres" id="69_lt_green"]
+[ext_resource type="Resource" path="res://resources/land_types/crystal.tres" id="70_lt_crystal"]
+[ext_resource type="Resource" path="res://resources/land_types/mold.tres" id="71_lt_mold"]
 [ext_resource type="Resource" path="res://resources/locomotors/Foot.tres" id="38_lm_foot"]
 [ext_resource type="Resource" path="res://resources/locomotors/Track.tres" id="39_lm_track"]
 [ext_resource type="Resource" path="res://resources/locomotors/Wheel.tres" id="40_lm_wheel"]
@@ -143,7 +148,12 @@ land_types = {
 "road": ExtResource("35_lt_road"),
 "water": ExtResource("36_lt_water"),
 "cliff": ExtResource("37_lt_cliff"),
-"resource": ExtResource("38_lt_resource")
+"resource": ExtResource("38_lt_resource"),
+"sand": ExtResource("67_lt_sand"),
+"pavement": ExtResource("68_lt_pavement"),
+"green": ExtResource("69_lt_green"),
+"crystal": ExtResource("70_lt_crystal"),
+"mold": ExtResource("71_lt_mold")
 }
 locomotors = {
 "Foot": ExtResource("38_lm_foot"),

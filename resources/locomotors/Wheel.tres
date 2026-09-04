@@ -7,8 +7,13 @@ script = ExtResource("1_script")
 id = "Wheel"
 terrain_speeds = {
 "clear": 1.0,
+"crystal": 1.0,
+"green": 1.0,
+"mold": 1.0,
+"pavement": 1.0,
 "resource": 0.5,
 "road": 1.25,
-"rough": 0.5
+"rough": 0.5,
+"sand": 1.0
 }
 climb_tolerance = 1
