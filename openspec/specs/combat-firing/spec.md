@@ -29,11 +29,11 @@ CombatComponent SHALL maintain a cooldown timer per weapon index. After firing, 
 - **THEN** the cooldown SHALL decrease by `delta`
 
 ### Requirement: Range checking
-CombatComponent SHALL check if the target is within firing range before firing. Range SHALL be calculated as `weapon.attack_range * CellUtil.CELL_SIZE` world units, measured on the horizontal (XZ) plane — the Y (altitude) component SHALL be ignored so hovering or elevated attackers are not pushed out of range by vertical separation.
+CombatComponent SHALL check if the target is within firing range before firing. Range SHALL be calculated as `weapon.attack_range * CellUtil.CELL_SIZE` world units, measured on the horizontal (XZ) plane — the Y (altitude) component SHALL be ignored so hovering or elevated attackers are not pushed out of range by vertical separation. For mobile turretless units, being in range additionally requires body alignment per the `combat-facing` capability: in-range but not facing holds fire for that tick while the body slews toward the target.
 
 #### Scenario: Target in range
 - **WHEN** the target's horizontal distance (ignoring Y) is less than or equal to `attack_range * CELL_SIZE`
-- **THEN** CombatComponent MAY fire (subject to cooldown)
+- **THEN** CombatComponent MAY fire (subject to cooldown and, for mobile turretless units, facing alignment)
 
 #### Scenario: Target out of range
 - **WHEN** the target's horizontal distance (ignoring Y) exceeds `attack_range * CELL_SIZE`
@@ -46,6 +46,10 @@ CombatComponent SHALL check if the target is within firing range before firing. 
 #### Scenario: Airborne attacker engages ground target
 - **WHEN** a jumpjet hovering at its flight altitude attacks a ground target within horizontal range
 - **THEN** the target is in range regardless of the altitude difference
+
+#### Scenario: In range but not facing holds fire
+- **WHEN** a turretless Track vehicle has an in-range target outside its facing tolerance with no live move leg
+- **THEN** CombatComponent SHALL NOT fire that tick and the body yaws toward the target instead
 
 ### Requirement: Weapon dispatch and damage
 When firing, CombatComponent SHALL first resolve `weapon.projectile` through the GlobalRules projectile registry. If the id resolves to a `ProjectileData`, CombatComponent SHALL instantiate `Projectile.tscn`, configure it with the projectile data, weapon, shooter, and target, spawn it at the shooter's position offset by `WeaponData.fire_offset`, parent it to the gameplay root, and SHALL NOT apply direct damage. If the id is empty or unresolvable, CombatComponent SHALL apply damage directly (legacy hitscan): the weapon's base damage multiplied by the warhead armor multiplier for the target's armor type, clamped to GlobalRules `[min_damage, max_damage]`, then call `target.get_node("HealthComponent").take_damage(final_damage, weapon.warhead)`.
