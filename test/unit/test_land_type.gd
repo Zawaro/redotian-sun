@@ -94,7 +94,9 @@ func test_registered_tres_load():
     ]
     for lm_id in lm_ids:
         TestHelper.assert_true(rules.get_locomotor(lm_id) != null, "locomotor registered: " + lm_id)
-    for lt_id in ["clear", "rough", "road", "water", "cliff"]:
+    for lt_id in [
+        "clear", "rough", "road", "water", "cliff", "sand", "pavement", "green", "crystal", "mold"
+    ]:
         TestHelper.assert_true(rules.get_land_type(lt_id) != null, "land type registered: " + lt_id)
     TestHelper.assert_true(
         rules.validate_locomotor_keys().is_empty(), "registered locomotors validate clean"

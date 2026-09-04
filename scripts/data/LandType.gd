@@ -7,3 +7,6 @@ class_name LandType extends Resource
 @export var display_name: String = ""
 ## Display color for editor/debug visualization.
 @export var color: Color = Color.WHITE
+## Editor bottom-bar tileset grouping (e.g. "Sand", "Pavement").
+## Presentation only — no gameplay effect.
+@export var group: String = ""

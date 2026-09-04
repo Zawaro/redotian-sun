@@ -58,12 +58,18 @@ are 45°-rotated rectangles, i.e. diamonds.
 | theater | Light look-tag (temperate/snow/…) affecting art only — never passability or movement. | [terrain-catalog](openspec/specs/terrain-catalog/spec.md) |
 | grade | Per-cell integer height level (steps). | [terrain-grade](openspec/specs/terrain-grade/spec.md) |
 | heightfield | Terrain collision authority; cells split by a crease diagonal into corner triangles. | [terrain-heightfield-collision](openspec/specs/terrain-heightfield-collision/spec.md) |
+| `house` | Faction instance a placed map object belongs to: gdi/nod/neutral/special (`Houses.IDS`) — distinct from multiplayer player slots, whose starts live in `start_locations` / waypoints 0–7. | [map-loader change](openspec/changes/map-editor-ui-overhaul/specs/map-loader/spec.md) · scripts/data/Houses.gd |
+| `waypoint` | Numbered cell bookmark in map JSON (`"waypoints"`); indexes 0–7 are player starting points, general waypoints are ≥ 8. | [map-editor-waypoints change](openspec/changes/map-editor-ui-overhaul/specs/map-editor-waypoints/spec.md) |
+| framework mode | Editor-only render view: terrain drawn as flat per-LAT placeholder colors (marble-madness style). No data effect. | [map-editor-framework-mode change](openspec/changes/map-editor-ui-overhaul/specs/map-editor-framework-mode/spec.md) |
+| `overlay` / `smudge` | TS scenic map layers (fences, scars, craters) placed as entities — NOT the FogRenderer's fog/shroud overlay quads. | [map-editor-object-browser change](openspec/changes/map-editor-ui-overhaul/specs/map-editor-object-browser/spec.md) |
 
 ## Terrain & Land
 
 | Term | Meaning | Where |
 |------|---------|-------|
 | `LandType` | Per-cell surface class ("clear", "water", …); drives locomotor passability/speed. | [land-types](openspec/specs/land-types/spec.md) |
+| `LAT` | TS vocabulary for `LandType` — the per-cell surface class the editor LAT brush paints. | [land-types change](openspec/changes/map-editor-ui-overhaul/specs/land-types/spec.md) · scripts/data/LandType.gd |
+| `tileset` | Editor bottom-bar group of ground surface types; v1 = a LandType `group` value. Never a TS `.tem` template — that word stays reserved. | [land-types change](openspec/changes/map-editor-ui-overhaul/specs/land-types/spec.md) |
 | terrain speeds | `Locomotor.terrain_speeds`: land-type id → multiplier (0/absent = impassable for that locomotor). | [locomotor](openspec/specs/locomotor/spec.md) |
 | `TerrainObject` | Authored directional terrain tile: per-cell land types, baked corner heights, crease, edge connection roles. | [terrain-object-catalog](openspec/specs/terrain-object-catalog/spec.md) |
 | connection roles | Per-edge vocabulary describing how cliffs/ramps mate with neighbors. | [terrain-object-catalog](openspec/specs/terrain-object-catalog/spec.md) |
@@ -167,3 +173,4 @@ the decision here.
 - `archetype` vs `template` vs `type` — no decision yet. Note: `archetype`
   appears nowhere in code or specs today; `template` currently means only TS
   `.tem` terrain templates ([isotem-tooling](openspec/specs/isotem-tooling/spec.md)).
+  The editor's ground groups use `tileset`, never `template`.

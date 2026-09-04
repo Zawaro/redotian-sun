@@ -5,6 +5,7 @@ var editor: Node3D = null
 var _entity_browser: PanelContainer
 var _selected_entity_id: String = ""
 var _selected_player_id: int = 0
+var _selected_house_id: String = ""
 var _preview_entity: Node3D = null
 var _preview_entity_id: String = ""
 
@@ -67,6 +68,11 @@ func _on_entity_selected(entity_id: String) -> void:
 
 func _on_player_changed(player_id: int) -> void:
     _selected_player_id = player_id
+
+
+## Sets the house (faction) id assigned to newly placed entities.
+func set_house(house_id: String) -> void:
+    _selected_house_id = house_id
 
 
 func _update_preview() -> void:
@@ -149,6 +155,8 @@ func _place_entity_on_cell(cell: Vector2i) -> void:
         "id": _selected_entity_id,
         "player_id": _selected_player_id,
     }
+    if not _selected_house_id.is_empty():
+        data["house_id"] = _selected_house_id
     var entry: Dictionary = {"node": entity, "data": data}
     editor._painted_entities[key] = entry
     editor.add_child(entity)
