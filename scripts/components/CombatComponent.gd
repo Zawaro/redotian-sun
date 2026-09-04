@@ -45,6 +45,7 @@ var _current_weapon_index: int = 0
 var _target: Node3D = null
 var _cooldowns: Array[float] = []
 var _attack_active: bool = false
+var _rotation_completed: bool = false
 var _mc_connected: bool = false
 var _combat_move: bool = false
 var _connected_health_target: Node3D = null
@@ -113,6 +114,7 @@ func get_target() -> Node3D:
 func set_target(entity: Node3D) -> void:
     _target = entity
     _attack_active = true
+    _rotation_completed = false
     _chase_retry_after = 0.0
     _logged_unreachable = null
     _connect_mc_signal()
@@ -130,6 +132,7 @@ func clear_target() -> void:
     _disconnect_health_signal()
     _target = null
     _attack_active = false
+    _rotation_completed = false
     _logged_unreachable = null
 
 
@@ -213,10 +216,35 @@ func _physics_process(delta: float) -> void:
     var to_target := _target.global_position - global_position
     var horizontal_distance := Vector3(to_target.x, 0.0, to_target.z).length()
     if horizontal_distance <= range_world:
-        if weapon_idx < _cooldowns.size() and _cooldowns[weapon_idx] <= 0.0:
-            _fire_weapon(weapon, _target)
+        if horizontal_distance > CellUtil.CELL_SIZE and not _is_facing_target(delta):
+            return
+        if horizontal_distance <= CellUtil.CELL_SIZE or _rotation_completed:
+            if weapon_idx < _cooldowns.size() and _cooldowns[weapon_idx] <= 0.0:
+                _fire_weapon(weapon, _target)
     else:
         _move_toward_target()
+
+
+## Body-facing gate for turretless mobile units. Returns true when the
+## attacker is aligned (or exempt): no MovementController sibling (buildings,
+## speed = 0) — exempt means rotation is complete, so fire is never gated —
+## or idle / waiting, where the body slews via face_toward so blocked
+## attackers keep shooting once aligned. A live MOVING / ROTATING leg owns
+## the yaw, so the gate holds fire for those ticks instead; the shot comes
+## after the leg ends and the body has slewed onto the target.
+func _is_facing_target(delta: float) -> bool:
+    var entity := get_parent() as Node3D
+    if not entity:
+        _rotation_completed = true
+        return true
+    var mc := entity.get_node_or_null("MovementController") as MovementController
+    if not mc:
+        _rotation_completed = true
+        return true
+    if mc.is_moving() and not mc.is_waiting():
+        return false
+    _rotation_completed = mc.face_toward(_target.global_position, delta)
+    return _rotation_completed
 
 
 func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:

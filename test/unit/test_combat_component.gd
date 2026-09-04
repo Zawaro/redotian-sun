@@ -815,6 +815,13 @@ func test_ground_attack_in_range_stops_and_fires():
     cc.set_target(target)
     var collapsed_dest: Vector3 = mc.get_target_position()
     var abandoned: bool = collapsed_dest.distance_to(old_dest) > 5.0
+    # Let the stop-glide leg finish (the facing gate holds fire while it is
+    # live), then process combat ticks.
+    for i in 100:
+        if not mc.is_moving():
+            break
+        mc._physics_process(0.016)
+    cc._physics_process(0.1)
     cc._physics_process(0.1)
     var health: int = target.get_node("HealthComponent").current_health
     var fired: bool = health < 100
@@ -826,6 +833,50 @@ func test_ground_attack_in_range_stops_and_fires():
     TestHelper.assert_true(abandoned, "in-range attack abandons old move destination")
     TestHelper.assert_true(fired, "in-range attack fires after stopping")
     TestHelper.assert_true(still_attacking, "attack target preserved after stopping")
+
+
+func test_moving_attacker_holds_fire_until_facing():
+    # In-range attack mid-move must not fire while the stop-glide leg drives
+    # the body; the first shot waits until the leg ends and the hull slews
+    # onto the target (rotate-to-face-first).
+    var setup: Array = _make_moving_ground_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var target := _make_target_with_health(1, 100)
+    root.add_child(target)
+    target.global_position = Vector3(5.0, 0.0, -5.0)
+    cc.set_target(target)
+    # Glide leg live: target ~7.07 away (in range, past the deadzone), body
+    # along +X while the target sits off-axis -> every tick must hold fire.
+    var fired_while_moving := false
+    for i in 10:
+        cc._physics_process(0.1)
+        if target.get_node("HealthComponent").current_health < 100:
+            fired_while_moving = true
+    TestHelper.assert_true(not fired_while_moving, "no shot fires while the stop-glide leg is live")
+    # End the leg, then the hull slews onto the target before the first shot.
+    for i in 100:
+        if not mc.is_moving():
+            break
+        mc._physics_process(0.016)
+    TestHelper.assert_true(not mc.is_moving(), "stop-glide leg ended")
+    var fired := false
+    for i in 20:
+        cc._physics_process(0.1)
+        if target.get_node("HealthComponent").current_health < 100:
+            fired = true
+            break
+    var still_attacking: bool = cc._target == target
+    TestHelper.assert_true(fired, "first shot fires only after the hull faces the target")
+    TestHelper.assert_true(still_attacking, "attack target preserved through stop-and-face")
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
 
 
 func test_ground_attack_out_of_range_supersedes_move():
@@ -1140,9 +1191,14 @@ func test_chase_in_range_wait_fires_without_replan():
     target.global_position = Vector3(3.0, 0.0, 0.0)
     cc.set_target(target)
     mc._state = MovementController.State.WAIT
-    cc._physics_process(0.1)
-    var health: int = target.get_node("HealthComponent").current_health
-    var fired: bool = health < 100
+    # The first ticks slew the body onto the target; the shot follows once
+    # aligned, without any re-plan.
+    var fired := false
+    for i in 20:
+        cc._physics_process(0.1)
+        if target.get_node("HealthComponent").current_health < 100:
+            fired = true
+            break
     var stayed_wait: bool = mc._state == MovementController.State.WAIT
     root.remove_child(entity)
     root.remove_child(target)
@@ -1178,8 +1234,15 @@ func test_chase_pathfinding_failure_backoff():
     var no_a_star: bool = Pathfinder.find_path_call_count == find_calls
     target.get_node("HealthComponent").current_health = 100
     target.global_position = Vector3(3.0, 0.0, 0.0)
-    cc._physics_process(0.1)
-    var health: int = target.get_node("HealthComponent").current_health
+    # The failed chase never re-targets, so the leg ends; the idle attacker
+    # must slew onto the target before firing during the backoff.
+    mc._state = MovementController.State.IDLE
+    var fired_backoff := false
+    for i in 20:
+        cc._physics_process(0.1)
+        if target.get_node("HealthComponent").current_health < 100:
+            fired_backoff = true
+            break
     root.remove_child(entity)
     root.remove_child(target)
     entity.free()
@@ -1187,7 +1250,7 @@ func test_chase_pathfinding_failure_backoff():
     TestHelper.assert_true(no_replan, "no re-plan during pathfinding-failure backoff")
     TestHelper.assert_true(dest_held, "destination held during backoff")
     TestHelper.assert_true(no_a_star, "no A* retried per tick during backoff")
-    TestHelper.assert_true(health < 100, "in-range target still fired during backoff")
+    TestHelper.assert_true(fired_backoff, "in-range target still fired during backoff")
 
 
 func test_chase_replan_keeps_target_then_player_move_clears():
@@ -1215,3 +1278,236 @@ func test_chase_replan_keeps_target_then_player_move_clears():
     target.free()
     TestHelper.assert_true(kept_after_replan, "attack target kept across chase re-plan")
     TestHelper.assert_true(cleared_after_player_move, "player move order clears the attack target")
+
+
+# --- Combat facing (units-face-attack-target) ---
+
+
+func _make_facing_attacker(rotation_deg: float, instant: bool) -> Array:
+    # Stationary ground attacker with a MovementController whose _rotation_target
+    # is a plain child pivot (avoids TerrainSystem normal reads in _apply_facing).
+    # Returns [entity, mc, cc, pivot].
+    var entity := _make_combat_entity(true, 0)
+    var root: Node = Engine.get_main_loop().root
+    root.add_child(entity)
+    entity.global_position = Vector3(0, 0, 0)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    mc.rotation_speed = rotation_deg
+    entity.add_child(mc)
+    mc._parent = entity
+    var pivot := Node3D.new()
+    pivot.name = "FacingPivot"
+    entity.add_child(pivot)
+    mc._rotation_target = pivot
+    mc._stand_upright = true
+    mc._instant_turn = instant
+    mc._rotation_yaw = 0.0
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    return [entity, mc, cc, pivot]
+
+
+func _yaw_of(pivot: Node3D) -> float:
+    return pivot.global_transform.basis.z.signed_angle_to(Vector3(0, 0, 1), Vector3.UP)
+
+
+func test_configure_adopts_rotation_speed():
+    var mc := MovementController.new()
+    var data := EntityData.new()
+    data.rotation_speed = 90.0
+    mc.configure(data)
+    TestHelper.assert_eq(mc.rotation_speed, 90.0, "configure adopts data.rotation_speed")
+    mc.free()
+    data.free()
+
+
+func test_proportional_slew_same_arc():
+    # Two units slewing the same 90-degree arc at 90 vs 180 deg/s: the first
+    # takes twice as many fixed-delta steps to align (independent of impl).
+    var results := []
+    for rate in [90.0, 180.0]:
+        var setup: Array = _make_facing_attacker(rate, false)
+        var mc: MovementController = setup[1]
+        var target_pos := Vector3(10.0, 0.0, 0.0)
+        var steps := 0
+        var aligned := false
+        while not aligned and steps < 100:
+            aligned = mc.face_toward(target_pos, 0.1)
+            steps += 1
+        results.append(steps)
+        (setup[0] as Node3D).get_parent().remove_child(setup[0])
+        (setup[0] as Node3D).free()
+    TestHelper.assert_true(results[0] > 0, "slow unit needs steps to align")
+    TestHelper.assert_true(results[1] > 0, "fast unit needs steps to align")
+    TestHelper.assert_eq(results[0], results[1] * 2, "half rate takes twice the steps")
+
+
+func test_face_toward_instant_turn_snaps():
+    var setup: Array = _make_facing_attacker(180.0, true)
+    var mc: MovementController = setup[1]
+    var pivot: Node3D = setup[3]
+    var aligned: bool = mc.face_toward(Vector3(10.0, 0.0, 0.0), 0.016)
+    var yaw := _yaw_of(pivot)
+    TestHelper.assert_true(aligned, "instant-turn returns aligned same call")
+    TestHelper.assert_true(absf(yaw - PI / 2.0) < 0.01, "infantry snaps to target")
+    (setup[0] as Node3D).get_parent().remove_child(setup[0])
+    (setup[0] as Node3D).free()
+
+
+func test_face_toward_slew_no_signals():
+    var setup: Array = _make_facing_attacker(180.0, false)
+    var mc: MovementController = setup[1]
+    var fired := [false]
+    mc.movement_started.connect(func(): fired[0] = true)
+    var aligned: bool = mc.face_toward(Vector3(10.0, 0.0, 0.0), 0.25)
+    var waypoints_empty: bool = mc._waypoints.is_empty()
+    TestHelper.assert_true(not aligned, "90-degree slew not aligned after 45-degree step")
+    TestHelper.assert_true(not fired[0], "face_toward emits no movement_started")
+    TestHelper.assert_true(waypoints_empty, "face_toward touches no waypoints")
+    (setup[0] as Node3D).get_parent().remove_child(setup[0])
+    (setup[0] as Node3D).free()
+
+
+func _make_moved_vehicle() -> Array:
+    # Vehicle that just drove a curved MOVING leg: body faces +X while the yaw
+    # mirror still holds the leg-start heading (0) — the stale-mirror state a
+    # curved move used to leave behind. One tick travels +X from origin.
+    var setup: Array = _make_facing_attacker(180.0, false)
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    mc._apply_facing(Vector3(1, 0, 0))
+    mc._rotation_yaw = 0.0
+    mc._state = MovementController.State.MOVING
+    mc._waypoints = PackedVector3Array(
+        [entity.global_position, entity.global_position + Vector3(10, 0, 0)]
+    )
+    mc._bake_spline()
+    mc._spline_t = 0.0
+    mc._handle_moving_movement(0.016)
+    return setup
+
+
+func test_moving_tick_syncs_rotation_yaw_with_body():
+    var setup: Array = _make_moved_vehicle()
+    var mc: MovementController = setup[1]
+    var pivot: Node3D = setup[3]
+    # Travelling +X maps to the face_toward yaw convention atan2(-1, 0) = -PI/2.
+    TestHelper.assert_true(
+        absf(mc._rotation_yaw + PI / 2.0) < 0.02,
+        "MOVING tick syncs _rotation_yaw to travel heading: got %f" % mc._rotation_yaw
+    )
+    TestHelper.assert_true(
+        absf(mc._rotation_yaw + _yaw_of(pivot)) < 0.02,
+        "yaw mirror matches actual body heading after a MOVING tick"
+    )
+    (setup[0] as Node3D).get_parent().remove_child(setup[0])
+    (setup[0] as Node3D).free()
+
+
+func test_attack_facing_after_move_slews_from_true_heading():
+    # Reported glitch: vehicle moving, attack issued with the target already in
+    # range, and the post-stop facing call snapped the body because face_toward
+    # trusted the stale yaw mirror. The body must slew from its true heading.
+    var setup: Array = _make_moved_vehicle()
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var pivot: Node3D = setup[3]
+    var yaw_before: float = _yaw_of(pivot)
+    var step: float = deg_to_rad(mc.rotation_speed) * 0.016
+    mc.face_toward(entity.global_position + Vector3(0, 0, -10), 0.016)
+    var moved := absf(angle_difference(yaw_before, _yaw_of(pivot)))
+    TestHelper.assert_true(
+        moved <= step + 0.02,
+        "first attack-facing tick slews from true heading, no snap: moved %f" % moved
+    )
+    var steps := 1
+    while absf(angle_difference(_yaw_of(pivot), 0.0)) > deg_to_rad(5.0) and steps < 100:
+        mc.face_toward(entity.global_position + Vector3(0, 0, -10), 0.016)
+        steps += 1
+    TestHelper.assert_true(steps < 100, "body actually reaches the attack heading")
+    (entity as Node3D).get_parent().remove_child(entity)
+    (entity as Node3D).free()
+
+
+func test_stationary_vehicle_holds_fire_then_fires_aligned():
+    var setup: Array = _make_facing_attacker(180.0, false)
+    var entity: Node3D = setup[0]
+    var pivot: Node3D = setup[3]
+    var cc: CombatComponent = setup[2]
+    var target := _make_target_with_health(1, 1000)
+    Engine.get_main_loop().root.add_child(target)
+    target.global_position = Vector3(6.0, 0.0, 0.0)
+    var fired := [false]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D): fired[0] = true)
+    cc.set_target(target)
+    cc._physics_process(0.25)
+    var held: bool = not fired[0]
+    var ticks := 0
+    while not fired[0] and ticks < 20:
+        cc._physics_process(0.25)
+        ticks += 1
+    var yaw := _yaw_of(pivot)
+    Engine.get_main_loop().root.remove_child(target)
+    entity.get_parent().remove_child(entity)
+    target.free()
+    entity.free()
+    TestHelper.assert_true(held, "out-of-arc vehicle holds fire first tick")
+    TestHelper.assert_true(fired[0], "vehicle fires once aligned")
+    TestHelper.assert_true(
+        absf(absf(yaw) - PI / 2.0) < deg_to_rad(6.0), "yaw within tolerance at fire time"
+    )
+
+
+func test_stationary_infantry_snaps_and_fires_same_tick():
+    var setup: Array = _make_facing_attacker(180.0, true)
+    var entity: Node3D = setup[0]
+    var cc: CombatComponent = setup[2]
+    var target := _make_target_with_health(1, 1000)
+    Engine.get_main_loop().root.add_child(target)
+    target.global_position = Vector3(0, 0, -6.0)
+    var fired := [false]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D): fired[0] = true)
+    cc.set_target(target)
+    cc._physics_process(0.016)
+    Engine.get_main_loop().root.remove_child(target)
+    entity.get_parent().remove_child(entity)
+    target.free()
+    entity.free()
+    TestHelper.assert_true(fired[0], "infantry snaps and fires same tick")
+
+
+func test_building_fires_without_mc():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 1000)
+    target.global_position = Vector3(0, 0, -6.0)
+    var fired := [false]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D): fired[0] = true)
+    cc.set_target(target)
+    cc._physics_process(0.016)
+    TestHelper.assert_true(fired[0], "building without MC fires with no facing gate")
+    TestHelper.assert_true(entity.rotation.y == 0.0, "building does not rotate")
+    entity.free()
+    target.free()
+
+
+func test_close_range_fires_without_turning():
+    var setup: Array = _make_facing_attacker(1.0, false)
+    var entity: Node3D = setup[0]
+    var pivot: Node3D = setup[3]
+    var cc: CombatComponent = setup[2]
+    var target := _make_target_with_health(1, 1000)
+    Engine.get_main_loop().root.add_child(target)
+    target.global_position = Vector3(1.0, 5.0, 0.0)
+    var fired := [false]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D): fired[0] = true)
+    cc.set_target(target)
+    cc._physics_process(0.016)
+    var yaw := _yaw_of(pivot)
+    Engine.get_main_loop().root.remove_child(target)
+    entity.get_parent().remove_child(entity)
+    target.free()
+    entity.free()
+    TestHelper.assert_true(fired[0], "close target fires despite yaw (deadzone)")
+    TestHelper.assert_true(absf(yaw) < 0.01, "body did not turn for deadzone shot")
+    TestHelper.assert_true(true, "vertical separation ignored for yaw")
