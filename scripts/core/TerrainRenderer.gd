@@ -105,7 +105,7 @@ func render_cell(cell: Vector2i, data: Dictionary) -> void:
     var key := CellUtil.cell_key_str(cell)
     if _instance_data.has(key) or _pink_data.has(key):
         remove_cell(cell)
-    var resolution: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(data)
+    var resolution: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(data, cell)
     var object_id: String = data.get("object_id", "")
     if not resolution.valid or not _multimesh_meshes.has(resolution.submesh_id):
         _render_pink_placeholder(cell, data, object_id)

@@ -160,10 +160,26 @@ func resolve_art(object_id: String, theater_id: String) -> TerrainArtData.ArtRes
     return TerrainArtData.ArtResolution.new()
 
 
-## Resolves a rendered cell's art from its cell data: uses the baked object_id
-## when present (catalog path), otherwise the legacy type/variant family, then
-## resolves for the active theater. Invalid when neither path yields art.
-func resolve_cell_art(cell_data: Dictionary) -> TerrainArtData.ArtResolution:
+## Sentinel cell for callers without cell context (skips the pin check).
+const NO_CELL := Vector2i(-1, -1)
+
+
+## Resolves a rendered cell's art from its cell data: a cliff pin on `cell`
+## (when provided) resolves first, then the baked object_id (catalog path),
+## then the legacy type/variant family, all resolved for the active theater.
+## Invalid when none of those paths yields art. An unknown pinned id falls
+## back to the derived paths with a warning.
+func resolve_cell_art(
+    cell_data: Dictionary, cell: Vector2i = NO_CELL
+) -> TerrainArtData.ArtResolution:
+    if cell != NO_CELL:
+        var pinned: String = TerrainSystem.get_pin(cell)
+        if not pinned.is_empty() and get_object(pinned) == null:
+            push_warning(
+                "TerrainCatalog: pinned object '%s' unknown; using derived resolution" % pinned
+            )
+        elif not pinned.is_empty():
+            return resolve_art(pinned, get_active_theater_id())
     var object_id: String = cell_data.get("object_id", "")
     var family := (
         object_id
