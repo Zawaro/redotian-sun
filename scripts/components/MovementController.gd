@@ -110,6 +110,34 @@ var _weight: float = 1.0
 func configure(data: EntityData) -> void:
     locomotor = data.locomotor
     movement_zone = data.movement_zone
+    rotation_speed = data.rotation_speed
+
+
+## Slews the entity body toward a world position without touching waypoints or
+## emitting movement signals. Returns true when the body faces the target
+## within rotation_angle_threshold. Instant-turn locomotors snap and align
+## in the same call.
+func face_toward(target_pos: Vector3, delta: float) -> bool:
+    if not is_instance_valid(_parent):
+        return false
+    var to_target := target_pos - _parent.global_position
+    to_target.y = 0.0
+    if to_target.length_squared() < 0.001:
+        return true
+    var desired_yaw := atan2(-to_target.x, -to_target.z)
+    if _instant_turn:
+        _rotation_yaw = desired_yaw
+        _apply_facing(Vector3(-sin(desired_yaw), 0.0, -cos(desired_yaw)))
+        return true
+    var step := deg_to_rad(rotation_speed) * delta
+    var tolerance := maxf(step, deg_to_rad(rotation_angle_threshold))
+    if absf(angle_difference(_rotation_yaw, desired_yaw)) <= tolerance:
+        _rotation_yaw = desired_yaw
+        _apply_facing(Vector3(-sin(desired_yaw), 0.0, -cos(desired_yaw)))
+        return true
+    _rotation_yaw += signf(angle_difference(_rotation_yaw, desired_yaw)) * step
+    _apply_facing(Vector3(-sin(_rotation_yaw), 0.0, -cos(_rotation_yaw)))
+    return false
 
 
 func _ready() -> void:
@@ -834,7 +862,13 @@ func _handle_moving_movement(delta: float) -> void:
     var final_direction := (steering_dir + deviation).normalized()
 
     if is_instance_valid(_rotation_target):
-        _apply_facing(Vector3(final_direction.x, 0.0, final_direction.z).normalized())
+        var face := Vector3(final_direction.x, 0.0, final_direction.z).normalized()
+        if face.length_squared() >= 0.001:
+            # Keep the yaw mirror in sync with the body: face_toward and
+            # _handle_rotating slew from _rotation_yaw, and a stale value (path
+            # start heading) makes the next face_toward snap the vehicle.
+            _rotation_yaw = atan2(-face.x, -face.z)
+            _apply_facing(face)
 
     var step := (
         final_direction
