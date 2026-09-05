@@ -7,7 +7,6 @@ class_name CellReservation extends Node
 static var instance: CellReservation
 
 var _claims: Dictionary = {}
-var _connected_owners: Dictionary = {}
 var _claimant_cells: Dictionary = {}
 
 
@@ -153,12 +152,16 @@ func _forget_cell(claimant: Node3D, key: int) -> void:
 
 
 func _connect_cleanup(claimant: Node3D) -> void:
-    if _connected_owners.has(claimant):
+    # Every move order re-reserves while the owner stays in the tree; a fresh
+    # bind compares equal to the stored connection, so this is the dedupe.
+    if claimant.tree_exited.is_connected(_on_owner_freed.bind(claimant)):
         return
     claimant.tree_exited.connect(_on_owner_freed.bind(claimant))
-    _connected_owners[claimant] = true
 
 
 func _on_owner_freed(claimant: Node3D) -> void:
+    # One connection per owner lifetime: leaving the tree (e.g. boarding a
+    # transport) drops the claims AND the cleanup hook; a later re-add re-arms
+    # it via reserve_sub_slot, so the connect never doubles up.
+    claimant.tree_exited.disconnect(_on_owner_freed.bind(claimant))
     release_all(claimant)
-    _connected_owners.erase(claimant)

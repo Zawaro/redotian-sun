@@ -285,6 +285,54 @@ func test_tree_exited_releases_claims():
     )
 
 
+func test_readd_after_tree_exit_rearms_cleanup_once():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.fail("CellReservation not available")
+        return
+    cr.clear()
+    var cell := Vector2i(12, 12)
+    # Parent to the root: only in-tree nodes fire tree_exited on remove_child
+    # (mirrors board-detach / eject-readd of a real passenger).
+    var a := Node3D.new()
+    Engine.get_main_loop().root.add_child(a)
+    var slot_a: int = cr.reserve_sub_slot(cell, a)
+    # Boarding detaches the node: claims drop and the cleanup hook unarms.
+    Engine.get_main_loop().root.remove_child(a)
+    var claims_after_exit: int = cr.get_claim_count(cell)
+    # Ejecting re-adds the node and re-reserves: cleanup must reconnect
+    # exactly once (no duplicate tree_exited connection) and assign a slot.
+    Engine.get_main_loop().root.add_child(a)
+    var slot_b: int = cr.reserve_sub_slot(cell, a)
+    var connections: int = a.get_signal_connection_list("tree_exited").size()
+    cr.clear()
+    a.queue_free()
+    (
+        TestHelper
+        . assert_true(
+            slot_a == 0 and claims_after_exit == 0,
+            (
+                "reserve then tree-exit drops claims: slot_a=%d claims=%d, expected 0, 0"
+                % [slot_a, claims_after_exit]
+            ),
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            slot_b == 0,
+            "re-reserve after re-add assigns a slot: slot_b=%d, expected 0" % slot_b,
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            connections == 1,
+            "cleanup connection re-armed exactly once: connections=%d, expected 1" % connections,
+        )
+    )
+
+
 func test_stale_owner_pruned_on_read():
     var cr := CellReservation.instance
     if cr == null:
@@ -300,4 +348,38 @@ func test_stale_owner_pruned_on_read():
     TestHelper.assert_true(
         available == 0,
         "stale owner pruned, slot reported available: available=%d, expected 0" % available
+    )
+
+
+func test_repeat_reserve_while_in_tree_keeps_single_connection():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.fail("CellReservation not available")
+        return
+    cr.clear()
+    # Every move order re-reserves while the owner stays in the tree (a new
+    # cell claim releases the old one and re-runs the cleanup connect) — the
+    # connect must dedupe, or Godot errors on the duplicate connection.
+    var owner := _make_owner()
+    var slot_a: int = cr.reserve_sub_slot(Vector2i(14, 14), owner)
+    var slot_b: int = cr.reserve_sub_slot(Vector2i(15, 15), owner)
+    var connections: int = owner.get_signal_connection_list("tree_exited").size()
+    cr.clear()
+    owner.queue_free()
+    (
+        TestHelper
+        . assert_true(
+            slot_a == 0 and slot_b == 0,
+            (
+                "repeat reserve assigns slot 0 on fresh cells: slots=%d,%d, expected 0,0"
+                % [slot_a, slot_b]
+            ),
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            connections == 1,
+            "repeat reserve keeps one cleanup connection: connections=%d, expected 1" % connections,
+        )
     )
