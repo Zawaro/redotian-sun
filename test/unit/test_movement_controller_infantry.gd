@@ -120,6 +120,130 @@ func test_crush_does_not_affect_non_crushable():
 # --- get_cursor_for_target tests ---
 
 
+func test_arrival_detach_skips_post_emit_tail():
+    # Boarding detaches the passenger inside the arrived handler, mid-callback.
+    # The cell-tracking tail after the emit must not read the detached parent.
+    var sh := SpatialHash.instance
+    if sh == null:
+        TestHelper.fail("SpatialHash not available")
+        return
+    sh._blocked_cells.clear()
+    var root := Engine.get_main_loop().root as Node
+    var walker := Node3D.new()
+    walker.name = "Walker"
+    root.add_child(walker)
+    var mc := MovementController.new()
+    walker.add_child(mc)
+    var cell := Vector2i(47, 47)
+    var target := CellUtil.cell_to_world(cell)
+    walker.global_position = target
+    mc._waypoints = PackedVector3Array([target])
+    mc._state = MovementController.State.MOVING
+    mc._last_position = walker.global_position
+    var detached := [false]
+    mc.arrived.connect(
+        func(_p: Vector3) -> void:
+            root.remove_child(walker)
+            detached[0] = true
+    )
+    mc._physics_process(0.016)
+    TestHelper.assert_true(detached[0], "arrival subscriber detached the mover")
+    TestHelper.assert_true(not walker.is_inside_tree(), "walker left the tree mid-callback")
+    TestHelper.assert_true(mc._state == MovementController.State.IDLE, "arrival completed")
+    TestHelper.assert_eq(
+        mc._last_position, target, "tail skipped: last position keeps the arrival value"
+    )
+    walker.free()
+
+
+# --- Scatter gate tests ---
+
+
+func test_scatter_skipped_with_free_neighbor():
+    # A free adjacent cell means the mover can sidestep itself — neighbors
+    # must not be shoved (this is what relocated idle vehicles before).
+    var sh := SpatialHash.instance
+    if sh == null:
+        TestHelper.fail("SpatialHash not available")
+        return
+    sh._grid.clear()
+    sh._blocked_cells.clear()
+    MovementController._scattered_this_frame.clear()
+    var root := Engine.get_main_loop().root as Node
+    var cell := Vector2i(48, 48)
+    var mover := Node3D.new()
+    mover.name = "Mover"
+    root.add_child(mover)
+    mover.global_position = CellUtil.cell_to_world(cell)
+    var mc := MovementController.new()
+    mover.add_child(mc)
+    # One blocker to the east; every other neighbor free.
+    var blocker := Node3D.new()
+    blocker.name = "Blocker"
+    root.add_child(blocker)
+    blocker.global_position = CellUtil.cell_to_world(cell + Vector2i(1, 0))
+    var blocker_mc := MovementController.new()
+    blocker.add_child(blocker_mc)
+    var key: int = CellUtil.cell_key(cell + Vector2i(1, 0))
+    sh._grid[key] = [{"node": blocker, "mc": blocker_mc}]
+    sh._blocked_cells[key] = true
+    mc._scatter_blockers()
+    TestHelper.assert_true(
+        blocker_mc._waypoints.is_empty(), "single neighbor blocked: blocker not scattered"
+    )
+    TestHelper.assert_true(blocker_mc._state == MovementController.State.IDLE, "blocker stays idle")
+    sh._grid.erase(key)
+    sh._blocked_cells.erase(key)
+    mover.free()
+    blocker.free()
+
+
+func test_scatter_fires_when_fully_boxed_in():
+    # All 8 adjacent cells blocked: the mover truly cannot move — blockers
+    # get scattered to make room.
+    var sh := SpatialHash.instance
+    if sh == null:
+        TestHelper.fail("SpatialHash not available")
+        return
+    sh._grid.clear()
+    sh._blocked_cells.clear()
+    MovementController._scattered_this_frame.clear()
+    var root := Engine.get_main_loop().root as Node
+    var cell := Vector2i(50, 50)
+    var mover := Node3D.new()
+    mover.name = "Mover"
+    root.add_child(mover)
+    mover.global_position = CellUtil.cell_to_world(cell)
+    var mc := MovementController.new()
+    mover.add_child(mc)
+    var blocker := Node3D.new()
+    blocker.name = "Blocker"
+    root.add_child(blocker)
+    blocker.global_position = CellUtil.cell_to_world(cell + Vector2i(1, 0))
+    var blocker_mc := MovementController.new()
+    blocker.add_child(blocker_mc)
+    for dx in range(-1, 2):
+        for dz in range(-1, 2):
+            if dx == 0 and dz == 0:
+                continue
+            var ncell := cell + Vector2i(dx, dz)
+            var nkey: int = CellUtil.cell_key(ncell)
+            sh._blocked_cells[nkey] = true
+            if ncell == cell + Vector2i(1, 0):
+                sh._grid[nkey] = [{"node": blocker, "mc": blocker_mc}]
+    mc._scatter_blockers()
+    TestHelper.assert_true(
+        blocker_mc._waypoints.size() > 0, "fully boxed in: blocker gets scattered"
+    )
+    TestHelper.assert_true(
+        blocker_mc._state != MovementController.State.IDLE, "blocker moves off the ring"
+    )
+    sh._grid.clear()
+    sh._blocked_cells.clear()
+    mover.free()
+    blocker.free()
+
+
 func test_cursor_always_returns_move():
     var mc := MovementController.new()
     mc.name = "MovementController"
