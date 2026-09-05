@@ -103,6 +103,10 @@ var _is_jumpjet: bool = false
 var _is_subterranean: bool = false
 var _hybrid_active: bool = false
 var _land_on_arrival: bool = false
+## Exact-target move: destination stays put even when occupied (boarding a
+## transport); the unit walks a straight final leg onto it and arrives instead
+## of waiting for the cell to clear.
+var _exact_target: bool = false
 var _ice_cracking_weight: float = 2.0
 var _weight: float = 1.0
 
@@ -397,7 +401,7 @@ func stop() -> void:
         var dist := _parent.global_position.distance_to(final_pos)
         if dist < 0.1:
             var final_cell := CellUtil.world_to_cell(final_pos)
-            if not _is_cell_occupied_by_idle(final_cell):
+            if _exact_target or not _is_cell_occupied_by_idle(final_cell):
                 _finish_stop()
                 return
     if _state == State.MOVING:
@@ -468,7 +472,9 @@ func set_target_position(
     cost_cache: Pathfinder.PathCostCache = null,
     terrain: Node = null,
     bounded: bool = false,
+    exact_target: bool = false,
 ) -> void:
+    _exact_target = exact_target
     if (
         is_nan(target.x)
         or is_nan(target.y)
@@ -532,7 +538,9 @@ func set_target_position(
         path = PackedVector3Array([target])
     else:
         # Ground move: normal infantry booking, then walk pathfinding.
-        if _is_cell_occupied_by_idle(target_cell):
+        # Exact-target moves (boarding) keep the occupied destination and walk
+        # a straight final leg onto it instead of relocating.
+        if not exact_target and _is_cell_occupied_by_idle(target_cell):
             var free := _find_nearest_free_idle_cell(target_cell, bounded)
             target = CellUtil.cell_to_world(free)
             target_cell = free
@@ -551,6 +559,13 @@ func set_target_position(
         path = _greedy_or_search_path(
             target, target_cell, blocked, unblock_buildings, cost_cache, terrain
         )
+        if exact_target and not path.is_empty():
+            var last_cell := CellUtil.world_to_cell(path[path.size() - 1])
+            # Straight final leg onto the occupied destination (the APC) —
+            # skipped when that cell is water: the walker stops at the shore
+            # cell and still boards via the arrival range check.
+            if last_cell != target_cell and TerrainSystem.get_land_type(target_cell) != "water":
+                path.append(target)
 
         if _is_jumpjet and _locomotor_data:
             if path.is_empty():
@@ -666,6 +681,15 @@ func get_target_position() -> Vector3:
     if _waypoints.is_empty():
         return _parent.global_position
     return _waypoints[_waypoints.size() - 1]
+
+
+## Move onto an occupied destination (e.g. infantry boarding a transport): the
+## target is not relocated, the unit walks a straight final leg onto it, and
+## arrival fires even though the destination cell is occupied.
+func set_exact_target(target: Vector3) -> void:
+    # Positional tail: unblock=false, keep_zone=false, internal=false,
+    # caches=null, bounded=false, exact_target=true.
+    set_target_position(target, false, false, false, null, null, false, true)
 
 
 ## Greedy-first path resolution: walks bounded greedy descent (`try_greedy_step`)
@@ -914,7 +938,7 @@ func _handle_moving_movement(delta: float) -> void:
         # the range circle and make it bounce back. Only landing moves (and ground
         # movers) re-target off a blocked cell.
         var airborne_hold := is_airborne_jumpjet() and not _land_on_arrival
-        if not airborne_hold and _is_cell_occupied_by_idle(final_cell):
+        if not airborne_hold and not _exact_target and _is_cell_occupied_by_idle(final_cell):
             if _is_jumpjet:
                 # A jumpjet can fly: don't freeze waiting for the cell to clear,
                 # glide to the nearest free cell instead (keeping its zone intent).
@@ -961,6 +985,11 @@ func _handle_moving_movement(delta: float) -> void:
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
             arrived.emit(_parent.global_position)
+            # A subscriber may have detached or freed the mover (boarding a
+            # transport detaches the passenger mid-callback); the cell-tracking
+            # tail below must not read the parent once it left the tree.
+            if not _parent.is_inside_tree():
+                return
         else:
             _parent.global_position += Vector3(approach_step.x, 0.0, approach_step.z)
             _snap_to_terrain(delta)
@@ -1017,7 +1046,7 @@ func _handle_wait(delta: float) -> void:
         return
 
     var final_cell := CellUtil.world_to_cell(_waypoints[_waypoints.size() - 1])
-    if not _is_cell_occupied_by_idle(final_cell):
+    if _exact_target or not _is_cell_occupied_by_idle(final_cell):
         var cell_center := CellUtil.cell_to_world(final_cell)
         var wait_target := _sub_slot_position if _has_sub_slot else cell_center
         if _is_jumpjet:
@@ -1277,6 +1306,21 @@ func _is_cell_unavailable_for_sub_slot(cell: Vector2i) -> bool:
 
 func _scatter_blockers() -> void:
     var cell := CellUtil.world_to_cell(_parent.global_position)
+    # ponytail: scatter only when truly boxed in — a free adjacent cell means
+    # the mover can sidestep on its own; firing on any wait/path-fail shoved
+    # idle vehicles around whenever infantry merely moved nearby.
+    var boxed_in := true
+    for dx in range(-1, 2):
+        for dz in range(-1, 2):
+            if dx == 0 and dz == 0:
+                continue
+            if not SpatialHash.instance.is_cell_blocked(cell + Vector2i(dx, dz)):
+                boxed_in = false
+                break
+        if not boxed_in:
+            break
+    if not boxed_in:
+        return
     var blocked := SpatialHash.instance.get_blocked_cells()
     for radius in range(1, 4):
         for dx in range(-radius, radius + 1):
