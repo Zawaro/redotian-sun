@@ -293,14 +293,8 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
         else:
             vehicles.append(ent)
 
-    for sharer in sharers:
-        var parent := sharer.get_parent() as Node3D
-        if not is_instance_valid(parent):
-            continue
-        var assigned_cell := _find_sharer_cell(target_position)
-        var cell_center: Vector3 = _bounded_player_target(CellUtil.cell_to_world(assigned_cell))
-        _pending_moves.append([sharer, cell_center])
-
+    # Vehicles reserve destinations first: infantry sub-slot assignment below
+    # rejects reserved cells, so the two passes can never claim the same cell.
     for ent in vehicles:
         var parent := ent.get_parent() as Node3D
         if not is_instance_valid(parent):
@@ -322,9 +316,22 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
             )
         target = _bounded_player_target(target)
         var cell := CellUtil.world_to_cell(target)
-        if not SpatialHash.instance.reserve_cell(cell):
+        # A cell with infantry sub-slot claims (in flight or already boarded
+        # destinations) is no parking spot for a vehicle.
+        if (
+            CellReservation.instance.get_claim_count(cell) > 0
+            or not SpatialHash.instance.reserve_cell(cell)
+        ):
             target = _fallback_target(target)
         _pending_moves.append([ent, target])
+
+    for sharer in sharers:
+        var parent := sharer.get_parent() as Node3D
+        if not is_instance_valid(parent):
+            continue
+        var assigned_cell := _find_sharer_cell(target_position)
+        var cell_center: Vector3 = _bounded_player_target(CellUtil.cell_to_world(assigned_cell))
+        _pending_moves.append([sharer, cell_center])
 
 
 func _process(_delta: float) -> void:
@@ -394,6 +401,8 @@ func _fallback_target(target: Vector3) -> Vector3:
         8,
         func(c: Vector2i) -> bool:
             if not BoundsSystem.is_in_order_area(c):
+                return true
+            if CellReservation.instance.get_claim_count(c) > 0:
                 return true
             return not SpatialHash.instance.reserve_cell(c)
     )
@@ -482,6 +491,10 @@ func _find_sharer_cell(target_position: Vector3) -> Vector2i:
             if not BoundsSystem.is_in_order_area(cell):
                 return true
             if CellReservation.instance.is_cell_full(cell):
+                return true
+            # Cells reserved as vehicle destinations (or force-reserved own
+            # cells of the selection) are no infantry stand-off spots.
+            if SpatialHash.instance.get_reserved().has(CellUtil.cell_key(cell)):
                 return true
             if SpatialHash.instance.is_cell_blocked(cell):
                 return true
