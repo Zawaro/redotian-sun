@@ -498,6 +498,189 @@ func test_non_infantry_sharer_uses_cell_distribution():
 
 
 # ========================================
+# Implode destination overlap guards (#mixed-selection)
+# ========================================
+
+
+func test_find_sharer_cell_avoids_reserved_vehicle_destination():
+    if _sm == null or _ts == null:
+        TestHelper.fail("SelectionManager/TerrainSystem not injected")
+        return
+    _ts.init_grid(50, 50)
+    CellReservation.instance.clear()
+    SpatialHash.instance.clear_reservations()
+    # Cell (30,30) sits inside the runner's order area (same anchor as the
+    # capacity test); reserve it the way a vehicle destination (or a
+    # selection's force-reserved own cell) would be.
+    var target := Vector2i(30, 30)
+    SpatialHash.instance._reserved[CellUtil.cell_key(target)] = true
+    var result: Vector2i = _sm._find_sharer_cell(CellUtil.cell_to_world(target))
+    SpatialHash.instance.clear_reservations()
+    (
+        TestHelper
+        . assert_true(
+            result != target,
+            (
+                "sharer cell avoids vehicle-reserved destination: got %s, expected a spiral cell"
+                % result
+            ),
+        )
+    )
+
+
+func test_vehicle_destination_avoids_infantry_claims():
+    if _sm == null or _ts == null:
+        TestHelper.fail("SelectionManager/TerrainSystem not injected")
+        return
+    var rules := GlobalRules.get_current()
+    var saved_shroud: bool = rules.shroud_enabled
+    var saved_fog: bool = rules.fog_of_war
+    rules.shroud_enabled = false
+    rules.fog_of_war = false
+    _ts.init_grid(50, 50)
+    _sm.deselect_all()
+    CellReservation.instance.clear()
+    SpatialHash.instance.clear_reservations()
+    # Infantry sub-slot claim in flight on the target cell: a vehicle in
+    # implode mode must not reserve that cell as its parking spot.
+    var claimed_cell := Vector2i(30, 30)
+    var claimer := Node3D.new()
+    add_child(claimer)
+    CellReservation.instance.reserve_sub_slot(claimed_cell, claimer)
+    var entity := Node3D.new()
+    entity.name = "ImplodeVehicle"
+    var stats := StatsComponent.new()
+    stats.player_id = -1
+    stats.entity_type = EntityData.EntityType.VEHICLE
+    entity.add_child(stats)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    _sm.add_child(entity)
+    var select_comp := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    select_comp.name = "SelectComponent"
+    entity.add_child(select_comp)
+    _sm.select_entity(select_comp)
+    _sm.request_move(CellUtil.cell_to_world(Vector2i(30, 30)), true)
+    var routed: bool = _sm._pending_moves.size() == 1
+    var landed := (
+        CellUtil.world_to_cell(_sm._pending_moves[0][1] as Vector3) if routed else claimed_cell
+    )
+    _sm.deselect_all()
+    CellReservation.instance.clear()
+    SpatialHash.instance.clear_reservations()
+    entity.queue_free()
+    claimer.queue_free()
+    rules.shroud_enabled = saved_shroud
+    rules.fog_of_war = saved_fog
+    TestHelper.assert_true(routed, "vehicle got exactly one pending move")
+    (
+        TestHelper
+        . assert_true(
+            landed != claimed_cell,
+            "vehicle destination avoids claimed infantry cell: got %s" % landed,
+        )
+    )
+
+
+func test_implode_mixed_selection_destinations_do_not_overlap():
+    if _sm == null or _ts == null:
+        TestHelper.fail("SelectionManager/TerrainSystem not injected")
+        return
+    var rules := GlobalRules.get_current()
+    var saved_shroud: bool = rules.shroud_enabled
+    var saved_fog: bool = rules.fog_of_war
+    rules.shroud_enabled = false
+    rules.fog_of_war = false
+    _ts.init_grid(50, 50)
+    _sm.deselect_all()
+    CellReservation.instance.clear()
+    SpatialHash.instance.clear_reservations()
+    var vehicles: Array[Node3D] = []
+    var infantry: Array[Node3D] = []
+    for i in 2:
+        var vehicle := Node3D.new()
+        vehicle.name = "ImplodeV%d" % i
+        var vstats := StatsComponent.new()
+        vstats.player_id = -1
+        vstats.entity_type = EntityData.EntityType.VEHICLE
+        vehicle.add_child(vstats)
+        var vmc := MovementController.new()
+        vehicle.add_child(vmc)
+        _sm.add_child(vehicle)
+        var vsc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+        vehicle.add_child(vsc)
+        _sm.select_entity(vsc, true)
+        vehicles.append(vehicle)
+    for i in 3:
+        var unit := Node3D.new()
+        unit.name = "ImplodeI%d" % i
+        var istats := StatsComponent.new()
+        istats.player_id = -1
+        istats.entity_type = EntityData.EntityType.INFANTRY
+        unit.add_child(istats)
+        var imc := MovementController.new()
+        unit.add_child(imc)
+        imc._shares_cell = true
+        _sm.add_child(unit)
+        var isc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+        unit.add_child(isc)
+        _sm.select_entity(isc, true)
+        infantry.append(unit)
+    _sm.request_move(CellUtil.cell_to_world(Vector2i(30, 30)), true)
+    var vehicle_cells: Array[Vector2i] = []
+    var infantry_cells: Array[Vector2i] = []
+    for entry in _sm._pending_moves:
+        var sc := entry[0] as SelectComponent
+        var cell := CellUtil.world_to_cell(entry[1] as Vector3)
+        if (sc.get_parent() as Node3D) in vehicles:
+            vehicle_cells.append(cell)
+        else:
+            infantry_cells.append(cell)
+    _sm.deselect_all()
+    CellReservation.instance.clear()
+    SpatialHash.instance.clear_reservations()
+    for v in vehicles:
+        v.queue_free()
+    for u in infantry:
+        u.queue_free()
+    rules.shroud_enabled = saved_shroud
+    rules.fog_of_war = saved_fog
+    (
+        TestHelper
+        . assert_true(
+            vehicle_cells.size() == 2,
+            "both vehicles routed: got %d of %s" % [vehicle_cells.size(), vehicle_cells],
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            infantry_cells.size() == 3,
+            "all infantry routed: got %d of %s" % [infantry_cells.size(), infantry_cells],
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            vehicle_cells[0] != vehicle_cells[1],
+            "vehicles do not share a destination cell: %s" % [vehicle_cells],
+        )
+    )
+    for vcell in vehicle_cells:
+        (
+            TestHelper
+            . assert_true(
+                not infantry_cells.has(vcell),
+                (
+                    "no infantry shares a vehicle destination: vehicles=%s infantry=%s"
+                    % [vehicle_cells, infantry_cells]
+                ),
+            )
+        )
+
+
+# ========================================
 # Visible-bounds selection gate (#318)
 # ========================================
 
