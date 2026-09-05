@@ -12,3 +12,5 @@ terrain_speeds = {
 "rough": 0.5
 }
 climb_tolerance = 1
+accelerate = true
+decelerate = true
