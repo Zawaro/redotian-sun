@@ -28,6 +28,10 @@ class_name Locomotor extends Resource
 @export var instant_turn: bool = false
 ## Smooths the walk path and eases spline segment ends.
 @export var organic_path: bool = false
+## Ramp speed from 0 up to effective target speed at move start.
+@export var accelerate: bool = false
+## Ramp speed down to crawl floor as unit approaches its final waypoint.
+@export var decelerate: bool = false
 
 @export_group("Hybrid Thresholds")
 ## Hover height in world units; 0 = use GlobalRules.hover_height.

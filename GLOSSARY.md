@@ -119,6 +119,7 @@ are 45°-rotated rectangles, i.e. diamonds.
 | movement zone | TS pathfinding domain-class metadata on EntityData; validated against the locomotor (`LOCOMOTOR_ZONES`) but doesn't gate passability. | [entity-data](openspec/specs/entity-data/spec.md) |
 | climb tolerance | Max grade steps ascendable/descendable per cell transition. | [locomotor](openspec/specs/locomotor/spec.md) |
 | hybrid locomotion | Hover / Jumpjet / Subterranean flags with distance thresholds deciding walk↔fly/dig switching. | [locomotor](openspec/specs/locomotor/spec.md) · [jumpjet-vertical-transitions](openspec/specs/jumpjet-vertical-transitions/spec.md) |
+| speed ramp | Closed-form ramping of locomotor speed (accelerate/decelerate flags); targets move_speed directly with per-unit factors multiplying on top; crawl floor near arrival; resets at arrival/finish_stop. | [locomotor](openspec/specs/locomotor/spec.md) |
 | greedy step | Pathfinder primitive: one-cell direct step toward goal when reachable without full A*. | [pathfinder](openspec/specs/pathfinder/spec.md) |
 | greedy-first resolution | Try greedy step before computing an A* route. | [pathfinder](openspec/specs/pathfinder/spec.md) |
 | stagnation fallback | Recovery when a unit stops making progress along its path. | [pathfinder](openspec/specs/pathfinder/spec.md) |

@@ -106,6 +106,11 @@ var _land_on_arrival: bool = false
 var _ice_cracking_weight: float = 2.0
 var _weight: float = 1.0
 
+## Ramp state for Accelerate/Decelerate flags
+var _ramp_speed: float = 0.0
+var _ramp_accel_rate: float = 0.0
+var _ramp_decel_rate: float = 0.0
+
 
 func configure(data: EntityData) -> void:
     locomotor = data.locomotor
@@ -434,6 +439,7 @@ func _finish_stop() -> void:
     _has_sub_slot = false
     _hybrid_active = false
     _land_on_arrival = false
+    _ramp_speed = 0.0
     _state = State.IDLE
     _idle_snapped = false
     SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
@@ -640,6 +646,13 @@ func set_target_position(
             _apply_facing(Vector3(-sin(target_yaw), 0.0, -cos(target_yaw)))
     else:
         _state = State.ROTATING
+
+    # Decel-only locomotors start at full speed (TS semantics: no Accelerate = immediate cruise)
+    if _locomotor_data and _locomotor_data.decelerate and not _locomotor_data.accelerate:
+        _ramp_speed = move_speed
+    elif _state == State.IDLE:
+        _ramp_speed = 0.0
+
     if debug_show_path:
         DebugVisualizer.draw_path(get_path(), _parent.global_position, _waypoints, 0)
 
@@ -858,6 +871,15 @@ func _handle_moving_movement(delta: float) -> void:
     if min_neighbor_dist_ahead < INF:
         var t := clampf(min_neighbor_dist_ahead / (cell_radius * 1.5), 0.0, 1.0)
         speed_factor = 0.3 + 0.7 * smoothstep(0.0, 1.0, t)
+
+    # Update ramp speed when moving (freeze during ROTATING/WAIT)
+    if (
+        _state == State.MOVING
+        and _locomotor_data
+        and (_locomotor_data.accelerate or _locomotor_data.decelerate)
+    ):
+        _update_ramp_speed(delta)
+
     var deviation := (direction - steering_dir).limit_length(0.3 * repulsion_weight)
     var final_direction := (steering_dir + deviation).normalized()
 
@@ -879,6 +901,7 @@ func _handle_moving_movement(delta: float) -> void:
         * _veteran_speed_mult
         * _slope_coefficient()
         * _terrain_speed_factor()
+        * _get_ramp_factor()
         * delta
     )
     _spline_t += step.length() / seg_length
@@ -910,6 +933,7 @@ func _handle_moving_movement(delta: float) -> void:
                 * _veteran_speed_mult
                 * _slope_coefficient()
                 * _terrain_speed_factor()
+                * _get_ramp_factor()
                 * delta
             )
         )
@@ -926,6 +950,7 @@ func _handle_moving_movement(delta: float) -> void:
                 _vertical_state = VerticalState.DESCENDING
             _has_sub_slot = false
             _hybrid_active = false
+            _ramp_speed = 0.0
             _state = State.IDLE
             _idle_snapped = false
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
@@ -940,6 +965,17 @@ func _handle_moving_movement(delta: float) -> void:
             _parent.global_position += Vector3(approach_step.x, 0.0, approach_step.z)
             _snap_to_terrain(delta)
     else:
+        # A parameter/position mismatch (repulsion, tangent-vs-curve, lerp lag)
+        # can leave the unit closer to the final waypoint than _spline_t implies;
+        # a full step here would overshoot it — visible as a 1-frame offshoot
+        # followed by the approach branch snapping back on the next tick.
+        if seg + 1 >= _num_segments():
+            var to_final := final_pos - _parent.global_position
+            to_final.y = 0.0
+            var remaining := to_final.length()
+            if remaining > 0.001 and remaining <= step.length():
+                step = to_final.normalized() * remaining
+                _spline_t = float(_num_segments())
         _parent.global_position += step
         # Organic paths (infantry) steer straight toward each waypoint; the
         # Catmull-Rom spline-position lerp is what dragged them into arcs at
@@ -1007,6 +1043,7 @@ func _handle_wait(delta: float) -> void:
                 _vertical_state = VerticalState.DESCENDING
             _has_sub_slot = false
             _hybrid_active = false
+            _ramp_speed = 0.0
             _state = State.IDLE
             _idle_snapped = false
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
@@ -1376,3 +1413,41 @@ func get_order_for_target(
         queued,
         func(): set_target_position(target_pos),
     )
+
+
+## Returns the ramp factor (0.0 to 1.0) to apply to the step speed.
+## When locomotor has neither accelerate nor decelerate, returns 1.0 (no ramping).
+func _get_ramp_factor() -> float:
+    if not _locomotor_data:
+        return 1.0
+    if not _locomotor_data.accelerate and not _locomotor_data.decelerate:
+        return 1.0
+    return clampf(_ramp_speed / move_speed, 0.0, 1.0)
+
+
+## Update the ramp speed for the current frame based on accelerate/decelerate flags.
+## This is called during MOVING state only (rotating and wait freeze the ramp).
+func _update_ramp_speed(delta: float) -> void:
+    # Initialize ramp rates lazily (needed because configure is called after _ready).
+    # ponytail: no _ramp_speed reset here — it would clobber the decel-only cruise
+    # start from set_target_position; field default and IDLE branch already zero it.
+    if _ramp_accel_rate == 0.0 and _rules:
+        _ramp_accel_rate = move_speed / _rules.ramp_accel_time
+        _ramp_decel_rate = move_speed / _rules.ramp_decel_time
+
+    if _locomotor_data.accelerate:
+        # Accelerate toward cruise (move_speed). Factors like split/veteran/slope/terrain
+        # multiply on top via the step chain, not inside the ramp target.
+        _ramp_speed = move_toward(_ramp_speed, move_speed, _ramp_accel_rate * delta)
+
+    if _locomotor_data.decelerate and not _waypoints.is_empty():
+        # Decelerate: compute braking envelope from remaining distance
+        var dist_remaining := _waypoints[_waypoints.size() - 1].distance_to(_parent.global_position)
+        var decel_limit := sqrt(2.0 * _ramp_decel_rate * dist_remaining)
+        # Only apply crawl floor while braking envelope is the limiting term.
+        # This lets fresh moves start from 0, while still preventing Zeno creep near arrival.
+        if decel_limit < move_speed:
+            _ramp_speed = minf(_ramp_speed, decel_limit)
+            if _rules:
+                var crawl_floor: float = move_speed * _rules.ramp_crawl_fraction
+                _ramp_speed = maxf(_ramp_speed, crawl_floor)

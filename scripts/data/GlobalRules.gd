@@ -97,6 +97,10 @@ class_name GlobalRules extends Resource
 ## ordinary traffic around building pads, low enough that dockers (harvesters)
 ## and emergency crossers can still pass.
 @export var bib_cost_penalty: float = 6.0
+## Ramp constants for locomotor Accelerate/Decelerate flags (time-based, scale-free).
+@export var ramp_accel_time: float = 0.75
+@export var ramp_decel_time: float = 0.5
+@export var ramp_crawl_fraction: float = 0.15
 
 @export_group("Cell Occupancy")
 ## Max units whose Locomotor has shares_cell = true that may occupy one cell.

@@ -13,3 +13,5 @@ terrain_speeds = {
 }
 climb_tolerance = 1
 crushes = PackedStringArray("infantry")
+accelerate = true
+decelerate = true
