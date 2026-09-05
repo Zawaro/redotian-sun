@@ -207,6 +207,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var storage: int = 0
 ## Animation scale key for pip overlays on the sidebar.
 @export var pip_scale: String = ""
+## Seat pip color drawn for this entity while it rides as a passenger in a transport.
+@export var pip_color: Color = Color.WHITE
 
 ## Resource entity — configuration for harvestable resource entities.
 @export_group("Resource Entity")
