@@ -183,7 +183,7 @@ func test_cargo_pips_clear_bottom_bracket():
     entity.free()
 
 
-func test_passenger_pips_clear_bottom_bracket_when_rows_stack():
+func test_passenger_pips_clear_bottom_bracket():
     if _sm == null:
         TestHelper.fail("SelectionManager not injected")
         return
@@ -191,9 +191,8 @@ func test_passenger_pips_clear_bottom_bracket_when_rows_stack():
     if overlay == null:
         TestHelper.fail("SelectionOverlay autoload not present")
         return
-    var entity := _make_transport_entity(10, 3)
+    var entity := _make_transport_entity(0, 3)
     var transport := entity.get_node("TransportComponent") as TransportComponent
-    transport.cargo = {"tiberium_green": 5.0}
     transport.current_passengers = 2
 
     var rect := Rect2(0, 0, 60, 40)
@@ -202,12 +201,123 @@ func test_passenger_pips_clear_bottom_bracket_when_rows_stack():
     overlay._gather_pips(entity, rect, rect, cargo_pips, pass_pips)
 
     TestHelper.assert_true(not pass_pips.is_empty(), "passenger row drawn for loaded transport")
-    var cargo_bottom: float = (cargo_pips[0]["rect"] as Rect2).end.y
-    var passenger_top: float = (pass_pips[0]["rect"] as Rect2).position.y
-    TestHelper.assert_true(
-        passenger_top >= cargo_bottom, "stacked passenger row sits below the cargo row"
-    )
     _assert_row_clears_bracket(pass_pips, rect, "passenger row")
+
+    entity.free()
+
+
+func test_passenger_transport_with_stray_storage_shows_only_seat_pips():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    # A transport with a stray storage value shows exactly its seat pips — the
+    # cargo row is for resource haulers, not passenger transports.
+    var entity := _make_transport_entity(10, 4)
+    var transport := entity.get_node("TransportComponent") as TransportComponent
+    transport.current_passengers = 2
+
+    var rect := Rect2(0, 0, 60, 40)
+    var cargo_pips: Array[Dictionary] = []
+    var pass_pips: Array[Dictionary] = []
+    overlay._gather_pips(entity, rect, rect, cargo_pips, pass_pips)
+
+    TestHelper.assert_true(cargo_pips.is_empty(), "no cargo row on a passenger transport")
+    TestHelper.assert_eq(pass_pips.size(), 4, "seat pips match the defined capacity")
+
+    entity.free()
+
+
+func test_cargo_transport_shows_cargo_row():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    # Harvester shape: storage without passenger seats keeps the cargo row.
+    var entity := _make_transport_entity(10, 0)
+    var transport := entity.get_node("TransportComponent") as TransportComponent
+    transport.cargo = {"tiberium_green": 5.0}
+
+    var rect := Rect2(0, 0, 60, 40)
+    var cargo_pips: Array[Dictionary] = []
+    var pass_pips: Array[Dictionary] = []
+    overlay._gather_pips(entity, rect, rect, cargo_pips, pass_pips)
+
+    TestHelper.assert_true(not cargo_pips.is_empty(), "cargo row drawn for a hauler")
+    TestHelper.assert_true(pass_pips.is_empty(), "no passenger pips without seats")
+
+    entity.free()
+
+
+func _make_rider(id: String, pip: Color) -> Node3D:
+    var rider := Node3D.new()
+    rider.name = id
+    var pcomp := PassengerComponent.new()
+    pcomp.name = "PassengerComponent"
+    pcomp.pip_color = pip
+    rider.add_child(pcomp)
+    return rider
+
+
+func test_passenger_pips_use_per_passenger_colors():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    var entity := _make_transport_entity(0, 4)
+    var transport := entity.get_node("TransportComponent") as TransportComponent
+    var red := _make_rider("Red", Color.RED)
+    var blue := _make_rider("Blue", Color.BLUE)
+    entity.add_child(red)
+    entity.add_child(blue)
+    TestHelper.assert_true(transport.board(red), "red rider boards")
+    TestHelper.assert_true(transport.board(blue), "blue rider boards")
+
+    var rect := Rect2(0, 0, 60, 40)
+    var cargo_pips: Array[Dictionary] = []
+    var pass_pips: Array[Dictionary] = []
+    overlay._gather_pips(entity, rect, rect, cargo_pips, pass_pips)
+
+    TestHelper.assert_eq(pass_pips.size(), 4, "one pip per seat")
+    TestHelper.assert_eq(pass_pips[0]["color"], Color.RED, "first seat uses passenger color")
+    TestHelper.assert_eq(pass_pips[1]["color"], Color.BLUE, "second seat uses passenger color")
+    TestHelper.assert_eq(pass_pips[2]["color"], Color.WHITE, "empty seat defaults to white")
+    TestHelper.assert_true(pass_pips[0]["filled"], "occupied seat is filled")
+    TestHelper.assert_true(not pass_pips[2]["filled"], "empty seat is unfilled")
+
+    entity.free()
+
+
+func test_passenger_pips_fall_back_to_white_without_component():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    var entity := _make_transport_entity(0, 2)
+    var transport := entity.get_node("TransportComponent") as TransportComponent
+    var plain := Node3D.new()
+    plain.name = "Plain"
+    entity.add_child(plain)
+    TestHelper.assert_true(transport.board(plain), "rider without PassengerComponent boards")
+
+    var rect := Rect2(0, 0, 60, 40)
+    var cargo_pips: Array[Dictionary] = []
+    var pass_pips: Array[Dictionary] = []
+    overlay._gather_pips(entity, rect, rect, cargo_pips, pass_pips)
+
+    TestHelper.assert_eq(pass_pips[0]["color"], Color.WHITE, "missing component -> white pip")
 
     entity.free()
 

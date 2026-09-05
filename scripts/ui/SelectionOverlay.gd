@@ -399,7 +399,9 @@ func _gather_pips(
     pass_pips: Array[Dictionary],
 ):
     var transport := parent.get_node_or_null("TransportComponent") as TransportComponent
-    var has_cargo := transport and transport.storage > 0
+    # Cargo pips are for resource haulers (harvesters, trucks). A passenger
+    # transport shows only its seat pips even if data carries a stray storage.
+    var has_cargo := transport and transport.storage > 0 and transport.passengers == 0
     var has_passengers := transport and transport.passengers > 0
 
     if not has_cargo and not has_passengers:
@@ -414,11 +416,7 @@ func _gather_pips(
     var pip_h := pip_w * 0.8
     var pip_gap: float = rect.size.x * PIP_GAP_RATIO
 
-    var num_rows := 1
-    if has_cargo and has_passengers:
-        num_rows = 2
-
-    var grid_h := float(num_rows) * (pip_h + pip_gap) - pip_gap
+    var grid_h := pip_h
     var grid_left := bracket_rect.position.x + pip_w * 0.2
     var grid_top := bracket_rect.end.y - grid_h - PIP_BRACKET_CLEARANCE_PX
 
@@ -428,24 +426,28 @@ func _gather_pips(
         var ratio := float(cargo_filled) / float(transport.storage)
         filled_pips = int(ceil(ratio * float(num_cargo_pips)))
 
-    for i in num_cargo_pips:
-        var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
-        cargo_pips.append(_make_pip(pip_x, grid_top, pip_w, pip_h, i < filled_pips))
+    if has_cargo:
+        for i in num_cargo_pips:
+            var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
+            cargo_pips.append(_make_pip(pip_x, grid_top, pip_w, pip_h, i < filled_pips))
 
     var pass_row_y := grid_top
-    if num_rows > 1:
-        pass_row_y += pip_h + pip_gap
 
     for i in MAX_PASSENGER_SLOTS:
         var pip_x: float = grid_left + float(i) * (pip_w + pip_gap)
         var visible_pip := has_passengers and i < transport.passengers
         if visible_pip:
             var filled := i < transport.current_passengers
-            pass_pips.append(_make_pip(pip_x, pass_row_y, pip_w, pip_h, filled))
+            var color := Color.WHITE
+            if i < transport.passenger_colors.size():
+                color = transport.passenger_colors[i]
+            pass_pips.append(_make_pip(pip_x, pass_row_y, pip_w, pip_h, filled, color))
 
 
-func _make_pip(x: float, y: float, w: float, h: float, filled: bool) -> Dictionary:
-    return {"rect": Rect2(x, y, w, h), "filled": filled}
+func _make_pip(
+    x: float, y: float, w: float, h: float, filled: bool, color: Color = Color.WHITE
+) -> Dictionary:
+    return {"rect": Rect2(x, y, w, h), "filled": filled, "color": color}
 
 
 func _draw_pips(
@@ -470,10 +472,11 @@ func _draw_pips(
         var r: Rect2 = pip.rect
         node.draw_rect(r, Color.BLACK, false, 1.0)
         if pip.filled:
+            var color: Color = pip.get("color", Color.WHITE)
             (
                 node
                 . draw_rect(
                     Rect2(r.position + Vector2(1, 1), r.size - Vector2(2, 2)),
-                    Color.WHITE,
+                    color,
                 )
             )
