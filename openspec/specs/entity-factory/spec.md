@@ -28,6 +28,7 @@ The factory SHALL add components based on these rules:
 - RadarComponent: if `radar == true`
 - FactoryComponent: if `buildable_queue != ""`
 - TransportComponent: if `passengers > 0` or `harvester == true`
+- PassengerComponent: if `entity_type == INFANTRY`
 - SpecialAbilityComponent: if any ability flag is true
 - ArtComponent: if `resource_category != "tiberium"` (skipped for tiberium resource entities)
 - ResourceTreeComponent: if `resource_category == "tiberium_tree"`
@@ -66,6 +67,14 @@ The factory SHALL add components based on these rules:
 #### Scenario: Voiced unit entity
 - **WHEN** EntityData has a `voice_data` reference (e.g. a VoiceData .tres)
 - **THEN** entity gets a VoiceComponent holding that reference, in addition to its normal components
+
+#### Scenario: Infantry entity
+- **WHEN** EntityData has `entity_type = INFANTRY`
+- **THEN** entity gets a PassengerComponent configured from its EntityData (including `pip_color`), in addition to its normal components
+
+#### Scenario: Vehicle entity gets no PassengerComponent
+- **WHEN** EntityData has `entity_type = VEHICLE`
+- **THEN** entity gets no PassengerComponent
 
 ### Requirement: Component wiring
 The factory SHALL wire component references programmatically after instantiation. HitboxComponent and SelectComponent SHALL receive a reference to HealthComponent.
