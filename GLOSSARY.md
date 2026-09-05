@@ -136,6 +136,7 @@ are 45°-rotated rectangles, i.e. diamonds.
 | stop command | Halts all selected units' activity; overridden by any later order. | [stop-command](openspec/specs/stop-command/spec.md) |
 | fog-gated targeting | Enemy targets only orderable when revealed through shroud/fog. | [order-system](openspec/specs/order-system/spec.md) |
 | exit | Production spawn point config (`spawn_offset`, `exit_offset`, `exit_facing`); rally point destination follows. | [production-exit](openspec/specs/production-exit/spec.md) |
+| load / unload | Infantry entering (boarding) vs ejecting from a transport. Load requires a stationary transport with free seats and never queues; unload runs via the deploy command and ejects one passenger per interval. | [add-transport-passengers](openspec/changes/add-transport-passengers/specs/transport-passengers/spec.md) |
 
 ## Rendering & Audio
 
@@ -156,6 +157,7 @@ Full dictionaries: scripts/data/*.gd. Only ambiguous pairs listed here.
 | `buildable_queue` vs `factory` | On produced entities: which queue they belong to vs on producing buildings: what they produce. Both strings reference the same namespace but point opposite directions. | scripts/data/EntityData.gd |
 | `spawn_offset` vs `exit_offset` | Where a unit appears inside the building vs where it walks out to (local space). | [production-exit](openspec/specs/production-exit/spec.md) |
 | `passengers` vs `storage` | Infantry seat count on transports vs raw-bale carry capacity on harvesters. | scripts/data/EntityData.gd |
+| `pip_color` | Seat pip color for a passenger riding in a transport (per entity type, default white); harvesters' cargo pips are unaffected. | scripts/data/EntityData.gd |
 | `strength` | Max hit points (legacy rules.ini name — do not rename casually). | scripts/data/EntityData.gd |
 | `tech_level` | Build availability gate; -1 = always available. | scripts/data/EntityData.gd |
 | `powered` vs `is_online` | Data-level "requires power to function" flag (`EntityData.powered`, copied to PowerComponent) vs runtime state (`PowerComponent.is_online`, driven by the grid). Deliberately different names — never write `is_powered()` for the runtime state. | scripts/data/EntityData.gd · [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |

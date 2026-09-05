@@ -41,6 +41,11 @@ class_name GlobalRules extends Resource
 @export var placement_delay: float = 0.05
 @export var weed_capacity: int = 56
 
+## Transports
+@export_group("Transports")
+## Seconds between passenger ejects while a transport unloads (one passenger per interval).
+@export var unload_interval: float = 0.25
+
 ## Tiberium growth
 @export_group("Tiberium Growth")
 ## Minutes between tree timer ticks (randomized ±60s).

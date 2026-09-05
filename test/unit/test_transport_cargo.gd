@@ -4,12 +4,33 @@ extends Node
 
 const SELECT_COMPONENT_SCENE: PackedScene = preload("res://scenes/components/SelectComponent.tscn")
 
+var _sm: Node = null
+
 
 func _make_transport(capacity: int = 28) -> TransportComponent:
     var transport := TransportComponent.new()
     transport.name = "TransportComponent"
     transport.storage = capacity
     return transport
+
+
+## Mark the entity as the only selected unit — the precondition for a
+## mouse-click unload (mixed selections must not unload via click).
+func _select_sole(entity: Node3D) -> SelectComponent:
+    var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    sc.name = "SelectComponent"
+    entity.add_child(sc)
+    sc.is_selected = true
+    if _sm == null:
+        _sm = Engine.get_main_loop().root.get_node_or_null("SelectionManager")
+    _sm.selected_entities.clear()
+    _sm.selected_entities.append(sc)
+    return sc
+
+
+func _clear_selection() -> void:
+    if _sm:
+        _sm.selected_entities.clear()
 
 
 func _make_rules() -> GlobalRules:
@@ -104,30 +125,66 @@ func test_get_cargo_value():
 
 
 # --- get_cursor_for_target tests ---
+# The pre-passenger ENTER stub (selected transport -> click loadable unit) was
+# replaced by self-hover DEPLOY unload orders — see
+# openspec/changes/add-transport-passengers/specs/transport-passengers/spec.md.
 
 
-func test_cursor_loadable_unit_returns_enter():
+func test_cursor_self_hover_unloadable_returns_deploy():
     var transport := _make_transport(28)
-    transport.passengers = 1
+    transport.passengers = 4
+    transport.current_passengers = 2
     var entity := Node3D.new()
     entity.name = "TransportEntity"
     entity.add_child(transport)
+    _select_sole(entity)
 
-    var target := Node3D.new()
-    target.name = "TargetUnit"
-    target.add_to_group("selectable")
-    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
-    target.add_child(target_sc)
-    var target_transport := TransportComponent.new()
-    target_transport.name = "TransportComponent"
-    target_transport.passengers = 2
-    target.add_child(target_transport)
+    var cursor := transport.get_cursor_for_target(entity, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.DEPLOY, "hover-self unloadable -> DEPLOY")
 
-    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
-    TestHelper.assert_eq(cursor, CursorState.Type.ENTER, "loadable unit -> ENTER")
-
+    _clear_selection()
     entity.queue_free()
-    target.queue_free()
+
+
+func test_cursor_self_hover_mixed_selection_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 4
+    transport.current_passengers = 2
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+    _select_sole(entity)
+    var other := Node3D.new()
+    other.name = "OtherUnit"
+    var other_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    other.add_child(other_sc)
+    other_sc.is_selected = true
+    _sm.selected_entities.append(other_sc)
+
+    var cursor := transport.get_cursor_for_target(entity, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "mixed selection -> DEFAULT")
+
+    _clear_selection()
+    entity.queue_free()
+    other.queue_free()
+
+
+func test_cursor_self_hover_not_selected_returns_default():
+    var transport := _make_transport(28)
+    transport.passengers = 4
+    transport.current_passengers = 2
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+    _select_sole(entity)
+    # Deselect the transport itself: nothing left selected.
+    _sm.selected_entities.clear()
+
+    var cursor := transport.get_cursor_for_target(entity, Vector2i.ZERO)
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "unselected transport -> DEFAULT")
+
+    _clear_selection()
+    entity.queue_free()
 
 
 func test_cursor_no_passengers_returns_default():
@@ -139,7 +196,7 @@ func test_cursor_no_passengers_returns_default():
 
     var target := Node3D.new()
     target.name = "TargetUnit"
-    var cursor := transport.get_cursor_for_target(target, Vector2i.ZERO)
+    var cursor := transport.get_cursor_for_target(entity, Vector2i.ZERO)
     TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "no passengers -> DEFAULT")
 
     entity.queue_free()
@@ -247,30 +304,45 @@ func test_cursor_no_select_component_returns_default():
 # --- get_order_for_target tests ---
 
 
-func test_order_loadable_unit_returns_enter():
+func test_order_self_hover_unloadable_returns_deploy():
     var transport := _make_transport(28)
-    transport.passengers = 1
+    transport.passengers = 4
+    transport.current_passengers = 2
     var entity := Node3D.new()
     entity.name = "TransportEntity"
     entity.add_child(transport)
+    _select_sole(entity)
 
-    var target := Node3D.new()
-    target.name = "TargetUnit"
-    target.add_to_group("selectable")
-    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
-    target.add_child(target_sc)
-    var target_transport := TransportComponent.new()
-    target_transport.name = "TransportComponent"
-    target_transport.passengers = 2
-    target.add_child(target_transport)
+    var order := transport.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order != null, "hover-self unloadable -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.DEPLOY, "cursor -> DEPLOY")
+    TestHelper.assert_eq(order.priority, 15, "priority -> 15")
 
-    var order := transport.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, {})
-    TestHelper.assert_true(order != null, "loadable unit -> order not null")
-    TestHelper.assert_eq(order.cursor, CursorState.Type.ENTER, "cursor -> ENTER")
-    TestHelper.assert_eq(order.priority, 10, "priority -> 10")
-
+    _clear_selection()
     entity.queue_free()
-    target.queue_free()
+
+
+func test_order_self_hover_mixed_selection_returns_null():
+    var transport := _make_transport(28)
+    transport.passengers = 4
+    transport.current_passengers = 2
+    var entity := Node3D.new()
+    entity.name = "TransportEntity"
+    entity.add_child(transport)
+    _select_sole(entity)
+    var other := Node3D.new()
+    other.name = "OtherUnit"
+    var other_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    other.add_child(other_sc)
+    other_sc.is_selected = true
+    _sm.selected_entities.append(other_sc)
+
+    var order := transport.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_true(order == null, "mixed selection -> no unload order")
+
+    _clear_selection()
+    entity.queue_free()
+    other.queue_free()
 
 
 func test_order_null_target_returns_null():
@@ -341,25 +413,19 @@ func test_order_target_without_transport_returns_null():
 
 func test_order_queued_modifier():
     var transport := _make_transport(28)
-    transport.passengers = 1
+    transport.passengers = 4
+    transport.current_passengers = 2
     var entity := Node3D.new()
     entity.name = "TransportEntity"
     entity.add_child(transport)
-
-    var target := Node3D.new()
-    target.name = "TargetUnit"
-    target.add_to_group("selectable")
-    var target_sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
-    target.add_child(target_sc)
-    var target_transport := TransportComponent.new()
-    target_transport.name = "TransportComponent"
-    target_transport.passengers = 2
-    target.add_child(target_transport)
+    _select_sole(entity)
 
     var modifiers := {OrderResult.MOD_QUEUED: true}
-    var order := transport.get_order_for_target(target, Vector2i.ZERO, Vector3.ZERO, modifiers)
+    var order := transport.get_order_for_target(entity, Vector2i.ZERO, Vector3.ZERO, modifiers)
     TestHelper.assert_true(order != null, "queued modifier -> order not null")
     TestHelper.assert_true(order.queued, "queued modifier -> order.queued = true")
 
+    _clear_selection()
     entity.queue_free()
-    target.queue_free()
+
+    entity.queue_free()

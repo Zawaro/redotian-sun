@@ -26,6 +26,9 @@ const RALLY_POINT_COMPONENT_SCRIPT: GDScript = preload(
 const TRANSPORT_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/TransportComponent.gd"
 )
+const PASSENGER_COMPONENT_SCRIPT: GDScript = preload(
+    "res://scripts/components/PassengerComponent.gd"
+)
 const SPECIAL_ABILITY_COMPONENT_SCRIPT: GDScript = preload(
     "res://scripts/components/SpecialAbilityComponent.gd"
 )
@@ -170,6 +173,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_radar_component(entity, data)
     _add_factory_component(entity, data)
     _add_transport_component(entity, data)
+    _add_passenger_component(entity, data)
     _add_special_ability_component(entity, data)
     _add_resource_tree_component(entity, data)
     _add_resource_component(entity, data)
@@ -358,6 +362,15 @@ func _add_transport_component(entity: Node3D, data: EntityData) -> void:
         var component := Node.new()
         component.name = "TransportComponent"
         component.set_script(TRANSPORT_COMPONENT_SCRIPT)
+        entity.add_child(component)
+        component.owner = entity
+
+
+func _add_passenger_component(entity: Node3D, data: EntityData) -> void:
+    if data.entity_type == EntityData.EntityType.INFANTRY:
+        var component := Node.new()
+        component.name = "PassengerComponent"
+        component.set_script(PASSENGER_COMPONENT_SCRIPT)
         entity.add_child(component)
         component.owner = entity
 

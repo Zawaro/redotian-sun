@@ -93,14 +93,19 @@ func _process(_delta):
                 var entity := sc.get_parent() as Node3D
                 if not is_instance_valid(entity):
                     continue
+                var transport := entity.get_node_or_null("TransportComponent") as TransportComponent
                 if Input.is_action_just_pressed("deploy"):
                     var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
                     if deploy and deploy.can_deploy():
                         deploy.execute_deploy(entity)
+                    if transport:
+                        transport.execute_unload()
                 else:
                     var harvest := entity.get_node_or_null("HarvestComponent") as HarvestComponent
                     if harvest:
                         harvest.cancel_harvest(true)
+                    if transport:
+                        transport.cancel_unload()
                     var mc := entity.get_node_or_null("MovementController") as MovementController
                     if mc:
                         mc.stop()
