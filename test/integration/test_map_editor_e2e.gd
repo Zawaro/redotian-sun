@@ -213,7 +213,7 @@ func test_loaded_buildings_visible_in_editor() -> void:
     if saveload == null:
         _assert_true(false, "EditorSaveLoad exists on MapEditor scene")
     else:
-        saveload.call("_on_load_file_selected", "res://assets/test_map01.json")
+        saveload.call("_on_load_file_selected", "res://games/ts/assets/test_map01.json")
         var building_nodes: Array = []
         for child in editor.get_children():
             var stats := child.get_node_or_null("StatsComponent") as StatsComponent

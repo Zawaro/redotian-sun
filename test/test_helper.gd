@@ -37,3 +37,16 @@ static func reset() -> void:
     _passed = 0
     _failed = 0
     _errors.clear()
+
+
+## Snapshots GameContext selection state for tests that switch games.
+static func snapshot_game_context(gc: Object) -> Dictionary:
+    return {"defs": gc._defs.duplicate(), "current": gc._current}
+
+
+## Restores the snapshot and re-selects the default game so consumers
+## re-register real content.
+static func restore_game_context(gc: Object, snap: Dictionary) -> void:
+    gc._defs = snap["defs"]
+    gc._current = snap["current"]
+    gc.select_game("ts")

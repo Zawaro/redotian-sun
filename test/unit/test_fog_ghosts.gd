@@ -4,7 +4,7 @@ extends Node
 # visual in fog, and entities destroyed in fog leave a post-destruction ghost
 # released on reveal / shroud-revert / fog toggle-off.
 
-const MODEL_PATH := "res://assets/models/nod_buggy01.glb"
+const MODEL_PATH := "res://games/ts/assets/models/nod_buggy01.glb"
 
 const STATS_SCRIPT: GDScript = preload("res://scripts/components/StatsComponent.gd")
 

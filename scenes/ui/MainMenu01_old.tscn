@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dv5u001w1x8he"]
 
-[ext_resource type="Texture2D" uid="uid://djmyw1yok2fqu" path="res://assets/ui/background01_final01.jpg" id="1_sivum"]
+[ext_resource type="Texture2D" uid="uid://djmyw1yok2fqu" path="res://games/ts/assets/ui/background01_final01.jpg" id="1_sivum"]
 
 [node name="MainMenu01" type="Node2D"]
 

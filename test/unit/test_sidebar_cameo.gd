@@ -82,7 +82,7 @@ func test_cameo_texture_added_when_art_has_cameo_path():
     var sidebar := _sidebar()
     var btn := Button.new()
     var art := ArtData.new()
-    art.cameo_path = "res://assets/cameos/nod_power_plant_icon01.png"
+    art.cameo_path = "res://games/ts/assets/cameos/nod_power_plant_icon01.png"
 
     sidebar._add_cameo_texture(btn, art)
 
@@ -115,13 +115,15 @@ func test_cameo_texture_skipped_for_empty_path_and_null_art():
 
 
 func test_nod_power_plant_art_wires_model_and_cameo_paths():
-    var art: ArtData = load("res://resources/art/structures/nod/nod_power_plant_art.tres")
+    var art: ArtData = load("res://games/ts/art/structures/nod/nod_power_plant_art.tres")
     TestHelper.assert_true(art != null, "nod power plant art resource loads")
     TestHelper.assert_eq(
-        art.model_path, "res://assets/models/nod_power_plant01.gltf", "model path wired"
+        art.model_path, "res://games/ts/assets/models/nod_power_plant01.gltf", "model path wired"
     )
     TestHelper.assert_eq(
-        art.cameo_path, "res://assets/cameos/nod_power_plant_icon01.png", "cameo path wired"
+        art.cameo_path,
+        "res://games/ts/assets/cameos/nod_power_plant_icon01.png",
+        "cameo path wired"
     )
     TestHelper.assert_true(ResourceLoader.exists(art.model_path), "model file exists")
     TestHelper.assert_true(ResourceLoader.exists(art.cameo_path), "cameo file exists")

@@ -5,7 +5,7 @@ extends Node
 
 
 func _catalog_obj(object_id: String) -> TerrainObject:
-    return load("res://resources/terrain_objects/%s.tres" % object_id) as TerrainObject
+    return load("res://games/ts/terrain_objects/%s.tres" % object_id) as TerrainObject
 
 
 func _cell_of(obj: TerrainObject, key: String) -> Dictionary:
@@ -100,12 +100,12 @@ func _crease_for_corners(corners: Array) -> String:
 
 func test_crease_values_valid():
     for path in [
-        "res://resources/terrain_objects/cliff01_n.tres",
-        "res://resources/terrain_objects/ramp01_n.tres",
-        "res://resources/terrain_objects/ramp01_e.tres",
-        "res://resources/terrain_objects/slope01_n.tres",
-        "res://resources/terrain_objects/wcliff01_n.tres",
-        "res://resources/terrain_objects/dcliff01_n.tres",
+        "res://games/ts/terrain_objects/cliff01_n.tres",
+        "res://games/ts/terrain_objects/ramp01_n.tres",
+        "res://games/ts/terrain_objects/ramp01_e.tres",
+        "res://games/ts/terrain_objects/slope01_n.tres",
+        "res://games/ts/terrain_objects/wcliff01_n.tres",
+        "res://games/ts/terrain_objects/dcliff01_n.tres",
     ]:
         var obj: TerrainObject = load(path)
         TestHelper.assert_true(obj != null, "catalog tile loads: " + path)
@@ -140,8 +140,8 @@ func test_connections_consistent_with_cells():
         "east": Vector2i(1, 0),
     }
     for path in [
-        "res://resources/terrain_objects/cliff01_n.tres",
-        "res://resources/terrain_objects/ramp01_n.tres",
+        "res://games/ts/terrain_objects/cliff01_n.tres",
+        "res://games/ts/terrain_objects/ramp01_n.tres",
     ]:
         var obj: TerrainObject = load(path)
         if obj == null:

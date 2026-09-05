@@ -6,12 +6,12 @@ extends Node
 # and they could be placed anywhere. Construction yards are the only intended
 # adjacent <= 0 case and are not buildable, so they pass via the other branch.
 
-const STRUCTURES_ROOT := "res://resources/entities/structures/"
+const STRUCTURES_ROOT := "res://games/ts/entities/structures/"
 const EXPECTED_MIN_SCAN := 100
 const SPOT_CHECKS := [
-    "res://resources/entities/structures/nod/nod_sam.tres",
-    "res://resources/entities/structures/nod/nod_laser_turret.tres",
-    "res://resources/entities/structures/gdi/gdi_construction_yard.tres",
+    "res://games/ts/entities/structures/nod/nod_sam.tres",
+    "res://games/ts/entities/structures/nod/nod_laser_turret.tres",
+    "res://games/ts/entities/structures/gdi/gdi_construction_yard.tres",
 ]
 
 ## Vanilla Tiberian Sun RULES.INI Adjacent= values (Vinifera
@@ -116,7 +116,7 @@ func test_predicate_rejects_buildable_without_adjacency() -> void:
 func test_predicate_allows_non_buildable_without_adjacency() -> void:
     # The construction-yard pattern: not buildable, adjacent left at default 0.
     var yard := (
-        load("res://resources/entities/structures/gdi/gdi_construction_yard.tres") as EntityData
+        load("res://games/ts/entities/structures/gdi/gdi_construction_yard.tres") as EntityData
     )
     if yard == null:
         TestHelper.fail("gdi_construction_yard.tres did not load")

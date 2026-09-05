@@ -10,6 +10,15 @@ adding it here. See **Undecided** below for terms that must not be guessed.
 
 Entry form: term → one-line meaning → anchor.
 
+## Game Selection & Content
+
+| Term | Meaning | Where |
+|------|---------|-------|
+| game definition | One standalone game's content manifest: `GameDefinition` resource at `res://games/<id>/game.tres` (id, display_name, rules, data_sets, maps_dir). The `id` must match its directory name. | [game-context](openspec/changes/add-game-definition-context/specs/game-context/spec.md) · scripts/data/GameDefinition.gd |
+| GameContext | First autoload: resolves the active game (`--game` flag → persisted `[game] id` → `ts`), owns `select_game`/`game_changed` lifecycle and per-game rules access. | [game-context](openspec/changes/add-game-definition-context/specs/game-context/spec.md) · scripts/core/GameContext.gd |
+| data set | One `res://` layer root a consumer registers for scanning; the consumer appends its known subdir (`entities/`, `audio/`, `terrain_objects/`, `art/terrain/`, `theaters/`). | [game-content](openspec/changes/add-game-definition-context/specs/game-content/spec.md) |
+| layering (last-wins) | Same resource id in a later data-set root overrides the earlier registration within one game. Borrowing another game's content = listing its root; same-id claims by two non-borrowing games are a validator error, not layering. | [game-content](openspec/changes/add-game-definition-context/specs/game-content/spec.md) |
+
 ## Placement & Building
 
 | Term | Meaning | Where |

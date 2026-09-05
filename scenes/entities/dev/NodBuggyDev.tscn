@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3]
 
-[ext_resource type="PackedScene" uid="uid://cq28pyiy5sh0f" path="res://assets/models/nod_buggy01.glb" id="1_h4yj8"]
+[ext_resource type="PackedScene" uid="uid://cq28pyiy5sh0f" path="res://games/ts/assets/models/nod_buggy01.glb" id="1_h4yj8"]
 [ext_resource type="PackedScene" uid="uid://ckdl6l7cp8lxg" path="res://scenes/components/HealthComponent.tscn" id="2_xnp4x"]
 [ext_resource type="PackedScene" uid="uid://clfyqn8olrw56" path="res://scenes/components/HitboxComponent.tscn" id="3_g6ge8"]
 [ext_resource type="PackedScene" uid="uid://dxwdv0jilr7ln" path="res://scenes/components/SelectComponent.tscn" id="4_4jto7"]

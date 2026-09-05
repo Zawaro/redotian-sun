@@ -1,10 +1,10 @@
 [gd_scene load_steps=6 format=3 uid="uid://dsflj6w0e68dx"]
 
-[ext_resource type="PackedScene" uid="uid://cb368bn118ky" path="res://assets/models/gdi_conyard01.glb" id="1_vt8ly"]
+[ext_resource type="PackedScene" uid="uid://cb368bn118ky" path="res://games/ts/assets/models/gdi_conyard01.glb" id="1_vt8ly"]
 [ext_resource type="PackedScene" uid="uid://dxwdv0jilr7ln" path="res://scenes/components/SelectComponent.tscn" id="2_jar2m"]
 [ext_resource type="PackedScene" uid="uid://ckdl6l7cp8lxg" path="res://scenes/components/HealthComponent.tscn" id="3_3aw02"]
 [ext_resource type="PackedScene" uid="uid://clfyqn8olrw56" path="res://scenes/components/HitboxComponent.tscn" id="4_gqjhy"]
-[ext_resource type="Material" uid="uid://qy7uudkw26gq" path="res://assets/resources/materials/DefaultMaterial01.tres" id="5_3aw02"]
+[ext_resource type="Material" uid="uid://qy7uudkw26gq" path="res://games/ts/assets/resources/materials/DefaultMaterial01.tres" id="5_3aw02"]
 
 [node name="GDIConYard" instance=ExtResource("1_vt8ly")]
 

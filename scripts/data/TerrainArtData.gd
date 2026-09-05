@@ -19,7 +19,7 @@ const DIRECTION_ROTATIONS: Dictionary = {
 ## Unique identifier — the element base id this art serves (e.g. "cliff01").
 @export var id: String = ""
 ## Path to the GLB/PackedScene whose submeshes are named after tile ids
-## (e.g. "res://assets/models/theater/placeholder/placeholder_terrain01.gltf").
+## (e.g. "res://games/ts/assets/models/theater/placeholder/placeholder_terrain01.gltf").
 @export var model_path: String = ""
 ## GLB submesh to render. Empty = the element's own base id. Alias families
 ## set this to the closest authored submesh (e.g. "cliff12" art → "cliff09").

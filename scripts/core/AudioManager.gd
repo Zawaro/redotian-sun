@@ -5,7 +5,6 @@ extends Node
 ## scan it recursively, cache AudioData/VoiceData by id. Missing ids or failed
 ## loads always warn and return silently — never crash gameplay.
 
-const DEFAULT_DATA_PATH: String = "res://resources/audio/"
 const BUS_MASTER: String = "Master"
 const BUS_MUSIC: String = "Music"
 const BUS_SFX: String = "SFX"
@@ -50,7 +49,32 @@ var _last_played_at: Dictionary = {}
 
 func _ready() -> void:
     _ensure_buses()
-    register_data_set(DEFAULT_DATA_PATH)
+    GameContext.game_changed.connect(_on_game_changed)
+    _load_from_context()
+
+
+## Registers audio data from the active game's layer roots. Pulled at _ready
+## (boot-time game_changed fires before this autoload exists) and re-run on
+## every runtime game switch.
+func _load_from_context() -> void:
+    reset_content()
+    var def := GameContext.current
+    if def == null:
+        return
+    for root in def.data_sets:
+        register_data_set(root.trim_suffix("/") + "/audio/")
+
+
+func _on_game_changed(_def: GameDefinition) -> void:
+    _load_from_context()
+
+
+## Clears all registered audio content. Called before every (re)registration.
+## In-flight playback state (active players, retrigger windows) is untouched.
+func reset_content() -> void:
+    _audio_cache.clear()
+    _voice_cache.clear()
+    _data_sets.clear()
 
 
 func _ensure_buses() -> void:

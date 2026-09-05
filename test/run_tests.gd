@@ -138,8 +138,14 @@ func _inject_autoloads(obj: Object) -> void:
         return
     for child in tree_root.get_children():
         var child_name: String = child.name
-        if child_name == "TerrainSystem":
+        if child_name == "GameContext":
+            obj.set("_gc", child)
+        elif child_name == "TerrainSystem":
             obj.set("_ts", child)
+        elif child_name == "EntityFactory":
+            obj.set("_ef", child)
+        elif child_name == "TerrainCatalog":
+            obj.set("_tc", child)
         elif child_name == "SpatialHashSingleton":
             obj.set("_sh", child)
         elif child_name == "SelectionManager":

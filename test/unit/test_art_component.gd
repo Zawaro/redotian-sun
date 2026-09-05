@@ -60,7 +60,7 @@ func test_batch_loader_cache_hit_instantiates_synchronously():
 
 
 func test_fallback_starts_threaded_load():
-    var path := "res://assets/models/gdi_conyard01.glb"
+    var path := "res://games/ts/assets/models/gdi_conyard01.glb"
     BatchLoader._cache.erase(path)
     TestHelper.assert_true(ResourceLoader.exists(path), "test model resource exists")
 

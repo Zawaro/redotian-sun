@@ -2,7 +2,7 @@ extends Node
 
 # Projectile registry + speed precedence tests
 
-const WEAPONS_DIR := "res://resources/weapons/"
+const WEAPONS_DIR := "res://games/ts/weapons/"
 
 
 func _make_rules() -> GlobalRules:
@@ -40,7 +40,7 @@ func test_default_projectile_speed_positive():
 
 
 func test_every_weapon_projectile_id_resolves():
-    var rules := load("res://resources/global_rules.tres") as GlobalRules
+    var rules := load("res://games/ts/global_rules.tres") as GlobalRules
     TestHelper.assert_true(rules != null, "global_rules.tres loads")
     if not rules:
         return

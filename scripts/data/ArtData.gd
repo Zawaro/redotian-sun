@@ -11,11 +11,11 @@ class_name ArtData extends Resource
 @export var is_voxel: bool = false
 ## Whether the model supports player-color remapping (e.g., unit tinting).
 @export var is_remappable: bool = false
-## Path to the 3D model scene (e.g., "res://assets/models/infantry/e1.glb").
+## Path to the 3D model scene (e.g., "res://games/ts/assets/models/infantry/e1.glb").
 @export var model_path: String = ""
 ## Path to the diffuse/albedo texture override (empty = use model's default).
 @export var texture_path: String = ""
-## Path to the sidebar cameo (build icon) image (e.g., "res://assets/ui/cameos/e1.png").
+## Path to the sidebar cameo (build icon) image (e.g., "res://games/ts/assets/ui/cameos/e1.png").
 # ponytail: schema-first, no consumer yet
 @export var cameo_path: String = ""
 ## Path to the buildup scene played during construction (buildings only).

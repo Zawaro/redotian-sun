@@ -29,7 +29,7 @@ func test_is_in_flight_returns_false_when_idle():
 
 
 func test_preload_batch_deduplicates():
-    var path := "res://assets/models/gdi_conyard01.glb"
+    var path := "res://games/ts/assets/models/gdi_conyard01.glb"
     BatchLoader.preload_batch([path, path, path])
     var in_queue: bool = BatchLoader._queue.has(path)
     var in_flight: bool = BatchLoader.is_in_flight(path)
@@ -39,7 +39,7 @@ func test_preload_batch_deduplicates():
 
 
 func test_preload_batch_skips_cached_paths():
-    var path := "res://assets/models/gdi_conyard01.glb"
+    var path := "res://games/ts/assets/models/gdi_conyard01.glb"
     BatchLoader._cache[path] = PackedScene.new()
     var queue_before: int = BatchLoader._queue.size()
     BatchLoader.preload_batch([path])
@@ -50,11 +50,11 @@ func test_preload_batch_skips_cached_paths():
 
 
 func test_preload_path_wraps_single_path():
-    BatchLoader.preload_path("res://assets/models/gdi_conyard01.glb")
+    BatchLoader.preload_path("res://games/ts/assets/models/gdi_conyard01.glb")
     TestHelper.assert_true(
         (
             BatchLoader._queue.size() > 0
-            or BatchLoader.is_in_flight("res://assets/models/gdi_conyard01.glb")
+            or BatchLoader.is_in_flight("res://games/ts/assets/models/gdi_conyard01.glb")
         ),
         "preload_path adds a single path to the load pipeline"
     )

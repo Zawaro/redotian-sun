@@ -1,0 +1,158 @@
+[gd_resource type="Resource" script_class="GlobalRules" load_steps=47 format=3 uid="uid://b7ai3dvldeg34"]
+
+[ext_resource type="Script" uid="uid://b46r2xj1die61" path="res://scripts/data/GlobalRules.gd" id="1_script"]
+[ext_resource type="Resource" uid="uid://dqabewo4e4375" path="res://games/ts/resource_types/tiberium.tres" id="2_tib"]
+[ext_resource type="Resource" path="res://games/ts/resource_types/tiberium_green.tres" id="3_tibgreen"]
+[ext_resource type="Resource" path="res://games/ts/resource_types/tiberium_blue.tres" id="4_tibblue"]
+[ext_resource type="Resource" path="res://games/ts/resource_types/tiberium_red.tres" id="5_tibred"]
+[ext_resource type="Resource" path="res://games/ts/resource_types/vein.tres" id="6_vein"]
+[ext_resource type="Resource" path="res://games/ts/armor_types/none.tres" id="7_none"]
+[ext_resource type="Resource" path="res://games/ts/armor_types/wood.tres" id="8_wood"]
+[ext_resource type="Resource" path="res://games/ts/armor_types/light.tres" id="9_light"]
+[ext_resource type="Resource" path="res://games/ts/armor_types/heavy.tres" id="10_heavy"]
+[ext_resource type="Resource" path="res://games/ts/armor_types/concrete.tres" id="11_concrete"]
+[ext_resource type="Resource" path="res://games/ts/warheads/sa.tres" id="12_sa"]
+[ext_resource type="Resource" path="res://games/ts/warheads/ap.tres" id="13_ap"]
+[ext_resource type="Resource" path="res://games/ts/warheads/he.tres" id="14_he"]
+[ext_resource type="Resource" path="res://games/ts/warheads/super.tres" id="15_super"]
+[ext_resource type="Resource" path="res://games/ts/warheads/fire.tres" id="16_fire"]
+[ext_resource type="Resource" path="res://games/ts/warheads/gas.tres" id="17_gas"]
+[ext_resource type="Resource" path="res://games/ts/warheads/mechanical.tres" id="18_mechanical"]
+[ext_resource type="Resource" path="res://games/ts/warheads/hollowpoint.tres" id="19_hollowpoint"]
+[ext_resource type="Resource" path="res://games/ts/warheads/sonicwarhead.tres" id="20_sonicwarhead"]
+[ext_resource type="Resource" path="res://games/ts/warheads/railshot.tres" id="21_railshot"]
+[ext_resource type="Resource" path="res://games/ts/warheads/railshot2.tres" id="22_railshot2"]
+[ext_resource type="Resource" path="res://games/ts/warheads/plasmawh.tres" id="23_plasmawh"]
+[ext_resource type="Resource" path="res://games/ts/warheads/organic.tres" id="24_organic"]
+[ext_resource type="Resource" path="res://games/ts/warheads/orcahe.tres" id="25_orcahe"]
+[ext_resource type="Resource" path="res://games/ts/warheads/orcaap.tres" id="26_orcaap"]
+[ext_resource type="Resource" path="res://games/ts/warheads/artyhe.tres" id="27_artyhe"]
+[ext_resource type="Resource" path="res://games/ts/warheads/slimer.tres" id="28_slimer"]
+[ext_resource type="Resource" path="res://games/ts/warheads/shard.tres" id="29_shard"]
+[ext_resource type="Resource" path="res://games/ts/warheads/samwh.tres" id="30_samwh"]
+[ext_resource type="Resource" path="res://games/ts/warheads/rpg.tres" id="31_rpg"]
+[ext_resource type="Resource" path="res://games/ts/warheads/empuls.tres" id="32_empuls"]
+[ext_resource type="Resource" path="res://games/ts/land_types/clear.tres" id="33_lt_clear"]
+[ext_resource type="Resource" path="res://games/ts/land_types/rough.tres" id="34_lt_rough"]
+[ext_resource type="Resource" path="res://games/ts/land_types/road.tres" id="35_lt_road"]
+[ext_resource type="Resource" path="res://games/ts/land_types/water.tres" id="36_lt_water"]
+[ext_resource type="Resource" path="res://games/ts/land_types/cliff.tres" id="37_lt_cliff"]
+[ext_resource type="Resource" path="res://games/ts/land_types/resource.tres" id="38_lt_resource"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Foot.tres" id="38_lm_foot"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Track.tres" id="39_lm_track"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Wheel.tres" id="40_lm_wheel"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Hover.tres" id="41_lm_hover"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Amphibious.tres" id="42_lm_amphibious"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Fly.tres" id="43_lm_fly"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Jumpjet.tres" id="44_lm_jumpjet"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Subterranean.tres" id="45_lm_subterranean"]
+[ext_resource type="Resource" path="res://games/ts/locomotors/Ship.tres" id="46_lm_ship"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/aaheatseeker.tres" id="47_pj_aaheatseeker"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/aaheatseeker2.tres" id="48_pj_aaheatseeker2"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/ballistic.tres" id="49_pj_ballistic"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/cannon.tres" id="50_pj_cannon"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/cannon2.tres" id="51_pj_cannon2"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/chemmissile.tres" id="52_pj_chemmissile"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/dogshard.tres" id="53_pj_dogshard"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/heatseeker.tres" id="54_pj_heatseeker"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/invisible.tres" id="55_pj_invisible"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/invisible2.tres" id="56_pj_invisible2"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/invisible3.tres" id="57_pj_invisible3"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/lline.tres" id="58_pj_lline"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/lline2.tres" id="59_pj_lline2"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/lobbed.tres" id="60_pj_lobbed"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/lobbed2.tres" id="61_pj_lobbed2"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/multimissile.tres" id="62_pj_multimissile"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/null.tres" id="63_pj_null"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/protonblast.tres" id="64_pj_protonblast"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/protontorpedo.tres" id="65_pj_protontorpedo"]
+[ext_resource type="Resource" path="res://games/ts/projectiles/pulspr.tres" id="66_pj_pulspr"]
+
+[resource]
+script = ExtResource("1_script")
+starting_credits = 10000
+build_speed = 0.4
+multiple_factory = 0.4
+harvester_fill_rate = 0.5
+tree_growth_rate = 0.1
+spread_amount = 50
+shared_slots_per_cell = 3
+bib_cost_penalty = 6.0
+armor_types = {
+"none": ExtResource("7_none"),
+"wood": ExtResource("8_wood"),
+"light": ExtResource("9_light"),
+"heavy": ExtResource("10_heavy"),
+"concrete": ExtResource("11_concrete"),
+}
+warheads = {
+"SA": ExtResource("12_sa"),
+"AP": ExtResource("13_ap"),
+"HE": ExtResource("14_he"),
+"Super": ExtResource("15_super"),
+"Fire": ExtResource("16_fire"),
+"Gas": ExtResource("17_gas"),
+"Mechanical": ExtResource("18_mechanical"),
+"HollowPoint": ExtResource("19_hollowpoint"),
+"SonicWarhead": ExtResource("20_sonicwarhead"),
+"RailShot": ExtResource("21_railshot"),
+"RailShot2": ExtResource("22_railshot2"),
+"PlasmaWH": ExtResource("23_plasmawh"),
+"Organic": ExtResource("24_organic"),
+"ORCAHE": ExtResource("25_orcahe"),
+"ORCAAP": ExtResource("26_orcaap"),
+"ARTYHE": ExtResource("27_artyhe"),
+"Slimer": ExtResource("28_slimer"),
+"Shard": ExtResource("29_shard"),
+"SAMWH": ExtResource("30_samwh"),
+"RPG": ExtResource("31_rpg"),
+"EMPuls": ExtResource("32_empuls"),
+}
+projectiles = {
+"AAHeatSeeker": ExtResource("47_pj_aaheatseeker"),
+"AAHeatSeeker2": ExtResource("48_pj_aaheatseeker2"),
+"Ballistic": ExtResource("49_pj_ballistic"),
+"Cannon": ExtResource("50_pj_cannon"),
+"Cannon2": ExtResource("51_pj_cannon2"),
+"ChemMissile": ExtResource("52_pj_chemmissile"),
+"DogShard": ExtResource("53_pj_dogshard"),
+"HeatSeeker": ExtResource("54_pj_heatseeker"),
+"Invisible": ExtResource("55_pj_invisible"),
+"Invisible2": ExtResource("56_pj_invisible2"),
+"Invisible3": ExtResource("57_pj_invisible3"),
+"LLine": ExtResource("58_pj_lline"),
+"LLine2": ExtResource("59_pj_lline2"),
+"Lobbed": ExtResource("60_pj_lobbed"),
+"Lobbed2": ExtResource("61_pj_lobbed2"),
+"MultiMissile": ExtResource("62_pj_multimissile"),
+"Null": ExtResource("63_pj_null"),
+"ProtonBlast": ExtResource("64_pj_protonblast"),
+"ProtonTorpedo": ExtResource("65_pj_protontorpedo"),
+"PulsPr": ExtResource("66_pj_pulspr")
+}
+resource_types = {
+"tiberium": ExtResource("2_tib"),
+"tiberium_blue": ExtResource("4_tibblue"),
+"tiberium_green": ExtResource("3_tibgreen"),
+"tiberium_red": ExtResource("5_tibred"),
+"vein": ExtResource("6_vein")
+}
+land_types = {
+"clear": ExtResource("33_lt_clear"),
+"rough": ExtResource("34_lt_rough"),
+"road": ExtResource("35_lt_road"),
+"water": ExtResource("36_lt_water"),
+"cliff": ExtResource("37_lt_cliff"),
+"resource": ExtResource("38_lt_resource")
+}
+locomotors = {
+"Foot": ExtResource("38_lm_foot"),
+"Track": ExtResource("39_lm_track"),
+"Wheel": ExtResource("40_lm_wheel"),
+"Hover": ExtResource("41_lm_hover"),
+"Amphibious": ExtResource("42_lm_amphibious"),
+"Fly": ExtResource("43_lm_fly"),
+"Jumpjet": ExtResource("44_lm_jumpjet"),
+"Subterranean": ExtResource("45_lm_subterranean"),
+"Ship": ExtResource("46_lm_ship")
+}

@@ -5,7 +5,7 @@ extends Node
 
 
 func _art(id: String) -> TerrainArtData:
-    return load("res://resources/art/terrain/%s.tres" % id) as TerrainArtData
+    return load("res://games/ts/art/terrain/%s.tres" % id) as TerrainArtData
 
 
 func test_resolve_default_model_and_submesh():

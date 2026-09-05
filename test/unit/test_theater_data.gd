@@ -7,7 +7,7 @@ extends Node
 
 
 func test_temperate_is_light_tag():
-    var theater := load("res://resources/theaters/temperate.tres") as TheaterData
+    var theater := load("res://games/ts/theaters/temperate.tres") as TheaterData
     TestHelper.assert_true(theater != null, "temperate.tres loads")
     if theater == null:
         _finish()

@@ -85,7 +85,7 @@ func test_get_locomotor_unknown():
 
 
 func test_registered_tres_load():
-    var rules := load("res://resources/global_rules.tres") as GlobalRules
+    var rules := load("res://games/ts/global_rules.tres") as GlobalRules
     TestHelper.assert_true(rules != null, "global_rules.tres loads")
     if rules == null:
         return

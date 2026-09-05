@@ -62,7 +62,7 @@ func test_mesh_rotation_matches_direction_table():
 
 
 func test_footprint_bounds_known_tiles():
-    var cliff := load("res://resources/terrain_objects/cliff01_n.tres") as TerrainObject
+    var cliff := load("res://games/ts/terrain_objects/cliff01_n.tres") as TerrainObject
     TestHelper.assert_true(cliff != null, "cliff01_n loads")
     if cliff == null:
         _finish()
@@ -88,7 +88,7 @@ func test_footprint_bounds_known_tiles():
                 "cliff01_n cell z within bounds: " + key,
             )
         )
-    var ramp := load("res://resources/terrain_objects/ramp01_n.tres") as TerrainObject
+    var ramp := load("res://games/ts/terrain_objects/ramp01_n.tres") as TerrainObject
     TestHelper.assert_true(ramp != null, "ramp01_n loads")
     if ramp == null:
         _finish()
