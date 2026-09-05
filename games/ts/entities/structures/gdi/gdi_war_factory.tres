@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://games/ts/art/structures/gdi/gdi_war_factory_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_WAR_FACTORY"
+display_name = "War Factory"
+legacy_id = "GAWEAP"
+entity_type = 2
+strength = 1000
+armor = "heavy"
+cost = 2000
+tech_level = 1
+sight = 4
+foundation = Vector2i(4, 3)
+height = 2.5
+owner = PackedStringArray("GDI")
+buildable = true
+buildable_queue = "BuildingType"
+prerequisite = PackedStringArray("GDI_POWER_PLANT")
+factory = "VehicleType"
+capturable = true
+adjacent = 2
+crewed = true
+explodes = false
+toggle_power = false
+spawn_offset = Vector3(-1, 0, 0)
+exit_offset = Vector3(5, 0, 0)
+exit_facing = 270
+exit_delay = 1.5
+has_rally_point = true
+bib_cells = Array[Vector2i]([Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2)])

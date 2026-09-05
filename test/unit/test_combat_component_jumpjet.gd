@@ -75,7 +75,7 @@ func _make_jumpjet_combat() -> Array:
 
 
 func test_jumpjet_weapon_targets_ground_and_air():
-    var data := load("res://resources/entities/infantry/gdi_jumpjet_infantry.tres") as EntityData
+    var data := load("res://games/ts/entities/infantry/gdi_jumpjet_infantry.tres") as EntityData
     TestHelper.assert_true(data != null, "jumpjet data loads")
     if data == null:
         return

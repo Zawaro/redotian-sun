@@ -3,8 +3,8 @@ extends Node
 # ProjectileData tests — schema defaults, .tres load/validation,
 # and weapon → projectile reference resolvability.
 
-const PROJECTILE_DIR := "res://resources/projectiles/"
-const WEAPON_DIR := "res://resources/weapons/"
+const PROJECTILE_DIR := "res://games/ts/projectiles/"
+const WEAPON_DIR := "res://games/ts/weapons/"
 
 var _test_passed := 0
 var _test_failed := 0

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GameDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/GameDefinition.gd" id="1_script"]
+[ext_resource type="Resource" path="res://games/ts/global_rules.tres" id="2_rules"]
+
+[resource]
+script = ExtResource("1_script")
+id = "ts"
+display_name = "Tiberian Sun"
+rules = ExtResource("2_rules")
+data_sets = PackedStringArray("res://games/ts/")
+maps_dir = ""

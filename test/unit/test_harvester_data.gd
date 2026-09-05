@@ -9,7 +9,7 @@ const TS_RULES_INI_HARV_STORAGE: int = 28
 
 
 func test_gdi_harvester_storage_matches_ts_rules_ini():
-    var data := load("res://resources/entities/vehicles/gdi_harvester.tres") as EntityData
+    var data := load("res://games/ts/entities/vehicles/gdi_harvester.tres") as EntityData
     TestHelper.assert_true(data != null, "GDI harvester data loads")
     if data == null:
         return
@@ -18,7 +18,7 @@ func test_gdi_harvester_storage_matches_ts_rules_ini():
 
 
 func test_nod_harvester_storage_matches_ts_rules_ini():
-    var data := load("res://resources/entities/vehicles/nod_harvester.tres") as EntityData
+    var data := load("res://games/ts/entities/vehicles/nod_harvester.tres") as EntityData
     TestHelper.assert_true(data != null, "Nod harvester data loads")
     if data == null:
         return
@@ -30,8 +30,8 @@ func test_docked_variants_carry_no_capacity_override():
     # Docked states map to TS [HORV] ("harvester without back"), which defines
     # no Storage flag in rules.ini — the .tres must not introduce one.
     for path: String in [
-        "res://resources/entities/vehicles/gdi_harvester_docked.tres",
-        "res://resources/entities/vehicles/nod_harvester_docked.tres",
+        "res://games/ts/entities/vehicles/gdi_harvester_docked.tres",
+        "res://games/ts/entities/vehicles/nod_harvester_docked.tres",
     ]:
         var data := load(path) as EntityData
         TestHelper.assert_true(data != null, "%s loads" % path)

@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+GameContext="*res://scripts/core/GameContext.gd" ; Must resolve the active game before EntityFactory/TerrainCatalog/AudioManager register data
 PlayerManager="*res://scripts/core/PlayerManager.gd"
 InputSettings="*res://scripts/core/InputSettings.gd" ; Must init before scene-loading autoloads that read input
 SelectionManager="*res://scripts/core/SelectionManager.gd"

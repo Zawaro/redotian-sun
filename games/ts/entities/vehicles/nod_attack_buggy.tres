@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://games/ts/art/vehicles/bggy_attack_buggy_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "NOD_ATTACK_BUGGY"
+display_name = "Attack Buggy"
+legacy_id = "BGGY"
+entity_type = 1
+strength = 220
+armor = "light"
+cost = 500
+tech_level = 2
+sight = 6
+speed = 10.0
+movement_zone = "Normal"
+locomotor = "Wheel"
+rotation_speed = 180.0
+owner = PackedStringArray("Nod")
+threat_posed = 10
+buildable = true
+prerequisite = PackedStringArray("NOD_WAR_FACTORY")
+
+buildable_queue = "VehicleType"

@@ -37,15 +37,15 @@ func test_register_data_set_is_idempotent():
     if not _am:
         return
     var before: int = _am._data_sets.size()
-    _am.register_data_set("res://resources/audio/")
+    _am.register_data_set("res://games/ts/audio/")
     TestHelper.assert_eq(_am._data_sets.size(), before, "re-registering same path is a no-op")
 
 
 func test_missing_directory_warns_without_crash():
     if not _am:
         return
-    _am.register_data_set("res://resources/audio/missing_dir/")
-    var recorded: bool = _am._data_sets.has("res://resources/audio/missing_dir/")
+    _am.register_data_set("res://games/ts/audio/missing_dir/")
+    var recorded: bool = _am._data_sets.has("res://games/ts/audio/missing_dir/")
     TestHelper.assert_true(recorded, "missing dir recorded")
     TestHelper.assert_true(true, "no crash on missing dir")
 

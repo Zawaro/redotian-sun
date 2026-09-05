@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://games/ts/art/structures/gdi/gdi_component_tower_art.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "GDI_COMPONENT_TOWER"
+display_name = "Component Tower"
+legacy_id = "GACTWR"
+entity_type = 2
+strength = 500
+armor = "heavy"
+cost = 200
+tech_level = 1
+sight = 6
+foundation = Vector2i(1, 1)
+height = 3.0
+owner = PackedStringArray("GDI")
+buildable = true
+buildable_queue = "BuildingType"
+prerequisite = PackedStringArray("GDI_BARRACKS")
+capturable = true
+adjacent = 3
+crewed = false
+power = -10
+explodes = false
+toggle_power = false

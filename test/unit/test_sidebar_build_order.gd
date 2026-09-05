@@ -133,7 +133,7 @@ func test_sort_unknown_entity_type_sorts_last():
 
 func _collect_buildable_data() -> Array[EntityData]:
     var result: Array[EntityData] = []
-    _walk_dir("res://resources/entities", result)
+    _walk_dir("res://games/ts/entities", result)
     return result
 
 

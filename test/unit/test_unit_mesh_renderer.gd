@@ -7,7 +7,7 @@ extends Node
 # rasterizer), so assertions target registry bookkeeping, visible counts, and
 # the MultiMesh custom_aabb.
 
-const MODEL_PATH := "res://assets/models/nod_buggy01.glb"
+const MODEL_PATH := "res://games/ts/assets/models/nod_buggy01.glb"
 
 const STATS_SCRIPT: GDScript = preload("res://scripts/components/StatsComponent.gd")
 

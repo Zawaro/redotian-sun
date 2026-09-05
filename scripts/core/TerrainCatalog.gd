@@ -8,7 +8,7 @@ extends Node
 ## renderer and collision.
 
 const TERRAIN_GLB_PATH: String = (
-    "res://assets/models/theater/placeholder/" + "placeholder_terrain01.gltf"
+    "res://games/ts/assets/models/theater/placeholder/" + "placeholder_terrain01.gltf"
 )
 
 var _objects: Dictionary = {}
@@ -20,9 +20,38 @@ var _terrain_scene: PackedScene = null
 
 
 func _ready() -> void:
-    register_data_set("res://resources/terrain_objects/")
-    register_data_set("res://resources/art/terrain/")
-    register_data_set("res://resources/theaters/")
+    GameContext.game_changed.connect(_on_game_changed)
+    _load_from_context()
+
+
+## Registers terrain content from the active game's layer roots. Pulled at
+## _ready (boot-time game_changed fires before this autoload exists) and
+## re-run on every runtime game switch.
+func _load_from_context() -> void:
+    reset_content()
+    var def := GameContext.current
+    if def == null:
+        return
+    for root in def.data_sets:
+        var base := root.trim_suffix("/")
+        register_data_set(base + "/terrain_objects/")
+        register_data_set(base + "/art/terrain/")
+        register_data_set(base + "/theaters/")
+
+
+func _on_game_changed(_def: GameDefinition) -> void:
+    _load_from_context()
+
+
+## Clears all registered content plus derived state (active theater, cached
+## terrain scene). Called before every (re)registration.
+func reset_content() -> void:
+    _objects.clear()
+    _art.clear()
+    _theaters.clear()
+    _data_sets.clear()
+    _active_theater = null
+    _terrain_scene = null
 
 
 ## The active terrain art's GLB scene (from the art seam, so corner-pivoted

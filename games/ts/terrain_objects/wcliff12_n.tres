@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="TerrainObject" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/TerrainObject.gd" id="1_script"]
+[ext_resource type="Resource" path="res://games/ts/art/terrain/wcliff12.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "wcliff12_n"
+cell_type = "cliff"
+display_name = "Wcliff12 N"
+cells = {
+"0,0": {
+"connections": {
+"east": {
+"role": "water"
+},
+"north": {
+"role": "water"
+},
+"south": {
+"role": "water"
+},
+"west": {
+"role": "water"
+}
+},
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "rock"
+}
+}

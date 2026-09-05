@@ -4,7 +4,7 @@ extends Node
 # ArrayMesh without losing surfaces, materials, vertices, or bounds — and the
 # bake must be cached per model path.
 
-const MODEL_PATH := "res://assets/models/nod_buggy01.glb"
+const MODEL_PATH := "res://games/ts/assets/models/nod_buggy01.glb"
 
 
 func _tree() -> SceneTree:

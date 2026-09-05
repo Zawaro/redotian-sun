@@ -4,7 +4,9 @@ extends Node
 # theater_id into TerrainCatalog, and the active theater drives art resolution
 # (override-or-default).
 
-const PLACEHOLDER_GLB: String = "res://assets/models/theater/placeholder/placeholder_terrain01.gltf"
+const PLACEHOLDER_GLB: String = (
+    "res://games/ts/assets/models/theater/placeholder/" + "placeholder_terrain01.gltf"
+)
 
 
 func test_map_loader_sets_active_theater_from_map():

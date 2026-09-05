@@ -11,7 +11,7 @@ var _theater: TheaterData = null
 func _ensure_scene() -> bool:
     if _scene != null:
         return _controller != null
-    _theater = load("res://resources/theaters/temperate.tres") as TheaterData
+    _theater = load("res://games/ts/theaters/temperate.tres") as TheaterData
     var packed := load("res://scenes/AssetPreview.tscn") as PackedScene
     if packed == null:
         TestHelper.assert_true(false, "AssetPreview.tscn loads")

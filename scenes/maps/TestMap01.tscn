@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://dsflj6w0e68dx" path="res://scenes/entities/structures/gdi/GDIConyard01.tscn" id="2_h8fgv"]
 [ext_resource type="PackedScene" uid="uid://b7wirjdspueke" path="res://scenes/entities/units/nod/NodBuggy.tscn" id="3_vfa0v"]
 [ext_resource type="PackedScene" path="res://scenes/components/GroundPlane.tscn" id="4_grndp"]
-[ext_resource type="Texture2D" uid="uid://dvdbjrbhqaaps" path="res://assets/textures/placeholder_terrain01_Ground_1m x 1m.png" id="5_ground_tex"]
+[ext_resource type="Texture2D" uid="uid://dvdbjrbhqaaps" path="res://games/ts/assets/textures/placeholder_terrain01_Ground_1m x 1m.png" id="5_ground_tex"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
 albedo_texture = ExtResource("5_ground_tex")

@@ -7,7 +7,7 @@ extends Node3D
 ## default, plus a free-orbit rig and an auto-turntable.
 ## Dev tool only — no gameplay logic.
 
-const THEATER_PATH: String = "res://resources/theaters/temperate.tres"
+const PREVIEW_THEATER_ID: String = "temperate"
 const DIRECTIONS: Array[String] = ["n", "e", "s", "w"]
 
 const STATE_MESH := 0
@@ -69,9 +69,11 @@ var _cached_materials: Dictionary = {}
 
 
 func _ready() -> void:
-    _theater = load(THEATER_PATH) as TheaterData
+    # Theater comes from the TerrainCatalog registry so the preview follows the
+    # active game's content rather than a hardcoded path.
+    _theater = TerrainCatalog.get_theater(PREVIEW_THEATER_ID)
     if _theater == null:
-        push_error("AssetPreview: theater missing at " + THEATER_PATH)
+        push_error("AssetPreview: theater '%s' not registered" % PREVIEW_THEATER_ID)
         return
     _build_families()
     _object_root = get_node("ObjectRoot")

@@ -18,10 +18,11 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | Main scene | `scenes/MainScene.tscn` |
 | Viewport | 1920×1080, stretch mode = viewport |
 
-### Autoloads (24 singletons, all registered in `project.godot`)
+### Autoloads (25 singletons, all registered in `project.godot`)
 
 | Singleton | Script | Purpose |
 |-----------|--------|---------|
+| `GameContext` | `scripts/core/GameContext.gd` | Active game resolution (first autoload), select/unload lifecycle, per-game rules |
 | `PlayerManager` | `scripts/core/PlayerManager.gd` | Per-player identity, teams, enemy checks |
 | `InputSettings` | `scripts/core/InputSettings.gd` | Input configuration singleton |
 | `SelectionManager` | `scripts/core/SelectionManager.gd` | Entity selection tracking |
@@ -62,8 +63,8 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | `scripts/maps/` | Map-specific scripts (TestMap02, MapLoader) |
 | `scripts/ui/` | Main menu, Sidebar, FPS counter |
 | `scenes/` | 37 packed scenes: entities, components, maps, UI, environment, editor |
-| `resources/` | `.tres` resource files — entity definitions, art configs, global rules |
-| `assets/` | Models (.glb), textures, fonts, HDRI, UI images |
+| `games/` | Per-game content trees: `games/<id>/` holds that game's `game.tres` definition, `global_rules.tres`, data dirs (entities, art, audio, …) and owned assets under `games/<id>/assets/` |
+| `assets/` | Shared shell assets only (fonts, HDRI, placeholder cursors) — per-game assets live under `games/<id>/assets/` |
 | `shaders/` | Single UI shader (`MainMenuItemBlur01.gdshader`) |
 | `plans/` | 22 design docs organized by gameplay category (1-1 through 9-2, plus roadmap) |
 | `test/` | Custom test runner, `TestHelper` class, unit and integration tests |
@@ -71,16 +72,16 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 
 ## Data-Driven Architecture
 
-Entities are defined as `EntityData` resources (`.tres` files under `resources/entities/`). EntityFactory autoload reads these at runtime and dynamically attaches component scenes/scripts based on data properties. The data class hierarchy:
+Entities are defined as `EntityData` resources (`.tres` files under `games/<id>/entities/`, resolved via the active game's GameDefinition). EntityFactory autoload reads these at runtime and dynamically attaches component scenes/scripts based on data properties. The data class hierarchy:
 
 - `EntityData` (base) — identity, stats, combat, movement, build requirements
   - `WeaponData` — weapon definitions (damage, range, rate, warhead)
   - `ArtData` — sprite/animation references
   - `WarheadData` — damage type, radius, effects
   - `PlayerData` — per-player state
-  - `GlobalRules` — game-wide constants (loaded from `resources/global_rules.tres`)
+  - `GlobalRules` — game-wide constants (one `games/<id>/global_rules.tres` per game, resolved via GameContext)
 
-Each entity type also has an art `.tres` (e.g., `resources/art/structures/gdi/gacnst_art.tres`) mapping animation states to sprite frames.
+Each entity type also has an art `.tres` (e.g., `games/ts/art/structures/gdi/gacnst_art.tres`) mapping animation states to sprite frames.
 
 ## What Does NOT Exist Yet
 
@@ -203,7 +204,7 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 - **PR titles**: Conventional prefix + issue number in parentheses — `fix: building ignores moving entities (#59)`, `feat: async model loading (#60)`. The branch already has the number, but PR title must include it too.
 - **Naming**: PascalCase for classes/scenes, snake_case for vars/funcs. Scene files mirror script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
-- **Autoloads**: 22 autoloads registered in `project.godot`. Add new singletons via project settings, not hardcoded references.
+- **Autoloads**: 25 autoloads registered in `project.godot`; `GameContext` must stay **first** (consumers pull the active game in their own `_ready()`). Add new singletons via project settings, not hardcoded references.
 - **Input roles**: Right-click = deselect / cancel only (clears selection, exits modes, cancels production). Left-click = select / act (selects entities, issues orders, starts production). Never issue unit commands on right-click.
 - **UID files**: Redot generates `.uid` files (e.g., `MyScript.gd.uid`) alongside scripts and scenes. These are valid parts of the codebase and MUST be committed. Always `git add` both the script and its `.uid` file together.
 

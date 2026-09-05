@@ -109,10 +109,10 @@ func test_bib_cost_penalty_default():
 
 
 func test_bib_cost_penalty_loaded_from_tres():
-    if not ResourceLoader.exists("res://resources/global_rules.tres"):
+    if not ResourceLoader.exists("res://games/ts/global_rules.tres"):
         TestHelper.fail("global_rules.tres missing")
         return
-    var rules := load("res://resources/global_rules.tres") as GlobalRules
+    var rules := load("res://games/ts/global_rules.tres") as GlobalRules
     TestHelper.assert_true(rules != null, "global_rules.tres loads as GlobalRules")
     if rules:
         (
