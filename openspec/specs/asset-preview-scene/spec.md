@@ -15,7 +15,7 @@ The system SHALL provide a standalone scene `scenes/AssetPreview.tscn` that runs
 - **THEN** it uses the same world environment and directional light scenes as gameplay and the map editor
 
 ### Requirement: Asset browsing from theater registry
-The asset list SHALL be sourced from the theater registry (`resources/theaters/temperate.tres`), exposing all registered `TerrainObject` variants grouped by base family. The preview SHALL auto-load the first family's `_n` variant on start. The user SHALL be able to step to the previous/next family, pick a family from a dropdown, and cycle the four directional variants (`_n`/`_e`/`_s`/`_w`) of the selected family.
+The asset list SHALL be sourced from the theater registry (`games/ts/theaters/temperate.tres`), exposing all registered `TerrainObject` variants grouped by base family. The preview SHALL auto-load the first family's `_n` variant on start. The user SHALL be able to step to the previous/next family, pick a family from a dropdown, and cycle the four directional variants (`_n`/`_e`/`_s`/`_w`) of the selected family.
 
 #### Scenario: First family auto-loaded
 - **WHEN** the scene starts

@@ -47,14 +47,14 @@ The system SHALL define a per-element `TerrainArtData` resource (`scripts/data/T
 - **THEN** `resolve` returns that submesh for every object referencing the entry
 
 ### Requirement: Light theater and global catalog registration
-The system SHALL define `TheaterData` (`scripts/data/TheaterData.gd`) as a light tag with `id` and `display_name` only — it SHALL NOT embed TerrainObjects or art, and SHALL NOT carry a default land type (the game-wide default lives in `TerrainSystem.DEFAULT_LAND_TYPE`). The full directional catalog SHALL live in a global registry (`resources/terrain_objects/`) scanned by the TerrainCatalog autoload, independent of any theater. Theater art variation SHALL be expressed per element through `TerrainArtData.theater_overrides`. `TerrainCatalog.get_theater(theater_id)` SHALL return the theater; unknown ids SHALL return null without error.
+The system SHALL define `TheaterData` (`scripts/data/TheaterData.gd`) as a light tag with `id` and `display_name` only — it SHALL NOT embed TerrainObjects or art, and SHALL NOT carry a default land type (the game-wide default lives in `TerrainSystem.DEFAULT_LAND_TYPE`). The full directional catalog SHALL live in a global registry (`games/ts/terrain_objects/`) scanned by the TerrainCatalog autoload, independent of any theater. Theater art variation SHALL be expressed per element through `TerrainArtData.theater_overrides`. `TerrainCatalog.get_theater(theater_id)` SHALL return the theater; unknown ids SHALL return null without error.
 
 #### Scenario: Theater is a light entry
 - **WHEN** a theater resource is loaded
 - **THEN** it exposes `id` and `display_name`, holds no TerrainObjects or art data, and has no land-type field
 
 #### Scenario: All variants registered globally
-- **WHEN** the TerrainCatalog scans `resources/terrain_objects/`
+- **WHEN** the TerrainCatalog scans `games/ts/terrain_objects/`
 - **THEN** every `<base>_<dir>` variant resolves via `get_object`, regardless of active theater
 
 #### Scenario: Unknown theater id returns null

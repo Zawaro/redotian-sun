@@ -25,7 +25,7 @@ The system SHALL populate its data catalogs from `.tres` data the same way in an
 The packed-build catalog scan SHALL work without `.godot/` editor caches, an editor-generated `.import` manifest, the editor filesystem, or `uid_cache.bin` being present at runtime. The failure SHALL be root-caused and fixed rather than papered over (no hardcoded entity id lists, no `.godot` dependency).
 
 #### Scenario: Scan iterates pack directory
-- **WHEN** `DirAccess.open("res://resources/entities/")` is called in an exported build
+- **WHEN** `DirAccess.open("res://games/ts/entities/")` is called in an exported build
 - **THEN** it SHALL enumerate the `.tres` files packed under that directory and each one SHALL `load()` successfully as an `EntityData`
 - **THEN** the catalog contains every packed entity id
 

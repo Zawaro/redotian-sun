@@ -99,7 +99,7 @@ The factory SHALL cache loaded EntityData resources by id for fast lookup. The f
 - **THEN** the factory returns an empty array
 
 #### Scenario: Query includes all subdirectories
-- **WHEN** EntityData files exist in `resources/entities/structures/gdi/` and `resources/entities/structures/nod/`
+- **WHEN** EntityData files exist in `games/ts/entities/structures/gdi/` and `games/ts/entities/structures/nod/`
 - **THEN** `get_all_by_type(BUILDING)` returns entities from both directories
 
 #### Scenario: Invalid entity id
