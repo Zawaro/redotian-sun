@@ -1,8 +1,8 @@
 ### Requirement: AudioManager autoload with dynamic .tres loader
-The system SHALL provide an `AudioManager` autoload that registers data-set directories and recursively scans them for `.tres` resources, caching `AudioData` and `VoiceData` resources by their `id`. The scan SHALL mirror the `EntityFactory._scan_directory` pattern, and loading a directory SHALL be idempotent per path. A missing or unreadable directory SHALL produce a warning and return without error.
+The system SHALL provide an `AudioManager` autoload that registers data-set directories and recursively scans them for `.tres` resources, caching `AudioData` and `VoiceData` resources by their `id`. The scan SHALL mirror the `EntityFactory._scan_directory` pattern, and loading a directory SHALL be idempotent per path. A missing or unreadable directory SHALL produce a warning and return without error. The registered directories SHALL come from the active game's `data_sets` layer roots (the `audio/` subdirectory of each root), resolved via GameContext at select time.
 
 #### Scenario: Scan loads all audio resources by id
-- **WHEN** `AudioManager.register_data_set("res://resources/audio/")` is called
+- **WHEN** `AudioManager.register_data_set("res://games/ts/audio/")` is called
 - **THEN** every `AudioData.tres` and `VoiceData.tres` under that directory is cached, keyed by its `id`
 
 #### Scenario: Registering the same data set twice is idempotent
@@ -25,7 +25,7 @@ The system SHALL ensure four audio buses exist at startup: `Master`, `Music`, `S
 - **THEN** the resulting player is routed to the `Voice` bus
 
 ### Requirement: AudioData resource definition
-The system SHALL provide an `AudioData` resource (`scripts/data/AudioData.gd`) with fields: `id` (unique sound id matching the `sound.ini` `[SoundList]` name, e.g. `INFGUN3`, `15-I000`), `path` (res:// path to the audio stream), `bus` (one of `Master`/`Music`/`SFX`/`Voice`), `priority` (int, default 10), `volume_db` (float), and `is_spatial` (bool, default true). Each sound file SHALL have one `AudioData.tres` under `resources/audio/`.
+The system SHALL provide an `AudioData` resource (`scripts/data/AudioData.gd`) with fields: `id` (unique sound id matching the `sound.ini` `[SoundList]` name, e.g. `INFGUN3`, `15-I000`), `path` (res:// path to the audio stream), `bus` (one of `Master`/`Music`/`SFX`/`Voice`), `priority` (int, default 10), `volume_db` (float), and `is_spatial` (bool, default true). Each sound file SHALL have one `AudioData.tres` under `games/ts/audio/`.
 
 #### Scenario: AudioData exposes playback fields
 - **WHEN** an `AudioData` resource is loaded from a `.tres` file
@@ -134,7 +134,7 @@ The system SHALL play spatial sounds (e.g. weapon fire) at full volume while the
 - **THEN** a random die variant is played; entities without die voices play nothing
 
 ### Requirement: Content .tres files
-The system SHALL author `AudioData.tres` files under `resources/audio/` for available audio files, and `VoiceData.tres` files for units with select/order voice sets, using the available audio library and `references/sound.ini` id mapping. A `default_bus_layout.tres` SHALL define the Master/Music/SFX/Voice buses.
+The system SHALL author `AudioData.tres` files under the active game's `audio/` data directory (`games/ts/audio/` for Tiberian Sun) for available audio files, and `VoiceData.tres` files for units with select/order voice sets, using the available audio library and `references/sound.ini` id mapping. A `default_bus_layout.tres` SHALL define the Master/Music/SFX/Voice buses.
 
 #### Scenario: Content matches sound.ini ids
 - **WHEN** content `AudioData.tres` files are scanned
