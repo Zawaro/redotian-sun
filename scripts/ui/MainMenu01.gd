@@ -7,6 +7,12 @@ const GAMEPLAY_MAP_SCENE: String = "res://scenes/maps/TestMap02.tscn"
 
 
 func _input(event):
+    # Hidden menus must ignore input: _input is delivered even when the
+    # node is invisible (PauseMenu's ESC-unpause depends on that while its
+    # own menu is hidden), so an overlay hiding this menu — the boot
+    # screen — also needs this guard.
+    if not visible:
+        return
     if event is InputEventMouseButton and event.pressed:
         var mouse_pos = get_viewport().get_mouse_position()
         for item in _collect_menu_items(self):

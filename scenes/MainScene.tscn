@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://bqgqoidrni3ed" path="res://scenes/ui/MainMenu01.tscn" id="1_echbf"]
 [ext_resource type="PackedScene" uid="uid://evckb76qoeyd" path="res://scenes/LoadingScreen.tscn" id="2_ibiss"]
+[ext_resource type="PackedScene" path="res://scenes/ui/BootScreen.tscn" id="3_boot"]
 
 [node name="Window" type="Window"]
 oversampling_override = 1.0
@@ -25,3 +26,6 @@ layout_mode = 1
 
 [node name="LoadingScreen" parent="HUD/UI" instance=ExtResource("2_ibiss")]
 visible = false
+
+[node name="BootScreen" parent="HUD/UI" instance=ExtResource("3_boot")]
+layout_mode = 1
