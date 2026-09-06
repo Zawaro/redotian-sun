@@ -23,6 +23,6 @@ extends Resource
 ## Borrowing another game's content = listing its root here.
 @export var data_sets: PackedStringArray = PackedStringArray()
 
-## Directory holding this game's map files. Consumed by the game-selection
-## boot screen (#376); unused until then.
+## Directory holding this game's map files. Reserved for per-game map
+## selection (follow-up phase); not consumed by the boot screen.
 @export var maps_dir: String = ""
