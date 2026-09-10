@@ -133,17 +133,21 @@ func _process(_delta):
 
     var over_build := hovered and UIUtil.is_inside_node(hovered, "Sidebar")
 
+    # Gameplay minimap consumes its own clicks; polling world input must not
+    # also select/order there.
+    var over_minimap := UIUtil.is_mouse_over_minimap()
+
     # Drop stale hover state when the cursor enters UI, so returning to the
     # same target re-emits hover_changed (the tooltip would otherwise stay
     # hidden forever — set_hover_preview dedupes on the still-set entity).
     if (
-        (over_sidebar or over_debug or over_build)
+        (over_sidebar or over_debug or over_build or over_minimap)
         and selection_manager
         and selection_manager.is_hovering
     ):
         selection_manager.clear_hover_preview()
 
-    if not over_sidebar and not over_debug and not over_build:
+    if not over_sidebar and not over_debug and not over_build and not over_minimap:
         var shift_pressed: bool = Input.is_key_pressed(KEY_SHIFT)
 
         # Left mouse button just pressed — start drag tracking.
@@ -304,7 +308,7 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
         var ground_pos := _get_ground_position_at_mouse()
         if ground_pos != Vector3.INF:
             var orders := OrderSystem.get_orders(null, Vector2i.ZERO, ground_pos, modifiers)
-            _play_order_voices(orders)
+            play_order_voices(orders, selection_manager)
             for order in orders:
                 order.execute.call()
 
@@ -315,20 +319,23 @@ func _try_execute_orders(
     var orders := OrderSystem.get_orders(target, target_cell, target_pos, modifiers)
     if orders.is_empty():
         return false
-    _play_order_voices(orders)
+    play_order_voices(orders, selection_manager)
     for order in orders:
         order.execute.call()
     return true
 
 
-func _play_order_voices(orders: Array[OrderResult]) -> void:
-    if orders.is_empty():
+## Shared order-confirmation voice playback, used by both the world click path
+## and the minimap. One voice per order event, from the NW-most selected local
+## unit — never one per unit (would stack on large selections).
+static func play_order_voices(
+    orders: Array[OrderResult], selection_manager: SelectionManager
+) -> void:
+    if orders.is_empty() or selection_manager == null:
         return
-    var event := _voice_event_for_cursor(orders[0].cursor)
-    if event.is_empty() or not selection_manager:
+    var event := voice_event_for_cursor(orders[0].cursor)
+    if event.is_empty():
         return
-    # C&C: one confirmation voice per order event, from the NW-most selected
-    # local unit — never one per unit (would stack on large selections).
     var chosen := (
         selection_manager.get_northwest_most(selection_manager.selected_entities) as SelectComponent
     )
@@ -343,7 +350,7 @@ func _play_order_voices(orders: Array[OrderResult]) -> void:
     AudioManager.play_voice(voice.voice_data.id, event)
 
 
-func _voice_event_for_cursor(cursor: CursorState.Type) -> String:
+static func voice_event_for_cursor(cursor: CursorState.Type) -> String:
     match cursor:
         CursorState.Type.MOVE:
             return VoiceData.EVENT_MOVE
@@ -511,6 +518,9 @@ func _update_cursor() -> void:
         cursor_type = CursorState.Type.DEFAULT
     # Debug menu hover always shows system cursor
     elif UIUtil.is_mouse_over_debug_menu():
+        cursor_type = CursorState.Type.DEFAULT
+    # Minimap hover always shows system cursor
+    elif UIUtil.is_mouse_over_minimap():
         cursor_type = CursorState.Type.DEFAULT
     elif mouse_dragging and active_rect.size.x >= MOUSE_DRAG_THRESHOLD:
         cursor_type = CursorState.Type.SELECT

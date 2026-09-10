@@ -57,7 +57,9 @@ func _process(_delta: float) -> void:
     _update_preview_position()
 
     if Input.is_action_just_pressed("select_entity"):
-        _try_place_building()
+        # The gameplay minimap owns its own clicks; do not place through it.
+        if not UIUtil.is_mouse_over_minimap():
+            _try_place_building()
     elif Input.is_action_just_pressed("deselect_entity"):
         exit_build_mode()
     elif Input.is_action_just_pressed("ui_cancel"):

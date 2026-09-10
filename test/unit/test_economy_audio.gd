@@ -11,7 +11,7 @@ extends Node
 # Expected step sizes are derived independently (gap / 8 floored, clamped to
 # at least 1), not copied from production code.
 
-const SIDEBAR_SCENE: PackedScene = preload("res://scenes/ui/Sidebar.tscn")
+const CREDITS_SCENE: PackedScene = preload("res://scenes/ui/CreditsLabel.tscn")
 const INCOME_STREAM_PATH: String = "res://external_assets/audio/credup1.ogg"
 const SPEND_STREAM_PATH: String = "res://external_assets/audio/creddwn1.ogg"
 # The real econ streams are TS rips under gitignored external_assets/ — absent
@@ -57,9 +57,9 @@ func _local_id() -> int:
 
 
 func _make_sidebar() -> Control:
-    var sidebar: Control = SIDEBAR_SCENE.instantiate()
-    (Engine.get_main_loop() as SceneTree).root.add_child(sidebar)
-    return sidebar
+    var label: Control = CREDITS_SCENE.instantiate()
+    (Engine.get_main_loop() as SceneTree).root.add_child(label)
+    return label
 
 
 func _drop_sidebar(sidebar: Control) -> void:
@@ -68,7 +68,7 @@ func _drop_sidebar(sidebar: Control) -> void:
 
 
 func _label(sidebar: Control) -> Label:
-    return sidebar.get_node("%CreditsLabel") as Label
+    return sidebar as Label
 
 
 func _count_audio_players() -> int:
@@ -99,7 +99,7 @@ func test_ready_forces_display_silently():
     var before := _count_audio_players()
     var sidebar := _make_sidebar()
     var balance: int = _em.get_balance(_local_id())
-    TestHelper.assert_true(_label(sidebar) != null, "Sidebar has a %CreditsLabel node")
+    TestHelper.assert_true(_label(sidebar) != null, "CreditsLabel scene root is a Label")
     TestHelper.assert_eq(
         _label(sidebar).text, "$%d" % balance, "ready shows the current balance instantly"
     )

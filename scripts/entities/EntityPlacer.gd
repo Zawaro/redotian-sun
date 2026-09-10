@@ -237,7 +237,9 @@ func _process(_delta: float) -> void:
         exit_placing_mode()
         return
     if Input.is_action_just_pressed("select_entity"):
-        _commit_placement()
+        # The gameplay minimap owns its own clicks; do not commit through it.
+        if not UIUtil.is_mouse_over_minimap():
+            _commit_placement()
         return
     _reposition_preview()
 
