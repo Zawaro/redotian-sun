@@ -204,6 +204,25 @@ func resolve_cell_art(cell_data: Dictionary) -> TerrainArtData.ArtResolution:
     return resolve_art(family, get_active_theater_id())
 
 
+## The TerrainArtData resource that renders a cell (catalog object art, else the
+## direct art entry for the type/variant family). Null when neither exists.
+## Uses the same family selection as resolve_cell_art so map coloring matches
+## the mesh.
+func get_cell_art(cell_data: Dictionary) -> TerrainArtData:
+    var object_id: String = cell_data.get("object_id", "")
+    var family := (
+        object_id
+        if not object_id.is_empty()
+        else _get_mesh_family(
+            String(cell_data.get("type", "clear")), int(cell_data.get("variant", 1))
+        )
+    )
+    var obj := get_object(family)
+    if obj and obj.art_data:
+        return obj.art_data
+    return get_art(family)
+
+
 ## Legacy mesh-family fallback for cells without a baked object_id
 ## (type+variant -> e.g. "clear01", "slope02"). New cells carry object_id.
 static func _get_mesh_family(terrain_type: String, variant: int) -> String:

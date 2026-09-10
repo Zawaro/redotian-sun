@@ -5,4 +5,5 @@
 [resource]
 script = ExtResource("1_script")
 id = "GDI_GHOST_STALKER"
+is_remappable = true
 placeholder_size = Vector3(0.4, 1.0, 0.4)

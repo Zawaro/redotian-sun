@@ -295,6 +295,15 @@ func get_land_type(cell: Vector2i) -> String:
     return _land_types.get(CellUtil.cell_key(cell), DEFAULT_LAND_TYPE)
 
 
+## Explicit per-cell land type override id, or "" when the cell has none.
+## Unlike get_land_type(), this ignores the "clear" default and the
+## resource-derived "resource" type — only a painted override returns a value.
+## Map coloring uses this to pick the fallback LandType color without letting a
+## resource cell masquerade as a painted surface.
+func get_painted_land_type(cell: Vector2i) -> String:
+    return _land_types.get(CellUtil.cell_key(cell), "")
+
+
 ## Assigns a land type to a cell. Assigning the default land type clears the override.
 func set_land_type(cell: Vector2i, land_type_id: String) -> void:
     var key: int = CellUtil.cell_key(cell)
@@ -310,6 +319,15 @@ func get_cell_max_height(cell: Vector2i) -> float:
         return 0.0
     var h_max := maxi(maxi(corners[0], corners[1]), maxi(corners[2], corners[3]))
     return float(h_max) * HEIGHT_STEP
+
+
+## Normalized cell height in 0..1 (max corner height / MAX_HEIGHT) for map
+## color height shading. Flat ground is 0.0, max height is 1.0.
+func get_cell_height_ratio(cell: Vector2i) -> float:
+    var max_height: float = float(MAX_HEIGHT) * HEIGHT_STEP
+    if max_height <= 0.0:
+        return 0.0
+    return clampf(get_cell_max_height(cell) / max_height, 0.0, 1.0)
 
 
 ## Min-corner height for a cell (raw heights * HEIGHT_STEP). Matches the pre-cache

@@ -70,13 +70,20 @@ func test_zero_alpha_color_treated_as_absent():
     )
 
 
-func test_remap_does_not_resurrect_absent_color():
+func test_remappable_uses_owner_color_without_authored_color():
+    # Remappable entities always take the side color; authoring a color on them
+    # is redundant, so a missing authored color must not hide them.
     var art := ArtData.new()
     art.id = "TEST_REMAP_ABSENT"
     art.is_remappable = true
+    TestHelper.assert_eq(
+        ArtData.minimap_color(art, Color.BLUE),
+        Color.BLUE,
+        "remappable entity with an owner uses the side color without an authored color"
+    )
     TestHelper.assert_true(
-        ArtData.minimap_color(art, Color.BLUE) == null,
-        "remappable entity with no authored color stays invisible (remap never invents a color)"
+        ArtData.minimap_color(art) == null,
+        "remappable entity with no owner and no authored color is not drawn"
     )
 
 
@@ -86,4 +93,19 @@ func test_existing_resources_without_color_stay_invisible():
     TestHelper.assert_true(
         ArtData.minimap_color(art) == null,
         "art resources authored before the color property remain invisible on minimap"
+    )
+
+
+func test_playable_entity_art_uses_owner_color_not_authored():
+    # art.ini: [E1] Remapable=yes, so the light infantry takes the owner's color
+    # and carries no authored map color of its own.
+    var art := load("res://games/ts/art/infantry/gdi_light_infantry_art.tres") as ArtData
+    TestHelper.assert_true(art != null, "light infantry art loads")
+    if art == null:
+        return
+    TestHelper.assert_true(art.is_remappable, "E1 is remappable per art.ini")
+    TestHelper.assert_eq(
+        ArtData.minimap_color(art, Color.BLUE),
+        Color.BLUE,
+        "remappable entity shows the owner side color"
     )

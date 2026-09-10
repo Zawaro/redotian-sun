@@ -11,7 +11,8 @@ class_name ResourceType extends Resource
 @export var parent_type: String = ""
 ## Credit value per bale when processed at a refinery.
 @export var value: float = 1.0
-## Display color for UI elements (pip scale, minimap dots, selection highlights).
+## Display color for economy/UI elements (pip scale, selection highlights).
+## Not a minimap color — resource entities take their map dot color from ArtData.
 @export var color: Color = Color.WHITE
 ## Whether this category's stored value appears in the HUD credits and build prices.
 @export var display_in_hud: bool = true
