@@ -32,6 +32,7 @@ Entry form: term → one-line meaning → anchor.
 | placement blocking | Placement refused while moving units stand on the footprint. | [building-placement-blocking](openspec/specs/building-placement-blocking/spec.md) |
 | free unit | Unit spawned automatically when a building is placed (`EntityData.free_unit`; refinery → harvester). | [free-unit](openspec/specs/free-unit/spec.md) |
 | primary building | `FactoryComponent.is_primary` flag; ProductionManager routes production to it over same-type factories. | [primary-building](openspec/specs/primary-building/spec.md) |
+| terrain-matched highlight | Build-mode highlight for non-flat cells: a patch with the flat octagon's exact XZ silhouette, split along the `derive_crease` diagonal and draped on the cell's two terrain-triangle planes + offset — no terrain-art dependency. Flat cells keep the octagon. | [placement-grid-overlay](openspec/specs/placement-grid-overlay/spec.md) · scripts/core/PlacementGridOverlay.gd |
 
 ⚠ Drift note: some `FoundationComponent` static methods name their Vector2i
 parameter `footprint` while it actually receives the `foundation` size. Treat

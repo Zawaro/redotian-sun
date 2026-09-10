@@ -24,6 +24,17 @@ static func cell_to_world(cell: Vector2i, grid_cells: Vector2i = Vector2i.ZERO) 
     return Vector3(cx, 0.0, cz)
 
 
+## World position of a vertex-grid point: same centered transform as
+## cell_to_world, but at the raw vertex index (a cell's corners) instead of
+## the cell center.
+static func vertex_to_world(vertex: Vector2i, grid_cells: Vector2i = Vector2i.ZERO) -> Vector3:
+    var gc := _resolve_grid_cells(grid_cells)
+    var center: float = float(gc.x + gc.y) * 0.5
+    var vx := (float(vertex.x) - center) * CELL_SIZE
+    var vz := (float(vertex.y) - center) * CELL_SIZE
+    return Vector3(vx, 0.0, vz)
+
+
 static var _cached_grid_cells: Vector2i = Vector2i.ZERO
 static var _grid_cache_valid := false
 
