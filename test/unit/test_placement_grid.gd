@@ -282,7 +282,10 @@ func test_octagon_mesh_geometry() -> void:
 
 
 func test_plane_y_uses_max_corner_height_plus_offset() -> void:
+    # Flat-only scope (#386): the octagon plane-Y formula applies to flat cells
+    # at any height; non-flat cells render patches instead.
     TerrainSystem.init_grid(8, 8)
+    _seed_fixture_cells()
     var overlay := PlacementGridOverlay.new()
     var flat_cell := Vector2i(4, 4)
     (
@@ -293,17 +296,53 @@ func test_plane_y_uses_max_corner_height_plus_offset() -> void:
             "flat terrain -> plane sits at the configured offset",
         )
     )
-    # Cell (4,4) corners are vertices (4..5, 4..5); raise one via the public API.
-    TerrainSystem.set_vertex(5, 5, 2)
+    # Raise all four corners equally: the cell stays flat (clear), one step up.
+    for vx in [4, 5]:
+        for vz in [4, 5]:
+            TerrainSystem.set_vertex(vx, vz, 2)
+    TestHelper.assert_eq(
+        TerrainSystem.get_cell_type(flat_cell), "clear", "uniformly raised cell stays flat"
+    )
     var expected: float = 2.0 * TerrainSystem.HEIGHT_STEP + PlacementGridOverlay.PLANE_Y_OFFSET
     (
         TestHelper
         . assert_eq(
             overlay._cell_plane_y(flat_cell),
             expected,
-            "raised corner -> plane sits at max corner height + offset",
+            "raised flat cell -> plane sits at cell height + offset",
         )
     )
+
+
+## Seeds a cell neighborhood so cell-typed queries (get_cell_type,
+## _is_flat_cell) see tracked cells: bare init_grid leaves _cells empty and
+## the vertex cascade only recomputes already-tracked cells.
+func _seed_fixture_cells() -> void:
+    for cx in range(3, 7):
+        for cz in range(3, 7):
+            TerrainSystem.compute_and_emit_cell(Vector2i(cx, cz))
+
+
+func test_slope_cell_renders_no_octagon_instance() -> void:
+    # Non-regression (#386): a 1-step slope cell must not join the octagon
+    # MultiMesh; it renders as a terrain-matched patch instead.
+    TerrainSystem.init_grid(8, 8)
+    _seed_fixture_cells()
+    TerrainSystem.set_vertex(5, 5, 1)
+    var slope_cell := Vector2i(4, 4)
+    TestHelper.assert_eq(
+        TerrainSystem.get_cell_type(slope_cell), "slope", "fixture cell is a 1-step slope"
+    )
+    var overlay := PlacementGridOverlay.new()
+    _bm.add_child(overlay)
+    overlay.set_white_cells([slope_cell])
+    overlay.set_cursor(slope_cell, Vector2i(1, 1))
+    TestHelper.assert_true(overlay._patch_in_use.has(slope_cell), "slope cell renders as a patch")
+    TestHelper.assert_eq(
+        overlay._multimesh.instance_count, 0, "slope cell produces no octagon instance"
+    )
+    _bm.remove_child(overlay)
+    overlay.free()
 
 
 func test_rebuild_defers_rendering_until_cursor() -> void:
