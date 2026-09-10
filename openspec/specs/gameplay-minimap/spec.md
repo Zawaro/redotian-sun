@@ -133,7 +133,7 @@ The minimap SHALL draw the gameplay camera's current ground footprint as a recta
 
 ### Requirement: Minimap click commands and navigation
 
-A left-click on the minimap SHALL map the click position to a play-area cell and then: if the current selection produces at least one valid order for the targeted cell or entity, the minimap SHALL issue the same orders that the same click would issue in the gameplay area, including order-confirmation voice playback and active modifiers (queue, force-attack, force-move); otherwise the minimap SHALL snap-pan the gameplay camera to the clicked cell. The target cell's entity, if any, SHALL be resolved only from entities revealed to the local player. Entities SHALL NOT be selectable from the minimap. Build and placing modes SHALL NOT apply to minimap clicks: a minimap click SHALL NOT place a building or unit. Right-click on the minimap SHALL NOT be handled by the minimap.
+A left-click on the minimap SHALL map the click position to a play-area cell and then: if the current selection produces at least one valid order for the targeted cell or entity, the minimap SHALL issue the same orders that the same click would issue in the gameplay area, including order-confirmation voice playback and active modifiers (queue, force-attack, force-move); otherwise the minimap SHALL snap-pan the gameplay camera to the clicked cell. The target cell's entity, if any, SHALL be resolved only from entities revealed to the local player. Entities SHALL NOT be selectable from the minimap. While a build or placement mode is active, a minimap left-click SHALL only snap-pan the camera and SHALL NOT issue orders or place a building or unit. Right-click on the minimap SHALL NOT be handled by the minimap.
 
 #### Scenario: Click issues a move order when units are selected
 
@@ -155,10 +155,10 @@ A left-click on the minimap SHALL map the click position to a play-area cell and
 - **WHEN** a player left-clicks a friendly entity's minimap dot with nothing selected
 - **THEN** that entity is not selected
 
-#### Scenario: Build mode does not place from the minimap
+#### Scenario: Build mode pans without ordering
 
-- **WHEN** the player is in building placement mode and left-clicks the minimap
-- **THEN** no building is placed and the click behaves as a navigation click
+- **WHEN** the player is in building placement mode with units selected and left-clicks the minimap
+- **THEN** no building is placed, no orders are issued, and the camera centers on the clicked cell
 
 #### Scenario: Shrouded targets cannot be ordered
 
