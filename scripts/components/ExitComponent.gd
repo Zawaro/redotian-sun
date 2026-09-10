@@ -112,13 +112,38 @@ func _move_to_exit(unit: Node3D, exit_pos: Vector3) -> void:
 
 
 func _nudge_blocker(cell: Vector2i) -> void:
+    var owner_id := _owner_player_id()
     var entries := SpatialHash.instance.get_entries(cell)
     for entry in entries:
         var mc: MovementController = entry.get("mc", null)
         if mc and mc._state == MovementController.State.IDLE:
+            if _entry_is_enemy(entry, owner_id):
+                continue
             var free := _find_free_near(cell)
             mc.set_target_position(CellUtil.cell_to_world(free))
             return
+
+
+## Player that owns this exit's building — the only side allowed to nudge
+## blockers off its own exit (opponents' units must never be moved by it, #164).
+func _owner_player_id() -> int:
+    var building := get_parent() as Node3D
+    if building == null:
+        return -1
+    var stats := building.get_node_or_null("StatsComponent") as StatsComponent
+    return stats.player_id if stats else -1
+
+
+func _entry_is_enemy(entry: Dictionary, owner_id: int) -> bool:
+    if owner_id < 0:
+        return false
+    var node: Node3D = entry.get("node")
+    if not is_instance_valid(node):
+        return false
+    var stats := node.get_node_or_null("StatsComponent") as StatsComponent
+    if not stats or stats.player_id < 0:
+        return false
+    return PlayerManager.is_enemy(owner_id, stats.player_id)
 
 
 func _find_free_near(cell: Vector2i) -> Vector2i:
