@@ -1,13 +1,16 @@
-# credit-ui Specification
+## RENAMED Requirements
 
-## Purpose
+- FROM: ### Requirement: Credit display label in Sidebar
+- TO: ### Requirement: Credit display label in gameplay HUD
 
-Show the local player's credit balance in the gameplay HUD and give feedback as it changes: an animated counter that ticks up and down at direction-dependent cadences, plays income and spend sounds, and warns when funds are insufficient for the cheapest buildable item.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Credit display label in gameplay HUD
+
 The system SHALL display the current credit balance as an animated counter in a Label node at the top of the right-hand gameplay HUD column, above the minimap and above the Sidebar build panel. On a `credits_changed` signal for the local player, the counter SHALL store the new balance as its target and step a displayed value toward the target once per frame until the displayed value reaches the target; the Label text SHALL always show the displayed value. Step size SHALL be proportional to the remaining gap (remaining gap divided by a configurable divisor, clamped to a configurable minimum and maximum). Counting cadence SHALL be time-based and direction-dependent: counting up SHALL step at the full frame rate, counting down SHALL step at a configurable slower interval, so an equal-amount spend animation takes longer than its gain counterpart. When the displayed value equals the target, the counter SHALL be idle (per-frame processing disabled until the next credit change). Forced initialization — scene ready or balance resync — SHALL set the displayed value directly to the balance without animating.
+
+**FROM:** `Sidebar.tscn`
+**TO:** top of the right-hand HUD column (above the minimap)
 
 #### Scenario: Label shows current balance on ready
 - **WHEN** the credit display label initializes
@@ -32,33 +35,3 @@ The system SHALL display the current credit balance as an animated counter in a 
 #### Scenario: Other players' credit changes are ignored
 - **WHEN** `credits_changed` fires for a player other than the local player
 - **THEN** the counter does not animate and the Label is unchanged
-
-### Requirement: Credit counter tick sounds
-The credit counter SHALL play a tick sound on each displayed step while animating: `ECON_INCOME` while counting up, `ECON_SPEND` while counting down, routed through `AudioManager.play_sound` as non-spatial SFX. Only the local player's counter animates and ticks. Forced initialization SHALL NOT play any tick.
-
-#### Scenario: Gain produces an up-tick burst
-- **WHEN** a large credit gain animates
-- **THEN** `ECON_INCOME` plays once per displayed step across the animation (repeats within the sound's retrigger window are dropped by `AudioManager` throttling)
-
-#### Scenario: Spend produces down-ticks at the slower cadence
-- **WHEN** a credit deduction animates
-- **THEN** `ECON_SPEND` plays once per displayed step, at the slower count-down cadence
-
-#### Scenario: Forced display is silent
-- **WHEN** the counter is force-initialized (scene ready or balance resync)
-- **THEN** no tick sound plays
-
-#### Scenario: Other players' credit changes are silent
-- **WHEN** `credits_changed` fires for a player other than the local player
-- **THEN** no tick sound plays
-
-### Requirement: Insufficient funds visual feedback
-The Label SHALL change color when the player's credit balance is below the cost of the cheapest buildable item.
-
-#### Scenario: Sufficient funds
-- **WHEN** `credits >= min(cost of all buildable items)`
-- **THEN** the Label color is white
-
-#### Scenario: Insufficient funds
-- **WHEN** `credits < min(cost of all buildable items)`
-- **THEN** the Label color turns red
