@@ -155,14 +155,17 @@ static func play_insets() -> Vector4i:
     )
 
 
-## Play span along the diff axis (b = x - y): 2*W - left - right.
-static func play_span_b(map_cells: Vector2i, insets: Vector4i) -> float:
-    return 2.0 * float(map_cells.x) - float(insets.x) - float(insets.y)
-
-
-## Play span along the sum axis (a = x + y - (W+H)): 2*H - top - bottom.
-static func play_span_a(map_cells: Vector2i, insets: Vector4i) -> float:
-    return 2.0 * float(map_cells.y) - float(insets.z) - float(insets.w)
+## Inset play-diamond bounds in the (b = x - y, a = x + y - (W+H)) frame, as
+## (b_lo, b_hi, a_lo, a_hi). The play diamond maps onto the control rect.
+static func play_bounds(map_cells: Vector2i, insets: Vector4i) -> Vector4:
+    var w := float(map_cells.x)
+    var h := float(map_cells.y)
+    return Vector4(
+        -w + float(insets.x),
+        w - float(insets.y),
+        -h + float(insets.z),
+        h - float(insets.w),
+    )
 
 
 ## Whether a cell is inside the revealable play diamond (mirrors
@@ -185,11 +188,12 @@ static func in_play_area(cell: Vector2i, map_cells: Vector2i, insets: Vector4i) 
     )
 
 
-## Minimap display size for the inset play diamond, preserving its aspect
-## (play_span_b : play_span_a) within `max_size`.
+## Minimap display size for the inset play diamond, preserving its aspect (the
+## diff-axis : sum-axis spans from `play_bounds`) within `max_size`.
 static func size_for_play_area(map_cells: Vector2i, insets: Vector4i, max_size: float) -> Vector2:
-    var span_b := play_span_b(map_cells, insets)
-    var span_a := play_span_a(map_cells, insets)
+    var bounds := play_bounds(map_cells, insets)
+    var span_b := bounds.y - bounds.x
+    var span_a := bounds.w - bounds.z
     if span_b <= 0.0 or span_a <= 0.0:
         return Vector2(max_size, max_size)
     if span_b >= span_a:
@@ -206,17 +210,14 @@ static func index_to_pixel(
     var h := float(map_cells.y)
     if w <= 0.0 or h <= 0.0:
         return Vector2.ZERO
-    var b_lo := -w + float(insets.x)
-    var b_hi := w - float(insets.y)
-    var a_lo := -h + float(insets.z)
-    var a_hi := h - float(insets.w)
-    var span_b := b_hi - b_lo
-    var span_a := a_hi - a_lo
+    var bounds := play_bounds(map_cells, insets)
+    var span_b := bounds.y - bounds.x
+    var span_a := bounds.w - bounds.z
     if span_b <= 0.0 or span_a <= 0.0:
         return Vector2.ZERO
     var b := index.x - index.y
     var a := index.x + index.y - (w + h)
-    return Vector2((b - b_lo) * size.x / span_b, (a - a_lo) * size.y / span_a)
+    return Vector2((b - bounds.x) * size.x / span_b, (a - bounds.z) * size.y / span_a)
 
 
 ## Inverse of `index_to_pixel`.
@@ -227,16 +228,13 @@ static func pixel_to_index(
     var h := float(map_cells.y)
     if w <= 0.0 or h <= 0.0:
         return Vector2.ZERO
-    var b_lo := -w + float(insets.x)
-    var b_hi := w - float(insets.y)
-    var a_lo := -h + float(insets.z)
-    var a_hi := h - float(insets.w)
-    var span_b := b_hi - b_lo
-    var span_a := a_hi - a_lo
+    var bounds := play_bounds(map_cells, insets)
+    var span_b := bounds.y - bounds.x
+    var span_a := bounds.w - bounds.z
     if span_b <= 0.0 or span_a <= 0.0 or size.x <= 0.0 or size.y <= 0.0:
         return Vector2.ZERO
-    var b := b_lo + pixel.x * span_b / size.x
-    var a := a_lo + pixel.y * span_a / size.y
+    var b := bounds.x + pixel.x * span_b / size.x
+    var a := bounds.z + pixel.y * span_a / size.y
     return Vector2((b + a + w + h) * 0.5, (a + w + h - b) * 0.5)
 
 
@@ -319,11 +317,15 @@ func _lookup_land_type(land_id: String) -> LandType:
 
 
 func _write_texel(index: int, color: Color) -> void:
-    var base := index * 4
-    _terrain[base] = int(clampf(color.r, 0.0, 1.0) * 255.0)
-    _terrain[base + 1] = int(clampf(color.g, 0.0, 1.0) * 255.0)
-    _terrain[base + 2] = int(clampf(color.b, 0.0, 1.0) * 255.0)
-    _terrain[base + 3] = 255
+    _write_rgba(_terrain, index * 4, color)
+
+
+## Writes an opaque RGBA8 texel into `buffer` at byte offset `base`.
+static func _write_rgba(buffer: PackedByteArray, base: int, color: Color) -> void:
+    buffer[base] = int(clampf(color.r, 0.0, 1.0) * 255.0)
+    buffer[base + 1] = int(clampf(color.g, 0.0, 1.0) * 255.0)
+    buffer[base + 2] = int(clampf(color.b, 0.0, 1.0) * 255.0)
+    buffer[base + 3] = 255
 
 
 # ========================================
@@ -405,12 +407,14 @@ static func overlay_stamp_cells(
     var cells := PackedInt32Array()
     if footprint.x <= 0 or footprint.y <= 0 or grid_size.x <= 0 or grid_size.y <= 0:
         return cells
-    var count := grid_size.x * grid_size.y
     for dy in footprint.y:
         for dx in footprint.x:
-            var index := cell_to_index(origin + Vector2i(dx, dy), grid_size.x)
-            if index >= 0 and index < count:
-                cells.append(index)
+            var cell := origin + Vector2i(dx, dy)
+            # Guard x explicitly: cell_to_index only rejects negatives, so a
+            # footprint crossing the right edge would wrap onto the next row.
+            if cell.x < 0 or cell.y < 0 or cell.x >= grid_size.x or cell.y >= grid_size.y:
+                continue
+            cells.append(cell.y * grid_size.x + cell.x)
     return cells
 
 
@@ -437,10 +441,7 @@ func _resolve_overlay_color(node: Node3D) -> Variant:
 
 
 func _write_working(base: int, color: Color) -> void:
-    _working[base] = int(clampf(color.r, 0.0, 1.0) * 255.0)
-    _working[base + 1] = int(clampf(color.g, 0.0, 1.0) * 255.0)
-    _working[base + 2] = int(clampf(color.b, 0.0, 1.0) * 255.0)
-    _working[base + 3] = 255
+    _write_rgba(_working, base, color)
 
 
 # ========================================
@@ -467,18 +468,15 @@ func _draw_transform() -> Transform2D:
     var h := float(_map_cells.y)
     if w <= 0.0 or h <= 0.0:
         return Transform2D.IDENTITY
-    var b_lo := -w + float(_play_insets.x)
-    var b_hi := w - float(_play_insets.y)
-    var a_lo := -h + float(_play_insets.z)
-    var a_hi := h - float(_play_insets.w)
-    var span_b := b_hi - b_lo
-    var span_a := a_hi - a_lo
+    var bounds := play_bounds(_map_cells, _play_insets)
+    var span_b := bounds.y - bounds.x
+    var span_a := bounds.w - bounds.z
     if span_b <= 0.0 or span_a <= 0.0:
         return Transform2D.IDENTITY
     var sx := size.x / span_b
     var sy := size.y / span_a
     return Transform2D(
-        Vector2(sx, sy), Vector2(-sx, sy), Vector2(-b_lo * sx, (-(w + h) - a_lo) * sy)
+        Vector2(sx, sy), Vector2(-sx, sy), Vector2(-bounds.x * sx, (-(w + h) - bounds.z) * sy)
     )
 
 
@@ -593,9 +591,15 @@ func _pixel_to_cell(click: Vector2) -> Vector2i:
 
 
 func _handle_click(cell: Vector2i) -> void:
+    # Build and placement modes own the left-click: on the minimap they only
+    # relocate the view and never issue orders.
+    if _is_placement_mode():
+        BoundsSystem.center_camera_on_cell(cell)
+        return
     var target: Node3D = _cell_targets.get(cell) as Node3D
     var world := CellUtil.cell_to_world(cell)
-    var orders := OrderSystem.get_orders(target, cell, world, _build_modifiers())
+    var modifiers := MouseHandler.build_modifiers(Input.is_key_pressed(KEY_SHIFT))
+    var orders := OrderSystem.get_orders(target, cell, world, modifiers)
     if orders.is_empty():
         BoundsSystem.center_camera_on_cell(cell)
         return
@@ -605,12 +609,10 @@ func _handle_click(cell: Vector2i) -> void:
         order.execute.call()
 
 
-func _build_modifiers() -> Dictionary:
-    return {
-        OrderResult.MOD_FORCE_ATTACK: Input.is_key_pressed(KEY_CTRL),
-        OrderResult.MOD_FORCE_MOVE: Input.is_key_pressed(KEY_ALT),
-        OrderResult.MOD_QUEUED: Input.is_key_pressed(KEY_SHIFT),
-    }
+## True while a building or free-placement mode is active; both suppress minimap
+## commands in favor of panning only.
+func _is_placement_mode() -> bool:
+    return BuildingManager.is_build_mode or EntityPlacer.is_placing()
 
 
 func _is_map_editor() -> bool:
