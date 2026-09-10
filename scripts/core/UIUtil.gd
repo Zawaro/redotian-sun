@@ -7,6 +7,9 @@ class_name UIUtil
 ## Invalidated automatically when the node is freed (fails is_instance_valid).
 static var _cached_sidebar: Node = null
 
+## Cached Minimap node, same invalidation strategy.
+static var _cached_minimap: Node = null
+
 
 ## Returns true if the mouse is hovering over any Control node.
 static func is_mouse_over_ui() -> bool:
@@ -21,6 +24,15 @@ static func is_mouse_over_sidebar() -> bool:
         return false
     var vp: Viewport = Engine.get_main_loop().root.get_viewport()
     return sidebar.get_global_rect().has_point(vp.get_mouse_position())
+
+
+## Returns true if the mouse is over the gameplay minimap.
+static func is_mouse_over_minimap() -> bool:
+    var minimap := find_minimap()
+    if not minimap:
+        return false
+    var vp: Viewport = Engine.get_main_loop().root.get_viewport()
+    return minimap.get_global_rect().has_point(vp.get_mouse_position())
 
 
 ## Returns true if the mouse is over the DebugMenu panel.
@@ -57,6 +69,17 @@ static func find_sidebar() -> Node:
         return null
     _cached_sidebar = _find_recursive(tree.current_scene, "Sidebar")
     return _cached_sidebar
+
+
+## Finds the gameplay Minimap Control node, caching the result.
+static func find_minimap() -> Node:
+    if is_instance_valid(_cached_minimap) and _cached_minimap.is_inside_tree():
+        return _cached_minimap
+    var tree := Engine.get_main_loop() as SceneTree
+    if not tree or not tree.current_scene:
+        return null
+    _cached_minimap = _find_recursive(tree.current_scene, "Minimap")
+    return _cached_minimap
 
 
 static func _find_recursive(node: Node, target_name: String) -> Node:

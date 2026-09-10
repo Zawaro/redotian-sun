@@ -1,7 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/Sidebar.gd" id="1_script"]
-[ext_resource type="Script" path="res://scripts/ui/CreditCounter.gd" id="2_counter"]
 [ext_resource type="Script" path="res://scripts/ui/PowerBar.gd" id="3_powerbar"]
 
 [node name="Sidebar" type="Control"]
@@ -10,31 +9,13 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -400.0
-offset_top = 0.0
+offset_top = 244.0
 offset_right = 0.0
-offset_bottom = 600.0
+offset_bottom = 844.0
 grow_horizontal = 0
 grow_vertical = 0
 custom_minimum_size = Vector2(400, 0)
 script = ExtResource("1_script")
-
-[node name="CreditsLabel" type="Label" parent="."]
-unique_name_in_owner = true
-layout_mode = 0
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 1.0
-anchor_bottom = 0.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = 28.0
-theme_override_colors/font_color = Color(0.6, 1.0, 0.6, 1)
-script = ExtResource("2_counter")
-theme_override_font_sizes/font_size = 18
-horizontal_alignment = 2
-vertical_alignment = 0
-text = "$0"
 
 [node name="ActionButtons" type="HBoxContainer" parent="."]
 layout_mode = 0

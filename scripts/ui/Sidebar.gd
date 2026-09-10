@@ -64,8 +64,9 @@ var _flicker_tweens: Dictionary = {}  # button → Tween
 var _shader: ShaderMaterial = null
 var _grid_dirty: bool = false
 
-## Credit counter animation lives on the CreditCounter script attached to
-## %CreditsLabel (scenes/ui/Sidebar.tscn); the Sidebar keeps no counter state.
+## Credit counter animation lives on the CreditCounter script attached to the
+## CreditsLabel HUD node (scenes/ui/CreditsLabel.tscn); the Sidebar keeps no
+## counter state.
 
 
 func _ready() -> void:
