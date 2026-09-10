@@ -5,4 +5,5 @@
 [resource]
 script = ExtResource("1_script")
 id = "NOD_OBELISK_OF_LIGHT"
+is_remappable = true
 placeholder_size = Vector3(4.0, 3.0, 4.0)

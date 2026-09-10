@@ -55,3 +55,36 @@ func test_resource_overrides_painted_land_type():
     TestHelper.assert_eq(_ts.get_land_type(cell), "resource", "crystal overrides painted land type")
     SpatialHash.instance.unregister_resource_cell(cell)
     _ts.set_land_type(cell, "clear")
+
+
+func test_painted_land_type_reports_explicit_override_only():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    var cell := Vector2i(30, 30)
+    TestHelper.assert_eq(
+        _ts.get_painted_land_type(cell), "", "unset cell reports no painted override"
+    )
+    _ts.set_land_type(cell, "water")
+    TestHelper.assert_eq(_ts.get_painted_land_type(cell), "water", "painted land type is reported")
+    _ts.set_land_type(cell, "clear")
+    TestHelper.assert_eq(
+        _ts.get_painted_land_type(cell), "", "clearing the override reports none again"
+    )
+
+
+func test_painted_land_type_ignores_resource_derived_type():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    var cell := Vector2i(31, 31)
+    SpatialHash.instance.register_resource_cell(cell)
+    (
+        TestHelper
+        . assert_eq(
+            _ts.get_painted_land_type(cell),
+            "",
+            "resource-derived type is not a painted per-cell override",
+        )
+    )
+    SpatialHash.instance.unregister_resource_cell(cell)

@@ -5,4 +5,5 @@
 [resource]
 script = ExtResource("1_script")
 id = "NOD_PYRAMID"
+is_remappable = true
 placeholder_size = Vector3(8.0, 4.0, 8.0)

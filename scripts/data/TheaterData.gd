@@ -10,3 +10,11 @@ class_name TheaterData extends Resource
 @export var id: String = ""
 ## Human-readable name shown in the new-map dialog.
 @export var display_name: String = ""
+
+@export_group("Radar")
+## Brightness multiplier applied to terrain map colors at height ratio 0
+## (flat ground). Terrain shading lerps from this to high_radar_brightness by
+## cell height, so high ground reads brighter on the minimap.
+@export_range(0.0, 4.0) var low_radar_brightness: float = 1.0
+## Brightness multiplier applied to terrain map colors at height ratio 1.
+@export_range(0.0, 4.0) var high_radar_brightness: float = 1.6

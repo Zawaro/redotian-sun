@@ -5,4 +5,5 @@
 [resource]
 script = ExtResource("1_script")
 id = "NOD_TIBERIUM_WASTE_FACILITY"
+is_remappable = true
 placeholder_size = Vector3(6.0, 2.0, 6.0)

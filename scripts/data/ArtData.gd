@@ -187,8 +187,9 @@ class_name ArtData extends Resource
 
 ## Rendering
 @export_group("Rendering")
-## Minimap dot color. TRANSPARENT (default) = invisible on the minimap;
-## overridden by the owner player's color when is_remappable is true.
+## Minimap dot color. Only meaningful for entities that are NOT remappable:
+## remappable entities always take the owner player's side color, so authoring
+## this for them is redundant. TRANSPARENT (default) = not drawn on the minimap.
 @export var color: Color = Color.TRANSPARENT
 ## Whether UV coordinates are normalized (0–1 range instead of pixel coords).
 # ponytail: schema-first, no consumer yet
@@ -239,14 +240,16 @@ func validate() -> PackedStringArray:
 
 
 ## Minimap color resolution (issue #178):
-## - no ArtData or no authored color (alpha 0, e.g. the TRANSPARENT default)
-##   → null: the entity is invisible on the minimap.
-## - is_remappable and a known owner color → the owner player's color wins.
-## - is_remappable but unknown owner (null) → authored color fallback.
-## - otherwise → authored color.
+## - no ArtData → null: nothing to draw.
+## - is_remappable and a known owner color → the owner player's side color wins;
+##   remappable entities need no authored color (it would be redundant).
+## - is_remappable but unknown owner (null) → authored color fallback, if any.
+## - otherwise → authored color (alpha 0, e.g. the TRANSPARENT default, → null).
 static func minimap_color(art_data: ArtData, owner_color: Variant = null) -> Variant:
-    if art_data == null or art_data.color.a <= 0.0:
+    if art_data == null:
         return null
     if art_data.is_remappable and owner_color != null:
         return owner_color
+    if art_data.color.a <= 0.0:
+        return null
     return art_data.color

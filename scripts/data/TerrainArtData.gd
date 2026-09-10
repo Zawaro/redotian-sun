@@ -27,6 +27,10 @@ const DIRECTION_ROTATIONS: Dictionary = {
 ## Per-theater art override: theater id -> alternative GLB path. Theaters not
 ## listed use `model_path`.
 @export var theater_overrides: Dictionary = {}
+## Minimap color for this terrain element. This is the primary terrain color
+## (our stand-in for the tile art's radar color). TRANSPARENT (default) = fall
+## back to the cell's LandType color. See `minimap_color`.
+@export var color: Color = Color.TRANSPARENT
 
 
 ## Result of resolving art for a specific object id + theater.
@@ -60,6 +64,30 @@ static func direction_rotation(object_id: String) -> float:
         if object_id.ends_with(suffix):
             return float(DIRECTION_ROTATIONS[dir])
     return 0.0
+
+
+## Minimap color for a terrain cell, resolving the raw cell inputs.
+## Precedence (issue #178):
+## - this element's authored color wins (per-element terrain color);
+## - otherwise the cell's LandType color is the fallback;
+## - otherwise null: the cell has no map color.
+static func minimap_color(art_data: TerrainArtData, land_type: LandType = null) -> Variant:
+    if art_data != null and art_data.color.a > 0.0:
+        return art_data.color
+    if land_type != null and land_type.color.a > 0.0:
+        return land_type.color
+    return null
+
+
+## Applies height + theater shading to a resolved terrain color: the color is
+## scaled by a brightness lerped from `low_brightness` (flat ground) to
+## `high_brightness` (max height) by the cell's normalized height.
+static func shade_map_color(
+    base: Color, height_ratio: float, low_brightness: float, high_brightness: float
+) -> Color:
+    var t: float = clampf(height_ratio, 0.0, 1.0)
+    var brightness: float = lerpf(low_brightness, high_brightness, t)
+    return Color(base.r * brightness, base.g * brightness, base.b * brightness, base.a)
 
 
 ## Resolves the concrete art for an object id in a theater: the override glb

@@ -5,4 +5,5 @@
 [resource]
 script = ExtResource("1_script")
 id = "GDI_DROP_POD"
+is_remappable = true
 placeholder_size = Vector3(2.0, 0.5, 2.0)
