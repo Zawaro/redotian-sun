@@ -362,6 +362,14 @@ func test_overlay_stamp_cells_uses_footprint():
             "footprint stamping clips at the texture edge",
         )
     )
+    (
+        TestHelper
+        . assert_eq(
+            Minimap.overlay_stamp_cells(Vector2i(3, 1), Vector2i(99, 0), grid),
+            PackedInt32Array([99]),
+            "a footprint crossing the right edge does not wrap to the next row",
+        )
+    )
 
 
 func test_clip_segment_to_rect():

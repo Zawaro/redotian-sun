@@ -251,7 +251,7 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
     var query := PhysicsRayQueryParameters3D.create(from, from + dir * raycast_distance)
     query.collide_with_areas = true
 
-    var modifiers := _build_modifiers(shift_pressed)
+    var modifiers := build_modifiers(shift_pressed)
 
     # Pass 1: layer 16 — SelectComponent (units, buildings).
     query.collision_mask = 1 << 15
@@ -362,7 +362,9 @@ static func voice_event_for_cursor(cursor: CursorState.Type) -> String:
             return ""
 
 
-func _build_modifiers(shift_pressed: bool) -> Dictionary:
+## Shared click-modifier snapshot (Ctrl = force-attack, Alt = force-move,
+## Shift = queue); used by the world click path and the minimap.
+static func build_modifiers(shift_pressed: bool) -> Dictionary:
     return {
         OrderResult.MOD_FORCE_ATTACK: Input.is_key_pressed(KEY_CTRL),
         OrderResult.MOD_FORCE_MOVE: Input.is_key_pressed(KEY_ALT),
@@ -544,7 +546,7 @@ func _update_cursor() -> void:
             else:
                 target = null
                 target_pos = _get_ground_position_at_mouse()
-            var modifiers := _build_modifiers(false)
+            var modifiers := build_modifiers(false)
             var order_cursor := OrderSystem.get_cursor(target, target_cell, target_pos, modifiers)
             # OpenRA pattern: SELECT only when selection is empty + hovering selectable entity
             var no_selection := selection_manager.selected_entities.is_empty()
