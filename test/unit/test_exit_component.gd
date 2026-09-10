@@ -146,3 +146,110 @@ func test_find_free_near_returns_input_when_available():
         )
     )
     remove_child(exit)
+
+
+# --- Nudge ownership (#164) ---
+# An exit may only nudge its own/allied idle blockers off the exit cell;
+# opponents' units must never be moved by another player's production exit.
+
+const _NUDGE_OWNER_CELL := Vector2i(20, 20)
+const _NUDGE_BLOCK_CELL := Vector2i(21, 20)
+
+
+func _reset_nudge_fixture() -> void:
+    var sh := SpatialHash.instance
+    if sh:
+        sh._grid.clear()
+        sh._blocked_cells.clear()
+        sh._building_cells.clear()
+        sh._shared_cell_counts.clear()
+        sh.clear_reservations()
+    if CellReservation.instance:
+        CellReservation.instance.clear()
+    TerrainSystem.init_grid(64, 64)
+    TerrainSystem.clear()
+    PlayerManager.get_player_data(0).team_id = 1
+    PlayerManager.get_player_data(1).team_id = 2
+
+
+func _make_nudge_building(player: int) -> Node3D:
+    var building := Node3D.new()
+    building.name = "NudgeBuilding"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player
+    building.add_child(stats)
+    building.add_child(_make_exit())
+    add_child(building)
+    building.global_position = CellUtil.cell_to_world(_NUDGE_OWNER_CELL)
+    return building
+
+
+func _make_nudge_blocker(player: int, cell: Vector2i) -> Array:
+    var entity := Node3D.new()
+    entity.name = "NudgeBlocker"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player
+    entity.add_child(stats)
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._parent = entity
+    add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(cell)
+    var key := CellUtil.cell_key(cell)
+    SpatialHash.instance._grid[key] = [{"node": entity, "mc": mc}]
+    SpatialHash.instance._blocked_cells[key] = true
+    return [entity, mc]
+
+
+func _cleanup_nudge(building: Node3D, blocker: Array) -> void:
+    SpatialHash.instance._grid.clear()
+    SpatialHash.instance._blocked_cells.clear()
+    SpatialHash.instance.clear_reservations()
+    remove_child(building)
+    building.free()
+    remove_child(blocker[0] as Node)
+    (blocker[0] as Node).free()
+
+
+func test_nudge_blocker_moves_own_unit():
+    _reset_nudge_fixture()
+    var building := _make_nudge_building(0)
+    var blocker := _make_nudge_blocker(0, _NUDGE_BLOCK_CELL)
+    var mc: MovementController = blocker[1]
+    TestHelper.assert_true(not PlayerManager.is_enemy(0, 0), "precondition: self is not an enemy")
+    var exit := building.get_node("ExitComponent") as ExitComponent
+    exit._nudge_blocker(_NUDGE_BLOCK_CELL)
+    var moved: bool = mc._waypoints.size() > 0
+    _cleanup_nudge(building, blocker)
+    TestHelper.assert_true(moved, "exit nudge still moves a same-player idle blocker")
+
+
+func test_nudge_blocker_moves_allied_unit():
+    _reset_nudge_fixture()
+    PlayerManager.get_player_data(1).team_id = 1
+    var building := _make_nudge_building(0)
+    var blocker := _make_nudge_blocker(1, _NUDGE_BLOCK_CELL)
+    var mc: MovementController = blocker[1]
+    TestHelper.assert_true(not PlayerManager.is_enemy(0, 1), "precondition: allies are not enemies")
+    var exit := building.get_node("ExitComponent") as ExitComponent
+    exit._nudge_blocker(_NUDGE_BLOCK_CELL)
+    var moved: bool = mc._waypoints.size() > 0
+    _cleanup_nudge(building, blocker)
+    TestHelper.assert_true(moved, "exit nudge still moves an allied idle blocker")
+
+
+func test_nudge_blocker_leaves_enemy_unit():
+    _reset_nudge_fixture()
+    var building := _make_nudge_building(0)
+    var blocker := _make_nudge_blocker(1, _NUDGE_BLOCK_CELL)
+    var mc: MovementController = blocker[1]
+    TestHelper.assert_true(
+        PlayerManager.is_enemy(0, 1), "precondition: players 0 and 1 are enemies"
+    )
+    var exit := building.get_node("ExitComponent") as ExitComponent
+    exit._nudge_blocker(_NUDGE_BLOCK_CELL)
+    var untouched: bool = mc._state == MovementController.State.IDLE and mc._waypoints.is_empty()
+    _cleanup_nudge(building, blocker)
+    TestHelper.assert_true(untouched, "exit nudge must not move an enemy blocker")
