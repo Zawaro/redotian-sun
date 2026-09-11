@@ -38,11 +38,6 @@ const GRID_ROWS: int = 5
 const TINY5_FONT: FontFile = preload("res://assets/fonts/Tiny5/Tiny5-Regular.ttf")
 const TINY5_CAMEO_SIZE: int = 14
 const TINY5_OUTLINE_RATIO := 0.5
-const CAMEO_COLORS: Dictionary = {
-    "GDI": Color(0.3, 0.4, 0.6),
-    "Nod": Color(0.6, 0.3, 0.3),
-    "Neutral": Color(0.5, 0.5, 0.5),
-}
 
 @onready var sell_button: Button = %SellButton
 @onready var repair_button: Button = %RepairButton
@@ -471,9 +466,12 @@ func _pack_words_to_end(display_name: String, max_width: float) -> String:
 
 
 func _get_cameo_color(data: EntityData) -> Color:
-    for faction in CAMEO_COLORS:
-        if data.owner.has(faction):
-            return CAMEO_COLORS[faction]
+    var catalog := get_node_or_null("/root/FactionCatalog")
+    if catalog:
+        for faction in catalog.get_ordered():
+            var f := faction as Faction
+            if f and data.owner.has(f.id):
+                return f.color
     return Color.GRAY
 
 

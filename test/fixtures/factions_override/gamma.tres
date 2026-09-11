@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GDI"
-display_name = "Global Defense Initiative"
-color = Color(0.3, 0.4, 0.6, 1)
-order = 0
-playable = true
+id = "Gamma"
+display_name = "Gamma Guild Override"
+color = Color(0.9, 0.1, 0.1, 1)
+order = 2
+playable = false

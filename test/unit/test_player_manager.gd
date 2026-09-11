@@ -3,6 +3,7 @@ extends Node
 # PlayerManager unit tests — player registry, local player ID, team relationships
 
 var _pm: Node = null
+var _fc: Node = null
 
 
 func _ready() -> void:
@@ -149,4 +150,50 @@ func test_get_players_by_team():
             ),
         )
     )
+    _cleanup()
+
+
+func test_init_defaults_uses_first_two_playable_factions():
+    if not _guard():
+        return
+    var fc := _fc
+    if fc == null:
+        TestHelper.fail("FactionCatalog not injected")
+        return
+    var snap := TestHelper.snapshot_faction_catalog(fc)
+    fc.reset_content()
+    fc.register_data_set("res://test/fixtures/factions/")
+    _pm._players.clear()
+    _pm._local_player_id = 0
+    _pm._init_defaults()
+
+    var p0: PlayerData = _pm.get_player_data(0)
+    var p1: PlayerData = _pm.get_player_data(1)
+    TestHelper.assert_eq(p0.faction_id, "Beta", "player 0 takes the lowest-order playable faction")
+    TestHelper.assert_eq(p1.faction_id, "Alpha", "player 1 takes the next playable faction")
+    TestHelper.assert_eq(p0.color, (fc.get_faction("Beta") as Faction).color, "player 0 color")
+    TestHelper.assert_eq(p1.color, (fc.get_faction("Alpha") as Faction).color, "player 1 color")
+
+    TestHelper.restore_faction_catalog(fc, snap)
+    _cleanup()
+
+
+func test_init_defaults_empty_registry_falls_back():
+    if not _guard():
+        return
+    var fc := _fc
+    if fc == null:
+        TestHelper.fail("FactionCatalog not injected")
+        return
+    var snap := TestHelper.snapshot_faction_catalog(fc)
+    fc.reset_content()
+    _pm._players.clear()
+    _pm._local_player_id = 0
+    _pm._init_defaults()
+
+    var p0: PlayerData = _pm.get_player_data(0)
+    TestHelper.assert_eq(p0.faction_id, "", "empty registry -> empty faction id")
+    TestHelper.assert_eq(p0.color, Color.WHITE, "empty registry -> default color")
+
+    TestHelper.restore_faction_catalog(fc, snap)
     _cleanup()

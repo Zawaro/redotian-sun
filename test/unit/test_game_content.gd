@@ -11,6 +11,7 @@ var _gc: Node = null
 var _ef: Node = null
 var _tc: Node = null
 var _am: Node = null
+var _fc: Node = null
 
 
 func _ready() -> void:
@@ -22,6 +23,8 @@ func _ready() -> void:
         _tc = get_node("/root/TerrainCatalog")
     if has_node("/root/AudioManager"):
         _am = get_node("/root/AudioManager")
+    if has_node("/root/FactionCatalog"):
+        _fc = get_node("/root/FactionCatalog")
 
 
 func _make_def(id: String, roots: Array) -> GameDefinition:
@@ -62,6 +65,10 @@ func test_consumers_register_their_subdirs_per_root():
             _am._data_sets.has("%s/%s/audio/" % [FIXTURES, game_dir]),
             "AudioManager scans audio/ of " + game_dir
         )
+        TestHelper.assert_true(
+            _fc._data_sets.has("%s/%s/factions/" % [FIXTURES, game_dir]),
+            "FactionCatalog scans factions/ of " + game_dir
+        )
     TestHelper.restore_game_context(_gc, snap)
 
 
@@ -70,8 +77,8 @@ func test_missing_subdirs_warn_and_continue():
     var def := _make_def("sparse", [FIXTURES + "/game_a/"])
     _gc._defs["sparse"] = def
     _gc.select_game("sparse")
-    # game_a ships only entities/ — the other consumers warn but survive and
-    # register nothing.
+    # game_a ships entities/ and factions/ — the other consumers warn but
+    # survive and register nothing.
     TestHelper.assert_true(_ef.get_entity_data("A_UNIT") != null, "entities still registered")
     TestHelper.assert_eq(_am._audio_cache.size(), 0, "no audio registered, no crash")
     TestHelper.assert_eq(_tc._theaters.size(), 0, "no theaters registered, no crash")

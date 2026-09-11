@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_script")
-id = "GDI"
-display_name = "Global Defense Initiative"
-color = Color(0.3, 0.4, 0.6, 1)
-order = 0
-playable = true
+id = "Neutral"
+display_name = "Neutral"
+color = Color(0.5, 0.5, 0.5, 1)
+order = 2
+playable = false
