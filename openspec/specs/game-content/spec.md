@@ -3,9 +3,7 @@
 ## Purpose
 
 Defines the per-game content layout under res://games/<id>/, the ordered data-set layer roots consumed by EntityFactory, TerrainCatalog and AudioManager, last-wins id layering, borrowing via layer roots, and on-demand cross-game id-collision validation.
-
 ## Requirements
-
 ### Requirement: Per-game content layout
 All per-game content SHALL live under `res://games/<id>/`: the game definition (`game.tres`), the game's `global_rules.tres`, data subdirectories (`entities/`, `audio/`, `terrain_objects/`, `art/terrain/`, `theaters/`, `weapons/`, `factions/`, armor/land/locomotor/projectile/resource/warhead type directories), and the game's owned assets under `res://games/<id>/assets/`. Shared shell assets SHALL remain in `res://assets/`: `fonts/`, `hdri/`, and `cursors/placeholders/`. For Tiberian Sun this means all former `res://resources/*` content and the TS-owned `assets/` subdirs (`models/`, `textures/`, `resources/` materials, `cameos/`, `ui/`, `test_map01.json`, `test_terrain.json`) now live under `res://games/ts/`.
 
@@ -18,11 +16,11 @@ All per-game content SHALL live under `res://games/<id>/`: the game definition (
 - **THEN** fonts, HDRI and placeholder cursors resolve from `res://assets/` unchanged
 
 ### Requirement: Data sets are ordered layer roots
-`GameDefinition.data_sets` SHALL hold ordered `res://` directory roots. Each consumer SHALL append its known subdirectory names to every root when registering (EntityFactory: `entities/`; AudioManager: `audio/`; TerrainCatalog: `terrain_objects/`, `art/terrain/`, `theaters/`), registering roots in list order. A missing subdirectory under a root SHALL warn and continue, not fail the boot.
+`GameDefinition.data_sets` SHALL hold ordered `res://` directory roots. Each consumer SHALL append its known subdirectory names to every root when registering (EntityFactory: `entities/`; AudioManager: `audio/`; TerrainCatalog: `terrain_objects/`, `art/terrain/`, `theaters/`; FactionCatalog: `factions/`), registering roots in list order. A missing subdirectory under a root SHALL warn and continue, not fail the boot.
 
 #### Scenario: Consumer subdir conventions hold per root
 - **WHEN** a GameDefinition with two layer roots is selected
-- **THEN** EntityFactory registers `<root1>entities/` and `<root2>entities/`, and TerrainCatalog registers the three terrain subdirs under both roots, in order
+- **THEN** EntityFactory registers `<root1>entities/` and `<root2>entities/`, TerrainCatalog registers the three terrain subdirs under both roots, and FactionCatalog registers `<root1>factions/` and `<root2>factions/`, in order
 
 #### Scenario: Missing subdir warns without crashing
 - **WHEN** a layer root does not contain an `audio/` subdirectory
@@ -60,3 +58,4 @@ The system SHALL provide a validator that, given two or more game definitions' d
 #### Scenario: Boot does not scan other games
 - **WHEN** the game boots with only one game selected
 - **THEN** no content from other `res://games/` directories is loaded
+
