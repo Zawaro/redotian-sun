@@ -32,6 +32,8 @@ func _setup_ui() -> void:
     custom_minimum_size = Vector2(250, 500)
     size_flags_horizontal = Control.SIZE_SHRINK_END
     size_flags_vertical = Control.SIZE_EXPAND_FILL
+    # Stop wheel events from bubbling to Camera01._unhandled_input() and zooming.
+    mouse_force_pass_scroll_events = false
 
     var vbox := VBoxContainer.new()
     vbox.name = "VBox"
