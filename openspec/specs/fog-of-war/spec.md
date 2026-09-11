@@ -3,9 +3,7 @@
 ## Purpose
 
 Authoritative per-player fog-of-war grid providing shroud / fog / visible cell states, height-aware shadowcasting, allied vision sharing, blue-bounds reveal limits, circular trigger reveals, optional shroud growth, and incremental dirty-cell updates.
-
 ## Requirements
-
 ### Requirement: ShroudSystem autoload and per-player grid
 The system SHALL provide a `ShroudSystem` autoload that maintains an authoritative per-player fog-of-war grid. The grid SHALL be sized to the terrain cell index space (`CellUtil.get_diamond_extent(TerrainSystem.grid_cells)` — W+H cells per axis for a grid_cells of W×H) and re-initialized when the terrain grid changes. Per player, the system SHALL track: an `explored` boolean per cell (latch, never un-set by vision), a `visible_count` per cell (reference count of active revealers), and dirty flags per cell for incremental updates. Cell state SHALL resolve to shroud (0), fog (1), or visible (2): unexplored is shroud; explored with no active visibility is fog; explored with one or more active visibility sources is visible. Visible and fog states are not mutually supersets — a cell SHALL be fog only when explored and not currently visible.
 
@@ -176,3 +174,28 @@ The system SHALL resolve cell state only for dirty cells and SHALL short-circuit
 #### Scenario: Move re-stamps crescent not full disc
 - **WHEN** a revealer moves one cell
 - **THEN** the re-stamp covers only the crescent cells that entered or left the disc, not the full disc
+
+### Requirement: Entity revealer centered on the owner's footprint
+
+A player-owned entity's revealer SHALL be registered around that entity's own footprint center cell. When an entity's footprint is larger than 1×1, the center cell SHALL be a cell inside the entity's footprint (`foundation` cells) and SHALL NOT be offset by any part of the footprint. A building's revealer SHALL register once the entity has an assigned player and SHALL remain registered, unmoved, until the entity leaves the tree (death or sell), so its sight radius stays revealed for the building's lifetime.
+
+#### Scenario: Multi-cell building reveal is centered on its footprint
+
+- **WHEN** a building whose foundation is larger than 1×1 is placed and its revealer registers
+- **THEN** the reveal disc is centered on a cell inside the building's footprint, and the building's own cells within its sight radius are visible
+
+#### Scenario: Building reveal is symmetric
+
+- **WHEN** a building is placed on open terrain and no other revealer is present
+- **THEN** cells at equal distance on opposite sides of the footprint resolve to the same visibility (no diagonal offset of the reveal disc)
+
+#### Scenario: Building reveal persists while alive
+
+- **WHEN** a placed building remains alive after registering
+- **THEN** its revealer stays registered and covered cells do not revert to shroud
+
+#### Scenario: Single-cell entities keep their cell center
+
+- **WHEN** a 1×1 entity (unit) registers a revealer
+- **THEN** the revealer is centered on the entity's own cell, unchanged by this requirement
+
