@@ -140,9 +140,7 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
         var dz: float = float(tib_cell.y - tree_cell.y)
         if dx * dx + dz * dz > radius_sq:
             continue
-        var grow_amount: int = ceili(float(hp.max_health) * grow_rate)
-        hp.heal(grow_amount)
-        tib_comp._update_visual()
+        tib_comp.add_bales(grow_rate * tib_comp.get_bale_capacity())
 
     _spawn_in_radius(tree_comp, tree_cell, rules.tree_spawn_radius, rules)
 
@@ -182,9 +180,7 @@ func _process_resource(tib_node: Node3D, rules: GlobalRules) -> void:
 
     var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
     if hp and hp.current_health < hp.max_health:
-        var grow_amount: int = ceili(float(hp.max_health) * grow_rate)
-        hp.heal(grow_amount)
-        tib_comp._update_visual()
+        tib_comp.add_bales(grow_rate * tib_comp.get_bale_capacity())
 
     if tib_comp.spread_count < spread_max:
         _try_spread_from(tib_node, tib_comp, rules)
@@ -234,7 +230,11 @@ func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, bales: flo
     var ef := get_node_or_null("/root/EntityFactory") as EntityFactory
     var base_data: EntityData = ef.get_entity_data(tree_comp.spawned_entity_id) if ef else null
     var max_health: int = base_data.strength if base_data else 1
-    var health := maxi(1, int(randf_range(0.01, bales) * float(max_health)))
+    var rules := GlobalRules.get_current()
+    var rt := rules.get_resource_type(tree_comp.resource_type_id) if rules else null
+    var bale_capacity: float = rt.bales_per_cell if rt and rt.bales_per_cell > 0.0 else 1.0
+    var spawn_bales := randf_range(0.01, bales)
+    var health := maxi(1, int(roundf(spawn_bales / bale_capacity * float(max_health))))
     var entity := (
         EntityFactory
         . create_entity(
@@ -269,9 +269,7 @@ func _grow_entry(entry: Dictionary) -> void:
             var rules := GlobalRules.get_current()
             var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
             var grow_rate: float = rt.grow_rate if rt else 0.1
-            var grow_amount: int = ceili(float(hp.max_health) * grow_rate)
-            hp.heal(grow_amount)
-            tib_comp._update_visual()
+            tib_comp.add_bales(grow_rate * tib_comp.get_bale_capacity())
 
 
 func _find_resource_entry(entries: Array) -> Dictionary:

@@ -187,3 +187,34 @@ func test_tree_root_cell_stays_clear_on_spawn():
     )
     (result["parent"] as Node).free()
     (result["tree_root"] as Node).free()
+
+
+## Regression: with tiberium at 11 bales/cell, a 0.5-bale spread must seed a cell at
+## 0.5/11 (~4.5%) health, not 0.5 (the old "0.5 bales = half the cell" model).
+func test_spawned_cell_seeds_at_bale_scale_not_health_ratio():
+    var result := _spawn_around_tree_root(2)
+    if result.is_empty():
+        return
+    var spawned: Array[Node] = result["spawned"]
+    (
+        TestHelper
+        . assert_true(
+            spawned.size() >= 1,
+            "spawn tick produced at least one resource: got %d" % spawned.size(),
+        )
+    )
+    # 0.5 bales on an 11-bale cell, rounded up, is at most 14 health.
+    for node in spawned:
+        var hp := node.get_node("HealthComponent") as HealthComponent
+        (
+            TestHelper
+            . assert_true(
+                hp != null and hp.current_health >= 1 and hp.current_health <= 14,
+                (
+                    "spawned cell seeds at bale scale (<=0.5 bales): expected health 1..14, got %d"
+                    % (hp.current_health if hp else -1)
+                ),
+            )
+        )
+    (result["parent"] as Node).free()
+    (result["tree_root"] as Node).free()

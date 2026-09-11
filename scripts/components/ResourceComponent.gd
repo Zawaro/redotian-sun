@@ -7,6 +7,8 @@ class_name ResourceComponent extends Node
 
 var _cube_nodes: Array[Node3D] = []
 var _current_visual_stage: int = -1
+## Authoritative amount left in this cell, in bales. Lazy-initialized from health.
+var _bales: float = -1.0
 
 static var _mat_cache: Dictionary = {}
 
@@ -93,27 +95,86 @@ func _ensure_visual_nodes() -> void:
             _cube_nodes.append(node)
 
 
-func get_amount() -> float:
-    var hp := _get_health()
-    return hp.get_health_ratio() if hp else 0.0
-
-
-func get_max_amount() -> float:
+## Bales a ripe cell of this resource holds (its bale capacity).
+func get_bale_capacity() -> float:
+    var rules := _get_global_rules()
+    if rules:
+        var rt: ResourceType = rules.get_resource_type(resource_type_id)
+        if rt and rt.bales_per_cell > 0.0:
+            return rt.bales_per_cell
     return 1.0
 
 
+func get_amount() -> float:
+    _ensure_bales()
+    return _bales
+
+
+func get_max_amount() -> float:
+    return get_bale_capacity()
+
+
+## Remove up to `bales` from this cell, clamped to what remains.
+## Returns the bales actually removed.
 func collect(bales: float) -> float:
+    var hp := _get_health()
+    if not hp or hp.max_health <= 0 or bales <= 0.0:
+        return 0.0
+    _ensure_bales()
+    var take := minf(bales, _bales)
+    if take <= 0.0:
+        return 0.0
+    _bales -= take
+    _apply_bales_to_health()
+    _update_visual()
+    if _bales <= 0.0:
+        get_parent().queue_free()
+    return take
+
+
+## Grow this cell by `bales`, capped at its bale capacity.
+func add_bales(bales: float) -> void:
+    if bales <= 0.0:
+        return
+    _ensure_bales()
+    _bales = minf(_bales + bales, get_bale_capacity())
+    _apply_bales_to_health()
+    _update_visual()
+
+
+## Lazily initialize the authoritative bale amount from the backing health.
+func _ensure_bales() -> void:
+    if _bales >= 0.0:
+        return
+    var hp := _get_health()
+    _bales = _health_to_bales(float(hp.current_health)) if hp else 0.0
+
+
+func _health_to_bales(health: float) -> float:
     var hp := _get_health()
     if not hp or hp.max_health <= 0:
         return 0.0
-    var health_to_take := bales * float(hp.max_health)
-    var actual_health := mini(int(ceilf(health_to_take)), hp.current_health)
-    hp.take_damage(actual_health)
-    _update_visual()
-    var collected_bales := float(actual_health) / float(hp.max_health)
-    if hp.current_health <= 0:
-        get_parent().queue_free()
-    return collected_bales
+    return health / float(hp.max_health) * get_bale_capacity()
+
+
+func _bales_to_health(bales: float) -> int:
+    var hp := _get_health()
+    if not hp or hp.max_health <= 0:
+        return 0
+    return roundi(bales / get_bale_capacity() * float(hp.max_health))
+
+
+## Mirror the authoritative bale amount onto the backing HealthComponent.
+## Depletion uses kill() so the existing health_zero death path still runs.
+func _apply_bales_to_health() -> void:
+    var hp := _get_health()
+    if not hp:
+        return
+    var target := clampi(_bales_to_health(_bales), 0, hp.max_health)
+    if target <= 0:
+        hp.kill()
+    else:
+        hp.current_health = target
 
 
 func is_depleted() -> bool:
@@ -206,7 +267,4 @@ func _get_health() -> HealthComponent:
 
 
 func _get_global_rules() -> GlobalRules:
-    var ef := get_node_or_null("/root/EntityFactory")
-    if ef and ef.has_method("get_global_rules"):
-        return ef.get_global_rules() as GlobalRules
-    return null
+    return GlobalRules.get_current()

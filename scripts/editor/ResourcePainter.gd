@@ -48,10 +48,7 @@ func _paint_resource_cell(cell: Vector2i, key: String) -> void:
             var tib := node.get_node_or_null("ResourceComponent") as ResourceComponent
             var hp := node.get_node_or_null("HealthComponent") as HealthComponent
             if tib and hp:
-                var bales_to_add := _paint_strength / 100.0
-                var health_to_add := int(bales_to_add * float(hp.max_health))
-                hp.heal(health_to_add)
-                tib._update_visual()
+                tib.add_bales(_paint_strength / 100.0 * tib.get_bale_capacity())
                 entry["data"]["strength"] = hp.current_health
             return
 
@@ -83,11 +80,9 @@ func _erase_resource_cell(_cell: Vector2i, key: String) -> void:
     if not tib or not hp:
         editor._painted_entities.erase(key)
         return
-    var bales_to_remove := _paint_strength / 100.0
-    var health_to_remove := int(bales_to_remove * float(hp.max_health))
-    hp.take_damage(health_to_remove)
+    var bales_to_remove: float = _paint_strength / 100.0 * tib.get_bale_capacity()
+    tib.collect(bales_to_remove)
     entry["data"]["strength"] = hp.current_health
-    tib._update_visual()
-    if hp.current_health <= 0:
+    if hp.current_health <= 0 or tib.get_amount() <= 0.0:
         node.queue_free()
         editor._painted_entities.erase(key)

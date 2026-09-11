@@ -1,6 +1,8 @@
 class_name DockUnloadComponent extends Node
 
-@export var unload_rate: float = 0.5
+## Bales drained per real second. TS authors this as ~15 logic ticks per bail;
+## this project uses a 2x (30 ticks/second) time base, so 30/15 = 2.0 bales/s.
+@export var unload_rate: float = 2.0
 ## Resource categories this dock accepts (e.g. ["tiberium"]). Empty = accepts all.
 @export var accepted_resource_categories: PackedStringArray = []
 
@@ -63,6 +65,7 @@ func _process(delta: float) -> void:
         return
 
     var bales_to_unload := unload_rate * delta
+    var removed := 0.0
 
     for type_id in transport.cargo.keys():
         var available: float = transport.cargo[type_id]
@@ -75,8 +78,14 @@ func _process(delta: float) -> void:
             _credit_accumulator += to_remove * value
             transport.remove_cargo(type_id, to_remove)
             bales_to_unload -= to_remove
+            removed += to_remove
             if bales_to_unload <= 0.0:
                 break
+
+    # Only refresh the host's stale clock on real progress: a docker that cannot
+    # drain (e.g. unload_rate <= 0) must still be evicted by the host timeout.
+    if removed > 0.0:
+        dock.reset_stale_timer()
 
     var credits_to_add := int(_credit_accumulator)
     _credit_accumulator -= float(credits_to_add)
