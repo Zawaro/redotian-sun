@@ -1,9 +1,5 @@
-# map-houses Specification
+## MODIFIED Requirements
 
-## Purpose
-
-Maps identify entity ownership by house (faction) rather than by player slot. A canonical house id vocabulary keeps the editor, saved maps, and `EntityData.owner` strings consistent, and separate from the player-slot axis (start locations / waypoints 0-7). Legacy maps that only carry `player_id` resolve to a house through the index alias.
-## Requirements
 ### Requirement: House id vocabulary
 The system SHALL provide a canonical house id vocabulary module (`Houses.gd`) projected from the ordered roster of `FactionCatalog`, not from a hardcoded list. Houses are factions (the rules-side `[Houses]` list); player slots are a separate axis (start locations / waypoints 0-7) and SHALL NOT be modeled as houses. The module SHALL expose `id_for(index)`, `index_for(house_id)`, `display_name_for(house_id)`, and an ordered id accessor, with ordering taken from each faction's `order` field. When no factions are loaded, `id_for` SHALL return `""` and `index_for` SHALL return `-1`.
 
@@ -22,19 +18,3 @@ The system SHALL provide a canonical house id vocabulary module (`Houses.gd`) pr
 #### Scenario: Vocabulary matches owner strings
 - **WHEN** the active roster includes the factions that ship as `EntityData.owner` values
 - **THEN** every shipped owner value (`GDI`, `Nod`, `Neutral`) is a house id, and no house id uses a different casing
-
-### Requirement: Entity house ownership resolution
-Map entity entries SHALL carry an optional `house_id` identifying the owning house. When loading, the system SHALL prefer an explicit `house_id`; otherwise it SHALL map a legacy `player_id` that is a valid house index onto that house, and SHALL return no house for a `player_id` outside the house list. Resolving a house SHALL NOT change the entity's gameplay player slot by itself.
-
-#### Scenario: Explicit house wins
-- **WHEN** entry `{"house_id": "Nod", "player_id": 0}` is resolved
-- **THEN** the resolved house is `"Nod"`
-
-#### Scenario: Legacy player slot alias
-- **WHEN** an entry has only `{"player_id": 1}`
-- **THEN** the resolved house is `"Nod"`
-
-#### Scenario: No house information
-- **WHEN** an entry has no `house_id` and a `player_id` at or beyond the house list size
-- **THEN** no house is resolved
-

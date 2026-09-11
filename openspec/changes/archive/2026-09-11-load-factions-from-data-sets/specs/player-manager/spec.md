@@ -1,10 +1,5 @@
-# player-manager Specification
+## MODIFIED Requirements
 
-## Purpose
-
-Defines the PlayerManager autoload: the central player registry, its lookup API, initialization from MapConfig (or the faction-derived default roster), and its autoload ordering.
-
-## Requirements
 ### Requirement: PlayerManager autoload
 The system SHALL provide a `PlayerManager.gd` autoload singleton that serves as the central player registry. It SHALL own all PlayerData instances and provide lookup methods for player queries. PlayerManager SHALL be registered immediately after `GameContext` and `FactionCatalog`, before every other autoload.
 
@@ -53,4 +48,3 @@ The system SHALL register the player and faction autoloads in the order `GameCon
 #### Scenario: Autoload order
 - **WHEN** the game starts
 - **THEN** GameContext resolves the active game first, FactionCatalog registers that game's factions second, and PlayerManager._ready() runs third, before EconomyManager and all other autoloads
-
