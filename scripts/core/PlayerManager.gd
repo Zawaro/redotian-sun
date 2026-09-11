@@ -122,21 +122,47 @@ func _init_defaults() -> void:
     var rules: GlobalRules = _get_global_rules()
     var starting_credits: int = rules.starting_credits if rules else 10000
 
+    var playable := _get_playable_factions()
+    var human_faction: Faction = playable[0] if playable.size() > 0 else null
+    var ai_faction: Faction = playable[1] if playable.size() > 1 else null
+
     var human := _make_player(
-        0, "GDI", Color(0.3, 0.4, 0.6), 1, 0, "Player", false, starting_credits
+        0,
+        human_faction.id if human_faction else "",
+        human_faction.color if human_faction else Color.WHITE,
+        1,
+        0,
+        "Player",
+        false,
+        starting_credits,
     )
     _players[0] = human
 
     var ai := _make_player(
-        1, "Nod", Color(0.6, 0.3, 0.3), 2, 1, "AI Opponent", true, starting_credits
+        1,
+        ai_faction.id if ai_faction else "",
+        ai_faction.color if ai_faction else Color.WHITE,
+        2,
+        1,
+        "AI Opponent",
+        true,
+        starting_credits,
     )
     _players[1] = ai
 
     _local_player_id = 0
 
 
+## The default-roster factions (ascending order), or [] when the catalog is
+## absent or empty.
+func _get_playable_factions() -> Array[Faction]:
+    var out: Array[Faction] = []
+    var catalog := get_node_or_null("/root/FactionCatalog")
+    if catalog and catalog.has_method("get_playable"):
+        for faction in catalog.get_playable():
+            out.append(faction as Faction)
+    return out
+
+
 func _get_global_rules() -> GlobalRules:
-    var entity_factory := get_node_or_null("/root/EntityFactory")
-    if entity_factory and entity_factory.has_method("get_global_rules"):
-        return entity_factory.get_global_rules() as GlobalRules
-    return null
+    return GameContext.rules

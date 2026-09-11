@@ -50,3 +50,16 @@ static func restore_game_context(gc: Object, snap: Dictionary) -> void:
     gc._defs = snap["defs"]
     gc._current = snap["current"]
     gc.select_game("ts")
+
+
+## Snapshots FactionCatalog registration state for tests that load fixture
+## faction roots directly.
+static func snapshot_faction_catalog(fc: Object) -> Dictionary:
+    return {"data_sets": fc._data_sets.duplicate(), "factions": fc._factions.duplicate()}
+
+
+## Restores the snapshot and re-projects the house roster from it.
+static func restore_faction_catalog(fc: Object, snap: Dictionary) -> void:
+    fc._data_sets = snap["data_sets"]
+    fc._factions = snap["factions"]
+    Houses.apply_roster(fc.get_ordered())

@@ -131,8 +131,9 @@ static func resolve_house_id(entry: Dictionary) -> String:
     if not house_id.is_empty():
         return house_id
     var legacy_player: int = entry.get("player_id", -1)
-    if legacy_player >= 0 and legacy_player < Houses.IDS.size():
-        return Houses.IDS[legacy_player]
+    var house_ids := Houses.ids()
+    if legacy_player >= 0 and legacy_player < house_ids.size():
+        return house_ids[legacy_player]
     return ""
 
 
