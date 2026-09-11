@@ -18,5 +18,5 @@ requires_charge = false
 is_laser = false
 anti_air = true
 fire_animation = ""
-sound_report = ""
+sound_report = "SAMSHOT1"
 ambient_damage = 0
