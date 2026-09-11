@@ -19,6 +19,13 @@ func _system() -> Node:
     return tree.root.get_node_or_null("RadarSystem")
 
 
+func _players() -> Node:
+    var tree := _tree()
+    if tree == null or tree.root == null:
+        return null
+    return tree.root.get_node_or_null("PlayerManager")
+
+
 func _add_to_root(entity: Node) -> void:
     var tree := _tree()
     if tree == null or tree.root == null:
@@ -173,3 +180,36 @@ func test_override_forces_availability_then_restores():
     TestHelper.assert_true(
         not system.player_has_radar(1234), "override off restores computed value"
     )
+
+
+func test_override_emits_for_radar_less_non_local_player():
+    # Regression: force_online flips availability for every configured player,
+    # so a radar-less non-local player must get the event too — not just ids the
+    # system has already seen.
+    var system := _system()
+    var players := _players()
+    if system == null or players == null:
+        TestHelper.fail("RadarSystem/PlayerManager autoload missing")
+        return
+    players.get_player_data(0)
+    players.get_player_data(7)
+    var radar := _make_radar(0)
+    _free(radar)
+    var emissions: Array[int] = []
+    var on_changed := func(pid: int) -> void: emissions.append(pid)
+    system.radar_availability_changed.connect(on_changed)
+    system.force_online = true
+    TestHelper.assert_true(
+        system.player_has_radar(7), "override makes the radar-less player available"
+    )
+    TestHelper.assert_true(
+        7 in emissions, "radar-less non-local player gets the availability flip event"
+    )
+    system.force_online = false
+    TestHelper.assert_true(
+        not system.player_has_radar(7), "override off restores the radar-less player"
+    )
+    TestHelper.assert_true(
+        emissions.count(7) == 2, "both override flips emit for the radar-less player"
+    )
+    system.radar_availability_changed.disconnect(on_changed)
