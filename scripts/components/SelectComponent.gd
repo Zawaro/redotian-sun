@@ -371,22 +371,31 @@ func _build_storage_bar(hit_box_size: Vector3, owner_id: int) -> void:
     add_child(_storage_bar_grid)
     update_storage_bar()
     EconomyManager.credits_changed.connect(_on_credits_changed)
+    # Capacity is now summed from owned buildings, so a place/sell/destroy/deploy
+    # must re-scale the bar; registration fires after add_child, so connecting
+    # here also catches the refinery's own registration.
+    PrerequisiteSystem.prerequisites_changed.connect(_on_prerequisites_changed)
 
 
 func update_storage_bar() -> void:
     if not is_instance_valid(_storage_bar) or _storage_owner_id < 0:
         return
     var capacity: int = EconomyManager.get_storage_capacity(_storage_owner_id)
-    if capacity <= 0:
-        return
-    var ratio := clampf(
-        float(EconomyManager.get_balance(_storage_owner_id, "tiberium")) / float(capacity),
-        0.0,
-        1.0,
-    )
+    var ratio := 0.0
+    if capacity > 0:
+        ratio = clampf(
+            float(EconomyManager.get_balance(_storage_owner_id, "tiberium")) / float(capacity),
+            0.0,
+            1.0,
+        )
     var length: float = _storage_bar_span * ratio
     _storage_bar.scale.x = maxf(length, 0.001)
     _storage_bar.position.x = _storage_bar_span_min + length / 2.0
+
+
+func _on_prerequisites_changed(player_id: int) -> void:
+    if is_instance_valid(_storage_bar) and player_id == _storage_owner_id:
+        update_storage_bar()
 
 
 func _on_credits_changed(player_id: int, _balance: int, _reason: String, category: String) -> void:

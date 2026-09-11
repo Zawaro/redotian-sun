@@ -16,7 +16,7 @@ Fully implemented and tested:
 - Tests: `test_harvest_dock.gd`, `test_resource_growth_system.gd`, `test_economy_manager.gd`, `test_dock_*`, `test_transport_cargo.gd`
 
 Known gaps:
-- `EconomyManager.get_storage_capacity()` hardcoded to 2000 (silo-based computation missing)
+- `EconomyManager.get_storage_capacity()` now sums owned buildings' `EntityData.storage_capacity` (empty base = 0); per-owner attribution for AI/map-preloaded buildings still pending
 - No income/expense rate tracking; credits-to-local-player shortcut in `DockUnloadComponent` (`ponytail:` comment)
 - ServiceDepotComponent / dock-based repair not implemented (BuildingManager has flat `repair_building`)
 - Vein toxicity gameplay missing (data exists)

@@ -4,7 +4,6 @@ signal credits_changed(player_id: int, new_balance: int, reason: String, categor
 signal insufficient_funds(player_id: int, cost: int, balance: int)
 
 const DEFAULT_CATEGORY := "tiberium"
-const TIBERIUM_CAPACITY := 2000
 
 
 func get_balance(player_id: int, category: String = "") -> int:
@@ -57,9 +56,17 @@ func add(
     credits_changed.emit(player_id, get_balance(player_id), reason, category)
 
 
-func get_storage_capacity(_player_id: int, category: String = DEFAULT_CATEGORY) -> int:
-    # ponytail: flat 2000 until silo summation lands; _player_id kept for the future signature.
-    return TIBERIUM_CAPACITY if category == DEFAULT_CATEGORY else 0
+func get_storage_capacity(player_id: int, category: String = DEFAULT_CATEGORY) -> int:
+    # Capacity is the sum of each owned building's declared share for the category.
+    # ponytail: no cache — small owned set, runs on credits_changed not per frame.
+    var capacity := 0
+    var owned: Dictionary = PrerequisiteSystem.get_player_buildings(player_id)
+    for entity_id: String in owned:
+        var data := EntityFactory.get_entity_data(entity_id)
+        if data == null:
+            continue
+        capacity += int(data.storage_capacity.get(category, 0)) * int(owned[entity_id])
+    return capacity
 
 
 func _is_displayable(category: String) -> bool:
