@@ -103,6 +103,13 @@ are 45°-rotated rectangles, i.e. diamonds.
 | build rate | Production speed multiplier from power: 1.0 healthy; in low power `lerp(worst, best, output/drain)` (defaults 0.3 → 0.75). Slows production, never halts it. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · [add-power-grid design](openspec/changes/add-power-grid/design.md) |
 | power bar | TS-style twin bar on the sidebar's left edge: black column backing a green output fill with a red drain fill in front (red rises above green on deficit). Fills map through `(value/2000)^0.4` and ease toward live PowerGrid targets. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · scripts/ui/PowerBar.gd |
 
+## Radar & Minimap
+
+| Term | Meaning | Where |
+|------|---------|-------|
+| RadarSystem | Per-player radar availability autoload: registers every `RadarComponent` from tree add/remove, exposes `player_has_radar(player_id)` and `force_online`, emits `radar_availability_changed` on flips. Availability is event-driven (power flips ride `radar_state_changed`). | [add-radar-minimap-gating change](openspec/changes/archive/2026-09-11-add-radar-minimap-gating/specs/radar/spec.md) · scripts/core/RadarSystem.gd |
+| radar gate | Minimap live/offline state derived from local-player radar availability (or the debug `force_online` override). Offline shows a black `OFFLINE` placeholder with no input/composition; each flip plays a short static-noise transition. | [add-radar-minimap-gating change](openspec/changes/archive/2026-09-11-add-radar-minimap-gating/specs/gameplay-minimap/spec.md) · scripts/ui/Minimap.gd |
+
 ## Units & Combat
 
 | Term | Meaning | Where |
