@@ -4,6 +4,15 @@ extends Node
 # per-element TerrainArtData, and light TheaterData; active theater selection;
 # resolve_art delegation with pink (invalid) fallback.
 
+var _ts: Node = null
+
+
+## Restore the shared TerrainSystem grid after this suite so later suites that
+## rely on the 50x50 default are not poisoned by the pin fixtures.
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_PREDELETE and is_instance_valid(_ts):
+        _ts.init_grid(50, 50)
+
 
 func test_objects_scanned_and_cached():
     var obj := TerrainCatalog.get_object("cliff01_n")
@@ -103,6 +112,45 @@ func test_resolve_cell_art_missing_is_invalid():
     var data := {"type": "cliff", "variant": 99}
     var res: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(data)
     TestHelper.assert_true(not res.valid, "unknown family yields invalid resolution (pink)")
+
+
+func test_resolve_cell_art_pin_priority():
+    _ts.init_grid(6, 6)
+    var cell := Vector2i(3, 3)
+    TestHelper.assert_true(_ts.pin_cell(cell, "cliff01_e"), "cell pinned")
+    var res: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(
+        {"type": "clear", "variant": 1}, cell
+    )
+    TestHelper.assert_true(res.valid, "pinned cell resolves via pin")
+    if res.valid:
+        TestHelper.assert_eq(res.submesh_id, "cliff01", "pin drives submesh")
+        TestHelper.assert_eq(res.rotation, 270.0, "pin drives rotation from id suffix")
+    _ts.unpin_cell(cell)
+
+
+func test_resolve_cell_art_unknown_pin_falls_back():
+    _ts.init_grid(6, 6)
+    var cell := Vector2i(3, 3)
+    TestHelper.assert_true(_ts.pin_cell(cell, "bogus_tile"), "cell pinned to unknown id")
+    var res: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(
+        {"type": "clear", "variant": 1}, cell
+    )
+    TestHelper.assert_true(res.valid, "unknown pin falls back to derived resolution")
+    if res.valid:
+        TestHelper.assert_eq(res.submesh_id, "clear01", "fallback uses type/variant family")
+    _ts.unpin_cell(cell)
+
+
+func test_resolve_cell_art_without_cell_ignores_pins():
+    _ts.init_grid(6, 6)
+    _ts.pin_cell(Vector2i(3, 3), "cliff01_e")
+    var res: TerrainArtData.ArtResolution = TerrainCatalog.resolve_cell_art(
+        {"type": "clear", "variant": 1}
+    )
+    TestHelper.assert_true(res.valid, "no-cell call still resolves")
+    if res.valid:
+        TestHelper.assert_eq(res.submesh_id, "clear01", "no cell context -> no pin check")
+    _ts.unpin_cell(Vector2i(3, 3))
 
 
 func test_theater_override_through_catalog():

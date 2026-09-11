@@ -115,16 +115,20 @@ func _setup_entity_dots() -> void:
 ## rect — entity counts in the editor are small.
 func _update_entity_dots() -> void:
     var mesh := ImmediateMesh.new()
-    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _entity_dots_material)
     var half: float = CellUtil.CELL_SIZE * 0.25
+    var added := false
     for entity in get_tree().get_nodes_in_group("entities"):
         if not is_instance_valid(entity) or not entity is Node3D:
             continue
         var color: Variant = _resolve_entity_color(entity)
         if color == null:
             continue
+        if not added:
+            mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _entity_dots_material)
+            added = true
         _add_dot(mesh, (entity as Node3D).global_position + Vector3(0.0, 0.3, 0.0), half, color)
-    mesh.surface_end()
+    if added:
+        mesh.surface_end()
     _entity_dots_mesh.mesh = mesh
 
 
@@ -167,7 +171,7 @@ func _update_visualization() -> void:
     var mesh := ImmediateMesh.new()
     var terrain_material := ORMMaterial3D.new()
     terrain_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, terrain_material)
+    var added := false
     for key in cells:
         var parts: PackedStringArray = key.split(",")
         if parts.size() != 2:
@@ -176,6 +180,9 @@ func _update_visualization() -> void:
         var world_pos := CellUtil.cell_to_world(cell)
         if not _is_in_diamond(world_pos):
             continue
+        if not added:
+            mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, terrain_material)
+            added = true
         var data: Dictionary = cells[key]
         var height: int = data.get("height", 0)
         var terrain_type: String = data.get("type", "clear")
@@ -193,7 +200,8 @@ func _update_visualization() -> void:
         mesh.surface_add_vertex(Vector3(world_pos.x - half_size, y, world_pos.z - half_size))
         mesh.surface_add_vertex(Vector3(world_pos.x + half_size, y, world_pos.z + half_size))
         mesh.surface_add_vertex(Vector3(world_pos.x - half_size, y, world_pos.z + half_size))
-    mesh.surface_end()
+    if added:
+        mesh.surface_end()
     _terrain_mesh.mesh = mesh
 
 

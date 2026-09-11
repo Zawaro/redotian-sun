@@ -7,9 +7,14 @@ script = ExtResource("1_script")
 id = "Subterranean"
 terrain_speeds = {
 "clear": 1.0,
+"crystal": 1.0,
+"green": 1.0,
+"mold": 1.0,
+"pavement": 1.0,
 "resource": 0.7,
 "road": 1.25,
-"rough": 0.8
+"rough": 0.8,
+"sand": 1.0
 }
 climb_tolerance = 1
 is_subterranean = true

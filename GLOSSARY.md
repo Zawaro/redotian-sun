@@ -79,6 +79,19 @@ are 45°-rotated rectangles, i.e. diamonds.
 | connection roles | Per-edge vocabulary describing how cliffs/ramps mate with neighbors. | [terrain-object-catalog](openspec/specs/terrain-object-catalog/spec.md) |
 | resource land type | Cells under resource crystals resolve to the resource land type (drives movement and routing both). | [terrain-movement-costs](openspec/specs/terrain-movement-costs/spec.md) |
 
+## Map Editor & Authoring
+
+| Term | Meaning | Where |
+|------|---------|-------|
+| `house` | Map-object ownership faction (GDI/Nod/Neutral/Special). Houses are factions; player slots are a separate axis (starts/waypoints 0–7). Placed entities store `house_id`; the legacy `player_id` is a serialization alias only, not gameplay ownership. | [map-houses](openspec/changes/editor-foundations/specs/map-houses/spec.md) · scripts/data/Houses.gd |
+| `waypoint` | Numbered map location. Player starts use indexes 0–7; general waypoints use ≥ 8 and persist in the map JSON `waypoints` dict. | [editor-foundations proposal](openspec/changes/editor-foundations/proposal.md) · #371 |
+| `LAT` | Land/terrain attribute surface — the per-cell `LandType` painted by the editor's LAT brush and tools. | [land-types](openspec/changes/editor-foundations/specs/land-types/spec.md) |
+| `tileset` | Grouping label on `LandType.group` used by the editor's bottom bar; presentation only, no gameplay effect. | scripts/data/LandType.gd |
+| `framework mode` | Editor view mode that renders flat placeholder colors per land type instead of resolved art (marble-madness style). Render-only, no data mutation. | #372 |
+| `overlay` | Editor-placed non-blocking map decoration (fences, bridges) sourced from `entities/overlay/`. Distinct from the fog *overlay* (revealed-shroud rendering). | games/ts/entities/overlay/ |
+| `smudge` | Editor-placed cosmetic ground stain (burns/scorch) sourced from `entities/smudge/`. | games/ts/entities/smudge/ |
+| cell pin | Cliff-stamp overlay: cell → `TerrainObject` id. A pinned cell renders its pinned object, locks its vertices against height edits, and persists as `cell_pins`. Stamp + lock + delete via one mechanism. | [terrain-cell-pins](openspec/changes/editor-foundations/specs/terrain-cell-pins/spec.md) · scripts/core/TerrainSystem.gd |
+
 ## Resources & Economy
 
 | Term | Meaning | Where |
