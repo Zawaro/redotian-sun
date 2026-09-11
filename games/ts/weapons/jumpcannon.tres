@@ -19,5 +19,5 @@ is_laser = false
 anti_air = true
 anti_ground = true
 fire_animation = ""
-sound_report = ""
+sound_report = "JUMPJET1"
 ambient_damage = 0
