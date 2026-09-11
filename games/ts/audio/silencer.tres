@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 id = "SILENCER"
-path = "res://external_assets/audio/silencer.ogg"
+path = "res://games/ts/external_assets/audio/silencer.ogg"
 bus = "SFX"
 priority = 10
 volume_db = 0.0

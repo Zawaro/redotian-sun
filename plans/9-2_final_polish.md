@@ -10,7 +10,7 @@ Polish and visual effects transform functional gameplay into an immersive experi
 | VFX (explosions/damage/construction) | ❌ | Zero particle systems; `EntityData.death_explosion_ids` / `WarheadData` VFX fields unused; death = voice + free only; buildings appear instantly (no buildup) |
 | Screen shake / flash on damage | ❌ | — |
 | Unit/building animations | ❌ | Only door anim wiring (`ArtComponent` on exit); no walk/attack/idle states |
-| Sound design | 🟡 | `AudioManager` (4 buses) + voice hooks (select/order/fire/die) live; music 0, EVA 0, SFX content gitignored (`external_assets/`) — fresh clone is silent |
+| Sound design | 🟡 | `AudioManager` (4 buses) + voice hooks (select/order/fire/die) live; music 0, EVA 0, SFX content gitignored (`games/ts/external_assets/`) — fresh clone is silent |
 | UI/UX polish | ❌ | No tooltip system beyond cameos, no accessibility, no transitions |
 | Camera easing | ❌ | Pan is raw `+= delta`; no smoothing/inertia |
 

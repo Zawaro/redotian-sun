@@ -12,8 +12,8 @@ extends Node
 # at least 1), not copied from production code.
 
 const CREDITS_SCENE: PackedScene = preload("res://scenes/ui/CreditsLabel.tscn")
-const INCOME_STREAM_PATH: String = "res://external_assets/audio/credup1.ogg"
-const SPEND_STREAM_PATH: String = "res://external_assets/audio/creddwn1.ogg"
+const INCOME_STREAM_PATH: String = "res://games/ts/external_assets/audio/credup1.ogg"
+const SPEND_STREAM_PATH: String = "res://games/ts/external_assets/audio/creddwn1.ogg"
 # The real econ streams are TS rips under gitignored external_assets/ — absent
 # in CI. Tick tests run against the committed fixture tone instead (same
 # pattern as test_audio_manager.gd); the declaration test asserts the committed

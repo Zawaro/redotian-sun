@@ -19,7 +19,7 @@ func test_scan_caches_audio_by_id():
     TestHelper.assert_true(audio != null, "INFGUN3 cached from resources/audio scan")
     if audio:
         TestHelper.assert_eq(audio.bus, "SFX", "weapon sound on SFX bus")
-        TestHelper.assert_eq(audio.path, "res://external_assets/audio/infgun3.ogg", "path resolved")
+        TestHelper.assert_eq(audio.path, "res://games/ts/external_assets/audio/infgun3.ogg", "path resolved")
 
 
 func test_scan_caches_voice_by_id():

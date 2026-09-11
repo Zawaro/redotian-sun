@@ -15,7 +15,7 @@ func test_audio_data_defaults():
 func test_audio_data_serialized_fields():
     var audio := AudioData.new()
     audio.id = "INFGUN3"
-    audio.path = "res://external_assets/audio/infgun3.ogg"
+    audio.path = "res://games/ts/external_assets/audio/infgun3.ogg"
     audio.bus = "Voice"
     audio.priority = 100
     audio.volume_db = -3.0
