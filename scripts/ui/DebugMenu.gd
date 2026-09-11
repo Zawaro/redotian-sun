@@ -39,6 +39,7 @@ var _inspected_health: HealthComponent = null
 @onready var cb_no_build_time: CheckBox = %CBNoBuildTime
 @onready var cb_no_cost: CheckBox = %CBNoCost
 @onready var cb_place_anywhere: CheckBox = %CBPlaceAnywhere
+@onready var cb_force_radar: CheckBox = %CBForceRadar
 
 ## Fog / shroud controls
 @onready var fog_header: Button = %FogHeader
@@ -98,6 +99,7 @@ func _ready() -> void:
     cb_no_build_time.toggled.connect(func(v: bool) -> void: no_build_time = v)
     cb_no_cost.toggled.connect(func(v: bool) -> void: no_cost = v)
     cb_place_anywhere.toggled.connect(_on_place_anywhere_toggled)
+    cb_force_radar.toggled.connect(_on_force_radar_toggled)
 
     # Connect buttons
     var clear_paths_btn: Button = %ClearPathsBtn
@@ -421,6 +423,10 @@ func _on_no_prereqs_toggled(v: bool) -> void:
         _sidebar._refresh_grid()
 
 
+func _on_force_radar_toggled(v: bool) -> void:
+    RadarSystem.force_online = v
+
+
 # --- Scene change reset ---
 
 
@@ -433,6 +439,8 @@ func reset_state() -> void:
     cb_no_build_time.button_pressed = false
     cb_no_cost.button_pressed = false
     cb_place_anywhere.button_pressed = false
+    cb_force_radar.button_pressed = false
+    RadarSystem.force_online = false
     var rules := GlobalRules.get_current()
     if rules:
         rules.shroud_enabled = true

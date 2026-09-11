@@ -221,6 +221,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Place anywhere"
 
+[node name="CBForceRadar" type="CheckBox" parent="Content/Panel/Margin/VBox/CheatsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Force radar online"
+
 [node name="HSep" type="HSeparator" parent="Content/Panel/Margin/VBox/CheatsContent"]
 layout_mode = 2
 
