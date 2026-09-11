@@ -5,6 +5,7 @@
 
 [resource]
 script = ExtResource("1_script")
+sound_die = "EXPNEW05"
 art_data = ExtResource("2_art")
 id = "GDI_MAMMOTH_MK2"
 display_name = "Mammoth Mk.II"

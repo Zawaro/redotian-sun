@@ -5,6 +5,7 @@
 
 [resource]
 script = ExtResource("1_script")
+sound_die = "EXPNEW01"
 art_data = ExtResource("2_art")
 id = "GDI_DEPLOYED_ICBM"
 display_name = "Deployed ICBM"

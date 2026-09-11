@@ -6,6 +6,7 @@
 
 [resource]
 script = ExtResource("1_script")
+sound_die = "EXPNEW05"
 art_data = ExtResource("2_art")
 id = "GDI_WOLVERINE"
 display_name = "Wolverine"

@@ -3,9 +3,7 @@
 ## Purpose
 
 EntityData is the single resource class describing every entity type (infantry, vehicle, building, aircraft, terrain). It carries identity, stats, combat, movement, docking, and build-requirement fields with sensible defaults, names the unit's Locomotor, and drives how EntityFactory composes an entity.
-
 ## Requirements
-
 ### Requirement: EntityData resource class
 The system SHALL provide a single `EntityData.gd` resource class containing ALL properties for ALL entity types (infantry, vehicle, building, aircraft, terrain). Properties SHALL have sensible defaults (0, false, "") so unused fields can be ignored. The class SHALL include a `buildable: bool` field (default `false`) to indicate whether an entity can be placed by the player via the build menu. The class SHALL include a `deploys_into: String` field (default `""`) to specify the entity id this entity can deploy into. The class SHALL include an `undeploys_into: String` field (default `""`) to specify the entity id this entity can undeploy into.
 
@@ -150,3 +148,15 @@ EntityData SHALL expose a `pip_color: Color` export (default white) with a `##` 
 #### Scenario: Default pip_color
 - **WHEN** an EntityData leaves `pip_color` unset
 - **THEN** the value defaults to white and seat pips for that entity draw white
+
+### Requirement: EntityData death sound reference
+`EntityData` SHALL include an optional `sound_die: String` export (default `""`) holding a comma-separated list of audio ids played on death when the entity has no die voice set. The field SHALL be independent of `voice_data`; an entity may define either, both, or neither. An empty `sound_die` SHALL be valid and play nothing.
+
+#### Scenario: EntityData exposes sound_die
+- **WHEN** an EntityData resource is authored with `sound_die = "EXPNEW05"`
+- **THEN** the resource exposes the value for the death handler
+
+#### Scenario: Default is silent
+- **WHEN** an EntityData resource omits `sound_die`
+- **THEN** the field defaults to `""` and the entity plays no death sound unless it has a die voice
+

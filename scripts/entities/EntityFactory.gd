@@ -90,7 +90,7 @@ func reset_content() -> void:
     _global_rules = null
 
 
-func _on_entity_death(entity: Node3D) -> void:
+func _on_entity_death(entity: Node3D, data: EntityData = null) -> void:
     if not is_instance_valid(entity):
         return
     var voice := entity.get_node_or_null("VoiceComponent") as VoiceComponent
@@ -100,8 +100,24 @@ func _on_entity_death(entity: Node3D) -> void:
         and not voice.voice_data.get_event(VoiceData.EVENT_DIE).is_empty()
     ):
         AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_DIE)
+    elif data and not data.sound_die.is_empty():
+        AudioManager.play_report(data.sound_die.split(",", false), entity.global_position)
     GhostDepot.capture_entity(entity)
     entity.queue_free()
+
+
+## Plays the victim's warhead impact report at the victim position. The warhead is
+## resolved from the damage type, so non-warhead damage (crush, drowning) is silent.
+func _on_entity_damaged(entity: Node3D, damage_type: String) -> void:
+    if damage_type.is_empty() or not is_instance_valid(entity):
+        return
+    var rules := GlobalRules.get_current()
+    if not rules:
+        return
+    var warhead := rules.get_warhead(damage_type)
+    if not warhead or warhead.sound_impact.is_empty():
+        return
+    AudioManager.play_report(warhead.sound_impact.split(",", false), entity.global_position)
 
 
 func register_data_set(path: String) -> void:
@@ -148,10 +164,14 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     _add_components(entity, data)
     _configure_components(entity, data)
 
-    # Death cleanup — free entity when health reaches zero.
+    # Death cleanup — free entity when health reaches zero. Damage and death
+    # audio hooks resolve warhead/entity data at play time.
     var health := entity.get_node_or_null("HealthComponent") as HealthComponent
     if health:
-        health.health_zero.connect(func() -> void: _on_entity_death(entity))
+        health.health_zero.connect(func() -> void: _on_entity_death(entity, data))
+        health.damage_taken.connect(
+            func(_amount: int, damage_type: String) -> void: _on_entity_damaged(entity, damage_type)
+        )
 
     # Cell occupancy — all except OVERLAY, and TERRAIN without foundation.
     var etype := data.entity_type
