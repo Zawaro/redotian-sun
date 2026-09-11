@@ -10,7 +10,6 @@ var _stats: StatsComponent
 var _sight: int = 0
 var _entity_type: int = -1
 var _height: float = 1.0
-var _foundation: Vector2i = Vector2i(1, 1)
 var _is_building: bool = false
 var _blocks_terrain: bool = true
 var _registered_player_id: int = -1
@@ -22,7 +21,6 @@ func configure(data: EntityData) -> void:
     _sight = data.sight
     _entity_type = data.entity_type
     _height = data.height
-    _foundation = data.foundation
     _is_building = data.entity_type == EntityData.EntityType.BUILDING
     # Buildings deliberately do not block line of sight (blocks_terrain = false):
     # a building revealer is never occluded by its own footprint or other
@@ -64,13 +62,11 @@ func _exit_tree() -> void:
     _unregister()
 
 
+## The entity's global position is already its footprint center (set from
+## `CellUtil.cell_origin_to_world` on placement / map load), so no footprint
+## offset is applied.
 func _center_cell() -> Vector2i:
-    var pos := _parent.global_position
-    if _foundation != Vector2i(1, 1):
-        pos += Vector3(
-            _foundation.x * CellUtil.CELL_SIZE * 0.5, 0.0, _foundation.y * CellUtil.CELL_SIZE * 0.5
-        )
-    return CellUtil.world_to_cell(pos)
+    return CellUtil.world_to_cell(_parent.global_position)
 
 
 func _viewer_height() -> float:

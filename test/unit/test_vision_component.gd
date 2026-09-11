@@ -261,6 +261,69 @@ func _stamp_ridge_height(cell: Vector2i, height: int) -> void:
         _ts._set_vertex_no_cascade(corner.x, corner.y, height)
 
 
+func test_building_reveal_centered_on_footprint():
+    if _ss == null:
+        TestHelper.fail("ShroudSystem not injected")
+        return
+    _setup()
+    var origin := Vector2i(40, 40)
+    var foundation := Vector2i(2, 2)
+    var entity := Node3D.new()
+    entity.position = CellUtil.cell_origin_to_world(origin, foundation)
+    var stats := Node.new()
+    stats.name = "StatsComponent"
+    stats.set_script(STATS_SCRIPT)
+    entity.add_child(stats)
+    stats.player_id = 0
+    var vision := Node.new()
+    vision.name = "VisionComponent"
+    vision.set_script(VISION_SCRIPT)
+    entity.add_child(vision)
+    var data := EntityData.new()
+    data.sight = 3
+    data.entity_type = EntityData.EntityType.BUILDING
+    data.height = 2.0
+    data.foundation = foundation
+    vision.configure(data)
+    _container.add_child(entity)
+    vision._physics_process(0.0)
+
+    var center := origin + Vector2i(1, 1)
+    TestHelper.assert_true(_ss.is_visible(0, center), "footprint center cell revealed")
+    (
+        TestHelper
+        . assert_true(
+            _ss.is_visible(0, origin - Vector2i(1, 1)),
+            "cell one diagonal step past the -X/-Z footprint edge is visible",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            _ss.is_visible(0, origin + foundation),
+            "cell one diagonal step past the +X/+Z footprint edge is visible",
+        )
+    )
+    var in_footprint: bool = (
+        vision._registered_cell.x >= origin.x
+        and vision._registered_cell.x < origin.x + foundation.x
+        and vision._registered_cell.y >= origin.y
+        and vision._registered_cell.y < origin.y + foundation.y
+    )
+    (
+        TestHelper
+        . assert_true(
+            in_footprint,
+            (
+                "revealer center %s lies inside footprint origin %s"
+                % [vision._registered_cell, origin]
+            ),
+        )
+    )
+    _teardown()
+    _finish()
+
+
 func test_terrain_entity_gets_no_vision_component():
     var entity := EntityFactory.create_entity("TREE_01")
     if entity == null:
