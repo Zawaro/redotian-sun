@@ -2,6 +2,21 @@ extends Node
 
 # LandType and Locomotor resource defaults, behavior, and GlobalRules registry lookups
 
+const _NEW_LAT_IDS: Array[String] = ["sand", "pavement", "green", "crystal", "mold"]
+const _GROUND_LOCOMOTORS: Array[String] = [
+    "Foot", "Track", "Wheel", "Hover", "Amphibious", "Jumpjet", "Subterranean"
+]
+const _RULES_PATH := "res://games/ts/global_rules.tres"
+
+var _ts: Node = null
+
+
+## Restore the shared TerrainSystem grid after this suite so later suites that
+## rely on the 50x50 default are not poisoned by the persistence fixtures.
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_PREDELETE and is_instance_valid(_ts):
+        _ts.init_grid(50, 50)
+
 
 func _make_land_types() -> GlobalRules:
     var rules := GlobalRules.new()
@@ -17,6 +32,7 @@ func test_land_type_defaults():
     TestHelper.assert_eq(lt.id, "", "LandType id defaults empty")
     TestHelper.assert_eq(lt.display_name, "", "LandType display_name defaults empty")
     TestHelper.assert_eq(lt.color, Color.WHITE, "LandType color defaults white")
+    TestHelper.assert_eq(lt.group, "", "LandType group defaults empty")
 
 
 func test_locomotor_defaults():
@@ -98,4 +114,90 @@ func test_registered_tres_load():
         TestHelper.assert_true(rules.get_land_type(lt_id) != null, "land type registered: " + lt_id)
     TestHelper.assert_true(
         rules.validate_locomotor_keys().is_empty(), "registered locomotors validate clean"
+    )
+
+
+func test_new_lat_types_registered_and_grouped():
+    var rules := load(_RULES_PATH) as GlobalRules
+    TestHelper.assert_true(rules != null, "global_rules.tres loads")
+    if rules == null:
+        return
+    for lat_id in _NEW_LAT_IDS:
+        var lt := rules.get_land_type(lat_id)
+        TestHelper.assert_true(lt != null, "new LAT registered: " + lat_id)
+        if lt == null:
+            continue
+        TestHelper.assert_eq(lt.id, lat_id, "LAT id matches file: " + lat_id)
+        TestHelper.assert_true(lt.display_name != "", "LAT has display name: " + lat_id)
+        TestHelper.assert_true(lt.group != "", "LAT has a group: " + lat_id)
+
+
+func test_shipped_land_types_carry_group():
+    var rules := load(_RULES_PATH) as GlobalRules
+    TestHelper.assert_true(rules != null, "global_rules.tres loads")
+    if rules == null:
+        return
+    for lt_id in ["clear", "rough", "road", "water", "cliff", "resource"]:
+        var lt := rules.get_land_type(lt_id)
+        TestHelper.assert_true(lt != null, "land type registered: " + lt_id)
+        if lt != null:
+            TestHelper.assert_true(lt.group != "", "shipped land type has a group: " + lt_id)
+
+
+func test_locomotors_pass_new_lats_at_clear_speed():
+    for lm_id in _GROUND_LOCOMOTORS:
+        var lm := load("res://games/ts/locomotors/%s.tres" % lm_id) as Locomotor
+        TestHelper.assert_true(lm != null, "locomotor loads: " + lm_id)
+        if lm == null:
+            continue
+        var clear_speed: float = lm.get_speed_multiplier("clear")
+        for lat_id in _NEW_LAT_IDS:
+            TestHelper.assert_true(lm.is_passable(lat_id), "%s passes %s" % [lm_id, lat_id])
+            TestHelper.assert_eq(
+                lm.get_speed_multiplier(lat_id),
+                clear_speed,
+                "%s speed on %s equals clear" % [lm_id, lat_id]
+            )
+
+
+func test_land_type_override_round_trip():
+    _ts.init_grid(6, 6)
+    var cell := Vector2i(3, 3)
+    _ts.set_land_type(cell, "rough")
+    var path := "user://test_land_types_roundtrip.json"
+    _ts.export_to_json(path)
+    _ts.clear()
+    _ts.import_from_json(path)
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+    TestHelper.assert_eq(
+        _ts.get_painted_land_type(cell), "rough", "painted override survives round-trip"
+    )
+
+
+func test_default_land_type_not_persisted():
+    _ts.init_grid(6, 6)
+    var cell := Vector2i(3, 3)
+    _ts.set_land_type(cell, "clear")
+    TestHelper.assert_eq(_ts.get_painted_land_type(cell), "", "clear is stored as no override")
+    var path := "user://test_land_types_default.json"
+    _ts.export_to_json(path)
+    var file := FileAccess.open(path, FileAccess.READ)
+    var parsed: Variant = JSON.parse_string(file.get_as_text())
+    file.close()
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+    TestHelper.assert_true(parsed is Dictionary, "export parses")
+    if parsed is Dictionary:
+        var land: Dictionary = parsed.get("land_types", {})
+        TestHelper.assert_true(land.is_empty(), "clear override not persisted")
+
+
+func test_land_types_absent_key_loads_clean():
+    _ts.init_grid(6, 6)
+    var path := "user://test_land_types_absent.json"
+    _ts.export_to_json(path)
+    _ts.set_land_type(Vector2i(3, 3), "rough")
+    _ts.import_from_json(path)
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+    TestHelper.assert_eq(
+        _ts.get_painted_land_type(Vector2i(3, 3)), "", "no land_types key -> no override"
     )

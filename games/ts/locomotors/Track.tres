@@ -7,9 +7,14 @@ script = ExtResource("1_script")
 id = "Track"
 terrain_speeds = {
 "clear": 1.0,
+"crystal": 1.0,
+"green": 1.0,
+"mold": 1.0,
+"pavement": 1.0,
 "resource": 0.7,
 "road": 1.25,
-"rough": 0.88
+"rough": 0.88,
+"sand": 1.0
 }
 climb_tolerance = 1
 crushes = PackedStringArray("infantry")

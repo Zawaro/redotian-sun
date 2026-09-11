@@ -20,6 +20,10 @@ var _vertex_grid: Array = []
 var _cells: Dictionary = {}
 ## Sparse per-cell land type overlay: cell_key -> land type id. Absent = DEFAULT_LAND_TYPE.
 var _land_types: Dictionary = {}
+## Cliff-stamp pins: cell_key -> pinned TerrainObject id. Pinned cells render
+## their pinned object regardless of height-derived resolution and lock their
+## vertices against height edits. Persisted as "cell_pins" in map JSON.
+var _cell_pins: Dictionary = {}
 
 ## World-lifetime per-cell corner-vertex height snapshot: cell_key -> [h_nw, h_ne, h_sw, h_se]
 ## (raw ints, HEIGHT_STEP applied by consumers). Populated lazily on first query; heights only —
@@ -112,6 +116,7 @@ func _init_vertex_grid() -> void:
         row.resize(v_count_z)
         _vertex_grid[vx] = row
     _height_snapshot.clear()
+    _cell_pins.clear()
     height_snapshot_generation += 1
 
 
@@ -169,6 +174,7 @@ func clear() -> void:
     _init_vertex_grid()
     _cells.clear()
     _land_types.clear()
+    _cell_pins.clear()
 
 
 # ========================================
@@ -186,6 +192,8 @@ func get_vertex(vx: int, vz: int) -> int:
 func set_vertex(vx: int, vz: int, height: int) -> void:
     var extent: Vector2i = CellUtil.get_diamond_extent(grid_cells)
     if vx < 0 or vx > extent.x or vz < 0 or vz > extent.y:
+        return
+    if not _is_vertex_editable(vx, vz):
         return
     _vertex_grid[vx][vz] = clampi(height, 0, MAX_HEIGHT)
     _cascade_from_vertices([Vector2i(vx, vz)])
@@ -206,14 +214,19 @@ func raise_cell(cell: Vector2i) -> void:
     var extent: Vector2i = CellUtil.get_diamond_extent(grid_cells)
     if cx < 0 or cx >= extent.x or cz < 0 or cz >= extent.y:
         return
+    if is_cell_pinned(cell):
+        return
     var h_min := MAX_HEIGHT
     for vx in [cx, cx + 1]:
         for vz in [cz, cz + 1]:
-            h_min = mini(h_min, _vertex_grid[vx][vz])
+            if _is_vertex_editable(vx, vz):
+                h_min = mini(h_min, _vertex_grid[vx][vz])
+    if h_min >= MAX_HEIGHT:
+        return
     var origins: Array[Vector2i] = []
     for vx in [cx, cx + 1]:
         for vz in [cz, cz + 1]:
-            if _vertex_grid[vx][vz] == h_min and h_min < MAX_HEIGHT:
+            if _is_vertex_editable(vx, vz) and _vertex_grid[vx][vz] == h_min:
                 _vertex_grid[vx][vz] += 1
                 origins.append(Vector2i(vx, vz))
     if not origins.is_empty():
@@ -226,14 +239,19 @@ func lower_cell(cell: Vector2i) -> void:
     var extent: Vector2i = CellUtil.get_diamond_extent(grid_cells)
     if cx < 0 or cx >= extent.x or cz < 0 or cz >= extent.y:
         return
+    if is_cell_pinned(cell):
+        return
     var h_max := 0
     for vx in [cx, cx + 1]:
         for vz in [cz, cz + 1]:
-            h_max = maxi(h_max, _vertex_grid[vx][vz])
+            if _is_vertex_editable(vx, vz):
+                h_max = maxi(h_max, _vertex_grid[vx][vz])
+    if h_max <= 0:
+        return
     var origins: Array[Vector2i] = []
     for vx in [cx, cx + 1]:
         for vz in [cz, cz + 1]:
-            if _vertex_grid[vx][vz] == h_max and h_max > 0:
+            if _is_vertex_editable(vx, vz) and _vertex_grid[vx][vz] == h_max:
                 _vertex_grid[vx][vz] -= 1
                 origins.append(Vector2i(vx, vz))
     if not origins.is_empty():
@@ -256,11 +274,19 @@ func flatten_footprint(origin_cell: Vector2i, size: Vector2i) -> void:
     var vx1 := vx0 + size.x
     var vz1 := vz0 + size.y
     var target := 0
+    var any_editable := false
     for vx in range(vx0, vx1 + 1):
         for vz in range(vz0, vz1 + 1):
+            if not _is_vertex_editable(vx, vz):
+                continue
+            any_editable = true
             target = maxi(target, get_vertex(vx, vz))
+    if not any_editable:
+        return
     for vx in range(vx0, vx1 + 1):
         for vz in range(vz0, vz1 + 1):
+            if not _is_vertex_editable(vx, vz):
+                continue
             set_vertex(vx, vz, target)
 
 
@@ -639,6 +665,58 @@ func calculate_cell_mesh(cell: Vector2i) -> Dictionary:
 
 
 # ========================================
+# Cell Pins (cliff stamps)
+# ========================================
+
+
+## Pins a cell to a TerrainObject id. Returns false when the cell is outside
+## the playable diamond. Re-pinning overwrites. Emits cell_changed so the
+## renderer re-resolves the cell.
+func pin_cell(cell: Vector2i, object_id: String) -> bool:
+    if not CellUtil.is_in_diamond(cell, grid_cells):
+        push_warning("TerrainSystem: pin_cell outside diamond ignored: %s" % cell)
+        return false
+    var key := CellUtil.cell_key_str(cell)
+    _cell_pins[key] = object_id
+    if _cells.has(key):
+        cell_changed.emit(key, _cells[key])
+    return true
+
+
+## Removes a cell's pin. Returns false when the cell had none. Emits
+## cell_changed for tracked cells so the renderer falls back to derived art.
+func unpin_cell(cell: Vector2i) -> bool:
+    var key := CellUtil.cell_key_str(cell)
+    if not _cell_pins.has(key):
+        return false
+    _cell_pins.erase(key)
+    if _cells.has(key):
+        cell_changed.emit(key, _cells[key])
+    return true
+
+
+## Pinned object id for a cell, or "" when unpinned.
+func get_pin(cell: Vector2i) -> String:
+    return String(_cell_pins.get(CellUtil.cell_key_str(cell), ""))
+
+
+## True when the cell carries a pin (locked against height edits).
+func is_cell_pinned(cell: Vector2i) -> bool:
+    return _cell_pins.has(CellUtil.cell_key_str(cell))
+
+
+## A vertex is editable when no cell sharing it is pinned: raising or lowering
+## it would deform a pinned cell's stamped geometry.
+func _is_vertex_editable(vx: int, vz: int) -> bool:
+    for cell in [
+        Vector2i(vx - 1, vz - 1), Vector2i(vx, vz - 1), Vector2i(vx - 1, vz), Vector2i(vx, vz)
+    ]:
+        if _cell_pins.has(CellUtil.cell_key_str(cell)):
+            return false
+    return true
+
+
+# ========================================
 # Cascade (4-directional vertex-to-vertex)
 # ========================================
 
@@ -669,6 +747,9 @@ func _cascade_from_vertices(origins: Array[Vector2i]) -> void:
                 continue
             visited[nkey] = true
             if nbr.x < 0 or nbr.x > extent.x or nbr.y < 0 or nbr.y > extent.y:
+                continue
+            if not _is_vertex_editable(nbr.x, nbr.y):
+                # Locked vertex: a pinned cell owns it; leave the cliff step.
                 continue
 
             var nbr_h: int = _vertex_grid[nbr.x][nbr.y]
@@ -837,6 +918,17 @@ func export_to_json(path: String, extra_data: Dictionary = {}) -> void:
         "vertices": vertices,
         "cells": _cells.duplicate(),
     }
+    if not _cell_pins.is_empty():
+        data["cell_pins"] = _cell_pins.duplicate()
+    var land_out: Dictionary = {}
+    for cx in extent.x:
+        for cz in extent.y:
+            var land_cell := Vector2i(cx, cz)
+            var land_id := get_painted_land_type(land_cell)
+            if not land_id.is_empty():
+                land_out[CellUtil.cell_key_str(land_cell)] = land_id
+    if not land_out.is_empty():
+        data["land_types"] = land_out
     var bounds: Node = get_node_or_null("/root/BoundsSystem")
     if bounds:
         data["visible_bounds"] = [
@@ -858,6 +950,8 @@ func import_from_json(path: String) -> void:
     for key in old_keys:
         cell_changed.emit(key, {})
     _cells.clear()
+    _cell_pins.clear()
+    _land_types.clear()
     var file: FileAccess = FileAccess.open(path, FileAccess.READ)
     if not file:
         return
@@ -887,6 +981,29 @@ func import_from_json(path: String) -> void:
             var vz := int(parts[1])
             if vx >= 0 and vx <= extent.x and vz >= 0 and vz <= extent.y:
                 _vertex_grid[vx][vz] = clampi(vertices[vkey], 0, MAX_HEIGHT)
+
+    var json_pins: Variant = data.get("cell_pins", {})
+    if json_pins is Dictionary:
+        for pin_key in json_pins:
+            var pin_parts: PackedStringArray = String(pin_key).split(",")
+            if pin_parts.size() != 2:
+                continue
+            var pin_cell := Vector2i(int(pin_parts[0]), int(pin_parts[1]))
+            if CellUtil.is_in_diamond(pin_cell, grid_cells):
+                _cell_pins[String(pin_key)] = String(json_pins[pin_key])
+
+    var json_land: Variant = data.get("land_types", {})
+    if json_land is Dictionary:
+        for land_key in json_land:
+            var land_parts: PackedStringArray = String(land_key).split(",")
+            if land_parts.size() != 2:
+                continue
+            var land_cell := Vector2i(int(land_parts[0]), int(land_parts[1]))
+            if not CellUtil.is_in_diamond(land_cell, grid_cells):
+                continue
+            var land_id := String(json_land[land_key])
+            if not land_id.is_empty() and land_id != DEFAULT_LAND_TYPE:
+                _land_types[CellUtil.cell_key(land_cell)] = land_id
 
     for cx in extent.x:
         for cz in extent.y:

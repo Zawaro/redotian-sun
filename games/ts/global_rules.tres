@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="GlobalRules" load_steps=47 format=3 uid="uid://b7ai3dvldeg34"]
+[gd_resource type="Resource" script_class="GlobalRules" load_steps=52 format=3 uid="uid://b7ai3dvldeg34"]
 
 [ext_resource type="Script" uid="uid://b46r2xj1die61" path="res://scripts/data/GlobalRules.gd" id="1_script"]
 [ext_resource type="Resource" uid="uid://dqabewo4e4375" path="res://games/ts/resource_types/tiberium.tres" id="2_tib"]
@@ -38,6 +38,11 @@
 [ext_resource type="Resource" path="res://games/ts/land_types/water.tres" id="36_lt_water"]
 [ext_resource type="Resource" path="res://games/ts/land_types/cliff.tres" id="37_lt_cliff"]
 [ext_resource type="Resource" path="res://games/ts/land_types/resource.tres" id="38_lt_resource"]
+[ext_resource type="Resource" path="res://games/ts/land_types/sand.tres" id="72_lt_sand"]
+[ext_resource type="Resource" path="res://games/ts/land_types/pavement.tres" id="73_lt_pavement"]
+[ext_resource type="Resource" path="res://games/ts/land_types/green.tres" id="74_lt_green"]
+[ext_resource type="Resource" path="res://games/ts/land_types/crystal.tres" id="75_lt_crystal"]
+[ext_resource type="Resource" path="res://games/ts/land_types/mold.tres" id="76_lt_mold"]
 [ext_resource type="Resource" path="res://games/ts/locomotors/Foot.tres" id="38_lm_foot"]
 [ext_resource type="Resource" path="res://games/ts/locomotors/Track.tres" id="39_lm_track"]
 [ext_resource type="Resource" path="res://games/ts/locomotors/Wheel.tres" id="40_lm_wheel"]
@@ -143,7 +148,12 @@ land_types = {
 "road": ExtResource("35_lt_road"),
 "water": ExtResource("36_lt_water"),
 "cliff": ExtResource("37_lt_cliff"),
-"resource": ExtResource("38_lt_resource")
+"resource": ExtResource("38_lt_resource"),
+"sand": ExtResource("72_lt_sand"),
+"pavement": ExtResource("73_lt_pavement"),
+"green": ExtResource("74_lt_green"),
+"crystal": ExtResource("75_lt_crystal"),
+"mold": ExtResource("76_lt_mold")
 }
 locomotors = {
 "Foot": ExtResource("38_lm_foot"),
