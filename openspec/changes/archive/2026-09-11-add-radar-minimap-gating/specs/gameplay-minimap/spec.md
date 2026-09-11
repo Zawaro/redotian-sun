@@ -52,17 +52,17 @@ The minimap SHALL derive its availability from `RadarSystem.player_has_radar(loc
 
 ### Requirement: Radar online/offline static transition
 
-On every radar availability flip the minimap SHALL play a static-noise transition: a `TIME`-driven noise overlay whose intensity eases in when radar is lost and eases out when radar is gained, over a short fixed duration. The transition SHALL settle to the steady state — the live map when online, the black `OFFLINE` placeholder when offline — with no residual static.
+On every radar availability flip the minimap SHALL play a static-noise transition: a `TIME`-driven noise overlay whose intensity rises from 0 to full coverage and then eases out, over a short fixed duration, in both flip directions. The flip's destination panel — the live map when coming online, the black `OFFLINE` placeholder when going offline — SHALL be swapped in underneath only once the static fully covers the control, so the destination content never shows through the rising burst. The transition SHALL settle to the steady state with no residual static.
 
 #### Scenario: Static eases in on loss
 
 - **WHEN** local radar availability flips to false
-- **THEN** the static overlay intensity eases from 0 toward 1 before settling on the offline placeholder
+- **THEN** the static overlay rises from 0 toward full coverage — the panel swaps to the offline placeholder underneath — then eases out, settling with no residual static
 
 #### Scenario: Static eases out on gain
 
 - **WHEN** local radar availability flips to true
-- **THEN** the static overlay intensity eases from its current value toward 0, revealing the live map
+- **THEN** the static overlay rises from 0 toward full coverage — the panel swaps to the live map underneath — then eases out, revealing it
 
 #### Scenario: No residual static when settled
 

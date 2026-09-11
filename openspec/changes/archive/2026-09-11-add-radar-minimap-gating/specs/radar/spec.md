@@ -22,7 +22,7 @@ The system SHALL provide a `RadarSystem` autoload singleton that maintains a reg
 
 ### Requirement: RadarComponent reports and signals effective state
 
-`RadarComponent` SHALL expose `has_radar() -> bool`, returning true only when the component's `radar` data flag is set AND the owning entity is not powered down (`PowerComponent.is_online == false`); an entity without a `PowerComponent` SHALL be treated as powered. `RadarComponent` SHALL emit `radar_state_changed(is_active: bool)` when its effective state flips, including flips driven by power changes (via the sibling `PowerComponent.power_state_changed` signal), and SHALL NOT emit when the state does not change.
+`RadarComponent` SHALL expose `has_radar() -> bool`, returning true only when the component's `radar` data flag is set AND the owning entity is powered (`PowerComponent.is_online == true`); an entity without a `PowerComponent` SHALL be treated as powered. `RadarComponent` SHALL emit `radar_state_changed(is_active: bool)` when its effective state flips, including flips driven by power changes (via the sibling `PowerComponent.power_state_changed` signal), and SHALL NOT emit when the state does not change.
 
 #### Scenario: Powered-down radar reports offline
 - **WHEN** a `powered = true` radar structure goes offline
