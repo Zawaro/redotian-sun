@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "IonWH"
 display_name = "Ion Storm"
+sound_impact = "EXPNEW13,EXPNEW15,EXPNEW12,EXPNEW09"
 splash_radius = 6
 armor_damage_multipliers = {
 "none": 0.900000,

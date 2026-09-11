@@ -41,26 +41,26 @@ Connect `HealthComponent.damage_taken` in `EntityFactory.create_entity` and play
 - **Alternative rejected:** play inside `HealthComponent.take_damage`. Fewest lines, but couples a low-level stat component to `AudioManager` and `GlobalRules`.
 
 ### Decision 2: Impact data lives on `WarheadData.sound_impact`
-A comma-separated id list, identical in shape to `WeaponData.sound_report`, fed to the existing `AudioManager.play_report`.
+A comma-separated id list, shaped like `WeaponData.sound_report`, fed to `AudioManager.play_random` (random pick among the known ids).
 
-- **Why:** the issue assigns impact to the warhead; reusing the `sound_report` convention means the field gets stacking rotation, retrigger throttling, and unknown-id fall-through for free. No new AudioManager method.
+- **Why:** the issue assigns impact to the warhead; reusing the report-list shape means the field gets graceful unknown-id handling for free. Impacts are one-shots, so random selection matches the original `AnimList` behavior better than weapon-fire stacking rotation. The values are derived from each warhead's `AnimList` animations' `Report=` in `references/art.ini` (source of truth), not hand-picked.
 - **Alternative rejected:** `ProjectileData.sound_impact` — protrudes only for projectile weapons; hitscan and AoE would need a parallel field.
 - **Alternative rejected:** armor-type-specific impact sounds — added data authoring and per-victim sound selection for marginal gain; revisit only if playtests demand it.
 
 ### Decision 3: Death sound lives on `EntityData.sound_die`, with voice precedence
 `_on_entity_death(entity, data)` plays `VoiceData.die` when present, else `EntityData.sound_die`.
 
-- **Why:** voiced units already encode their death in `VoiceData.die` (the GDI vehicle voice set already lists `EXPNEW05`), so the existing path is left untouched. `sound_die` fills the gap only for unvoiced entities and reads as an obvious per-entity field. Explicit per-entity data beats a derived size heuristic for a mission with a handful of destruction sounds.
+- **Why:** infantry already encode their death in `VoiceData.die` (`DEDMAN*`/`DEDGIRL*` per the reference), so the existing path is left untouched. `sound_die` is derived from the entity's `Explosion=` animations' `Report=` in `references/art.ini`, covering vehicles and buildings. Vehicles have no `VoiceDie` in the reference, so the vehicle voice set's hand-added `EXPNEW05` die entry is cleared and vehicle deaths use `sound_die`. Explicit per-entity data beats a derived size heuristic.
 - **Alternative rejected:** a `GlobalRules` size→sound table keyed off `hitbox_size` — less authoring, but coarse and hard to override per structure.
 - **Alternative rejected:** always play an explosion alongside the die voice — double-sounds units and contradicts the existing "die voice" requirement.
 
 ### Decision 4: Resolve warhead data at play time via `GlobalRules`
 The impact handler looks up `GlobalRules.get_current().get_warhead(damage_type)` and treats a miss (crush, drowning, empty type) as silent.
 
-- **Why:** reuses the existing registry, makes non-weapon damage silent by construction, and avoids per-entity caching of warhead resources. Fall-through is the same graceful-failure contract as `play_report`.
+- **Why:** reuses the existing registry, makes non-weapon damage silent by construction, and avoids per-entity caching of warhead resources. Fall-through is the same graceful-failure contract as `play_random`.
 
 ### Decision 5: Content is placeholder wiring, not assets
-Author `AudioData.tres` entries for the referenced explosion ids (e.g. `EXPNEW01`, `EXPNEW05`, `EXPNEW06`) pointing at `res://games/ts/external_assets/audio/<id>.ogg`, and set ids on the mission's warheads and unvoiced entity/structure data.
+Author `AudioData.tres` entries for every referenced explosion id (`EXPNEW01`–`EXPNEW15` as used) pointing at `res://games/ts/external_assets/audio/<id>.ogg`, and set ids on warhead and weapon-related entity data.
 
 - **Why:** `games/ts/external_assets/` is gitignored, so a missing path already degrades to a warning + silence via `AudioManager`. Wiring the ids now means C5 (#251) only has to drop in the files. Tests verify playback against the committed `test/fixtures/audio/test_tone.wav`, matching the `test_entity_death` fixture pattern.
 
@@ -73,6 +73,13 @@ Author `AudioData.tres` entries for the referenced explosion ids (e.g. `EXPNEW01
 Populate empty `WeaponData.sound_report` values from `references/rules.ini`, and correct `minigun`'s order to the reference value `INFGUN3,GOSTGUN1,SLVKGUN1`.
 
 - **Why:** #243 spans "weapon fire, warhead impact, death". The playback system existed, but 24 weapons carried an empty report, so their fire was silent. The minigun reorder is intentional and changes the primary fire report because `play_report` plays the first entry; it matches `rules.ini [Minigun] Report=`. `test_weapon_sfx_wiring.gd` freezes the full weapon→report mapping so the reference contract is explicit.
+
+### Decision 8: SFX values and weapon attachments are derived from the reference
+Warhead `sound_impact` is derived from each warhead's `AnimList` animations' `Report=` (`references/art.ini`); entity `sound_die` is derived from each entity's `Explosion=` animations' `Report=`. Entities whose reference section defines `Primary=`/`Secondary=` but carried no `weapons` get those weapons attached.
+
+- **Why:** the previously hand-picked ids did not match the reference (e.g. `SA` small arms is silent, `AP` is `EXPNEW14`, the default vehicle/building death is `EXPNEW09,11,12,14,15`; `EXPNEW01` is the `[General] BlowupSound`, not a death sound). Deriving from `rules.ini`/`art.ini` makes the data audibly correct and testable. Attaching weapons is required or most warhead impacts can never fire.
+- **Alternative rejected:** approximate ids by sound.ini prose labels ("BIG BUILDING EXPLOSION") — plausible but not the actual wiring the reference uses.
+- **Alternative rejected:** a `GlobalRules` default death sound — the reference has no global default; each entity carries its own `Explosion=`.
 
 ## Risks / Trade-offs
 

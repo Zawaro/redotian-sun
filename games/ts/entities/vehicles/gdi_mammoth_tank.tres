@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/vehicles/gdi_mammoth_tank_art.tres" id="2_art"]
 [ext_resource type="Resource" path="res://games/ts/audio/gdi_vehicle_voice.tres" id="3_voice"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/120mmx.tres" id="120mmx_weapon"]
+[ext_resource type="Resource" path="res://games/ts/weapons/mammothtusk.tres" id="mammothtusk_weapon"]
 [resource]
 script = ExtResource("1_script")
 voice_data = ExtResource("3_voice")
@@ -11,6 +13,8 @@ art_data = ExtResource("2_art")
 id = "GDI_MAMMOTH_TANK"
 display_name = "Mammoth Tank"
 legacy_id = "4TNK"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("120mmx_weapon"), ExtResource("mammothtusk_weapon")]
 entity_type = 1
 strength = 800
 armor = "heavy"

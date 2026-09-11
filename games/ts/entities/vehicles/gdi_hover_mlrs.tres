@@ -4,6 +4,7 @@
 [ext_resource type="Resource" path="res://games/ts/art/vehicles/gdi_hover_mlrs_art.tres" id="2_art"]
 [ext_resource type="Resource" path="res://games/ts/audio/gdi_vehicle_voice.tres" id="3_voice"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/hovermissile.tres" id="hovermissile_weapon"]
 [resource]
 script = ExtResource("1_script")
 voice_data = ExtResource("3_voice")
@@ -11,6 +12,8 @@ art_data = ExtResource("2_art")
 id = "GDI_HOVER_MLRS"
 display_name = "Hover MLRS"
 legacy_id = "HVR"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("hovermissile_weapon")]
 entity_type = 1
 strength = 150
 armor = "light"

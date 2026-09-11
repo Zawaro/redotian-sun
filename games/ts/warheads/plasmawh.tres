@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "PlasmaWH"
 display_name = "Plasma Warhead"
+sound_impact = "EXPNEW12,EXPNEW09"
 armor_damage_multipliers = {
 "none": 3.500000,
 "wood": 2.600000,

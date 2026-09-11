@@ -54,8 +54,7 @@ class_name WarheadData extends Resource
 ## Audio
 @export_group("Audio")
 ## Impact report(s) played at the impact point on a damaging hit — comma-separated
-## audio ids (e.g. "EXPNEW06,EXPNEW10"). Same convention as WeaponData.sound_report;
-## empty plays nothing.
+## audio ids (e.g. "EXPNEW14"). One known id is chosen at random; empty plays nothing.
 @export var sound_impact: String = ""
 
 

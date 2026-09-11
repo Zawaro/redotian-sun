@@ -1,14 +1,17 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/aircraft/gdi_drop_pod_art.tres" id="2_art"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/vulcan2.tres" id="vulcan2_weapon"]
 [resource]
 script = ExtResource("1_script")
 art_data = ExtResource("2_art")
 id = "GDI_DROP_POD"
 display_name = "Drop Pod"
 legacy_id = "DPOD"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("vulcan2_weapon")]
 entity_type = 3
 strength = 100
 armor = "light"

@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "NOD_SUBTERRANEAN_APC"
 display_name = "Subterranean APC"
 legacy_id = "SAPC"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 1
 strength = 300
 armor = "heavy"

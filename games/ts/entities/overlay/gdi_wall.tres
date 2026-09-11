@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "GDI_WALL"
 display_name = "GDI Wall"
 legacy_id = "GAWALL"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 5
 strength = 150
 armor = "wood"

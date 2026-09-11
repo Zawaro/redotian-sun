@@ -1,15 +1,17 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/structures/gdi/gdi_sam_upgrade_art.tres" id="2_art"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/redeye2.tres" id="redeye2_weapon"]
 [resource]
 script = ExtResource("1_script")
-sound_die = "EXPNEW01"
 art_data = ExtResource("2_art")
 id = "GDI_SAM_UPGRADE"
 display_name = "SAM Upgrade"
 legacy_id = "GACSAM"
+sound_die = "EXPNEW09"
+weapons = [ExtResource("redeye2_weapon")]
 entity_type = 2
 strength = 200
 armor = "heavy"

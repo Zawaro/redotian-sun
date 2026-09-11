@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "NOD_SILO"
 display_name = "Tiberium Silo"
 legacy_id = "GASILO"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 2
 strength = 300
 armor = "wood"

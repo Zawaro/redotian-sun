@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "GDI_DROPSHIP"
 display_name = "Dropship"
 legacy_id = "DSHP"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 3
 strength = 300
 armor = "heavy"

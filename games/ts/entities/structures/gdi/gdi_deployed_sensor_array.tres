@@ -5,11 +5,11 @@
 
 [resource]
 script = ExtResource("1_script")
-sound_die = "EXPNEW01"
 art_data = ExtResource("2_art")
 id = "GDI_DEPLOYED_SENSOR_ARRAY"
 display_name = "Deployed Sensor Array"
 legacy_id = "GADPSA"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 2
 strength = 200
 armor = "light"

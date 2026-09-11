@@ -10,6 +10,8 @@ art_data = ExtResource("2_art")
 id = "NOD_TICK_TANK"
 display_name = "Tick Tank"
 legacy_id = "TTNK"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("3_weapon")]
 entity_type = 1
 strength = 400
 armor = "heavy"
@@ -25,7 +27,6 @@ threat_posed = 25
 buildable = true
 prerequisite = PackedStringArray("NOD_WAR_FACTORY")
 weight = 2.0
-weapons = [ExtResource("3_weapon")]
 
 buildable_queue = "VehicleType"
 crusher = true

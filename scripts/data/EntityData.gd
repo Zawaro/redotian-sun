@@ -303,8 +303,9 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var voice_data: VoiceData = null
 
 ## Death sound report(s) — comma-separated audio ids played on death when this
-## entity has no die voice set (see voice_data). Independent of voice_data; an
-## entity may define either, both, or neither. Empty plays nothing.
+## entity has no die voice set (see voice_data). One known id is chosen at
+## random. Independent of voice_data; an entity may define either, both, or
+## neither. Empty plays nothing.
 @export var sound_die: String = ""
 
 ## Default build-speed factor when GlobalRules is unavailable (e.g. isolated tests).
