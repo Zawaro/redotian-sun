@@ -405,3 +405,90 @@ func test_clip_segment_to_rect():
             "parallel outside is empty",
         )
     )
+
+
+func test_radar_gate_truth_table():
+    TestHelper.assert_true(
+        Minimap.radar_gate_online(false, 1), "an owned online radar opens the gate"
+    )
+    TestHelper.assert_true(
+        Minimap.radar_gate_online(true, 0), "the debug override opens the gate with no radar"
+    )
+    TestHelper.assert_true(
+        not Minimap.radar_gate_online(false, 0), "no radar and no override stays offline"
+    )
+    TestHelper.assert_true(
+        Minimap.radar_gate_online(true, 3), "override and multiple radars stay online"
+    )
+
+
+func test_absent_radar_system_defaults_live():
+    # An unwired scene (no RadarSystem autoload) must render, not crash.
+    var minimap := Minimap.new()
+    TestHelper.assert_true(minimap._compute_radar_online(), "absent RadarSystem defaults to online")
+    minimap.free()
+
+
+func test_ease_transition_moves_and_snaps():
+    var up := Minimap.ease_transition(0.0, 1.0, 0.1)
+    TestHelper.assert_true(up > 0.0 and up < 1.0, "eases toward the target, not instantly")
+    var up2 := Minimap.ease_transition(up, 1.0, 0.1)
+    TestHelper.assert_true(up2 > up, "stays monotonic toward the target")
+    TestHelper.assert_eq(
+        Minimap.ease_transition(0.9999, 1.0, 0.1), 1.0, "snaps on arrival (rising)"
+    )
+    TestHelper.assert_eq(
+        Minimap.ease_transition(0.0001, 0.0, 0.1), 0.0, "snaps on arrival (falling)"
+    )
+    TestHelper.assert_eq(Minimap.ease_transition(0.0, 0.0, 0.1), 0.0, "settled zero stays zero")
+
+
+func test_ease_transition_settles_to_zero():
+    # A transition pulse kicked to full must fade back to exactly zero.
+    var amount := 1.0
+    for i in 120:
+        amount = Minimap.ease_transition(amount, 0.0, 1.0 / 60.0)
+    TestHelper.assert_eq(amount, 0.0, "a completed fade leaves no residual static")
+
+
+func test_shows_offline_panel_truth_table():
+    TestHelper.assert_true(
+        not Minimap.shows_offline_panel(true, false, true), "steady online shows the map"
+    )
+    TestHelper.assert_true(
+        Minimap.shows_offline_panel(false, false, false), "steady offline shows the placeholder"
+    )
+    TestHelper.assert_true(
+        not Minimap.shows_offline_panel(false, true, true),
+        "rising static over a live map keeps the map until fully covered"
+    )
+    TestHelper.assert_true(
+        Minimap.shows_offline_panel(true, true, false),
+        "rising static over the offline panel keeps OFFLINE until fully covered"
+    )
+
+
+func test_offline_flip_holds_map_under_static():
+    # Regression: the destination panel must not flash while the burst rises.
+    var minimap := Minimap.new()
+    minimap._radar_online = true
+    minimap._static_rising = false
+    minimap._set_radar_online(false)
+    TestHelper.assert_true(minimap._static_rising, "the flip starts the static burst")
+    TestHelper.assert_true(minimap._transition_from_online, "the held panel is the live map")
+    var held := Minimap.shows_offline_panel(
+        minimap._radar_online, minimap._static_rising, minimap._transition_from_online
+    )
+    TestHelper.assert_true(not held, "the map stays drawn while the static rises")
+    minimap.free()
+
+
+func test_mid_rise_flip_keeps_held_panel():
+    var minimap := Minimap.new()
+    minimap._radar_online = true
+    minimap._static_rising = false
+    minimap._set_radar_online(false)
+    minimap._set_radar_online(true)
+    TestHelper.assert_true(minimap._transition_from_online, "a flip mid-rise keeps the held panel")
+    TestHelper.assert_true(minimap._radar_online, "the gate targets the new state")
+    minimap.free()
