@@ -163,7 +163,7 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 # ponytail: schema-first, no consumer yet
 @export var helipad: bool = false
 ## Per-category storage capacity this building grants (e.g. {"tiberium": 2000}).
-# ponytail: schema-first, no consumer yet (silo summation deferred)
+# Summed per player by EconomyManager.get_storage_capacity.
 @export var storage_capacity: Dictionary = {}
 ## Whether units can reload ammunition at this building.
 # ponytail: schema-first, no consumer yet

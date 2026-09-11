@@ -9,6 +9,19 @@ signal prerequisites_changed(player_id: int)
 var _player_buildings: Dictionary = {}
 
 
+func _ready() -> void:
+    GameContext.game_changed.connect(_on_game_changed)
+
+
+## A runtime game switch replaces EntityFactory content; stale owned-building
+## ids would otherwise linger and silently drop storage capacity to 0.
+func _on_game_changed(_def: GameDefinition) -> void:
+    var affected: Array = _player_buildings.keys()
+    _player_buildings.clear()
+    for player_id: int in affected:
+        prerequisites_changed.emit(player_id)
+
+
 func register_building(player_id: int, entity_data: EntityData) -> void:
     if not _player_buildings.has(player_id):
         _player_buildings[player_id] = {}

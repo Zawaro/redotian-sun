@@ -33,6 +33,23 @@ func _make_non_refinery_entity(player_id: int = 0) -> Node3D:
     return entity
 
 
+# Storage capacity is summed from owned buildings, registered by the production
+# lifecycle (BuildingManager.building_placed → PrerequisiteSystem). Tests mirror
+# that order: add_child first, then register.
+func _stock_refinery(pid: int) -> void:
+    var ps := EconomyManager.get_node_or_null("/root/PrerequisiteSystem")
+    var data: EntityData = EntityFactory.get_entity_data("GDI_REFINERY")
+    if ps and data:
+        ps.register_building(pid, data)
+
+
+func _unstock_refinery(pid: int) -> void:
+    var ps := EconomyManager.get_node_or_null("/root/PrerequisiteSystem")
+    var data: EntityData = EntityFactory.get_entity_data("GDI_REFINERY")
+    if ps and data:
+        ps.unregister_building(pid, data)
+
+
 func test_refinery_builds_storage_bar():
     var pid := 1300
     EconomyManager.add(pid, 500, "test")
@@ -53,12 +70,25 @@ func test_refinery_builds_storage_bar():
             "storage bar node is named StorageBar",
         )
     )
+    # Production order: the bar is built at add_child, before building_placed
+    # registers the refinery, so capacity is still 0 at this point.
+    (
+        TestHelper
+        . assert_true(
+            sc._storage_bar.scale.x < 0.01,
+            (
+                "storage bar is empty before the building is registered: got %f"
+                % sc._storage_bar.scale.x
+            ),
+        )
+    )
+    _stock_refinery(pid)
     (
         TestHelper
         . assert_true(
             absf(sc._storage_bar.scale.x - 0.5) < 0.001,
             (
-                "storage bar fill length = span x (balance/capacity): expected 0.5, got %f"
+                "registration re-scales the bar to balance/capacity: expected 0.5, got %f"
                 % sc._storage_bar.scale.x
             ),
         )
@@ -81,6 +111,7 @@ func test_refinery_builds_storage_bar():
             "storage bar hidden until selected",
         )
     )
+    _unstock_refinery(pid)
     entity.free()
 
 
@@ -90,6 +121,7 @@ func test_storage_bar_updates_on_credits_changed():
     var entity := _make_refinery_entity(pid)
     (Engine.get_main_loop() as SceneTree).root.add_child(entity)
     var sc := entity.get_node("SelectComponent") as SelectComponent
+    _stock_refinery(pid)
     EconomyManager.add(pid, 500, "harvest")
     (
         TestHelper
@@ -101,6 +133,7 @@ func test_storage_bar_updates_on_credits_changed():
             ),
         )
     )
+    _unstock_refinery(pid)
     entity.free()
 
 
@@ -110,6 +143,7 @@ func test_free_credits_do_not_fill_storage_bar():
     var entity := _make_refinery_entity(pid)
     (Engine.get_main_loop() as SceneTree).root.add_child(entity)
     var sc := entity.get_node("SelectComponent") as SelectComponent
+    _stock_refinery(pid)
     (
         TestHelper
         . assert_true(
@@ -131,6 +165,7 @@ func test_free_credits_do_not_fill_storage_bar():
             ),
         )
     )
+    _unstock_refinery(pid)
     entity.free()
 
 
@@ -140,6 +175,7 @@ func test_storage_bar_visible_on_select_and_hover():
     var entity := _make_refinery_entity(pid)
     (Engine.get_main_loop() as SceneTree).root.add_child(entity)
     var sc := entity.get_node("SelectComponent") as SelectComponent
+    _stock_refinery(pid)
     sc.set_is_selected(true)
     (
         TestHelper
@@ -165,6 +201,38 @@ func test_storage_bar_visible_on_select_and_hover():
             "storage bar hidden when neither selected nor hovered",
         )
     )
+    _unstock_refinery(pid)
+    entity.free()
+
+
+func test_storage_bar_rescales_when_capacity_changes():
+    var pid := 1304
+    EconomyManager.add(pid, 500, "harvest")
+    var entity := _make_refinery_entity(pid)
+    (Engine.get_main_loop() as SceneTree).root.add_child(entity)
+    var sc := entity.get_node("SelectComponent") as SelectComponent
+    _stock_refinery(pid)
+    (
+        TestHelper
+        . assert_true(
+            absf(sc._storage_bar.scale.x - 0.5) < 0.001,
+            (
+                "bar scales to balance/capacity at one storage building: expected 0.5, got %f"
+                % sc._storage_bar.scale.x
+            ),
+        )
+    )
+    # A second storage building doubles capacity → same balance fills half as much.
+    _stock_refinery(pid)
+    (
+        TestHelper
+        . assert_true(
+            absf(sc._storage_bar.scale.x - 0.25) < 0.001,
+            "bar re-scales when capacity grows: expected 0.25, got %f" % sc._storage_bar.scale.x,
+        )
+    )
+    _unstock_refinery(pid)
+    _unstock_refinery(pid)
     entity.free()
 
 

@@ -77,3 +77,26 @@ func test_naapwr_locked_before_any_building():
     TestHelper.assert_true(
         not ps.can_build(203, naapwr), "NAAPWR must be locked before the MCV is deployed"
     )
+
+
+func test_registry_cleared_on_game_changed():
+    var ps := _get_ps()
+    var yard := _data("NOD_CONSTRUCTION_YARD")
+    if ps == null or yard == null:
+        return
+    ps.register_building(204, yard)
+    (
+        TestHelper
+        . assert_true(
+            ps.get_build_count(204, "NOD_CONSTRUCTION_YARD") == 1,
+            "building is registered before the game switch",
+        )
+    )
+    ps._on_game_changed(null)
+    (
+        TestHelper
+        . assert_true(
+            ps.get_build_count(204, "NOD_CONSTRUCTION_YARD") == 0,
+            "a game switch clears owned buildings so stale ids cannot zero capacity",
+        )
+    )

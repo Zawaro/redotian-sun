@@ -204,25 +204,113 @@ func test_credits_changed_carries_category():
     )
 
 
+func _ps() -> Node:
+    return _em.get_node_or_null("/root/PrerequisiteSystem") if _em else null
+
+
+func _make_storage_building(entity_id: String, capacity: Dictionary) -> EntityData:
+    var data := EntityData.new()
+    data.id = entity_id
+    data.entity_type = EntityData.EntityType.BUILDING
+    data.display_name = "Test Storage"
+    data.storage_capacity = capacity
+    EntityFactory._entity_cache[entity_id] = data
+    return data
+
+
+func _drop_storage_building(pid: int, data: EntityData) -> void:
+    var ps := _ps()
+    if ps and data:
+        ps.unregister_building(pid, data)
+    if data:
+        EntityFactory._entity_cache.erase(data.id)
+
+
 func test_storage_capacity_category():
     if _em == null:
         TestHelper.fail("EconomyManager not injected")
         return
+    var ps := _ps()
+    if ps == null:
+        TestHelper.fail("PrerequisiteSystem not reachable")
+        return
     var pid := 113
+    # No owned buildings: no storage at all.
+    (
+        TestHelper
+        . assert_true(
+            _em.get_storage_capacity(pid, "tiberium") == 0,
+            (
+                "no owned buildings means zero capacity: got %d"
+                % _em.get_storage_capacity(pid, "tiberium")
+            ),
+        )
+    )
+    # One building declaring 2000 contributes its share.
+    var silo_a := _make_storage_building("test_storage_a", {"tiberium": 2000})
+    ps.register_building(pid, silo_a)
     (
         TestHelper
         . assert_true(
             _em.get_storage_capacity(pid, "tiberium") == 2000,
-            "tiberium capacity is 2000: got %d" % _em.get_storage_capacity(pid, "tiberium"),
+            (
+                "one storage building contributes its declared capacity: got %d"
+                % _em.get_storage_capacity(pid, "tiberium")
+            ),
         )
     )
+    # A second building sums on top.
+    var silo_b := _make_storage_building("test_storage_b", {"tiberium": 2000})
+    ps.register_building(pid, silo_b)
+    (
+        TestHelper
+        . assert_true(
+            _em.get_storage_capacity(pid, "tiberium") == 4000,
+            (
+                "capacity sums across owned buildings: got %d"
+                % _em.get_storage_capacity(pid, "tiberium")
+            ),
+        )
+    )
+    # A category no building declares has zero capacity.
     (
         TestHelper
         . assert_true(
             _em.get_storage_capacity(pid, "weed") == 0,
-            "unknown category capacity is 0: got %d" % _em.get_storage_capacity(pid, "weed"),
+            "undeclared category capacity is 0: got %d" % _em.get_storage_capacity(pid, "weed"),
         )
     )
+    _drop_storage_building(pid, silo_a)
+    _drop_storage_building(pid, silo_b)
+
+
+func test_storage_capacity_drops_when_building_lost():
+    if _em == null:
+        TestHelper.fail("EconomyManager not injected")
+        return
+    var ps := _ps()
+    if ps == null:
+        TestHelper.fail("PrerequisiteSystem not reachable")
+        return
+    var pid := 120
+    var silo := _make_storage_building("test_storage_loss", {"tiberium": 2000})
+    ps.register_building(pid, silo)
+    TestHelper.assert_true(
+        _em.get_storage_capacity(pid, "tiberium") == 2000,
+        "registered storage building grants capacity"
+    )
+    ps.unregister_building(pid, silo)
+    (
+        TestHelper
+        . assert_true(
+            _em.get_storage_capacity(pid, "tiberium") == 0,
+            (
+                "capacity drops to 0 when the storage building is lost: got %d"
+                % _em.get_storage_capacity(pid, "tiberium")
+            ),
+        )
+    )
+    EntityFactory._entity_cache.erase(silo.id)
 
 
 func test_free_credits_excluded_from_stored():
