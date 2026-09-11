@@ -199,6 +199,25 @@ func play_report(ids: PackedStringArray, position: Vector3 = Vector3.INF) -> voi
     play_sound(ids[ids.size() - 1].strip_edges(), position)
 
 
+## Random selection among a report list (original TS AnimList / Explosion
+## behavior): pick one known id at random and play it. Unknown or empty entries
+## warn and are skipped; a list with no known ids plays nothing. Used for
+## one-shot events (warhead impacts, deaths) where stacking rotation does not fit.
+func play_random(ids: PackedStringArray, position: Vector3 = Vector3.INF) -> void:
+    var known: Array[String] = []
+    for raw in ids:
+        var id := raw.strip_edges()
+        if id.is_empty():
+            continue
+        if get_audio_data(id) == null:
+            push_warning("AudioManager: Unknown sound id in random list: %s" % id)
+            continue
+        known.append(id)
+    if known.is_empty():
+        return
+    play_sound(known[randi() % known.size()], position)
+
+
 func play_sound(id: String, position: Vector3 = Vector3.INF) -> void:
     var audio := get_audio_data(id)
     if not audio:

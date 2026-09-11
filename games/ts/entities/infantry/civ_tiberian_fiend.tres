@@ -1,14 +1,16 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/infantry/civ_tiberian_fiend_art.tres" id="2_art"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/fiendshard.tres" id="fiendshard_weapon"]
 [resource]
 script = ExtResource("1_script")
 art_data = ExtResource("2_art")
 id = "CIV_TIBERIAN_FIEND"
 display_name = "Tiberian Fiend"
 legacy_id = "DOGGIE"
+weapons = [ExtResource("fiendshard_weapon")]
 entity_type = 0
 strength = 200
 armor = "none"

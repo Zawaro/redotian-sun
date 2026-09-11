@@ -6,7 +6,7 @@
 script = ExtResource("1_script")
 id = "ARTYHE"
 display_name = "Artillery HE"
-sound_impact = "EXPNEW01"
+sound_impact = "EXPNEW13,EXPNEW15,EXPNEW12,EXPNEW09"
 armor_damage_multipliers = {
 "none": 1.000000,
 "wood": 0.850000,

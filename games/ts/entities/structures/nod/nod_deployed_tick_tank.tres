@@ -1,14 +1,17 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/structures/nod/nod_deployed_tick_tank_art.tres" id="2_art"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/90mm.tres" id="90mm_weapon"]
 [resource]
 script = ExtResource("1_script")
 art_data = ExtResource("2_art")
 id = "NOD_DEPLOYED_TICK_TANK"
 display_name = "Deployed Tick Tank"
 legacy_id = "GATICK"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("90mm_weapon")]
 entity_type = 2
 strength = 400
 armor = "heavy"

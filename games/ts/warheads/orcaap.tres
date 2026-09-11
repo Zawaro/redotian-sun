@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "ORCAAP"
 display_name = "ORCA Armor Piercing"
+sound_impact = "EXPNEW14"
 armor_damage_multipliers = {
 "none": 0.300000,
 "wood": 0.650000,

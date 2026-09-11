@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "NOD_TIBERIUM_WASTE_FACILITY"
 display_name = "Tiberium Waste Facility"
 legacy_id = "NAWAST"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 2
 strength = 400
 armor = "wood"

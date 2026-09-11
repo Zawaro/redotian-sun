@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "SAMWH"
 display_name = "SAM Warhead"
+sound_impact = "EXPNEW13"
 armor_damage_multipliers = {
 "none": 1.000000,
 "wood": 1.000000,

@@ -4,6 +4,7 @@
 [ext_resource type="Resource" path="res://games/ts/art/infantry/gdi_ghost_stalker_art.tres" id="2_art"]
 [ext_resource type="Resource" path="res://games/ts/audio/gdi_ghost_stalker_voice.tres" id="3_voice"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/ltrail.tres" id="ltrail_weapon"]
 [resource]
 script = ExtResource("1_script")
 voice_data = ExtResource("3_voice")
@@ -11,6 +12,7 @@ art_data = ExtResource("2_art")
 id = "GDI_GHOST_STALKER"
 display_name = "Ghost Stalker"
 legacy_id = "GHOST"
+weapons = [ExtResource("ltrail_weapon")]
 entity_type = 0
 strength = 150
 armor = "none"

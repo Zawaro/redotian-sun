@@ -1,15 +1,18 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/vehicles/gdi_mammoth_mk2_art.tres" id="2_art"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/mammothtusk.tres" id="mammothtusk_weapon"]
+[ext_resource type="Resource" path="res://games/ts/weapons/mechrailgun.tres" id="mechrailgun_weapon"]
 [resource]
 script = ExtResource("1_script")
-sound_die = "EXPNEW05"
 art_data = ExtResource("2_art")
 id = "GDI_MAMMOTH_MK2"
 display_name = "Mammoth Mk.II"
 legacy_id = "HMEC"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("mammothtusk_weapon"), ExtResource("mechrailgun_weapon")]
 entity_type = 1
 strength = 1000
 armor = "heavy"

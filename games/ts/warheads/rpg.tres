@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "RPG"
 display_name = "RPG"
+sound_impact = "EXPNEW14"
 armor_damage_multipliers = {
 "none": 0.300000,
 "wood": 0.750000,

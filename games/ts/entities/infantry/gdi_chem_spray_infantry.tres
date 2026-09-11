@@ -1,14 +1,16 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/infantry/gdi_chem_spray_infantry_art.tres" id="2_art"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/multicluster.tres" id="multicluster_weapon"]
 [resource]
 script = ExtResource("1_script")
 art_data = ExtResource("2_art")
 id = "GDI_CHEM_SPRAY_INFANTRY"
 display_name = "Chem Spray Infantry"
 legacy_id = "WEEDGUY"
+weapons = [ExtResource("multicluster_weapon")]
 entity_type = 0
 strength = 100
 armor = "none"

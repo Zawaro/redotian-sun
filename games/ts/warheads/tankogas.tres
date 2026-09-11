@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "TankOGas"
 display_name = "Tank O Gas"
+sound_impact = "EXPNEW05,EXPNEW06,EXPNEW07,EXPNEW09,EXPNEW10"
 splash_radius = 8
 armor_damage_multipliers = {
 "none": 0.900000,

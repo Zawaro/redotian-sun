@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "NEU_SCRIN_SHIP"
 display_name = "Scrin Ship"
 legacy_id = "UFO"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 2
 strength = 1000
 armor = "heavy"

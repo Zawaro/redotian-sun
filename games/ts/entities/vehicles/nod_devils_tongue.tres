@@ -1,14 +1,17 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/vehicles/nod_devils_tongue_art.tres" id="2_art"]
 
+[ext_resource type="Resource" path="res://games/ts/weapons/fireballlauncher.tres" id="fireballlauncher_weapon"]
 [resource]
 script = ExtResource("1_script")
 art_data = ExtResource("2_art")
 id = "NOD_DEVILS_TONGUE"
 display_name = "Devil's Tongue Sub Tank"
 legacy_id = "SUBTANK"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("fireballlauncher_weapon")]
 entity_type = 1
 strength = 400
 armor = "heavy"

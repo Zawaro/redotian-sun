@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "ORCAHE"
 display_name = "ORCA High Explosive"
+sound_impact = "EXPNEW12,EXPNEW09"
 armor_damage_multipliers = {
 "none": 2.000000,
 "wood": 0.900000,

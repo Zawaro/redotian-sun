@@ -6,11 +6,12 @@
 
 [resource]
 script = ExtResource("1_script")
-sound_die = "EXPNEW05"
 art_data = ExtResource("2_art")
 id = "GDI_WOLVERINE"
 display_name = "Wolverine"
 legacy_id = "SMECH"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
+weapons = [ExtResource("3_weapon")]
 entity_type = 1
 strength = 200
 armor = "light"
@@ -26,6 +27,5 @@ threat_posed = 20
 buildable = true
 prerequisite = PackedStringArray("GDI_WAR_FACTORY")
 weight = 1.5
-weapons = [ExtResource("3_weapon")]
 
 buildable_queue = "VehicleType"

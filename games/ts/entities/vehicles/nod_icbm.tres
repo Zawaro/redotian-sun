@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "NOD_ICBM"
 display_name = "Missile Launcher"
 legacy_id = "ICBM"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 1
 strength = 200
 armor = "light"

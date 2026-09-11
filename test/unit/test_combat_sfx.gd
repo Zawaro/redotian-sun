@@ -49,6 +49,7 @@ func test_damaging_hit_plays_warhead_impact():
     TestHelper.assert_true(
         _ef != null and _am != null and _ef._global_rules != null, "autoloads and rules present"
     )
+    TestHelper.assert_true(_ef and _am and _ef._global_rules, "autoloads and rules present")
     if not _ef or not _am or not _ef._global_rules:
         return
     _register_tone("TEST_IMPACT_SFX", "SFX")
@@ -164,6 +165,7 @@ func test_unknown_impact_and_death_ids_stay_silent():
     TestHelper.assert_true(
         _ef != null and _am != null and _ef._global_rules != null, "autoloads and rules present"
     )
+    TestHelper.assert_true(_ef and _am and _ef._global_rules, "autoloads and rules present")
     if not _ef or not _am or not _ef._global_rules:
         return
     _register_warhead("TEST_MISSING_WH", "NO_SUCH_IMPACT_ID")
@@ -186,3 +188,43 @@ func test_unknown_impact_and_death_ids_stay_silent():
     var before_die := _count_bus_players("SFX")
     _ef._on_entity_death(corpse, data)
     TestHelper.assert_eq(_count_bus_players("SFX"), before_die, "unknown death id stays silent")
+
+
+func test_random_impact_plays_exactly_one_entry():
+    TestHelper.assert_true(_ef != null and _am != null, "autoloads present")
+    if not _ef or not _am or not _ef._global_rules:
+        return
+    _register_tone("TEST_RAND_A", "SFX")
+    _register_tone("TEST_RAND_B", "SFX")
+    _register_warhead("TEST_RAND_WH", "TEST_RAND_A,TEST_RAND_B")
+    var entity := _ef.create_entity("GDI_LIGHT_INFANTRY") as Node3D
+    if entity:
+        var health := entity.get_node_or_null("HealthComponent") as HealthComponent
+        if health:
+            var before := _count_bus_players("SFX")
+            health.take_damage(1, "TEST_RAND_WH")
+            TestHelper.assert_eq(
+                _count_bus_players("SFX"), before + 1, "random impact plays exactly one entry"
+            )
+        entity.free()
+    _ef._global_rules.warheads.erase("TEST_RAND_WH")
+
+
+func test_random_death_plays_exactly_one_entry():
+    TestHelper.assert_true(_ef != null and _am != null, "autoloads present")
+    if not _ef or not _am:
+        return
+    _register_tone("TEST_RD_A", "SFX")
+    _register_tone("TEST_RD_B", "SFX")
+    var entity := Node3D.new()
+    var health := HealthComponent.new()
+    health.name = "HealthComponent"
+    entity.add_child(health)
+    var data := EntityData.new()
+    data.id = "TEST_RAND_DIE"
+    data.sound_die = "TEST_RD_A,TEST_RD_B"
+    var before := _count_bus_players("SFX")
+    _ef._on_entity_death(entity, data)
+    TestHelper.assert_eq(
+        _count_bus_players("SFX"), before + 1, "random death plays exactly one entry"
+    )

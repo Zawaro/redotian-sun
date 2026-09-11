@@ -5,11 +5,11 @@
 
 [resource]
 script = ExtResource("1_script")
-sound_die = "EXPNEW01"
 art_data = ExtResource("2_art")
 id = "GDI_PAVEMENT"
 display_name = "Pavement"
 legacy_id = "GAPAVE"
+sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 entity_type = 2
 strength = 100
 armor = "concrete"

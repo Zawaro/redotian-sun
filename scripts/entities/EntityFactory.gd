@@ -101,7 +101,7 @@ func _on_entity_death(entity: Node3D, data: EntityData = null) -> void:
     ):
         AudioManager.play_voice(voice.voice_data.id, VoiceData.EVENT_DIE)
     elif data and not data.sound_die.is_empty():
-        AudioManager.play_report(data.sound_die.split(",", false), entity.global_position)
+        AudioManager.play_random(data.sound_die.split(",", false), entity.global_position)
     GhostDepot.capture_entity(entity)
     entity.queue_free()
 
@@ -117,7 +117,7 @@ func _on_entity_damaged(entity: Node3D, damage_type: String) -> void:
     var warhead := rules.get_warhead(damage_type)
     if not warhead or warhead.sound_impact.is_empty():
         return
-    AudioManager.play_report(warhead.sound_impact.split(",", false), entity.global_position)
+    AudioManager.play_random(warhead.sound_impact.split(",", false), entity.global_position)
 
 
 func register_data_set(path: String) -> void:
