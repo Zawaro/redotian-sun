@@ -80,7 +80,7 @@ The next milestone is **GDI Mission 01** (Tiberian Sun's first GDI mission). The
 ### Audio — system complete, content blocked
 - `AudioManager.gd` — 4 buses (Master/Music/SFX/Voice), recursive `.tres` scan, spatial falloff, `play_voice` at camera.
 - Hooks: select/order/weapon-fire/death voices. `VoiceData` (5 event arrays) on 15 entities.
-- **Blocked:** 275 `.ogg` under gitignored `external_assets/` — fresh clone has zero audio. Music: 0 files, no system. EVA: 0.
+- **Blocked:** 275 `.ogg` under gitignored `games/ts/external_assets/` — fresh clone has zero audio. Music: 0 files, no system. EVA: 0.
 
 ### UI — partial
 - **Done:** camera (pan/zoom/edge-scroll, no rotate), selection (single/box/shift/hover + overlay brackets/bars/pips), OrderSystem cursors, tabbed sidebar, credits label, debug menu, input routing, FPS counter.

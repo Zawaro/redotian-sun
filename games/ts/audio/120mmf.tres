@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 id = "120MMF"
-path = "res://external_assets/audio/120mmf.ogg"
+path = "res://games/ts/external_assets/audio/120mmf.ogg"
 bus = "SFX"
 priority = 10
 volume_db = 0.0
