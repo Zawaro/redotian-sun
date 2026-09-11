@@ -83,7 +83,7 @@ are 45°-rotated rectangles, i.e. diamonds.
 
 | Term | Meaning | Where |
 |------|---------|-------|
-| `house` | Map-object ownership faction (GDI/Nod/Neutral/Special). Houses are factions; player slots are a separate axis (starts/waypoints 0–7). Placed entities store `house_id`; the legacy `player_id` is a serialization alias only, not gameplay ownership. | [map-houses](openspec/changes/editor-foundations/specs/map-houses/spec.md) · scripts/data/Houses.gd |
+| `house` | Map-object ownership faction (GDI/Nod/Neutral/Special). Houses are factions; player slots are a separate axis (starts/waypoints 0–7). Placed entities store `house_id`; the legacy `player_id` is a serialization alias only, not gameplay ownership. | [map-houses](openspec/specs/map-houses/spec.md) · scripts/data/Houses.gd |
 | `waypoint` | Numbered map location. Player starts use indexes 0–7; general waypoints use ≥ 8 and persist in the map JSON `waypoints` dict. | [editor-foundations proposal](openspec/changes/editor-foundations/proposal.md) · #371 |
 | `LAT` | Land/terrain attribute surface — the per-cell `LandType` painted by the editor's LAT brush and tools. | [land-types](openspec/changes/editor-foundations/specs/land-types/spec.md) |
 | `tileset` | Grouping label on `LandType.group` used by the editor's bottom bar; presentation only, no gameplay effect. | scripts/data/LandType.gd |
