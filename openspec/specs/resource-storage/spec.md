@@ -27,15 +27,31 @@ The system SHALL expose a displayable balance — free credits plus the sum of s
 - **THEN** it returns the hidden category's stored value (100) even though it is excluded from the displayable total
 
 ### Requirement: Per-category storage capacity
-The system SHALL provide a storage capacity per resource category via `EconomyManager.get_storage_capacity(player_id, category)`. The `"tiberium"` category SHALL have capacity 2000 for now; unknown categories SHALL return 0. Capacity drives the storage bar denominator and the displayable fill ratio; free credits never count toward it. Enforcement of the cap on the stored value (harvester wait-at-full-storage, no deposit past capacity) is deferred.
+The system SHALL provide a storage capacity per resource category via `EconomyManager.get_storage_capacity(player_id, category)`. Capacity SHALL be computed per player as the sum of `EntityData.storage_capacity[category]` across that player's owned buildings (each owned building instance contributes its declared share for the category). A player with no owned buildings SHALL have capacity 0 for every category, and a category absent from every owned building's `storage_capacity` SHALL return 0. Capacity drives the storage bar denominator and the displayable fill ratio; free credits never count toward it. Enforcement of the cap on the stored value (harvester wait-at-full-storage, no deposit past capacity) is deferred.
 
-#### Scenario: Tiberium capacity default
-- **WHEN** `EconomyManager.get_storage_capacity(player_id, "tiberium")` is called
+#### Scenario: Refinery contributes its declared capacity
+- **WHEN** a player owns one building whose `EntityData.storage_capacity` declares `{"tiberium": 2000}` and `EconomyManager.get_storage_capacity(player_id, "tiberium")` is called
 - **THEN** it returns 2000
 
-#### Scenario: Unknown category capacity
-- **WHEN** `EconomyManager.get_storage_capacity(player_id, "weed")` is called
+#### Scenario: Capacity sums across owned buildings
+- **WHEN** a player owns two buildings that each declare `{"tiberium": 2000}` for the tiberium category
+- **THEN** `EconomyManager.get_storage_capacity(player_id, "tiberium")` returns 4000
+
+#### Scenario: No owned buildings means no capacity
+- **WHEN** a player owns no buildings and `EconomyManager.get_storage_capacity(player_id, "tiberium")` is called
 - **THEN** it returns 0
+
+#### Scenario: Capacity is per player
+- **WHEN** player A owns a storage building and player B owns none
+- **THEN** `get_storage_capacity(A, "tiberium")` is greater than `get_storage_capacity(B, "tiberium")`
+
+#### Scenario: Unknown category capacity
+- **WHEN** a player's owned buildings declare no capacity for category `"weed"` and `EconomyManager.get_storage_capacity(player_id, "weed")` is called
+- **THEN** it returns 0
+
+#### Scenario: Capacity drops when a storage building is lost
+- **WHEN** a player owns one building declaring `{"tiberium": 2000}` and that building is unregistered (sold, destroyed, or undeployed)
+- **THEN** `EconomyManager.get_storage_capacity(player_id, "tiberium")` returns 0
 
 ### Requirement: Refinery storage pips visualization
 The system SHALL draw a storage bar on selected or hovered refinery buildings. The bar SHALL be a full-width segmented bar running along the building's bottom/south edge (max Z), spanning its x-width, one cube tall with a segmented grid like the building health bar, filled in the tiberium resource color to the ratio of the building owner's **stored** tiberium value over the tiberium capacity. Free credits (starting credits, crates, sell refunds) SHALL NOT count toward the bar. The bar SHALL update as the stored balance changes.
