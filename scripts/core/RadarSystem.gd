@@ -118,8 +118,10 @@ func _refresh(player_id: int) -> void:
     radar_availability_changed.emit(player_id)
 
 
-## Re-evaluates availability for every player the system has seen (plus the
-## local player). Used when the debug override flips so consumers get the edge.
+## Re-evaluates availability for every player the game knows about: registry
+## and cache keys, the local player, and every configured PlayerManager player.
+## Used when the debug override flips so consumers get the edge — including
+## players with no radar, whose availability flips too.
 func _refresh_all() -> void:
     var ids := {}
     for pid in _available:
@@ -127,6 +129,8 @@ func _refresh_all() -> void:
     for pid in _online_counts:
         ids[pid] = true
     ids[PlayerManager.get_local_player_id()] = true
+    for data in PlayerManager.get_all_players():
+        ids[data.player_id] = true
     for pid in ids:
         _refresh(int(pid))
 
