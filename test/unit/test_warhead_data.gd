@@ -68,3 +68,10 @@ func test_validate_against_armor_unknown_key():
     var wh := _make_warhead({"none": 1.0, "bogus": 0.5})
     var errors := wh.validate_against_armor(["none"])
     TestHelper.assert_true(errors.size() > 0, "unknown armor key reported")
+
+
+func test_sound_impact_default_and_round_trip():
+    var wh := WarheadData.new()
+    TestHelper.assert_eq(wh.sound_impact, "", "sound_impact defaults empty")
+    wh.sound_impact = "EXPNEW06,EXPNEW10"
+    TestHelper.assert_eq(wh.sound_impact, "EXPNEW06,EXPNEW10", "sound_impact round-trips")

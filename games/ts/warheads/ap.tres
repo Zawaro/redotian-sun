@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "AP"
 display_name = "Armor Piercing"
+sound_impact = "EXPNEW06"
 armor_damage_multipliers = {
 "none": 0.250000,
 "wood": 0.650000,

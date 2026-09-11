@@ -1,3 +1,7 @@
+## Purpose
+
+The audio system loads per-game sound and voice resources from the active game's data sets, plays them through a fixed Master/Music/SFX/Voice bus layout, and routes gameplay events (weapon fire, impacts, deaths, unit voices) to spatially-appropriate playback with stacking, loudness, and graceful-failure guarantees.
+## Requirements
 ### Requirement: AudioManager autoload with dynamic .tres loader
 The system SHALL provide an `AudioManager` autoload that registers data-set directories and recursively scans them for `.tres` resources, caching `AudioData` and `VoiceData` resources by their `id`. The scan SHALL mirror the `EntityFactory._scan_directory` pattern, and loading a directory SHALL be idempotent per path. A missing or unreadable directory SHALL produce a warning and return without error. The registered directories SHALL come from the active game's `data_sets` layer roots (the `audio/` subdirectory of each root), resolved via GameContext at select time.
 
@@ -96,18 +100,7 @@ The system SHALL provide a `VoiceComponent` that holds a unit's `VoiceData` refe
 - **THEN** the entity has no `VoiceComponent`
 
 ### Requirement: Weapon fire and death sounds
-The system SHALL play weapon fire sounds using `WeaponData.sound_report` (a comma-separated list of audio ids) at the `CombatComponent._fire_weapon` choke point, spatially at the firing unit. When the list has multiple entries, the system SHALL select the report by stacking depth: entries SHALL be considered in list order and the first entry whose current live copy count is below the rotation threshold SHALL play; ids that do not resolve to a cached `AudioData` SHALL be skipped with a warning; when every entry is at or above the rotation threshold, the last entry SHALL play. On death (`HealthComponent.health_zero`), the system SHALL play the unit's `VoiceData.die` set when one exists; entities without a die voice set play nothing. Explosion/effect SFX for unvoiced entities SHALL be assigned in a future issue. Both SHALL honor the graceful-failure requirement when ids are missing.
-
-### Requirement: Viewport-aware spatial falloff
-The system SHALL play spatial sounds (e.g. weapon fire) at full volume while the source is inside the camera's viewport, and attenuate with distance beyond the viewport edge. The spatial player's position SHALL be placed on the listener-relative bearing of the source at the source's distance past the viewport rectangle, using inverse-distance attenuation. Voices positioned at the camera are unaffected (distance zero → full volume). In headless/UI contexts without a camera, the sound SHALL play positionally at the source without falloff.
-
-#### Scenario: On-screen sound plays at full volume
-- **WHEN** a spatial sound source is inside the viewport footprint
-- **THEN** its player is placed at the listener position (full volume, no panning)
-
-#### Scenario: Off-screen sound attenuates with distance
-- **WHEN** a spatial sound source is beyond the viewport edge
-- **THEN** its player is placed past the listener along the source bearing, so the engine attenuates it by the off-screen distance
+The system SHALL play weapon fire sounds using `WeaponData.sound_report` (a comma-separated list of audio ids) at the `CombatComponent._fire_weapon` choke point, spatially at the firing unit. When the list has multiple entries, the system SHALL select the report by stacking depth: entries SHALL be considered in list order and the first entry whose current live copy count is below the rotation threshold SHALL play; ids that do not resolve to a cached `AudioData` SHALL be skipped with a warning; when every entry is at or above the rotation threshold, the last entry SHALL play. On death (`HealthComponent.health_zero`), the system SHALL play the unit's `VoiceData.die` set when one exists; entities without a die voice set play `EntityData.sound_die` when set (see the Unvoiced destruction sounds requirement). Both SHALL honor the graceful-failure requirement when ids are missing.
 
 #### Scenario: Weapon fire plays the first entry when unstacked
 - **WHEN** a weapon with `sound_report = "INFGUN3,GOSTGUN1"` fires while fewer than the rotation threshold of `INFGUN3` copies are live
@@ -132,6 +125,17 @@ The system SHALL play spatial sounds (e.g. weapon fire) at full volume while the
 #### Scenario: Death plays the unit's die voice set
 - **WHEN** an entity with a non-empty `VoiceData.die` reaches zero health
 - **THEN** a random die variant is played; entities without die voices play nothing
+
+### Requirement: Viewport-aware spatial falloff
+The system SHALL play spatial sounds (e.g. weapon fire) at full volume while the source is inside the camera's viewport, and attenuate with distance beyond the viewport edge. The spatial player's position SHALL be placed on the listener-relative bearing of the source at the source's distance past the viewport rectangle, using inverse-distance attenuation. Voices positioned at the camera are unaffected (distance zero → full volume). In headless/UI contexts without a camera, the sound SHALL play positionally at the source without falloff.
+
+#### Scenario: On-screen sound plays at full volume
+- **WHEN** a spatial sound source is inside the viewport footprint
+- **THEN** its player is placed at the listener position (full volume, no panning)
+
+#### Scenario: Off-screen sound attenuates with distance
+- **WHEN** a spatial sound source is beyond the viewport edge
+- **THEN** its player is placed past the listener along the source bearing, so the engine attenuates it by the off-screen distance
 
 ### Requirement: Content .tres files
 The system SHALL author `AudioData.tres` files under the active game's `audio/` data directory (`games/ts/audio/` for Tiberian Sun) for available audio files, and `VoiceData.tres` files for units with select/order voice sets, using the available audio library and `references/sound.ini` id mapping. A `default_bus_layout.tres` SHALL define the Master/Music/SFX/Voice buses.
@@ -196,3 +200,46 @@ The system SHALL bound concurrent playback so that stacked sounds — identical 
 #### Scenario: Copy count recovers after playback ends
 - **WHEN** a copy of an id finishes playing
 - **THEN** the remaining copies on its bus are re-normalized to their new count and the finished copy is released
+
+### Requirement: Warhead impact sounds
+On every damaging hit, the system SHALL play the victim's warhead impact report, read from `WarheadData.sound_impact` (a comma-separated list of audio ids), at the victim's position through `AudioManager.play_report`. The impact report SHALL use the same stacking-driven selection and graceful-failure behavior as weapon fire reports: entries SHALL be considered in list order and the first entry whose live copy count is below the rotation threshold SHALL play; unknown ids SHALL log a warning and fall through to the next entry; an empty `sound_impact` SHALL play nothing. Damage whose `damage_type` does not resolve to a `WarheadData` (for example vehicle crush or drowning) SHALL be silent. Impact playback SHALL NOT require the victim to have a `VoiceComponent`.
+
+#### Scenario: Hit plays the warhead impact report
+- **WHEN** a projectile or hitscan shot dealing warhead "HE" damages a victim and HE.sound_impact = "EXPNEW06"
+- **THEN** "EXPNEW06" plays at the victim's position
+
+#### Scenario: Stacked impacts rotate entries
+- **WHEN** a warhead with sound_impact = "EXPNEW06,EXPNEW10" hits while EXPNEW06 already has the rotation threshold of live copies
+- **THEN** EXPNEW10 plays instead of EXPNEW06
+
+#### Scenario: Empty impact report is silent
+- **WHEN** a warhead with an empty sound_impact damages a victim
+- **THEN** no impact sound plays and no error is raised
+
+#### Scenario: Unknown impact id warns and falls through
+- **WHEN** a warhead with sound_impact = "NO_SUCH_ID,EXPNEW10" damages a victim
+- **THEN** a warning is logged and EXPNEW10 plays
+
+#### Scenario: Non-warhead damage is silent
+- **WHEN** an entity takes damage whose damage_type is not a registered warhead id
+- **THEN** no impact sound plays and gameplay continues normally
+
+### Requirement: Unvoiced destruction sounds
+When an entity dies, the system SHALL play the entity's `VoiceData.die` set when a `VoiceComponent` with a non-empty die event exists; otherwise it SHALL play `EntityData.sound_die` (a comma-separated list of audio ids) through `AudioManager.play_report` at the entity's position; when neither exists it SHALL play nothing. `sound_die` SHALL reuse the weapon-report stacking selection and graceful-failure behavior. `sound_die` SHALL be independent of `VoiceData`: an entity may define both, in which case the die voice takes precedence and the death sound does not play. This fulfils the previously deferred requirement that explosion/effect SFX for unvoiced entities be assigned.
+
+#### Scenario: Unvoiced building plays its death sound
+- **WHEN** a building with no VoiceComponent and sound_die = "EXPNEW01" reaches zero health
+- **THEN** "EXPNEW01" plays at the building's position
+
+#### Scenario: Die voice takes precedence over sound_die
+- **WHEN** an entity with both a non-empty VoiceData.die and sound_die reaches zero health
+- **THEN** the die voice plays and the death sound is not played
+
+#### Scenario: Entity with neither is silent
+- **WHEN** an entity with no VoiceComponent and empty sound_die reaches zero health
+- **THEN** no death sound plays and no error is raised
+
+#### Scenario: Missing death-sound id warns
+- **WHEN** an entity with sound_die = "NO_SUCH_ID" reaches zero health and no id resolves
+- **THEN** a warning is logged, no sound plays, and the entity still frees normally
+

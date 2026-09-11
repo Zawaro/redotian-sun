@@ -51,6 +51,13 @@ class_name WarheadData extends Resource
 ## Whether the projectile renders as a bright/glowing effect on impact.
 @export var bright: bool = false
 
+## Audio
+@export_group("Audio")
+## Impact report(s) played at the impact point on a damaging hit — comma-separated
+## audio ids (e.g. "EXPNEW06,EXPNEW10"). Same convention as WeaponData.sound_report;
+## empty plays nothing.
+@export var sound_impact: String = ""
+
 
 func get_armor_multiplier(armor_type: String) -> float:
     return float(armor_damage_multipliers.get(armor_type, 1.0))

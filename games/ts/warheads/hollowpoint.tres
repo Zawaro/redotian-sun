@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "HollowPoint"
 display_name = "Hollow Point"
+sound_impact = "EXPNEW06"
 armor_damage_multipliers = {
 "none": 1.000000,
 "wood": 0.050000,
