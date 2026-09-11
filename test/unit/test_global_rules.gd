@@ -108,7 +108,7 @@ func test_bib_cost_penalty_default():
     )
 
 
-func test_bib_cost_penalty_loaded_from_tres():
+func test_global_rules_tres_values():
     if not ResourceLoader.exists("res://games/ts/global_rules.tres"):
         TestHelper.fail("global_rules.tres missing")
         return
@@ -123,3 +123,22 @@ func test_bib_cost_penalty_loaded_from_tres():
                 "tres bib_cost_penalty == 6.0 (got %f)" % rules.bib_cost_penalty,
             )
         )
+        (
+            TestHelper
+            . assert_true(
+                absf(rules.harvester_fill_rate - 1.667) < 0.01,
+                "tres harvester_fill_rate ~= 1.667 (got %f)" % rules.harvester_fill_rate,
+            )
+        )
+
+
+func test_dock_unload_rate_default():
+    var component := DockUnloadComponent.new()
+    (
+        TestHelper
+        . assert_true(
+            absf(component.unload_rate - 2.0) < 0.01,
+            "DockUnloadComponent default unload rate ~= 2.0 (got %f)" % component.unload_rate,
+        )
+    )
+    component.free()

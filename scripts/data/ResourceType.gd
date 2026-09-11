@@ -22,3 +22,6 @@ class_name ResourceType extends Resource
 @export var spread_amount: float = 0.5
 ## Max times a single crystal can spread before it stops spreading.
 @export var spread_max: int = 3
+## Collectable bales a ripe cell of this resource yields (a full cell's bale capacity).
+## 1.0 preserves legacy ratio semantics for resources that do not opt in.
+@export var bales_per_cell: float = 1.0

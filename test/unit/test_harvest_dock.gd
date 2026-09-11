@@ -1627,3 +1627,100 @@ func test_full_harvester_harvest_order_cancels_inflight_dock():
     resource.queue_free()
     dock_entity.queue_free()
     entity.queue_free()
+
+
+func test_dock_unload_completes_full_cargo_despite_stale_timeout():
+    if _em == null:
+        TestHelper.fail("EconomyManager not injected")
+        return
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    var dock_comp := _get_dock_comp(dock_entity)
+    dock_comp.stale_timeout = 5.0
+    var entity := _make_entity("GDI_REFINERY", 28, 500)
+    add_child(entity)
+    var transport := _get_transport(entity)
+    var dock_unload := _get_dock_unload(dock_entity)
+    dock_unload.unload_rate = 1.0
+    dock_unload._economy_manager = _em
+    # _ready() never fires for this out-of-tree test node: inject the rules so
+    # tiberium_green's 25 credits/bail is used instead of the 1.0 fallback.
+    dock_unload._global_rules = EntityFactory.get_global_rules()
+    # Same owner so the credits gate accepts the dock.
+    (_get_stats(dock_entity) as StatsComponent).player_id = 500
+    dock_comp.current_docker = _get_harvest(entity)
+
+    var timed_out: Array[bool] = [false]
+    dock_comp.dock_timeout.connect(func(_docker: Node) -> void: timed_out[0] = true)
+
+    var credits_before: int = _em.get_balance(500)
+    # One bail per tick (whole-bail steps keep credit totals exact), with the dock
+    # host processing each step so its 5 s stale window is actually exercised.
+    for _i in 60:
+        dock_unload._process(1.0)
+        dock_comp._process(1.0)
+
+    (
+        TestHelper
+        . assert_true(
+            transport.get_cargo_total() == 0.0,
+            "full cargo deposited: expected 0 bales left, got %f" % transport.get_cargo_total(),
+        )
+    )
+    TestHelper.assert_true(not timed_out[0], "no dock_timeout during active unload")
+    (
+        TestHelper
+        . assert_eq(
+            _em.get_balance(500) - credits_before,
+            700,
+            "full 28-bale load deposits 700 credits",
+        )
+    )
+
+    dock_entity.queue_free()
+    entity.queue_free()
+
+
+func test_dock_evicts_stalled_docker_when_unload_rate_disabled():
+    var dock_entity := _make_dock_entity()
+    add_child(dock_entity)
+    var dock_comp := _get_dock_comp(dock_entity)
+    dock_comp.stale_timeout = 0.5
+    var entity := _make_entity("GDI_REFINERY", 28, 600)
+    add_child(entity)
+    var transport := _get_transport(entity)
+    var dock_unload := _get_dock_unload(dock_entity)
+    # A data file could disable the rate; the dock must not hold cargo forever.
+    dock_unload.unload_rate = 0.0
+    dock_comp.current_docker = _get_harvest(entity)
+
+    var timed_out: Array[bool] = [false]
+    dock_comp.dock_timeout.connect(func(_docker: Node) -> void: timed_out[0] = true)
+
+    for _i in 5:
+        dock_unload._process(0.2)
+        dock_comp._process(0.2)
+
+    (
+        TestHelper
+        . assert_true(
+            timed_out[0] and dock_comp.current_docker == null,
+            (
+                (
+                    "unload_rate <= 0 makes no progress, so the host still evicts "
+                    + "the stalled docker: timed_out=%s docker=%s"
+                )
+                % [timed_out[0], dock_comp.current_docker]
+            ),
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            transport.get_cargo_total() == 28.0,
+            "nothing drained at unload_rate 0: cargo=%.1f" % transport.get_cargo_total(),
+        )
+    )
+
+    dock_entity.queue_free()
+    entity.queue_free()

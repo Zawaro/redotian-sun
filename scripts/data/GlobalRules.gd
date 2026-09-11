@@ -34,6 +34,8 @@ class_name GlobalRules extends Resource
 ## Whether resources spread into adjacent cells.
 @export var resource_spreads: bool = true
 @export var starting_credits: int = 0
+## Bales harvested per real second. TS authors this as 18 logic ticks per bail;
+## this project uses a 2x (30 ticks/second) time base, so 30/18 = ~1.667.
 @export var harvester_fill_rate: float = 2.0
 @export var separate_aircraft: bool = true
 @export var survivor_rate: float = 0.4

@@ -13,3 +13,4 @@ color = Color(0.2, 0.8, 0.2, 1)
 grow_rate = 0.05
 spread_amount = 0.5
 spread_max = 3
+bales_per_cell = 11.0
