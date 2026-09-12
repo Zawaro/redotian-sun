@@ -53,6 +53,7 @@ func register(
     model_root: Node3D,
     model_offset: Transform3D,
     is_remappable: bool,
+    sockets: Array = [],
 ) -> bool:
     if Engine.is_editor_hint():
         return false
@@ -86,11 +87,42 @@ func register(
         "ghost_invalid": false,
         "cell": CellUtil.world_to_cell(entity_root.global_position),
         "stats": entity_root.get_node_or_null("StatsComponent") as StatsComponent,
+        "turret": entity_root.get_node_or_null("TurretComponent") as TurretComponent,
+        "sockets": _alloc_sockets(sockets, region),
     }
     model_root.visible = slot < 0
     _active_count += 1
     set_physics_process(true)
     return true
+
+
+## Allocates one instance slot per socket in the entity's region. Each socket
+## is a bucket keyed by a real turret model path or a synthetic placeholder key.
+func _alloc_sockets(sockets: Array, region: Vector2i) -> Array:
+    var entries: Array = []
+    for socket in sockets:
+        var key: String = socket.get("key", "")
+        var mesh: ArrayMesh = socket.get("mesh")
+        if key.is_empty() or mesh == null:
+            continue
+        var slot: int = _alloc_slot(key, region, mesh)
+        if slot < 0:
+            push_warning("UnitMeshRenderer: no slot for socket %s in region %s" % [key, region])
+            continue
+        (
+            entries
+            . append(
+                {
+                    "id": socket.get("id", ""),
+                    "key": key,
+                    "region": region,
+                    "slot": slot,
+                    "pivot": socket.get("pivot", Transform3D.IDENTITY),
+                    "mesh": mesh,
+                }
+            )
+        )
+    return entries
 
 
 func unregister(entity_root: Node3D, force: bool = false) -> void:
@@ -100,6 +132,7 @@ func unregister(entity_root: Node3D, force: bool = false) -> void:
     _registry.erase(entity_root)
     var slot: int = entry["slot"]
     var fogged: bool = entry["fogged"]
+    var socket_entries: Array = entry.get("sockets", [])
     if not force and fogged and not _tombstone_still_fogged(entry):
         # The cell left fog while frozen: release the slot normally, no ghost.
         fogged = false
@@ -111,16 +144,23 @@ func unregister(entity_root: Node3D, force: bool = false) -> void:
                 "region": entry["region"],
                 "slot": slot,
                 "cell": entry["cell"],
+                "sockets": socket_entries,
             }
             return
         # Node-tree fallback: its frozen visual is already a depot ghost.
         if ghost_depot:
             ghost_depot.mark_dead(entity_root)
     _active_count -= 1
+    _release_sockets(socket_entries)
     if slot >= 0:
         _release_slot(entry["model_path"], entry["region"], slot)
     if _active_count <= 0:
         set_physics_process(false)
+
+
+func _release_sockets(socket_entries: Array) -> void:
+    for socket in socket_entries:
+        _release_slot(socket["key"], socket["region"], socket["slot"])
 
 
 func _can_register(entity_root: Node3D) -> bool:
@@ -197,20 +237,7 @@ func _release_slot(model_path: String, region: Vector2i, slot: int) -> void:
     if slot != last:
         var last_transform: Transform3D = multimesh.get_instance_transform(last)
         multimesh.set_instance_transform(slot, last_transform)
-        for entity in _registry:
-            var entry: Dictionary = _registry[entity]
-            if (
-                entry["model_path"] == model_path
-                and entry["region"] == region
-                and entry["slot"] == last
-            ):
-                entry["slot"] = slot
-                break
-        for tkey in _tombstones:
-            var t: Dictionary = _tombstones[tkey]
-            if t["model_path"] == model_path and t["region"] == region and t["slot"] == last:
-                t["slot"] = slot
-                break
+        _retarget_slot(model_path, region, last, slot)
     bucket["active_count"] = last
     multimesh.visible_instance_count = last
     multimesh.set_instance_transform(last, Transform3D(Basis(), HIDDEN_POSITION))
@@ -222,6 +249,38 @@ func _release_slot(model_path: String, region: Vector2i, slot: int) -> void:
         region_map.erase(model_path)
         if region_map.is_empty():
             _buckets.erase(region)
+
+
+## Repoints the owner(s) of a slot after swap-remove. Scans body slots and
+## socket slots in the registry and tombstones, so twin sockets on one entity
+## do not lose track of their indices when another entity is released.
+func _retarget_slot(model_path: String, region: Vector2i, from_slot: int, to_slot: int) -> void:
+    for entity in _registry:
+        var entry: Dictionary = _registry[entity]
+        if (
+            entry["model_path"] == model_path
+            and entry["region"] == region
+            and entry["slot"] == from_slot
+        ):
+            entry["slot"] = to_slot
+        _retarget_socket_slots(entry.get("sockets", []), model_path, region, from_slot, to_slot)
+    for tkey in _tombstones:
+        var t: Dictionary = _tombstones[tkey]
+        if t["model_path"] == model_path and t["region"] == region and t["slot"] == from_slot:
+            t["slot"] = to_slot
+        _retarget_socket_slots(t.get("sockets", []), model_path, region, from_slot, to_slot)
+
+
+func _retarget_socket_slots(
+    socket_entries: Array, model_path: String, region: Vector2i, from_slot: int, to_slot: int
+) -> void:
+    for socket in socket_entries:
+        if (
+            socket["key"] == model_path
+            and socket["region"] == region
+            and socket["slot"] == from_slot
+        ):
+            socket["slot"] = to_slot
 
 
 func _physics_process(_delta: float) -> void:
@@ -248,6 +307,7 @@ func _physics_process(_delta: float) -> void:
             var parked: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
             if parked and entry["slot"] >= 0:
                 parked.set_instance_transform(entry["slot"], Transform3D(Basis(), HIDDEN_POSITION))
+            _park_sockets(entry)
             continue
         # Fog handling is visual-only (simulation keeps running). Enemy units
         # in unexplored shroud are parked off-world; enemy units in explored
@@ -267,6 +327,7 @@ func _physics_process(_delta: float) -> void:
                 _set_model_visible(model_root, false)
             if ghost_depot:
                 ghost_depot.release_entry(entity_node)
+            _park_sockets(entry)
             continue
         if state == _FOG_GHOST:
             entry["hidden"] = false
@@ -293,6 +354,7 @@ func _physics_process(_delta: float) -> void:
                     )
                 else:
                     _freeze_fallback(entity_node, model_root)
+                _freeze_sockets(entry, entity_node)
                 # ponytail: a ghost frozen in a region bucket whose key differs
                 # from its frozen position may frustum-cull late; negligible, and
                 # the slot re-migrates to the true position on reveal.
@@ -307,27 +369,93 @@ func _physics_process(_delta: float) -> void:
             if ghost_depot:
                 ghost_depot.release_entry(entity_node)
         var region := _region_key(entity_node.global_position)
-        if entry["slot"] >= 0 and region != entry["region"]:
-            _release_slot(entry["model_path"], entry["region"], entry["slot"])
+        if region != entry["region"]:
+            if entry["slot"] >= 0:
+                _release_slot(entry["model_path"], entry["region"], entry["slot"])
+            _migrate_sockets(entry, region)
             entry["region"] = region
-            var migrated_mesh: ArrayMesh = _ensure_mesh(entry["model_path"], entry["is_remappable"])
-            entry["slot"] = _alloc_slot(entry["model_path"], region, migrated_mesh)
-            if entry["slot"] < 0:
-                push_warning(
-                    (
-                        "UnitMeshRenderer: region %s full for %s; falling back to node-tree"
-                        % [region, entry["model_path"]]
-                    )
+            if entry["slot"] >= 0:
+                var migrated_mesh: ArrayMesh = _ensure_mesh(
+                    entry["model_path"], entry["is_remappable"]
                 )
-                _set_model_visible(model_root, true)
-                if ghost_depot:
-                    ghost_depot.release_entry(entity_node)
+                entry["slot"] = _alloc_slot(entry["model_path"], region, migrated_mesh)
+                if entry["slot"] < 0:
+                    push_warning(
+                        (
+                            "UnitMeshRenderer: region %s full for %s; falling back to node-tree"
+                            % [region, entry["model_path"]]
+                        )
+                    )
+                    _set_model_visible(model_root, true)
+                    if ghost_depot:
+                        ghost_depot.release_entry(entity_node)
         if entry["slot"] >= 0:
             var synced: MultiMesh = _get_multimesh(entry["model_path"], entry["region"])
             if synced:
                 synced.set_instance_transform(
                     entry["slot"], entity_node.global_transform * entry["offset"]
                 )
+        _sync_sockets(entry, entity_node)
+
+
+## Parks every socket instance off-world (preview / hidden fog).
+func _park_sockets(entry: Dictionary) -> void:
+    var hidden := Transform3D(Basis(), HIDDEN_POSITION)
+    for socket in entry.get("sockets", []):
+        var mm: MultiMesh = _get_multimesh(socket["key"], socket["region"])
+        if mm and socket["slot"] >= 0:
+            mm.set_instance_transform(socket["slot"], hidden)
+
+
+## Writes socket transforms once at the moment of fog freeze.
+func _freeze_sockets(entry: Dictionary, entity_node: Node3D) -> void:
+    var turret: TurretComponent = entry.get("turret")
+    for socket in entry.get("sockets", []):
+        var mm: MultiMesh = _get_multimesh(socket["key"], socket["region"])
+        if mm == null or socket["slot"] < 0:
+            continue
+        mm.set_instance_transform(socket["slot"], _socket_world(entity_node, socket, turret))
+
+
+## Moves every socket instance from its old region into the new one.
+func _migrate_sockets(entry: Dictionary, new_region: Vector2i) -> void:
+    for socket in entry.get("sockets", []):
+        if socket["region"] == new_region:
+            continue
+        _release_slot(socket["key"], socket["region"], socket["slot"])
+        socket["region"] = new_region
+        socket["slot"] = _alloc_slot(socket["key"], new_region, socket["mesh"])
+        if socket["slot"] < 0:
+            push_warning(
+                (
+                    "UnitMeshRenderer: region %s full for socket %s; dropped until next migrate"
+                    % [new_region, socket["key"]]
+                )
+            )
+
+
+## Syncs every socket instance transform from the entity and its turret yaw.
+func _sync_sockets(entry: Dictionary, entity_node: Node3D) -> void:
+    var sockets: Array = entry.get("sockets", [])
+    if sockets.is_empty():
+        return
+    var turret: TurretComponent = entry.get("turret")
+    for socket in sockets:
+        var mm: MultiMesh = _get_multimesh(socket["key"], socket["region"])
+        if mm == null or socket["slot"] < 0:
+            continue
+        mm.set_instance_transform(socket["slot"], _socket_world(entity_node, socket, turret))
+
+
+## World transform of a socket: entity transform composed with the pivot, yawed
+## by the socket's current turret angle (0 for fixed or unconfigured sockets).
+func _socket_world(entity_node: Node3D, socket: Dictionary, turret: TurretComponent) -> Transform3D:
+    var pivot: Transform3D = socket["pivot"]
+    var yaw := 0.0
+    if turret and is_instance_valid(turret) and not socket["id"].is_empty():
+        yaw = turret.get_yaw(socket["id"])
+    var local := Transform3D(Basis(Vector3.UP, yaw) * pivot.basis, pivot.origin)
+    return entity_node.global_transform * local
 
 
 func _set_model_visible(model_root: Node3D, visible: bool) -> void:
@@ -381,6 +509,7 @@ func _hide_ghost_visual(entry: Dictionary, model_root: Node3D, multimesh: MultiM
         multimesh.set_instance_transform(entry["slot"], Transform3D(Basis(), HIDDEN_POSITION))
     else:
         _set_model_visible(model_root, false)
+    _park_sockets(entry)
 
 
 ## A frozen ghost whose anchor cell left fog while the entity is still not
@@ -431,6 +560,7 @@ func _release_tombstone(key: int) -> void:
     _tombstones.erase(key)
     _active_count -= 1
     _release_slot(t["model_path"], t["region"], t["slot"])
+    _release_sockets(t.get("sockets", []))
     if _active_count <= 0:
         set_physics_process(false)
 
