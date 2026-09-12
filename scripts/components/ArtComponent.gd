@@ -215,8 +215,69 @@ func _register_with_renderer(instance: Node3D) -> void:
     if renderer == null:
         return
     var model_offset := transform * instance.transform
-    if renderer.register(_entity_root, art_data.model_path, instance, model_offset, _is_remappable):
+    if (
+        renderer
+        . register(
+            _entity_root,
+            art_data.model_path,
+            instance,
+            model_offset,
+            _is_remappable,
+            _collect_sockets(),
+        )
+    ):
         _registered = true
+
+
+## Builds the renderer's socket descriptors: id, bucket key, mesh, and pivot.
+## A socket with a reserved model_path bakes that model; otherwise it uses a
+## generated placeholder box keyed by size.
+func _collect_sockets() -> Array:
+    if art_data == null or art_data.sockets.is_empty():
+        return []
+    var result: Array = []
+    for socket in art_data.sockets:
+        if socket == null or socket.id.is_empty():
+            continue
+        var key := socket.model_path
+        var mesh: ArrayMesh = null
+        if not key.is_empty() and ResourceLoader.exists(key):
+            var scene := load(key) as PackedScene
+            if scene:
+                var root := scene.instantiate() as Node3D
+                if root:
+                    var baked := ModelBaker.bake_merged_mesh(root, _is_remappable)
+                    mesh = baked.get("mesh") as ArrayMesh
+                    root.free()
+        if mesh == null:
+            if socket.placeholder_size == Vector3.ZERO:
+                continue
+            key = _placeholder_socket_key(socket.placeholder_size)
+            mesh = _placeholder_socket_mesh(socket.placeholder_size)
+        result.append({"id": socket.id, "key": key, "mesh": mesh, "pivot": socket.pivot})
+    return result
+
+
+static func _placeholder_socket_key(size: Vector3) -> String:
+    return "__socket:%.3f,%.3f,%.3f" % [size.x, size.y, size.z]
+
+
+## Placeholder meshes are shared across every entity: the renderer buckets them
+## by key and only keeps the first, so re-baking one per registration is waste.
+static var _placeholder_meshes: Dictionary = {}
+
+
+static func _placeholder_socket_mesh(size: Vector3) -> ArrayMesh:
+    var cache_key := _placeholder_socket_key(size)
+    if _placeholder_meshes.has(cache_key):
+        return _placeholder_meshes[cache_key]
+    var box := BoxMesh.new()
+    box.size = size
+    var arrays := box.surface_get_arrays(0)
+    var mesh := ArrayMesh.new()
+    mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+    _placeholder_meshes[cache_key] = mesh
+    return mesh
 
 
 func _unregister_with_renderer() -> void:

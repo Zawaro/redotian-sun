@@ -460,3 +460,120 @@ func test_fog_frozen_ghost_no_region_migration():
 
 func _finish() -> void:
     pass
+
+
+# ========================================
+# Socket instances (turret track)
+# ========================================
+
+const SOCKET_KEY := "__socket:test"
+
+
+func _socket_mesh() -> ArrayMesh:
+    var box := BoxMesh.new()
+    box.size = Vector3(0.6, 0.4, 0.8)
+    var mesh := ArrayMesh.new()
+    mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, box.surface_get_arrays(0))
+    return mesh
+
+
+func _socket_desc(id: String, pivot: Transform3D) -> Dictionary:
+    return {"id": id, "key": SOCKET_KEY, "mesh": _socket_mesh(), "pivot": pivot}
+
+
+func _register_with_sockets(entity: Node3D, sockets: Array) -> bool:
+    return (
+        _renderer
+        . register(
+            entity,
+            MODEL_PATH,
+            entity.get_node("ModelRoot") as Node3D,
+            Transform3D.IDENTITY,
+            false,
+            sockets,
+        )
+    )
+
+
+func test_sockets_allocate_with_body():
+    _setup()
+    var entity := _make_unit(Vector3(2.0, 0.0, 2.0))
+    var sockets := [
+        _socket_desc("l", Transform3D(Basis(), Vector3(-1, 0, 0))),
+        _socket_desc("r", Transform3D(Basis(), Vector3(1, 0, 0))),
+    ]
+    TestHelper.assert_true(_register_with_sockets(entity, sockets), "register with sockets")
+    var entry: Dictionary = _renderer._registry[entity]
+    TestHelper.assert_eq(entry["sockets"].size(), 2, "two socket instances registered")
+    TestHelper.assert_true(int(entry["sockets"][0]["slot"]) >= 0, "socket slot allocated")
+    var region: Vector2i = entry["region"]
+    var bucket: Dictionary = _renderer._buckets[region].get(SOCKET_KEY, {})
+    TestHelper.assert_eq(int(bucket["active_count"]), 2, "twin sockets share one bucket")
+    var mm: MultiMesh = bucket["multimesh"]
+    TestHelper.assert_eq(mm.visible_instance_count, 2, "two socket instances visible")
+    _teardown()
+    _finish()
+
+
+func test_socket_world_uses_pivot_without_turret():
+    _setup()
+    var entity := _make_unit(Vector3(2.0, 0.0, 2.0))
+    var sockets := [_socket_desc("main", Transform3D(Basis(), Vector3(1, 0, 0)))]
+    _register_with_sockets(entity, sockets)
+    var entry: Dictionary = _renderer._registry[entity]
+    var world := _renderer._socket_world(entity, entry["sockets"][0], null)
+    (
+        TestHelper
+        . assert_true(
+            world.origin.is_equal_approx(Vector3(3.0, 0.0, 2.0)),
+            "socket world = entity transform + pivot (fixed rest orientation)",
+        )
+    )
+    _teardown()
+    _finish()
+
+
+func test_socket_group_migrates_across_region():
+    _setup()
+    var entity := _make_unit(Vector3(2.0, 0.0, 2.0))
+    _register_with_sockets(entity, [_socket_desc("main", Transform3D.IDENTITY)])
+    var old_region: Vector2i = _renderer._registry[entity]["sockets"][0]["region"]
+    entity.global_position = Vector3(1000.0, 0.0, 1000.0)
+    _renderer._physics_process(0.0)
+    var entry: Dictionary = _renderer._registry[entity]
+    var new_region: Vector2i = entry["region"]
+    TestHelper.assert_true(new_region != old_region, "body migrated")
+    TestHelper.assert_eq(entry["sockets"][0]["region"], new_region, "socket migrated with body")
+    TestHelper.assert_true(not _renderer._buckets.has(old_region), "old socket bucket removed")
+    _teardown()
+    _finish()
+
+
+func test_twin_socket_compaction_keeps_indices():
+    _setup()
+    var a := _make_unit(Vector3(2.0, 0.0, 2.0))
+    var b := _make_unit(Vector3(4.0, 0.0, 4.0))
+    var sockets := [
+        _socket_desc("l", Transform3D(Basis(), Vector3(-1, 0, 0))),
+        _socket_desc("r", Transform3D(Basis(), Vector3(1, 0, 0))),
+    ]
+    _register_with_sockets(a, sockets)
+    _register_with_sockets(b, sockets)
+    TestHelper.assert_eq(int(_renderer._registry[a]["sockets"][0]["slot"]), 0, "a socket 0")
+    TestHelper.assert_eq(int(_renderer._registry[b]["sockets"][0]["slot"]), 2, "b socket 2")
+    _renderer.unregister(a)
+    var b_entry: Dictionary = _renderer._registry[b]
+    var s0: int = b_entry["sockets"][0]["slot"]
+    var s1: int = b_entry["sockets"][1]["slot"]
+    (
+        TestHelper
+        . assert_true(
+            (s0 == 0 and s1 == 1) or (s0 == 1 and s1 == 0),
+            "both b sockets retargeted into the compacted range",
+        )
+    )
+    TestHelper.assert_true(s0 != s1, "socket slots stay distinct after compaction")
+    var bucket: Dictionary = _renderer._buckets[b_entry["region"]][SOCKET_KEY]
+    TestHelper.assert_eq(int(bucket["active_count"]), 2, "bucket compacted to two")
+    _teardown()
+    _finish()
