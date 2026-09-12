@@ -36,6 +36,8 @@ var _detonated: bool = false
 var _prev_target_dist: float = -1.0
 var _payload: Dictionary = {}
 var _target_mask: int = 0
+var _spawn_origin: Vector3 = Vector3.ZERO
+var _has_spawn_origin: bool = false
 
 @onready var _cast: ShapeCast3D = $ShapeCast3D
 @onready var _visual: Node3D = $Visual
@@ -62,6 +64,13 @@ func setup(data: ProjectileData, weapon: WeaponData, shooter: Node3D, target: No
         _target_mask |= HitboxComponent.LAYER_HITBOX_AIR
 
 
+## Overrides the spawn position (e.g. a turret muzzle world position) before the
+## projectile enters the tree. Without it, _ready falls back to shooter + FLH.
+func set_spawn_origin(origin: Vector3) -> void:
+    _spawn_origin = origin
+    _has_spawn_origin = true
+
+
 ## Speed precedence: ProjectileData.speed_override > WeaponData.speed > rules default.
 static func resolve_speed(data: ProjectileData, weapon: WeaponData, rules: GlobalRules) -> float:
     if data and data.speed_override > 0.0:
@@ -85,7 +94,9 @@ func _ready() -> void:
         _teleport_detonate()
         return
     _apply_tint()
-    global_position = _shooter.global_position + _weapon.fire_offset
+    global_position = (
+        _spawn_origin if _has_spawn_origin else _shooter.global_position + _weapon.fire_offset
+    )
     _aim_heading_at_target()
 
 

@@ -1,9 +1,46 @@
-[gd_resource type="Resource" script_class="ArtData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ArtData" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/ArtData.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/data/SocketData.gd" id="2_socket"]
+
+[sub_resource type="Resource" id="Socket_rocket_l"]
+script = ExtResource("2_socket")
+id = "rocket_l"
+pivot = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.6, 0.2)
+yaw_free = true
+placeholder_size = Vector3(0.4, 0.3, 0.7)
+
+[sub_resource type="Resource" id="Socket_rocket_r"]
+script = ExtResource("2_socket")
+id = "rocket_r"
+pivot = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.6, 0.2)
+yaw_free = true
+placeholder_size = Vector3(0.4, 0.3, 0.7)
+
+[sub_resource type="Resource" id="Socket_chaingun"]
+script = ExtResource("2_socket")
+id = "chaingun"
+pivot = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, -0.3)
+yaw_free = true
+placeholder_size = Vector3(0.25, 0.25, 0.7)
+
+[sub_resource type="Resource" id="Socket_rail_l"]
+script = ExtResource("2_socket")
+id = "rail_l"
+pivot = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 0.5, -0.3)
+yaw_free = false
+placeholder_size = Vector3(0.2, 0.2, 1.0)
+
+[sub_resource type="Resource" id="Socket_rail_r"]
+script = ExtResource("2_socket")
+id = "rail_r"
+pivot = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 0.5, -0.3)
+yaw_free = false
+placeholder_size = Vector3(0.2, 0.2, 1.0)
 
 [resource]
 script = ExtResource("1_script")
 id = "GDI_MAMMOTH_MK2"
 is_remappable = true
 placeholder_size = Vector3(1.5, 1.0, 2.0)
+sockets = [SubResource("Socket_rocket_l"), SubResource("Socket_rocket_r"), SubResource("Socket_chaingun"), SubResource("Socket_rail_l"), SubResource("Socket_rail_r")]

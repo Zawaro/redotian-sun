@@ -10,7 +10,7 @@ class_name CombatComponent extends Node3D
 # - Use ProjectileData.homing_turn_rate, arm_delay, sub_projectile_count
 # - Use WarheadData.armor_damage_multipliers for per-armor damage calculation
 # - Apply WarheadData.sets_on_fire, WarheadData.rocks_target, WarheadData.produces_sparks
-# - Use ArtData fields: primary_fire_offset, barrel_length, turret_offset, sequence,
+# - Use ArtData fields: primary_fire_offset, barrel_length, sequence,
 #   walk_frames, firing_frames, buildup_name, door_anim, production_anim, etc.
 
 signal weapon_fired(weapon: WeaponData, target: Node3D)
@@ -37,13 +37,31 @@ const CHASE_RETRY_BACKOFF: float = 0.5
 @export_group("Combat")
 @export var weapons: Array[WeaponData] = []
 @export var elite_weapons: Array[WeaponData] = []
-@export var turret: bool = false
-@export var turret_anim: String = ""
 @export var threat_posed: int = 0
 
-var _current_weapon_index: int = 0
+
+## One firing channel per weapon mount group, or per body-mounted weapon. Each
+## channel keeps its own cooldown and alignment state, so a unit can fire
+## several weapons / turrets on independent schedules.
+class FireChannel:
+    var weapon: WeaponData = null
+    ## Empty = body-mounted (whole body faces the target).
+    var socket_ids: PackedStringArray = PackedStringArray()
+    ## true = sockets yaw to aim; false = body must face the target.
+    var yaw_free: bool = false
+    var fire_mode: int = WeaponMountGroupData.FireMode.SALVO
+    var fire_delay: float = 0.0
+    var cooldown: float = 0.0
+    var aimed: bool = false
+    ## Wind-up accumulator for a SALVO fire_delay.
+    var windup: float = 0.0
+    ## Active STAGGER burst: index of the next socket to fire (-1 = none).
+    var burst_index: int = -1
+    var burst_timer: float = 0.0
+
+
+var _channels: Array[FireChannel] = []
 var _target: Node3D = null
-var _cooldowns: Array[float] = []
 var _attack_active: bool = false
 var _rotation_completed: bool = false
 var _mc_connected: bool = false
@@ -62,27 +80,68 @@ var _logged_unreachable: Node3D = null
 ## fire while retaining the current target for seamless power restoration.
 var _power_component: PowerComponent = null
 var _power_resolved: bool = false
+## Sibling TurretComponent, resolved once. Non-null only for entities whose art
+## declares sockets; it owns the per-socket yaw used for aim and rendering.
+var _turret: TurretComponent = null
+var _turret_resolved: bool = false
 
 
 func configure(data: EntityData) -> void:
     weapons = data.weapons
     elite_weapons = data.elite_weapons
-    turret = data.turret
-    turret_anim = data.turret_anim
     threat_posed = data.threat_posed
-    _init_cooldowns()
+    _build_channels(data.resolved_mount_groups(), data.art_data)
 
 
-func _init_cooldowns() -> void:
-    _cooldowns.resize(weapons.size())
+## Rebuilds firing channels from the given mount groups. A weapon not covered by
+## a group becomes a body-mounted channel. Empty groups = all weapons body-mounted.
+func _build_channels(groups: Array[WeaponMountGroupData], art_data: ArtData) -> void:
+    _channels.clear()
+    var covered: Dictionary = {}
+    for group in groups:
+        if group == null or group.weapon_index < 0 or group.weapon_index >= weapons.size():
+            continue
+        var weapon := weapons[group.weapon_index]
+        if weapon == null:
+            continue
+        var channel := FireChannel.new()
+        channel.weapon = weapon
+        channel.socket_ids = group.socket_ids
+        channel.fire_mode = group.fire_mode
+        channel.fire_delay = group.fire_delay
+        channel.yaw_free = _sockets_yaw_free(group.socket_ids, art_data)
+        covered[group.weapon_index] = true
+        _channels.append(channel)
     for i in weapons.size():
-        _cooldowns[i] = 0.0
+        if covered.has(i) or weapons[i] == null:
+            continue
+        var body_channel := FireChannel.new()
+        body_channel.weapon = weapons[i]
+        _channels.append(body_channel)
+
+
+## Legacy/test helper: builds body-mounted channels from `weapons` and resets
+## cooldowns. Production path is configure() → _build_channels().
+func _init_cooldowns() -> void:
+    var none: Array[WeaponMountGroupData] = []
+    _build_channels(none, null)
+
+
+## A group's sockets are all rotatable, or the group is body-facing.
+func _sockets_yaw_free(socket_ids: PackedStringArray, art_data: ArtData) -> bool:
+    if socket_ids.is_empty() or art_data == null:
+        return false
+    for socket_id in socket_ids:
+        var socket := art_data.get_socket(socket_id)
+        if socket == null or not socket.yaw_free:
+            return false
+    return true
 
 
 func get_current_weapon() -> WeaponData:
-    if weapons.is_empty():
+    if _channels.is_empty():
         return null
-    return weapons[_current_weapon_index]
+    return _channels[0].weapon
 
 
 func get_effective_damage(weapon: WeaponData) -> int:
@@ -102,11 +161,6 @@ func get_weapon_count() -> int:
     return weapons.size()
 
 
-func cycle_weapon() -> void:
-    if not weapons.is_empty():
-        _current_weapon_index = (_current_weapon_index + 1) % weapons.size()
-
-
 func get_target() -> Node3D:
     return _target
 
@@ -117,6 +171,7 @@ func set_target(entity: Node3D) -> void:
     _rotation_completed = false
     _chase_retry_after = 0.0
     _logged_unreachable = null
+    _reset_channel_runtime()
     _connect_mc_signal()
     _connect_health_signal()
     var mc := get_parent().get_node_or_null("MovementController") as MovementController
@@ -134,6 +189,16 @@ func clear_target() -> void:
     _attack_active = false
     _rotation_completed = false
     _logged_unreachable = null
+    _reset_channel_runtime()
+
+
+## Clears per-channel burst/wind-up state when the engagement changes.
+func _reset_channel_runtime() -> void:
+    for channel in _channels:
+        channel.burst_index = -1
+        channel.burst_timer = 0.0
+        channel.windup = 0.0
+        channel.aimed = false
 
 
 func validate(data: EntityData) -> PackedStringArray:
@@ -191,11 +256,7 @@ func _attack(target: Node3D) -> void:
 func _physics_process(delta: float) -> void:
     if Engine.is_editor_hint():
         return
-    if not _power_resolved:
-        _power_resolved = true
-        var parent := get_parent()
-        if parent:
-            _power_component = parent.get_node_or_null("PowerComponent") as PowerComponent
+    _resolve_siblings()
     if _power_component and not _power_component.is_online:
         # Powered down: hold fire and freeze the engagement — no acquisition,
         # no shots, no chase moves. The target is kept so restoration resumes.
@@ -205,28 +266,168 @@ func _physics_process(delta: float) -> void:
     if not is_instance_valid(_target):
         clear_target()
         return
-    var weapon := get_current_weapon()
-    if not weapon:
+    if _channels.is_empty():
         clear_target()
         return
-    var weapon_idx := _current_weapon_index
-    if weapon_idx < _cooldowns.size():
-        _cooldowns[weapon_idx] = maxf(_cooldowns[weapon_idx] - delta, 0.0)
-    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
-    var to_target := _target.global_position - global_position
-    var horizontal_distance := Vector3(to_target.x, 0.0, to_target.z).length()
-    if horizontal_distance <= range_world:
-        if horizontal_distance > CellUtil.CELL_SIZE and not _is_facing_target(delta):
-            return
-        if horizontal_distance <= CellUtil.CELL_SIZE or _rotation_completed:
-            if weapon_idx < _cooldowns.size() and _cooldowns[weapon_idx] <= 0.0:
-                _fire_weapon(weapon, _target)
-    else:
+    if not _target_in_range():
+        # Keep turrets trained on the target while closing, so they track
+        # continuously instead of freezing until the target re-enters range.
+        _aim_turrets(delta)
         _move_toward_target()
+        return
+    var close := _horizontal_distance() <= CellUtil.CELL_SIZE
+    # Body-facing is evaluated once per tick for body/fixed channels so
+    # face_toward is not advanced multiple times in one frame.
+    var body_aligned := true
+    if _needs_body_facing() and not close:
+        body_aligned = _is_facing_target(delta)
+    for channel in _channels:
+        _tick_channel(channel, delta, body_aligned, close)
 
 
-## Body-facing gate for turretless mobile units. Returns true when the
-## attacker is aligned (or exempt): no MovementController sibling (buildings,
+## Resolves sibling components once, lazily (components attach before tree entry).
+func _resolve_siblings() -> void:
+    if _turret_resolved and _power_resolved:
+        return
+    var parent := get_parent()
+    if parent == null:
+        return
+    if not _turret_resolved:
+        _turret_resolved = true
+        _turret = parent.get_node_or_null("TurretComponent") as TurretComponent
+    if not _power_resolved:
+        _power_resolved = true
+        _power_component = parent.get_node_or_null("PowerComponent") as PowerComponent
+
+
+## Whether any channel requires the body to face the target.
+func _needs_body_facing() -> bool:
+    for channel in _channels:
+        if not channel.yaw_free:
+            return true
+    return false
+
+
+## Slews every yaw-free mount at the target. Used on the chase path (target out
+## of range); in-range ticks aim via _tick_channel.
+func _aim_turrets(delta: float) -> void:
+    if _turret == null or not is_instance_valid(_target):
+        return
+    for channel in _channels:
+        if not channel.yaw_free:
+            continue
+        for socket_id in channel.socket_ids:
+            _turret.slew(socket_id, _target.global_position, delta)
+
+
+func _horizontal_distance() -> float:
+    if not is_instance_valid(_target):
+        return INF
+    var to_target := _target.global_position - global_position
+    return Vector3(to_target.x, 0.0, to_target.z).length()
+
+
+## In range of the longest-reaching weapon; each channel then checks its own
+## weapon range inside _tick_channel.
+func _target_in_range() -> bool:
+    var weapon := _longest_range_weapon()
+    if weapon == null:
+        return false
+    return _horizontal_distance() <= weapon.attack_range * CellUtil.CELL_SIZE
+
+
+func _longest_range_weapon() -> WeaponData:
+    var best: WeaponData = null
+    for channel in _channels:
+        if channel.weapon and (best == null or channel.weapon.attack_range > best.attack_range):
+            best = channel.weapon
+    return best
+
+
+## Advances one channel: aim (every tick, so turrets track continuously), then
+## fire subject to that channel's own cooldown, range, and fire discipline.
+func _tick_channel(channel: FireChannel, delta: float, body_aligned: bool, close: bool) -> void:
+    channel.cooldown = maxf(channel.cooldown - delta, 0.0)
+
+    # Continue an in-flight STAGGER burst regardless of cooldown.
+    if channel.burst_index >= 0:
+        channel.burst_timer -= delta
+        if channel.burst_timer <= 0.0:
+            _fire_socket(channel, channel.burst_index)
+            channel.burst_index += 1
+            if channel.burst_index >= channel.socket_ids.size():
+                channel.burst_index = -1
+                channel.cooldown = _rof_seconds(channel.weapon)
+            else:
+                channel.burst_timer = maxf(channel.fire_delay, 0.0)
+        return
+
+    if channel.yaw_free and _turret:
+        var aimed := true
+        for socket_id in channel.socket_ids:
+            if not _turret.slew(socket_id, _target.global_position, delta):
+                aimed = false
+        channel.aimed = aimed
+    else:
+        channel.aimed = body_aligned
+    if close:
+        channel.aimed = true
+
+    if channel.cooldown > 0.0:
+        channel.windup = 0.0
+        return
+    if not _channel_in_range(channel):
+        return
+    if not channel.aimed:
+        channel.windup = 0.0
+        return
+
+    # SALVO wind-up before the volley.
+    if channel.fire_mode == WeaponMountGroupData.FireMode.SALVO and channel.fire_delay > 0.0:
+        channel.windup += delta
+        if channel.windup < channel.fire_delay:
+            return
+
+    channel.windup = 0.0
+    _fire_channel(channel)
+
+
+func _channel_in_range(channel: FireChannel) -> bool:
+    if channel.weapon == null:
+        return false
+    return _horizontal_distance() <= channel.weapon.attack_range * CellUtil.CELL_SIZE
+
+
+## Fires a channel's socket(s) per its fire discipline. SALVO and single-socket
+## groups fire immediately; STAGGER schedules the rest of the burst.
+func _fire_channel(channel: FireChannel) -> void:
+    if channel.socket_ids.is_empty():
+        _fire_weapon(channel.weapon, _target)
+        channel.cooldown = _rof_seconds(channel.weapon)
+        return
+    if channel.fire_mode == WeaponMountGroupData.FireMode.STAGGER and channel.socket_ids.size() > 1:
+        _fire_socket(channel, 0)
+        channel.burst_index = 1
+        channel.burst_timer = maxf(channel.fire_delay, 0.0)
+        return
+    for i in channel.socket_ids.size():
+        _fire_socket(channel, i)
+    channel.cooldown = _rof_seconds(channel.weapon)
+
+
+func _fire_socket(channel: FireChannel, index: int) -> void:
+    var muzzle := Vector3.INF
+    if _turret and index < channel.socket_ids.size():
+        muzzle = _turret.get_muzzle_world_transform(channel.socket_ids[index]).origin
+    _fire_weapon(channel.weapon, _target, muzzle)
+
+
+func _rof_seconds(weapon: WeaponData) -> float:
+    return maxf(weapon.rate_of_fire, 0.001) / TS_LOGIC_FPS
+
+
+## Body-facing gate for body-mounted / fixed-socket weapons. Returns true when
+## the attacker is aligned (or exempt): no MovementController sibling (buildings,
 ## speed = 0) — exempt means rotation is complete, so fire is never gated —
 ## or idle / waiting, where the body slews via face_toward so blocked
 ## attackers keep shooting once aligned. A live MOVING / ROTATING leg owns
@@ -247,17 +448,26 @@ func _is_facing_target(delta: float) -> bool:
     return _rotation_completed
 
 
-func _fire_weapon(weapon: WeaponData, target: Node3D) -> void:
+func _fire_weapon(weapon: WeaponData, target: Node3D, muzzle_origin: Vector3 = Vector3.INF) -> void:
+    if not muzzle_origin.is_finite():
+        muzzle_origin = _body_muzzle_origin(weapon)
     var projectile_data: ProjectileData = _resolve_projectile(weapon)
     if projectile_data:
-        _spawn_projectile(projectile_data, weapon, target)
+        _spawn_projectile(projectile_data, weapon, target, muzzle_origin)
     else:
         _apply_hitscan_damage(weapon, target)
     _fire_count += 1
-    var rof: float = maxf(weapon.rate_of_fire, 0.001)
-    _cooldowns[_current_weapon_index] = rof / TS_LOGIC_FPS
     _play_fire_sound(weapon)
     weapon_fired.emit(weapon, target)
+
+
+## Body-mounted muzzle: entity position offset by the weapon fire offset. FLH
+## art data + turret-relative rotation belong to #326.
+func _body_muzzle_origin(weapon: WeaponData) -> Vector3:
+    var shooter := get_parent() as Node3D
+    if shooter == null:
+        return global_position + weapon.fire_offset
+    return shooter.global_position + weapon.fire_offset
 
 
 ## Resolves weapon.projectile through the GlobalRules registry; null when the
@@ -271,7 +481,9 @@ func _resolve_projectile(weapon: WeaponData) -> ProjectileData:
     return rules.get_projectile(weapon.projectile)
 
 
-func _spawn_projectile(data: ProjectileData, weapon: WeaponData, target: Node3D) -> void:
+func _spawn_projectile(
+    data: ProjectileData, weapon: WeaponData, target: Node3D, muzzle_origin: Vector3
+) -> void:
     var shooter := get_parent() as Node3D
     if not shooter:
         return
@@ -279,6 +491,7 @@ func _spawn_projectile(data: ProjectileData, weapon: WeaponData, target: Node3D)
     if not projectile:
         return
     projectile.setup(data, weapon, shooter, target)
+    projectile.set_spawn_origin(muzzle_origin)
     var container: Node = null
     var tree := shooter.get_tree()
     if tree:
@@ -320,7 +533,7 @@ func _move_toward_target(force: bool = false) -> void:
         return
     if not force and not _should_replan(mc):
         return
-    var weapon := get_current_weapon()
+    var weapon := _longest_range_weapon()
     if not weapon:
         return
     var range_world := weapon.attack_range * CellUtil.CELL_SIZE
