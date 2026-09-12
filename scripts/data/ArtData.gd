@@ -29,11 +29,11 @@ class_name ArtData extends Resource
 ## Visual height in world units — affects bounding box and selection overlay.
 @export var height: float = 1.0
 
-## Turret
-@export_group("Turret")
-## Horizontal offset in voxels from the entity origin to the turret pivot point.
-# ponytail: schema-first, no consumer yet
-@export var turret_offset: float = 0.0
+## Sockets / hardpoints
+@export_group("Sockets")
+## Named attachment points on this art (turret hardpoints). Behavior data
+## references them by id through EntityData weapon mount groups.
+@export var sockets: Array[SocketData] = []
 ## Length of the gun barrel in voxels — affects muzzle flash position.
 # ponytail: schema-first, no consumer yet
 @export var barrel_length: float = 0.0
@@ -236,7 +236,23 @@ func validate() -> PackedStringArray:
     for anim in active_anims:
         if anim and anim.anim_name.is_empty():
             errors.append("%s: active_anim has empty anim_name" % id)
+    var seen_sockets: Dictionary = {}
+    for socket in sockets:
+        if socket == null or socket.id.is_empty():
+            errors.append("%s: socket has empty id" % id)
+            continue
+        if seen_sockets.has(socket.id):
+            errors.append("%s: duplicate socket id %s" % [id, socket.id])
+        seen_sockets[socket.id] = true
     return errors
+
+
+## Returns the socket with the given id, or null.
+func get_socket(socket_id: String) -> SocketData:
+    for socket in sockets:
+        if socket and socket.id == socket_id:
+            return socket
+    return null
 
 
 ## Minimap color resolution (issue #178):

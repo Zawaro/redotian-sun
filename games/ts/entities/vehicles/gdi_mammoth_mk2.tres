@@ -1,10 +1,26 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
 [ext_resource type="Resource" path="res://games/ts/art/vehicles/gdi_mammoth_mk2_art.tres" id="2_art"]
+[ext_resource type="Script" path="res://scripts/data/WeaponMountGroupData.gd" id="3_group"]
 
 [ext_resource type="Resource" path="res://games/ts/weapons/mammothtusk.tres" id="mammothtusk_weapon"]
 [ext_resource type="Resource" path="res://games/ts/weapons/mechrailgun.tres" id="mechrailgun_weapon"]
+
+[sub_resource type="Resource" id="Mount_rockets"]
+script = ExtResource("3_group")
+weapon_index = 0
+socket_ids = PackedStringArray("rocket_l", "rocket_r")
+fire_mode = 0
+fire_delay = 0.0
+
+[sub_resource type="Resource" id="Mount_rails"]
+script = ExtResource("3_group")
+weapon_index = 1
+socket_ids = PackedStringArray("rail_l", "rail_r")
+fire_mode = 0
+fire_delay = 0.0
+
 [resource]
 script = ExtResource("1_script")
 art_data = ExtResource("2_art")
@@ -13,6 +29,7 @@ display_name = "Mammoth Mk.II"
 legacy_id = "HMEC"
 sound_die = "EXPNEW09,EXPNEW11,EXPNEW12,EXPNEW14,EXPNEW15"
 weapons = [ExtResource("mammothtusk_weapon"), ExtResource("mechrailgun_weapon")]
+weapon_mount_groups = [SubResource("Mount_rockets"), SubResource("Mount_rails")]
 entity_type = 1
 strength = 1000
 armor = "heavy"

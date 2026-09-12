@@ -42,10 +42,10 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var weapons: Array[WeaponData] = []
 ## Weapons used when this unit is elite (promoted). Empty = use normal weapons.
 @export var elite_weapons: Array[WeaponData] = []
-## Whether this entity has a rotating turret.
-@export var turret: bool = false
-## Animation name for the turret rotation (e.g., "TURRET").
-@export var turret_anim: String = ""
+## Per-unit binding of weapons to ArtData sockets, with firing discipline.
+## Empty = each weapon is body-mounted (whole body faces the target); the
+## single-socket default applies when art_data declares exactly one socket.
+@export var weapon_mount_groups: Array[WeaponMountGroupData] = []
 ## Threat level for AI targeting (higher = prioritized). 0 = no threat.
 @export var threat_posed: int = 0
 
@@ -402,7 +402,47 @@ func validate() -> PackedStringArray:
             errors.append(
                 "%s: movement_zone %s contradicts locomotor %s" % [id, movement_zone, locomotor]
             )
+    var seen_weapon_indices: Dictionary = {}
+    for group in weapon_mount_groups:
+        if group == null:
+            errors.append("%s: null weapon mount group" % id)
+            continue
+        if group.weapon_index < 0 or group.weapon_index >= weapons.size():
+            errors.append("%s: mount group weapon_index %d out of range" % [id, group.weapon_index])
+        elif seen_weapon_indices.has(group.weapon_index):
+            errors.append(
+                "%s: duplicate mount group for weapon_index %d" % [id, group.weapon_index]
+            )
+        seen_weapon_indices[group.weapon_index] = true
+        if group.socket_ids.is_empty():
+            errors.append("%s: mount group has no socket ids" % id)
+        for socket_id in group.socket_ids:
+            if socket_id.is_empty():
+                errors.append("%s: mount group has empty socket id" % id)
+            elif art_data == null or art_data.get_socket(socket_id) == null:
+                errors.append("%s: mount group references unknown socket %s" % [id, socket_id])
     return errors
+
+
+## Resolves the effective weapon mount groups for this entity. When no groups
+## are declared and art_data declares exactly one socket, every weapon binds to
+## that socket (one group per weapon so each keeps its own cooldown). Returns an
+## empty array when no groups apply — every weapon is then body-mounted.
+func resolved_mount_groups() -> Array[WeaponMountGroupData]:
+    if not weapon_mount_groups.is_empty():
+        return weapon_mount_groups
+    if art_data == null or art_data.sockets.size() != 1:
+        return []
+    var sole := art_data.sockets[0]
+    if sole == null or sole.id.is_empty():
+        return []
+    var groups: Array[WeaponMountGroupData] = []
+    for i in weapons.size():
+        var group := WeaponMountGroupData.new()
+        group.weapon_index = i
+        group.socket_ids = PackedStringArray([sole.id])
+        groups.append(group)
+    return groups
 
 
 func has_special_abilities() -> bool:

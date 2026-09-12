@@ -285,29 +285,6 @@ func test_get_current_weapon_empty_weapons():
     entity.free()
 
 
-func test_cycle_weapon_wraps_around():
-    var entity := Node3D.new()
-    var combat := CombatComponent.new()
-    combat.name = "CombatComponent"
-    entity.add_child(combat)
-    combat.weapons = [_make_weapon(10), _make_weapon(20)]
-    combat.cycle_weapon()
-    var current := combat.get_current_weapon()
-    TestHelper.assert_eq(current.damage, 20, "cycle_weapon moves to next weapon")
-    combat.cycle_weapon()
-    current = combat.get_current_weapon()
-    TestHelper.assert_eq(current.damage, 10, "cycle_weapon wraps around to first")
-    entity.free()
-
-
-func test_cycle_weapon_no_op_when_empty():
-    var entity := _make_combat_entity(false, 0)
-    var cc := entity.get_node("CombatComponent") as CombatComponent
-    cc.cycle_weapon()
-    TestHelper.assert_true(true, "cycle_weapon does not crash when weapons empty")
-    entity.free()
-
-
 func test_validate_no_weapons():
     var entity := _make_combat_entity(false, 0)
     var cc := entity.get_node("CombatComponent") as CombatComponent
@@ -367,7 +344,7 @@ func test_cooldown_blocks_fire():
     var cc := entity.get_node("CombatComponent") as CombatComponent
     var target := _make_target_with_health(1, 100)
     cc.set_target(target)
-    cc._cooldowns = [5.0]
+    cc._channels[0].cooldown = 5.0
     var old_health: int = target.get_node("HealthComponent").current_health
     cc._physics_process(0.1)
     var new_health: int = target.get_node("HealthComponent").current_health
@@ -386,8 +363,11 @@ func test_cooldown_uses_rof_frames_at_ts_logic_rate():
     cc.weapons = [weapon]
     cc._init_cooldowns()
     var target := _make_target_with_health(1, 100)
-    cc._fire_weapon(weapon, target)
-    TestHelper.assert_eq(cc._cooldowns[0], 1.0, "ROF=30 frames rearm delay → 1.0 s cooldown")
+    cc.set_target(target)
+    cc._fire_channel(cc._channels[0])
+    TestHelper.assert_eq(
+        cc._channels[0].cooldown, 1.0, "ROF=30 frames rearm delay → 1.0 s cooldown"
+    )
     entity.free()
     target.free()
 
