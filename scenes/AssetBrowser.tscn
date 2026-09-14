@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/editor/AssetBrowserController.gd" id="1_ctrl"]
+[ext_resource type="PackedScene" path="res://scenes/environment/DefaultSunLight01.tscn" id="2_sun"]
+[ext_resource type="PackedScene" path="res://scenes/environment/DefaultWorldEnvironment01.tscn" id="3_env"]
+
+[node name="AssetBrowser" type="Node3D"]
+script = ExtResource("1_ctrl")
+
+[node name="LightPivot" parent="." instance=ExtResource("2_sun")]
+
+[node name="DefaultWorldEnvironment01" parent="." instance=ExtResource("3_env")]
+
+[node name="PreviewCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 12, 12)
+current = true
+fov = 50.0
+near = 0.05
+far = 500.0
+
+[node name="WorldOverlays" type="Node3D" parent="."]
+
+[node name="ObjectRoot" type="Node3D" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 100

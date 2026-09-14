@@ -50,6 +50,10 @@ var _last_states := PackedByteArray()
 var _buildings: Dictionary = {}
 var _overlays: Dictionary = {}
 
+## Standalone dev scenes (asset browser, map editor) carry no gameplay fog; set
+## false to keep the world-space fog/shroud plane hidden regardless of rules.
+var overlay_enabled := true
+
 ## One deferred _sync_overlays() per frame while any overlay is unstaged, so K
 ## unstaged crystals schedule linear work, not K deferred sweeps per node.
 const MAX_OVERLAY_RESYNC_TICKS: int = 3
@@ -645,13 +649,26 @@ func _set_plane_visible(visible: bool) -> void:
     # The fog plane carries the soft shroud band as well as the fog dim, so it
     # renders when either toggle is on (default state is shroud on / fog off).
     var overlay_visible: bool = (
-        visible and (ShroudSystem.is_shroud_enabled() or ShroudSystem.is_fog_enabled())
+        overlay_enabled
+        and visible
+        and (ShroudSystem.is_shroud_enabled() or ShroudSystem.is_fog_enabled())
     )
     if is_instance_valid(_plane) and _plane.visible != overlay_visible:
         _plane.visible = overlay_visible
-    var opaque_visible: bool = visible and ShroudSystem.is_shroud_enabled()
+    var opaque_visible: bool = overlay_enabled and visible and ShroudSystem.is_shroud_enabled()
     if is_instance_valid(_plane_opaque) and _plane_opaque.visible != opaque_visible:
         _plane_opaque.visible = opaque_visible
+
+
+## Hide or restore the world-space fog/shroud overlay. Standalone preview scenes
+## call this with `false` so gameplay fog never drapes over the inspected asset;
+## `true` rebuilds it from the current shroud state.
+func set_overlay_enabled(enabled: bool) -> void:
+    overlay_enabled = enabled
+    if not enabled:
+        _set_plane_visible(false)
+        return
+    _on_shroud_changed(PackedInt32Array())
 
 
 func _on_node_added(node: Node) -> void:
