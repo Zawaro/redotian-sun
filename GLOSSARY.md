@@ -197,6 +197,40 @@ Full dictionaries: scripts/data/*.gd. Only ambiguous pairs listed here.
 | `tech_level` | Build availability gate; -1 = always available. | scripts/data/EntityData.gd |
 | `powered` vs `is_online` | Data-level "requires power to function" flag (`EntityData.powered`, copied to PowerComponent) vs runtime state (`PowerComponent.is_online`, driven by the grid). Deliberately different names — never write `is_powered()` for the runtime state. | scripts/data/EntityData.gd · [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
 
+## Cross-Title Systems (unified-engine target)
+
+Terms surfacing in multi-title research (TS/FS/RA2/YR). No authoritative spec exists yet for
+most; anchors point to the research set until an OpenSpec change lands.
+
+| Term | Meaning | Where |
+|------|---------|-------|
+| side | Faction axis in the house system (TS/FS: GDI/Nod; RA2: Allied/Soviet; YR adds ThirdSide). Sides group countries/houses. | [capability-matrix](docs/capability-matrix.md) |
+| country | RA2/YR sub-faction (e.g. Britain, Korea, YuriCountry) with unique units and bonuses; gated by `RequiredHouses`/`ForbiddenHouses`, bound to art/palette/voice by list index. | [red-alert-2](docs/titles/red-alert-2.md) |
+| superweapon | Building-mounted charged global power (Ion Cannon, Nuke, Chronosphere, Iron Curtain, Weather Storm, Psychic Dominator). Needs a generic charge/target/fire framework. | [capability-matrix](docs/capability-matrix.md) |
+| support power | Charged power with no (or shared) host: Spy Plane, Psychic Reveal, Paradrop, Force Shield, Mutation, Domination. | [yuris-revenge](docs/titles/yuris-revenge.md) |
+| superweapon charge | Per-player recharge timer; completed superweapons reveal their tile and share the timer with all players (YR contract). | [yuris-revenge](docs/titles/yuris-revenge.md) |
+| mind control | Ownership override targeting a unit: temporary `MindControl` warhead control (capacity = weapon `Damage`), or permanent `PsychicDominator` capture. Needs a control-link manager. | [yuris-revenge](docs/titles/yuris-revenge.md) |
+| garrison | Occupancy subtype: infantry/vehicles inside a building or bunker, with stat bonuses and optional fire-from-inside / power hook. | [yuris-revenge](docs/titles/yuris-revenge.md) |
+| fire-from-transport | Passengers firing their own weapons from inside a transport (Battle Fortress) — separated from RA2's IFV passenger-driven weapon modes in the current `TransportComponent`. | [ra2](docs/titles/red-alert-2.md) |
+| staged weapon / gattling stage | Multi-stage spin-up weapons (`IsGattling`, `WeaponStages`, `StageX`, `RateUp`/`RateDown`); odd stages AG, even AA. | [yuris-revenge](docs/titles/yuris-revenge.md) |
+| prism support | RA2 weapon effect where supporting prism structures combine beams into one stronger shot. | [ra2](docs/titles/red-alert-2.md) |
+| aura | Per-tick radius effect (heal, repair, sensor, reveal, mind control, slow/status) attached to an entity. | [capability-matrix](docs/capability-matrix.md) |
+| status effect | Timed, serializable effect on an entity: EMP disable, cloak, berserk (allegiance override), poison/mutation, invulnerability. | [capability-matrix](docs/capability-matrix.md) |
+| cloak / stealth | Hidden visual+targeting state with `Cloakable`/`CloakingSpeed`; countered by `Sensors` units/structures and attack dogs. | [ts-firestorm](docs/research/_raw/ts-firestorm.md) |
+| sensor | Detection capability that reveals cloaked/subterranean units within range. | [ts-firestorm](docs/research/_raw/ts-firestorm.md) |
+| gap generator / radar blackout | Bubble that hides friendly units from enemy radar/shroud and blacks out the enemy minimap in radius. | [ra2](docs/titles/red-alert-2.md) |
+| spy infiltration | Spy entering an enemy building for an effect (blackout, money steal, reveal, sabotage, promotion). Distinct from engineer capture. | [ra2](docs/titles/red-alert-2.md) |
+| crate | Pickup placed on the map granting money, heal, unit, reveal, firepower, armor, speed, or promotion. | [ts-firestorm](docs/research/_raw/ts-firestorm.md) |
+| trigger / event / action | Mission-scripting primitive: condition (time, cell entry, destroyed, global) → action (reinforce, reveal, message, win/lose, ownership change). | [capability-matrix](docs/capability-matrix.md) |
+| taskforce / teamtype / scripttype | AI/scripted team definitions (members, behavior flags, action lists) used by campaigns and skirmish AI. | [capability-matrix](docs/capability-matrix.md) |
+| reinforcement | Trigger-driven spawn of units via land/sea/air/drop pod/paradrop entry. | [ts-firestorm](docs/research/_raw/ts-firestorm.md) |
+| ion storm | TS/FS dynamic weather: lightning damage, disables radar/superweapons while active, reveals map. | [ts-firestorm](docs/research/_raw/ts-firestorm.md) |
+| vein / veinhole | TS/FS growing tendril resource-hazard; veins around a Veinhole; distinct from tiberium crystals. | [ts-firestorm](docs/research/_raw/ts-firestorm.md) |
+| visceroid | TS/FS tiberium lifeform; small visceroids merge into large ones; infantry can mutate. | [ts-firestorm](docs/research/_raw/ts-firestorm.md) |
+| chrono / teleport locomotor | RA2/YR instant relocation with distance-scaled delay (Chronosphere, Chrono Legionnaire, Chrono Miner). | [ra2](docs/titles/red-alert-2.md) |
+| game mode | Skirmish/multiplayer ruleset token (`GameModes=`); YR adds Team Alliance and a `cooperative` token. | [yuris-revenge](docs/titles/yuris-revenge.md) |
+| ownership override | Runtime change of an entity's controlling player (mind control, capture); the control-link graph is serializable so it survives save/load. | [gap-analysis](docs/gap-analysis.md) |
+
 ## Undecided
 
 User-owned choices — do **not** guess these when writing specs; ask, then record
@@ -205,3 +239,14 @@ the decision here.
 - `archetype` vs `template` vs `type` — no decision yet. Note: `archetype`
   appears nowhere in code or specs today; `template` currently means only TS
   `.tem` terrain templates ([isotem-tooling](openspec/specs/isotem-tooling/spec.md)).
+- **Isometric camera ratio** — keep the current 45°-yaw orthographic view (GLOSSARY
+  `isometric view`) or move to a true 2:1 dimetric projection? Affects model authoring
+  and all screen↔world math. No decision yet — see
+  [unified-engine architecture](docs/architecture/unified-engine.md#4-isometric-3d-rendering-target).
+- **Multi-title packaging** — expansion titles as delta data sets over a base (recommended in
+  the research) vs merged standalone rule sets. No decision yet.
+- **Target balance patch level** — for YR the final official patch is **1.001** (some data
+  mirrors capture 1.000 and several costs differ). Use 1.001 as the default target unless
+  decided otherwise. For TS/FS and RA2 the final patch is the default.
+- **Shroud parity** — the original TS shroud is local-player-only, not per-house; the current
+  `ShroudSystem` is per-player. Keep per-player (superset) or match original parity? No decision.

@@ -5,9 +5,10 @@ This document outlines the project planning and roadmap for the Redotian Sun Tib
 
 ## Current Status
 - **Engine Version**: Redot 26.2 LTS
-- **Project State**: Core Systems complete — mission layer (GDI Mission 01) is next
-- **Last Updated**: 2026-08-08
-- **Live status**: See `00-0_project_status.md` for a verified system-by-system breakdown
+- **Project State**: Core Tiberian Sun systems complete — mission layer + multi-title expansion next
+- **Last Updated**: 2026-09-14
+- **Live status**: see `00-0_project_status.md` (verified breakdown) and `docs/capability-matrix.md` (feature × title × status)
+- **Multi-title goal**: TS + Firestorm + RA2 + YR from one data-driven engine — `plans/12-0_unified_multi_title_expansion.md`
 
 ---
 
@@ -86,8 +87,8 @@ The composition-based entity system is a prerequisite for most game systems. All
 ### 2.2 Unit Movement & Commands
 - [x] Implement move command with path following
 - [x] Create attack command system (left-click enemy → chase → fire)
-- [ ] Build patrol and gather commands (gather exists via HarvestComponent; patrol missing)
-- [ ] Add formation system (line, column, spread — static offsets only, no FormationComponent)
+- [ ] Build patrol command (gather exists via HarvestComponent; patrol missing)
+- [ ] Add formation system (static offsets only, no FormationComponent)
 - [x] Test unit pathing in various terrains
 
 ---
@@ -98,7 +99,7 @@ The composition-based entity system is a prerequisite for most game systems. All
 - [x] Define damage types via WarheadData resources (27 .tres)
 - [x] Create armor types via GlobalRules.armor_types (5 ArmorType .tres)
 - [x] Build WeaponData resource system (44 .tres, unlimited weapons per entity)
-- [x] Implement projectile or hitscan systems via CombatComponent (hitscan MVP; runtime projectiles = Issue #78 pending)
+- [x] Implement projectile or hitscan systems via CombatComponent (hitscan + runtime projectiles shipped; splash/AoE missing)
 - [ ] Add unit health/regeneration mechanics (HealthComponent exists; regen not implemented)
 - **Note**: Weapons defined in resources/weapons/ .tres files
 
@@ -115,16 +116,17 @@ The composition-based entity system is a prerequisite for most game systems. All
 ## Phase 4: Fog of War & Vision (Priority: Medium)
 
 ### 4.1 Vision System
-- [ ] Design fog of war layers (explored, unexplored, hidden)
-- [ ] Implement vision radius per unit/structure
-- [ ] Build line-of-sight calculations against terrain/buildings
-- [ ] Add dynamic fog updates on movement/death events
-- [ ] Create minimap integration
+- [x] Design fog of war layers (explored, unexplored, hidden — ShroudSystem shroud/fog grids)
+- [x] Implement vision radius per unit/structure (VisionComponent revealers)
+- [x] Build line-of-sight calculations against terrain/buildings (height-aware shadowcasting)
+- [x] Add dynamic fog updates on movement/death events (FogRenderer + ghosts)
+- [x] Create minimap integration (Minimap + radar gating)
+- [ ] Cloak/stealth + sensor detection (schema-only today)
 
 ### 4.2 Map Exploration
 - [ ] Track explored map percentage for win conditions
-- [ ] Implement vision sharing between units/structures
-- [ ] Add reveals and blackouts mechanics
+- [x] Implement vision sharing between units/structures (ref-counted revealers + ally sharing)
+- [x] Add reveals mechanics (temporary area reveals); blackout/gap generator still missing
 - [ ] Test with various unit compositions
 
 ---
@@ -136,15 +138,15 @@ The composition-based entity system is a prerequisite for most game systems. All
 - [x] Implement production queue display with angular progress
 - [x] Implement cursor system with per-unit resolution (GitHub Issue #70)
 - [x] Implement centralized input routing — InputSettings autoload, camera actions, edge scroll toggle
-- [ ] Implement resource HUD (credits done; Tiberium, income, power missing)
-- [ ] Add minimap with unit markers (only editor minimap exists)
+- [x] Implement resource HUD (credits + power bar done; Tiberium/income/multi-resource HUD partial)
+- [x] Add minimap with unit markers (gameplay Minimap + radar gating done)
 - [ ] Create selection panel for selected units (health bars exist; stats/actions panel missing)
 
 ### 5.2 Game Management
-- [ ] Implement pause/resume functionality
-- [ ] Add save/load system for game state
-- [ ] Create settings/configuration screens
-- [ ] Build main menu and faction selection (MainMenu01 visual only — only "Exit" works)
+- [x] Implement pause/resume functionality (PauseMenu + pause-system spec)
+- [ ] Add save/load system for game state (only editor JSON today)
+- [ ] Create settings/configuration screens (headless InputSettings only)
+- [ ] Build main menu and faction selection (MainMenu01 loads TestMap02; full flow missing)
 - [ ] Add tutorial or training mode
 
 ---
@@ -183,7 +185,7 @@ The composition-based entity system is a prerequisite for most game systems. All
 ### 7.2 Unit Roster
 - [x] Implement infantry units (EntityData .tres files — 26)
 - [x] Create vehicle units (EntityData .tres files — 38)
-- [x] Build aircraft units if applicable (8, no weapons populated)
+- [x] Build aircraft units if applicable (8; weapons populated on fighters/bombers)
 - [ ] Add hero/special units with unique abilities
 - [ ] Test all unit interactions and counters
 - **Note**: All units defined in resources/entities/ .tres files (~408 total)
@@ -228,6 +230,23 @@ The composition-based entity system is a prerequisite for most game systems. All
 
 ---
 
+## Phase 12: Unified Multi-Title Expansion (TS + FS + RA2 + YR)
+
+**Status:** research + gap plan complete — see `plans/12-0_unified_multi_title_expansion.md`
+and `docs/`.
+
+- [x] Deep research: current engine state + TS/FS/RA2/YR feature inventories (`docs/research/_raw/`)
+- [x] Unified capability matrix + gap analysis (`docs/capability-matrix.md`, `docs/gap-analysis.md`)
+- [x] Target architecture: generic engine vs per-title data (`docs/architecture/unified-engine.md`)
+- [ ] Lock generic contracts as specs (armor list, projectile, status/aura, superweapon, house/country, mission, theater)
+- [ ] Build Tier-2 generic subsystems (status/aura, superweapon framework, control-link, garrison, weapon state machine, house registry, naval/air, economy hooks, skirmish AI, save/load)
+- [ ] Author `games/fs` (delta over `ts`)
+- [ ] Author `games/ra2` (independent base — stresses TS assumptions)
+- [ ] Author `games/yr` (delta over `ra2`)
+- [ ] Multiplayer/netcode (deferred)
+
+---
+
 ## Resources & Dependencies
 
 - **Engine**: Redot Engine 26.2 LTS
@@ -241,11 +260,14 @@ The composition-based entity system is a prerequisite for most game systems. All
 ## Next Steps
 
 ### Next Milestone: GDI Mission 01 (Reinforce Phoenix Base)
-Two-tier milestone (GitHub milestone #1). MVP tier = playable build & destroy loop; completionist tier = `milestone-tier2` labeled. Umbrella: #260. See `00-0_project_status.md` (GDI Mission 01 section) and the issue series #226–258 + #260–268.
-- **MVP critical path:** #260 (umbrella), #262 (menu→map), #261 (guard AI), #236 (mission boot), #237 (trigger engine), #240 (objectives/win-lose), #247 (entity placement), #264 (attack-move)
-- **MVP map:** #226–#234 (importer, land-type paint, water, cliffs, bridges, buildout, waypoints)
-- **MVP defense/polish:** #245 (Component Tower defense), #246 (radar), #255 (music), #258 (EVA)
-- **New gap issues added 2026-08-08:** #260 umbrella, #261 guard/auto-engage AI, #262 menu→gameplay, #263 pause, #264 attack-move, #265 Special tab superweapons, #266 credit SFX, #267 aircraft & helipad, #268 CI pin 26.2
+Authenticity-first milestone (GitHub milestone #1, 44 issues). Re-scoped 2026-09-14 — scripted triggers/teams/reinforcements/reveals/bridge-destruction are required; final art is a polish phase. Umbrella: #260. Full plan: `plans/13-0_gdi-mission-01_rescope.md`; status: `00-0_project_status.md`.
+- **Mission systems:** #236 boot, #237 trigger engine (+#414 CellTags), #238 teams, #239 reinforcements, #240 objectives/win-lose, #415 timer, #241 camera/reveal, #248 wiring, #244 meteor, #250 bridge destruction, #255 music, #258 EVA
+- **Map:** #226–#234 (importer, land-type paint, water, cliffs via #230, bridges, buildout, waypoints), #247 placement (+#412 houses, #413 roster gating)
+- **Combat/defense:** #261 guard AI, #264 attack + attack-move, #245 defense weapons, #416 building upgrades
+- **Pulled deps:** #203 theater, #267 aircraft, #321 impact FX, #323 AoE splash
+- **Done / close:** #246 radar, #242 audio, #243 SFX. **Superseded:** #199/#207 → #230. **Descoped:** #265 superweapon targeting
+- **Polish (`milestone-polish`):** #235 terrain art, #251 audio content, #252 overlay art, #253 entity art
+- **Corrections applied (#226 series):** 52 triggers (not 49), 20 TaskForces (not 22), 36 structures (not 26), 3 GAPOWR all upgraded, CellTags 49064–54064, 53 waypoints; the "~13 missing entities" premise was false
 
 ### Priority: First Blood Goal (Issue #84)
 End-to-end combat demo: deploy MCV → build base → train infantry → destroy enemy Con Yard. See `plans/10-1_first_blood_goal.md` for full breakdown.
@@ -275,4 +297,4 @@ End-to-end combat demo: deploy MCV → build base → train infantry → destroy
 
 ---
 
-*Last updated: 2026-08-08 — status report added, roadmap synced to codebase (see plans/00-0_project_status.md)*
+*Last updated: 2026-09-14 — multi-title research + docs set added; roadmap reconciled to verified codebase state (`plans/00-0_project_status.md`, `docs/`)*

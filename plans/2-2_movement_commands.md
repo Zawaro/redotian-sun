@@ -10,8 +10,8 @@ The movement system handles all unit navigation and command execution, translati
 | Command | Status | Notes |
 |---------|--------|-------|
 | Move | ✅ | Left-click ground → `SelectionManager.request_move` with formation offsets (clamped ±2-cell) |
-| Attack | ✅ | Left-click enemy → `CombatComponent.get_order_for_target` (ATTACK prio 30) → chase + fire |
-| Attack-Move (Shift+Right) | ❌ | Not implemented |
+| Attack | ✅ | Left-click/Ctrl+Left-click enemy → `CombatComponent.get_order_for_target` (ATTACK prio 30) → chase + fire. `Ctrl+Left` is the explicit attack: engage only that target, suppress auto-acquire en route (once #261 lands) |
+| Attack-Move (Ctrl+Shift+Left) | ❌ | Not implemented — #264 |
 | Patrol | ❌ | Not implemented |
 | Gather | ✅ | `HarvestComponent` HARVEST/ENTER orders + full dock loop |
 | Formation menu | ❌ | Static click-offset formation only; no `FormationComponent` |
@@ -22,7 +22,7 @@ Order pipeline (implemented): `MouseHandler` → `OrderSystem` (active generator
 
 Tests: `test_order_resolver.gd`, `test_unit_order_generator.gd`, `test_movement_controller_infantry.gd`, `test_selection_manager.gd`.
 
-**Note:** Right-click is deselect/cancel only (never issues orders); left-click is select/act. This doc's Phase 1 "right-button drag pan" and attack-on-right-click were superseded by the input-role convention.
+**Note:** Right-click is deselect/cancel only (never issues orders); left-click is select/act. This doc's Phase 1 "right-button drag pan" and attack-on-right-click were superseded by the input-role convention. Mouse model (2026-09-14): `Ctrl+Left` = explicit attack (target only), `Ctrl+Shift+Left` = attack-move, `Alt+Left` = force-move, `Shift` = queue.
 
 ---
 
@@ -31,12 +31,13 @@ Tests: `test_order_resolver.gd`, `test_unit_order_generator.gd`, `test_movement_
 ### 1. Command Types
 | Command | Input | Behavior |
 |---------|-------|----------|
-| Move | Left-click → destination (Phase 1 straight-line; Phase 2 navmesh path) | Pathfind to location, stop when arrived at target cell boundary |
-| Attack | Right-click on enemy unit/structure | Move to target and engage in combat |
-| Attack-Move | Shift+Right-click area | Move through area while attacking enemies within radius (Phase 3+) |
-| Patrol | Double-right-click or patrol button | Cycle between waypoints indefinitely (Phase 2+) |
-| Gather | Right-click resource node | Navigate to resource, collect, return to base (Phase 3+) |
-| Formation | Formation menu + position | Maintain specific formation during movement (Phase 3+) |
+| Move | Left-click → destination | Pathfind to location, stop when arrived |
+| Attack | Left-click enemy (or `Ctrl+Left` for explicit target-only) | Move to target and engage in combat; `Ctrl+Left` suppresses auto-acquire en route |
+| Attack-Move | `Ctrl+Shift+Left` area | Move through area while engaging enemies encountered, then resume (#264) |
+| Force-move | `Alt+Left` | Move ignoring enemies |
+| Patrol | Double-click or patrol button | Cycle between waypoints indefinitely (future) |
+| Gather | Right-click resource node (UI) | Navigate to resource, collect, return to base |
+| Formation | Formation menu + position | Maintain specific formation during movement (future) |
 
 ### 2. Path Following Execution — Phase 1 (Current)
 - **Kinematic movement**: `global_position += direction * speed * delta` — no physics bodies, units pass through static geometry without pushing (straight-line only; navmesh integration handles wall avoidance in Phase 2).

@@ -6,7 +6,7 @@ applyTo: '**'
 
 ## Project Overview
 
-Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Redot Engine 26.1 LTS** (Forward Plus). Fully 3D, preserving core RTS mechanics — base building, unit production, combat, fog of war, economy. Pure GDScript, no C#.
+Redotian Sun is a fan remake of *Command & Conquer: Tiberian Sun*, built in **Redot Engine 26.2 LTS** (Forward Plus). Fully 3D, preserving core RTS mechanics — base building, unit production, combat, fog of war, economy. Pure GDScript, no C#. The longer-term target is a unified, data-driven engine supporting Tiberian Sun, Firestorm, Red Alert 2, and Yuri's Revenge — see `docs/`.
 
 Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing specs/designs or using domain vocabulary; `openspec/specs/` stays authoritative. Propose glossary updates whenever a new term surfaces during planning or clarifying (including prompt-only terms); check **Undecided** there before coining names like `archetype`/`template`.
 
@@ -14,7 +14,7 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 
 | Detail | Value |
 |--------|-------|
-| Engine | Redot 26.1 LTS (Forward Plus renderer) |
+| Engine | Redot 26.2 LTS (Forward Plus renderer) |
 | Main scene | `scenes/MainScene.tscn` |
 | Viewport | 1920×1080, stretch mode = viewport |
 
@@ -55,7 +55,7 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 
 | Directory | Purpose |
 |-----------|---------|
-| `scripts/components/` | 23 reusable entity behaviors (Health, Hitbox, Select, Combat, Movement, Art, Factory, Harvest, Transport, Deploy, DockHost/Client/Unload, etc.) |
+| `scripts/components/` | 29 reusable entity behaviors (Health, Hitbox, Select, Combat, Movement, Art, Factory, Harvest, Transport, Deploy, DockHost/Client/Unload, Passenger, Power, Projectile, Radar, RallyPoint, Resource, ResourceTree, FreeUnit, Ice, Turret, Vision, Voice, SpecialAbility, etc.) |
 | `scripts/core/` | Engine-level systems: SelectionManager, BoundsSystem, Pathfinder, SpatialHash, TerrainSystem, TerrainRenderer, CellUtil, CellSubPositions, ResourceGrowthSystem, PlayerManager, DebugVisualizer, EntityMaskManager, PixelArtManager, SplineUtil |
 | `scripts/data/` | Resource type definitions: EntityData, WeaponData, ArtData, WarheadData, ProjectileData, ResourceType, GlobalRules, MapConfig, PlayerData, MapOverride, ActiveAnimData |
 | `scripts/entities/` | EntityFactory autoload — creates entities from data resources |
@@ -65,11 +65,12 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | `scripts/hud/` | Camera01, CameraController, MouseHandler |
 | `scripts/maps/` | Map-specific scripts (TestMap02, MapLoader) |
 | `scripts/ui/` | Main menu, Sidebar, FPS counter |
-| `scenes/` | 37 packed scenes: entities, components, maps, UI, environment, editor |
+| `scenes/` | 46 packed scenes: entities, components, maps, UI, environment, editor |
 | `games/` | Per-game content trees: `games/<id>/` holds that game's `game.tres` definition, `global_rules.tres`, data dirs (entities, art, audio, …) and owned assets under `games/<id>/assets/` |
 | `assets/` | Shared shell assets only (fonts, HDRI, placeholder cursors) — per-game assets live under `games/<id>/assets/` |
 | `shaders/` | Single UI shader (`MainMenuItemBlur01.gdshader`) |
-| `plans/` | 22 design docs organized by gameplay category (1-1 through 9-2, plus roadmap) |
+| `plans/` | 27 design docs organized by gameplay category (1-1 through 13-0, plus roadmap) |
+| `docs/` | Unified multi-title research: capability matrix, gap analysis, target architecture, per-title references |
 | `test/` | Custom test runner, `TestHelper` class, unit and integration tests |
 | `openspec/` | OpenSpec change management — all changes in `openspec/changes/` must be archived before merge (CI rejects PRs with open changes) |
 
