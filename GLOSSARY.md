@@ -111,6 +111,7 @@ are 45°-rotated rectangles, i.e. diamonds.
 | `overlay` | Editor-placed non-blocking map decoration (fences, bridges) sourced from `entities/overlay/`. Distinct from the fog *overlay* (revealed-shroud rendering). | games/ts/entities/overlay/ |
 | `smudge` | Editor-placed cosmetic ground stain (burns/scorch) sourced from `entities/smudge/`. | games/ts/entities/smudge/ |
 | cell pin | Cliff-stamp overlay: cell → `TerrainObject` id. A pinned cell renders its pinned object, locks its vertices against height edits, and persists as `cell_pins`. Stamp + lock + delete via one mechanism. | [terrain-cell-pins](openspec/changes/editor-foundations/specs/terrain-cell-pins/spec.md) · scripts/core/TerrainSystem.gd |
+| asset browser | Standalone dev tool (`scenes/AssetBrowser.tscn`, Run Scene / F6) browsing a game's visual + audio assets by category, with a preview-owned camera (zoom + free/auto/90° rotation). Non-visual data categories are out of scope (#410). | [asset-browser](openspec/changes/add-asset-browser/specs/asset-browser/spec.md) · #409 |
 
 ## Resources & Economy
 
