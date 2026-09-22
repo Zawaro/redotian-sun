@@ -3,13 +3,20 @@ extends Control
 # Pause menu — ESC toggles a global pause; the menu stays interactive while
 # the rest of the tree is paused (process_mode = ALWAYS).
 
+## Emitted when the player requests the mission briefing. MapBase01's briefing
+## dialog connects to this; the pause menu never talks to the dialog directly.
+signal briefing_requested
+
 @onready var resume_button: Button = %ResumeButton
+@onready var briefing_button: Button = %BriefingButton
 @onready var quit_button: Button = %QuitButton
 
 
 func _ready() -> void:
     resume_button.pressed.connect(_on_resume_pressed)
+    briefing_button.pressed.connect(_on_briefing_pressed)
     quit_button.pressed.connect(_on_quit_pressed)
+    _update_briefing_button()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -36,6 +43,17 @@ func _esc_busy() -> bool:
 func _toggle_pause() -> void:
     get_tree().paused = not get_tree().paused
     visible = get_tree().paused
+    if visible:
+        _update_briefing_button()
+
+
+## The Briefing button is only meaningful with an active mission.
+func _update_briefing_button() -> void:
+    briefing_button.disabled = GameContext.current_mission == null
+
+
+func _on_briefing_pressed() -> void:
+    briefing_requested.emit()
 
 
 func _on_resume_pressed() -> void:

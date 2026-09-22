@@ -46,11 +46,32 @@ var _active_players_by_id: Dictionary = {}
 var _active_players_by_bus: Dictionary = {}
 var _last_played_at: Dictionary = {}
 
+## EVA "insufficient funds" line — announced when a build queue stalls for want
+## of credits. Inert until an audio asset with this id is imported; the call
+## below returns silently while it is absent.
+const EVA_INSUFFICIENT_FUNDS: String = "EVA_INSUFFICIENT_FUNDS"
+
 
 func _ready() -> void:
     _ensure_buses()
     GameContext.game_changed.connect(_on_game_changed)
     _load_from_context()
+    var pm := get_node_or_null("/root/ProductionManager")
+    if pm:
+        pm.production_stalled.connect(_on_production_stalled)
+
+
+## Announce a stalled build queue. Local player only, suppressed by the no-cost
+## cheat, and silent (no warning) while the EVA asset is not yet imported.
+func _on_production_stalled(queue_key: String) -> void:
+    if int(queue_key.get_slice(":", 0)) != PlayerManager.get_local_player_id():
+        return
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    if debug_menu and debug_menu.no_cost:
+        return
+    if get_audio_data(EVA_INSUFFICIENT_FUNDS) == null:
+        return
+    play_sound(EVA_INSUFFICIENT_FUNDS)
 
 
 ## Registers audio data from the active game's layer roots. Pulled at _ready

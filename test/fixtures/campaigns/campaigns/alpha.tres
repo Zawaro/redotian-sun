@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Campaign" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/Campaign.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "alpha"
+display_name = "Alpha Campaign"
+faction_id = "GDI"
+missions = PackedStringArray("alpha01")

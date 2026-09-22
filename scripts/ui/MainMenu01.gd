@@ -3,7 +3,7 @@ extends Control
 # Called when the node enters the scene tree for the first time.
 # Main menu controller – handles button clicks and exit logic
 
-const GAMEPLAY_MAP_SCENE: String = "res://scenes/maps/TestMap02.tscn"
+@onready var _campaign_dialog: CampaignDialog = $CampaignDialog
 
 
 func _input(event):
@@ -37,7 +37,10 @@ func _handle_click(button_text: String) -> void:
         "Exit":
             get_tree().quit()
         "New Campaign":
-            get_tree().call_deferred("change_scene_to_file", GAMEPLAY_MAP_SCENE)
+            if is_instance_valid(_campaign_dialog):
+                _campaign_dialog.open()
+            else:
+                push_error("MainMenu01: CampaignDialog node is missing")
         _:
             # Placeholder for other buttons – currently just log
             print("Clicked button: ", button_text)

@@ -60,6 +60,21 @@ func test_play_sound_unknown_id_silent():
     TestHelper.assert_eq(_am.get_child_count(), before, "unknown id spawns no player")
 
 
+## EVA stall hook: with the EVA asset not yet imported the announcer stays silent
+## (no player spawned, no crash) for the local player.
+func test_production_stall_announcer_silent_without_asset():
+    if not _am:
+        return
+    if _am.get_audio_data(_am.EVA_INSUFFICIENT_FUNDS) != null:
+        TestHelper.fail("test expects the EVA_INSUFFICIENT_FUNDS asset to be absent")
+        return
+    var before := _am.get_child_count()
+    _am._on_production_stalled("%d:InfantryType" % PlayerManager.get_local_player_id())
+    TestHelper.assert_eq(
+        _am.get_child_count(), before, "no EVA asset -> stall announcement is silent"
+    )
+
+
 func test_play_voice_empty_event_silent():
     if not _am:
         return

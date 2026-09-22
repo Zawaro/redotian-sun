@@ -158,6 +158,8 @@ func _inject_autoloads(obj: Object) -> void:
             obj.set("_pm", child)
         elif child_name == "FactionCatalog":
             obj.set("_fc", child)
+        elif child_name == "CampaignCatalog":
+            obj.set("_cc", child)
         elif child_name == "AudioManager":
             obj.set("_am", child)
         elif child_name == "ShroudSystem":

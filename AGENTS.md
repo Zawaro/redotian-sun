@@ -18,12 +18,13 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | Main scene | `scenes/MainScene.tscn` |
 | Viewport | 1920×1080, stretch mode = viewport |
 
-### Autoloads (28 singletons, all registered in `project.godot`)
+### Autoloads (29 singletons, all registered in `project.godot`)
 
 | Singleton | Script | Purpose |
 |-----------|--------|---------|
 | `GameContext` | `scripts/core/GameContext.gd` | Active game resolution (first autoload), select/unload lifecycle, per-game rules |
 | `FactionCatalog` | `scripts/core/FactionCatalog.gd` | Loads the active game's faction (house) roster from `factions/` data sets |
+| `CampaignCatalog` | `scripts/core/CampaignCatalog.gd` | Loads the active game's campaign/mission content from `campaigns/` and `missions/` |
 | `PlayerManager` | `scripts/core/PlayerManager.gd` | Per-player identity, teams, enemy checks |
 | `InputSettings` | `scripts/core/InputSettings.gd` | Input configuration singleton |
 | `SelectionManager` | `scripts/core/SelectionManager.gd` | Entity selection tracking |
@@ -208,7 +209,7 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 - **PR titles**: Conventional prefix + issue number in parentheses — `fix: building ignores moving entities (#59)`, `feat: async model loading (#60)`. The branch already has the number, but PR title must include it too.
 - **Naming**: PascalCase for classes/scenes, snake_case for vars/funcs. Scene files mirror script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
-- **Autoloads**: 28 autoloads registered in `project.godot`; `GameContext` must stay **first** (consumers pull the active game in their own `_ready()`). Add new singletons via project settings, not hardcoded references.
+- **Autoloads**: 29 autoloads registered in `project.godot`; `GameContext` must stay **first** (consumers pull the active game in their own `_ready()`). Add new singletons via project settings, not hardcoded references.
 - **Input roles**: Right-click = deselect / cancel only (clears selection, exits modes, cancels production). Left-click = select / act (selects entities, issues orders, starts production). Never issue unit commands on right-click.
 - **UID files**: Redot generates `.uid` files (e.g., `MyScript.gd.uid`) alongside scripts and scenes. These are valid parts of the codebase and MUST be committed. Always `git add` both the script and its `.uid` file together.
 

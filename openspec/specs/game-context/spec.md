@@ -3,9 +3,7 @@
 ## Purpose
 
 Defines how the active game is resolved and driven: the GameDefinition resource shape, GameContext as the first autoload, the --game flag -> persisted setting -> default resolution order, the select/unload lifecycle through game_changed, per-game rules access and validation, and choice persistence.
-
 ## Requirements
-
 ### Requirement: GameDefinition resource
 The system SHALL provide a `GameDefinition` resource class (`scripts/data/GameDefinition.gd`) with fields: `id: String`, `display_name: String`, `rules: GlobalRules` (the game's full rules resource — no override-merge machinery), `data_sets: PackedStringArray` (ordered layer roots consumed by EntityFactory, TerrainCatalog and AudioManager), and `maps_dir: String`. Each game SHALL have exactly one definition stored at `res://games/<id>/game.tres`, and the `id` SHALL match its directory name.
 
@@ -107,3 +105,23 @@ For every discovered GameDefinition, the system SHALL support an in-process boot
 #### Scenario: Each present game boots
 - **WHEN** the smoke test iterates `list_games()` and selects each game in turn (restoring `ts` after)
 - **THEN** every selection ends with a non-empty EntityFactory roster, valid rules, and a non-empty TerrainCatalog theater registry
+
+### Requirement: Active mission tracking
+GameContext SHALL expose `current_mission: Mission` and `start_mission(id: String)`. Starting a
+mission SHALL resolve the mission through `CampaignCatalog`, store it as `current_mission`, and
+emit a `mission_started` signal. An unknown mission id SHALL log a `push_error` and leave the
+current mission unchanged. Selecting or unloading a game SHALL clear `current_mission`.
+
+#### Scenario: Start a known mission
+- **WHEN** `start_mission("gdi01")` is called and that mission is registered
+- **THEN** `current_mission.id` is `"gdi01"` and exactly one `mission_started` is emitted
+
+#### Scenario: Unknown mission refused
+- **WHEN** `start_mission("nope")` is called
+- **THEN** an error names `"nope"`, no `mission_started` is emitted, and `current_mission` is
+  unchanged
+
+#### Scenario: Game switch clears the mission
+- **WHEN** a different game is selected while a mission is active
+- **THEN** `current_mission` becomes `null`
+

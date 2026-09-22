@@ -9,6 +9,7 @@ extends Node
 ## user://settings.cfg → default ("ts").
 
 signal game_changed(def: GameDefinition)
+signal mission_started(mission: Mission)
 
 const GAMES_ROOT: String = "res://games"
 const DEFAULT_GAME_ID: String = "ts"
@@ -24,6 +25,10 @@ var current: GameDefinition:
 var rules: GlobalRules:
     get:
         return _current.rules if _current else null
+
+## Active mission, or null when no mission is running. Set only through
+## start_mission; cleared whenever the game changes.
+var current_mission: Mission = null
 
 var _defs: Dictionary = {}
 var _current: GameDefinition = null
@@ -66,6 +71,7 @@ func list_games() -> Array[GameDefinition]:
 ## select_game("") unloads — consumers reset without re-registering.
 ## Unknown or invalid ids are refused and keep the current game.
 func select_game(id: String) -> void:
+    current_mission = null
     if id.is_empty():
         _current = null
         game_changed.emit(null)
@@ -80,6 +86,26 @@ func select_game(id: String) -> void:
     game_changed.emit(def)
 
 
+## Starts a mission by id: resolves it through CampaignCatalog, stores it as
+## current_mission, and emits mission_started. Unknown ids are refused and the
+## current mission is left unchanged. start_mission("") clears the mission
+## without emitting.
+func start_mission(id: String) -> void:
+    if id.is_empty():
+        current_mission = null
+        return
+    var catalog := get_node_or_null("/root/CampaignCatalog")
+    if catalog == null:
+        push_error("GameContext: CampaignCatalog not ready; cannot start mission '%s'" % id)
+        return
+    var mission: Mission = catalog.get_mission(id)
+    if mission == null:
+        push_error("GameContext: unknown mission id '%s'" % id)
+        return
+    current_mission = mission
+    mission_started.emit(mission)
+
+
 ## Persists the game choice to [game] id in the settings file, preserving all
 ## other sections and keys.
 func save_game_choice(id: String) -> void:
@@ -91,10 +117,21 @@ func save_game_choice(id: String) -> void:
         push_warning("GameContext: failed to save game choice to %s" % _config_path)
 
 
-## Extracts the value following a --game flag, or "" when absent.
+## Extracts the value following a `--game` flag, or "" when absent.
 ## Static for testability — process args cannot be changed at runtime.
 static func extract_flag_id(args: PackedStringArray) -> String:
-    var idx := args.find("--game")
+    return extract_flag_value(args, "--game")
+
+
+## Extracts the value following a `--mission` flag, or "" when absent.
+static func extract_mission_id(args: PackedStringArray) -> String:
+    return extract_flag_value(args, "--mission")
+
+
+## Extracts the value following `flag`, or "" when the flag is absent or
+## trailing. Static for testability.
+static func extract_flag_value(args: PackedStringArray, flag: String) -> String:
+    var idx := args.find(flag)
     if idx == -1 or idx + 1 >= args.size():
         return ""
     return args[idx + 1]

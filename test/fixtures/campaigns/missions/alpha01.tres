@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Mission" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/Mission.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "alpha01"
+display_name = "Alpha Mission"
+map_path = ""
+show_briefing = false
+starting_credits = 7

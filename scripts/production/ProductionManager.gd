@@ -8,9 +8,16 @@ signal production_progress(queue_key: String, progress: float)
 signal production_completed(queue_key: String, entity_data: EntityData)
 signal production_cancelled(queue_key: String)
 signal production_paused(queue_key: String)
+## Edge-triggered per queue: emitted once when a queue runs out of credits
+## (stalls) and once when it can pay again. The EVA "insufficient funds" trigger.
+signal production_stalled(queue_key: String)
+signal production_resumed(queue_key: String)
 
 ## queue_key → Array[ProductionQueue]
 var _queues: Dictionary = {}
+
+## queue_key → bool, whether the active item is currently starved of funds.
+var _stalled: Dictionary = {}
 
 ## queue_key → currently building item index
 var _active_index: Dictionary = {}
@@ -77,11 +84,6 @@ func start_production(player_id: int, entity_data: EntityData, count: int = 1) -
     if ps and not ps.can_build(player_id, entity_data):
         return false
 
-    # Check if player can afford (deduction happens gradually during production)
-    var em := get_node("/root/EconomyManager") as EconomyManager
-    if not em or not em.can_afford(player_id, entity_data.cost):
-        return false
-
     var key := _queue_key(player_id, queue_type)
     if not _queues.has(key):
         _queues[key] = []
@@ -137,6 +139,7 @@ func cancel_production(player_id: int, queue_key: String, index: int, count: int
         _active_index.erase(queue_key)
         _deduction_accums.erase(queue_key)
         _waiting_for_placement.erase(queue_key)
+        _stalled.erase(queue_key)
 
     production_cancelled.emit(queue_key)
 
@@ -187,6 +190,8 @@ func get_queue_key(player_id: int, factory_type: String) -> String:
 
 
 func _process(delta: float) -> void:
+    var debug_menu := get_tree().get_first_node_in_group("debug_menu")
+    var no_build_time: bool = debug_menu != null and debug_menu.no_build_time
     for key in _queues.keys():
         # Don't produce next item while a building is waiting to be placed
         if _waiting_for_placement.get(key, false):
@@ -200,9 +205,11 @@ func _process(delta: float) -> void:
         if item.is_paused:
             continue
 
-        # Cheat mode: instant production
-        var debug_menu := get_tree().get_first_node_in_group("debug_menu")
-        if debug_menu and debug_menu.no_build_time:
+        var player_id := int(key.get_slice(":", 0))
+
+        # Cheat mode: instant production (still gated on payment inside
+        # _complete_item, so the no-cost path completes and a real-cost path stalls).
+        if no_build_time:
             _complete_item(key, active)
             continue
 
@@ -212,24 +219,53 @@ func _process(delta: float) -> void:
             _complete_item(key, active)
             continue
 
+        # Owed increment for this frame: cost * speed / build_time * delta, plus
+        # whatever fraction carried over. Only advance progress once the whole
+        # integer credit amount has actually been deducted.
+        var carried: float = _deduction_accums.get(key, 0.0)
+        var increment: float = float(item.entity_data.cost) * speed / build_time * delta
+        var owed := carried + increment
+        var to_pay := int(owed)
+        if to_pay > 0 and not _pay(player_id, item, to_pay):
+            # Starved: keep only the pending fraction — do NOT bank the un-earned
+            # increment, or the owed backlog grows every frame and a small
+            # deposit can never clear it (the queue would stay frozen forever).
+            _deduction_accums[key] = carried
+            _set_stalled(key, true)
+            continue
+        _deduction_accums[key] = owed - float(to_pay)
+        _set_stalled(key, false)
+
         item.progress += (delta * speed) / build_time
         production_progress.emit(key, item.progress)
 
-        # Gradual deduction: credits per second = cost / build_time * speed
-        var player_id := int(key.get_slice(":", 0))
-        var deduction_rate: float = float(item.entity_data.cost) * speed / build_time
-        var accum: float = _deduction_accums.get(key, 0.0) + deduction_rate * delta
-        var to_deduct := int(accum)
-        if to_deduct > 0:
-            var em := get_node("/root/EconomyManager") as EconomyManager
-            if em:
-                em.deduct(player_id, to_deduct, "prod:%s" % item.entity_data.id)
-                item.deducted += to_deduct
-                accum -= to_deduct
-        _deduction_accums[key] = accum
-
         if item.progress >= 1.0:
             _complete_item(key, active)
+
+
+## Deduct `amount` for `item` from the player's balance. Returns false when the
+## balance cannot cover it (caller stalls). With no EconomyManager (isolated
+## tests) the amount is booked as paid so queue logic stays testable.
+func _pay(player_id: int, item: ProductionQueue, amount: int) -> bool:
+    if amount <= 0:
+        return true
+    var em := get_node_or_null("/root/EconomyManager") as EconomyManager
+    if em and not em.deduct(player_id, amount, "prod:%s" % item.entity_data.id):
+        return false
+    item.deducted += amount
+    return true
+
+
+## Emit the stall/resume signal only on the transition edge, so a queue starved
+## for many frames emits exactly one `production_stalled`.
+func _set_stalled(key: String, stalled: bool) -> void:
+    if bool(_stalled.get(key, false)) == stalled:
+        return
+    _stalled[key] = stalled
+    if stalled:
+        production_stalled.emit(key)
+    else:
+        production_resumed.emit(key)
 
 
 func _complete_item(key: String, index: int) -> void:
@@ -239,14 +275,14 @@ func _complete_item(key: String, index: int) -> void:
     var item: ProductionQueue = queue[index] as ProductionQueue
     var entity_data: EntityData = item.entity_data
 
-    # Deduct any remaining balance (avoids floating-point rounding issues)
+    # Deduct the residual rounding. A failed payment withholds completion — the
+    # item stays queued and stalled until credits arrive.
     var player_id := int(key.get_slice(":", 0))
     var remaining := entity_data.cost - int(item.deducted)
-    if remaining > 0:
-        var em := get_node("/root/EconomyManager") as EconomyManager
-        if em:
-            em.deduct(player_id, remaining, "prod:%s" % entity_data.id)
-            item.deducted += remaining
+    if remaining > 0 and not _pay(player_id, item, remaining):
+        item.progress = 1.0
+        _set_stalled(key, true)
+        return
 
     # Capture what was paid before the count/reset block clears item.deducted,
     # so a cancelled ready building refunds the actual cost paid (not 0).
@@ -275,6 +311,7 @@ func _complete_item(key: String, index: int) -> void:
         _queues.erase(key)
         _active_index.erase(key)
         _deduction_accums.erase(key)
+        _stalled.erase(key)
         # Keep _waiting_for_placement until the building is actually placed
     else:
         var active: int = _active_index.get(key, 0)

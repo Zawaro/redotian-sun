@@ -1,9 +1,7 @@
 ## Purpose
 
 The pause system lets the player suspend an in-progress game: the ESC key toggles a global pause that freezes gameplay processing, a pause menu stays interactive while the rest of the tree is paused, and resuming with the mouse does not leak a gameplay command. ESC first belongs to active cancel-modes (build/sell/repair/debug-place).
-
 ## Requirements
-
 ### Requirement: Pause toggle via ESC
 The game SHALL provide a `pause` input action bound to the ESC key. Pressing ESC while gameplay is running SHALL pause the game and show the pause menu. Pressing ESC while already paused SHALL resume the game and hide the pause menu.
 
@@ -83,3 +81,17 @@ Resuming the game with the mouse MUST NOT issue a gameplay command (e.g. a move 
 #### Scenario: Next click issues orders normally
 - **WHEN** the player resumes the game and then clicks on the map
 - **THEN** that click issues orders as normal
+
+### Requirement: Briefing button in the pause menu
+The pause menu SHALL provide a "Briefing" button that opens the mission briefing dialog for the
+active mission. Activating it SHALL NOT resume the game — the game SHALL stay paused while the
+briefing is shown. When no mission is active the button SHALL be disabled.
+
+#### Scenario: Briefing opens without resuming
+- **WHEN** the player clicks Briefing while the game is paused during a mission
+- **THEN** the briefing dialog is shown and `get_tree().paused` remains `true`
+
+#### Scenario: Briefing disabled without a mission
+- **WHEN** the pause menu is open and no mission is active
+- **THEN** the Briefing button is disabled
+

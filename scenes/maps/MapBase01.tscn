@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://ce077cqvy5f6p"]
+[gd_scene load_steps=16 format=3 uid="uid://ce077cqvy5f6p"]
 
 [ext_resource type="PackedScene" uid="uid://b53rjho7dyptw" path="res://scenes/hud/Camera01.tscn" id="1_uw0ss"]
 [ext_resource type="PackedScene" uid="uid://c0blgqnig6dyh" path="res://scenes/hud/MouseHandler.tscn" id="2_cuur3"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/HoverTooltip.tscn" id="14_tooltip"]
 [ext_resource type="PackedScene" path="res://scenes/ui/CreditsLabel.tscn" id="15_credits"]
 [ext_resource type="PackedScene" path="res://scenes/ui/Minimap.tscn" id="16_minimap"]
+[ext_resource type="PackedScene" path="res://scenes/ui/BriefingDialog.tscn" id="17_briefing"]
 
 [node name="MapBase01" type="Node3D"]
 
@@ -45,6 +46,8 @@ script = ExtResource("11_light")
 [node name="DebugMenu" parent="HUD" instance=ExtResource("12_debug")]
 
 [node name="PauseMenu" parent="HUD" instance=ExtResource("13_pause")]
+
+[node name="BriefingDialog" parent="HUD" instance=ExtResource("17_briefing")]
 
 [node name="HoverTooltip" parent="HUD" instance=ExtResource("14_tooltip")]
 

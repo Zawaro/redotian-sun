@@ -178,6 +178,26 @@ func test_init_defaults_uses_first_two_playable_factions():
     _cleanup()
 
 
+## Mission start rebuilds the roster and must announce it so HUDs holding a
+## per-player value (the credit counter) can resync.
+func test_begin_mission_emits_players_changed():
+    if not _guard():
+        return
+    var mission := Mission.new()
+    mission.id = "signal_test"
+    mission.starting_credits = 123
+    var emitted := [0]
+    var handler := func() -> void: emitted[0] += 1
+    _pm.players_changed.connect(handler)
+    _pm.begin_mission(mission)
+    _pm.players_changed.disconnect(handler)
+    TestHelper.assert_eq(emitted[0], 1, "begin_mission emits players_changed exactly once")
+    TestHelper.assert_eq(
+        _pm.get_player_data(0).free_credits, 123, "mission starting credits applied to player 0"
+    )
+    _cleanup()
+
+
 func test_init_defaults_empty_registry_falls_back():
     if not _guard():
         return

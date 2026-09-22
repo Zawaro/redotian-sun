@@ -263,6 +263,12 @@ func _reposition_preview() -> void:
 
 
 func _get_camera_3d() -> Camera3D:
+    # The gameplay camera is the root viewport's current camera. The map is
+    # nested under MainScene/Gameplay, so it is not `current_scene` and a
+    # current_scene/Camera path would miss it.
+    var camera := get_viewport().get_camera_3d()
+    if camera:
+        return camera
     var root := get_tree().current_scene
     if not root:
         return null
