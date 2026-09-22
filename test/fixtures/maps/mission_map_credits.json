@@ -1,0 +1,23 @@
+{
+    "version": 4,
+    "grid_cells": 4,
+    "map_size": [4, 4],
+    "theater_id": "temperate",
+    "vertices": {},
+    "cells": {},
+    "entities": [],
+    "players": [
+        {
+            "player_id": 0,
+            "faction_id": "",
+            "team_id": 1,
+            "starting_credits": 200
+        },
+        {
+            "player_id": 1,
+            "faction_id": "",
+            "team_id": 2,
+            "starting_credits": 300
+        }
+    ]
+}

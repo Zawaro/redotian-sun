@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Mission" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/Mission.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "gdi01"
+display_name = "Reinforce Phoenix Base"
+map_path = "res://games/ts/maps/gdi01.json"
+briefing = "Commander, Nod forces have overrun our forward positions around Phoenix Base.\nReinforce the base and repel the assault before the defenses collapse.\n\nEstablish your construction yard, rebuild the perimeter, and push the Brotherhood back.\n\n(Placeholder briefing - final script pending.)"
+show_briefing = true
+player_house = "GDI"
+starting_credits = 5000
+home_cell = ""
+next_mission_id = ""

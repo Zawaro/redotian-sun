@@ -356,3 +356,23 @@ func test_build_mode_renders_no_line_grid() -> void:
     for child in _bm._preview.get_children():
         child.queue_free()
     _bm._grid_overlay = null
+
+
+## Regression: resolve the gameplay camera from the viewport. Mission boot nests
+## the map under MainScene/Gameplay, so it is no longer `current_scene` and the
+## old current_scene/Camera/Camera3D lookup returned null — breaking placement.
+func test_get_camera_3d_resolves_nested_viewport_camera() -> void:
+    if _bm == null:
+        TestHelper.fail("BuildingManager not injected")
+        return
+    var host := Node3D.new()
+    host.name = "NestedMapHost"
+    (Engine.get_main_loop() as SceneTree).root.add_child(host)
+    var camera := Camera3D.new()
+    camera.current = true
+    host.add_child(camera)
+    var resolved: Camera3D = _bm._get_camera_3d()
+    TestHelper.assert_true(
+        resolved == camera, "BuildingManager resolves a map camera nested under another node"
+    )
+    host.free()

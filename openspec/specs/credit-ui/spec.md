@@ -3,9 +3,7 @@
 ## Purpose
 
 Show the local player's credit balance in the gameplay HUD and give feedback as it changes: an animated counter that ticks up and down at direction-dependent cadences, plays income and spend sounds, and warns when funds are insufficient for the cheapest buildable item.
-
 ## Requirements
-
 ### Requirement: Credit display label in gameplay HUD
 The system SHALL display the current credit balance as an animated counter in a Label node at the top of the right-hand gameplay HUD column, above the minimap and above the Sidebar build panel. On a `credits_changed` signal for the local player, the counter SHALL store the new balance as its target and step a displayed value toward the target once per frame until the displayed value reaches the target; the Label text SHALL always show the displayed value. Step size SHALL be proportional to the remaining gap (remaining gap divided by a configurable divisor, clamped to a configurable minimum and maximum). Counting cadence SHALL be time-based and direction-dependent: counting up SHALL step at the full frame rate, counting down SHALL step at a configurable slower interval, so an equal-amount spend animation takes longer than its gain counterpart. When the displayed value equals the target, the counter SHALL be idle (per-frame processing disabled until the next credit change). Forced initialization — scene ready or balance resync — SHALL set the displayed value directly to the balance without animating.
 
@@ -62,3 +60,19 @@ The Label SHALL change color when the player's credit balance is below the cost 
 #### Scenario: Insufficient funds
 - **WHEN** `credits < min(cost of all buildable items)`
 - **THEN** the Label color turns red
+
+### Requirement: Credit display resyncs when the player roster is rebuilt
+`PlayerManager` SHALL emit `players_changed` after it (re)builds its player roster. The credit counter SHALL resync — via the forced, non-animated display path — to the local player's balance whenever `players_changed` fires, so a mission's starting credits replace any pre-mission balance shown while the map was loading.
+
+#### Scenario: Roster rebuild resyncs the HUD
+- **WHEN** `PlayerManager.begin_mission` rebuilds the roster with a new local-player balance
+- **THEN** `players_changed` emits and the credit label immediately shows the new balance, with no animation
+
+#### Scenario: Mission credits replace the stale default
+- **WHEN** the map enters the tree showing the autoload default balance and the mission then sets the local player's credits
+- **THEN** the label ends at the mission's balance, not the pre-mission default
+
+#### Scenario: Resync is silent
+- **WHEN** the counter resyncs from `players_changed`
+- **THEN** no tick sound plays
+

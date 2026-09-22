@@ -1,0 +1,14 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" uid="uid://ce077cqvy5f6p" path="res://scenes/maps/MapBase01.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/maps/MissionMap.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://daixg6wgj6fyd" path="res://scripts/core/TerrainRenderer.gd" id="3_terrain"]
+
+[node name="MissionMap" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+
+[node name="GroundPlane" parent="." index="0"]
+visible = false
+
+[node name="TerrainRenderer" type="Node" parent="." index="8"]
+script = ExtResource("3_terrain")

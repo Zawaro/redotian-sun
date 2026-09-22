@@ -1,5 +1,12 @@
-## ADDED Requirements
+# production-manager Specification
 
+## Purpose
+
+Manage per-player production queues keyed by `player_id:factory_type`: start, stack, and
+cancel items; fund builds gradually as they progress (stalling and resuming on insufficient
+funds); scale speed with factory count and power; route completed buildings to placement and
+completed units to a free factory.
+## Requirements
 ### Requirement: ProductionManager manages per-player production queues
 `ProductionManager` SHALL be an autoload singleton managing production queues keyed by `player_id:factory_type`. It emits `production_started`, `production_progress`, `production_completed`, `production_cancelled`, and `production_paused` signals.
 
@@ -8,34 +15,46 @@
 - **THEN** queue key is `"0:infantry"`
 
 ### Requirement: Start production
-`start_production(player_id, entity_data, count)` SHALL add items to the queue after verifying prerequisites (via PrerequisiteSystem) and affordability (via EconomyManager). Returns false if checks fail.
+`start_production(player_id, entity_data, count)` SHALL add items to the queue after verifying that the entity has a `buildable_queue` and that prerequisites are met (via PrerequisiteSystem). It SHALL NOT require the player to afford the full cost up front — production is funded as it builds. Returns false if the queue type is empty or prerequisites fail.
 
 #### Scenario: Start production — success
-- **WHEN** player has prerequisites, can afford, and queue is empty
+- **WHEN** player has prerequisites and queue is empty
 - **THEN** item is added, `production_started` emits, returns true
 
 #### Scenario: Start production — prerequisite fails
 - **WHEN** player lacks required buildings
 - **THEN** returns false, no item added
 
-#### Scenario: Start production — insufficient funds
-- **WHEN** player cannot afford the entity
-- **THEN** returns false
+#### Scenario: Start production — zero balance still queues
+- **WHEN** player has prerequisites but a zero credit balance
+- **THEN** the item is added and `production_started` emits; it stalls until credits arrive
 
 #### Scenario: Stack incrementing
 - **WHEN** last queue item is the same entity type
 - **THEN** count increments (up to MAX_STACK = 25) instead of adding new item
 
 ### Requirement: Gradual cost deduction
-During production, credits SHALL be deducted gradually over the build time at rate `cost / build_time * speed`. A fractional accumulator prevents rounding loss. On completion, any remaining balance is deducted.
+During production, credits SHALL be deducted gradually over the build time at rate `cost / build_time * speed`. A fractional accumulator prevents rounding loss. Progress SHALL advance only when the current increment's cost is successfully deducted; when `EconomyManager.deduct` returns false the queue SHALL stall — holding progress and the accumulator — and resume once funds are available. `item.deducted` SHALL increase only by amounts actually deducted. On completion, any remaining balance is deducted; if that deduction fails, completion SHALL be withheld until funds arrive.
 
 #### Scenario: Gradual deduction during production
-- **WHEN** a 1000-credit entity with 10s build time is producing
+- **WHEN** a 1000-credit entity with 10s build time is producing with sufficient funds
 - **THEN** approximately 100 credits are deducted per second
 
 #### Scenario: Remaining balance on completion
 - **WHEN** production completes and deducted total < cost
 - **THEN** the remaining balance is deducted to reach exact cost
+
+#### Scenario: Starved queue holds progress
+- **WHEN** the player's balance reaches zero mid-production
+- **THEN** progress stops advancing, no further credits are deducted, and the queue stalls
+
+#### Scenario: Failed deduction is not counted
+- **WHEN** an increment cannot be deducted
+- **THEN** `item.deducted` is unchanged and the accumulator keeps the owed fraction
+
+#### Scenario: Completion is withheld until paid
+- **WHEN** progress reaches 100% but the residual balance cannot be deducted
+- **THEN** the item does not complete, does not enter ready-to-place, and stalls
 
 ### Requirement: Production speed bonus from multiple factories
 Production speed SHALL be `1.0 + (factory_count - 1) * 0.25` where `factory_count` is the number of matching-type factories owned by the player. Primary factory is preferred for spawning.
@@ -145,3 +164,23 @@ ProductionManager SHALL multiply each queue's effective production speed by the 
 #### Scenario: Cache invalidated on grid change
 - **WHEN** `grid_state_changed(player_id)` emits
 - **THEN** cached speeds for that player's queues are dropped and recomputed on next lookup
+
+### Requirement: Production stalls and resumes on insufficient funds
+`ProductionManager` SHALL emit `production_stalled(queue_key)` once when a queue transitions from funded to starved, and `production_resumed(queue_key)` once when it transitions back. The queue key is `"player_id:factory_type"`. The signals SHALL be edge-triggered so a starved queue emits exactly one stall signal regardless of how many frames it remains starved.
+
+#### Scenario: Stall signal fires once
+- **WHEN** a producing queue's balance drops below the current increment
+- **THEN** `production_stalled` emits exactly once for that queue key
+
+#### Scenario: Resume signal fires on recovery
+- **WHEN** credits are added and the starved queue deducts its next increment
+- **THEN** `production_resumed` emits once for that queue key
+
+#### Scenario: No stall while funded
+- **WHEN** a queue deducts every increment successfully
+- **THEN** neither `production_stalled` nor `production_resumed` emits
+
+#### Scenario: Stall state cleared with the queue
+- **WHEN** a starved queue is cancelled or completes
+- **THEN** its stall state is cleared and a later re-queue is not treated as already stalled
+

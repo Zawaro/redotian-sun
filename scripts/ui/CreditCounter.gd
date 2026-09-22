@@ -15,17 +15,49 @@ const MIN_STEP: int = 1  ## guarantees termination on odd balances
 const MAX_STEP: int = 143  ## caps the per-step jump so small gaps still tick a few times
 const SOUND_INCOME: String = "ECON_INCOME"
 const SOUND_SPEND: String = "ECON_SPEND"
+## Insufficient-funds color thresholds (openspec/specs/credit-ui/spec.md):
+## white while the balance covers the cheapest buildable item, red below it.
+const COLOR_SUFFICIENT := Color(1, 1, 1, 1)
+const COLOR_INSUFFICIENT := Color(1, 0.3, 0.3, 1)
 
 var _displayed_credits: int = 0
 var _target_credits: int = 0
 var _step_accumulator: float = 0.0
+## Cached cheapest buildable cost (entity cache is static after load). -1 = none.
+var _cheapest_cost: int = -1
+## Autoload refs resolved once in _ready. Handlers may fire while this node is
+## momentarily out of the tree (test harness), where absolute get_node() errors.
+var _em: Node = null
+var _ef: Node = null
 
 
 func _ready() -> void:
-    var em := get_node("/root/EconomyManager")
-    if em:
-        em.credits_changed.connect(_on_credits_changed)
-        _force_display_credits(em.get_balance(PlayerManager.get_local_player_id()))
+    _em = get_node_or_null("/root/EconomyManager")
+    _ef = get_node_or_null("/root/EntityFactory")
+    if _em:
+        _em.credits_changed.connect(_on_credits_changed)
+    PlayerManager.players_changed.connect(_on_players_changed)
+    var ps := get_node_or_null("/root/PrerequisiteSystem")
+    if ps and ps.has_signal("prerequisites_changed"):
+        ps.prerequisites_changed.connect(_on_prerequisites_changed)
+    _cheapest_cost = _compute_cheapest_cost()
+    _resync()
+
+
+## Force the displayed balance to the local player's current value — instant and
+## silent. The single resync path for scene ready and roster rebuilds.
+func _resync() -> void:
+    var balance: int = _em.get_balance(PlayerManager.get_local_player_id()) if _em else 0
+    _force_display_credits(balance)
+    _update_credits_color()
+
+
+func _on_players_changed() -> void:
+    _resync()
+
+
+func _on_prerequisites_changed(_player_id: int) -> void:
+    _update_credits_color()
 
 
 func _process(delta: float) -> void:
@@ -35,6 +67,7 @@ func _process(delta: float) -> void:
 func _on_credits_changed(
     player_id: int, new_balance: int, _reason: String, _category: String
 ) -> void:
+    _update_credits_color()
     if player_id != PlayerManager.get_local_player_id():
         return
     # Reset the cadence accumulator only for a fresh animation. An in-flight
@@ -44,6 +77,33 @@ func _on_credits_changed(
     if _displayed_credits == _target_credits:
         _step_accumulator = 0.0
     _target_credits = new_balance
+
+
+## Cheapest positive cost among all buildable entities, or -1 when none exist.
+## Zero-cost buildables are ignored so a free item can't disable the warning.
+func _compute_cheapest_cost() -> int:
+    if _ef == null:
+        return -1
+    var cheapest := -1
+    for etype in [
+        EntityData.EntityType.INFANTRY,
+        EntityData.EntityType.VEHICLE,
+        EntityData.EntityType.BUILDING,
+        EntityData.EntityType.AIRCRAFT,
+    ]:
+        for data: EntityData in _ef.get_all_by_type(etype):
+            if not data.buildable or data.cost <= 0:
+                continue
+            if cheapest < 0 or data.cost < cheapest:
+                cheapest = data.cost
+    return cheapest
+
+
+## White while the local balance covers the cheapest buildable item, red below.
+func _update_credits_color() -> void:
+    var balance: int = _em.get_balance(PlayerManager.get_local_player_id()) if _em else 0
+    var insufficient := _cheapest_cost > 0 and balance < _cheapest_cost
+    add_theme_color_override("font_color", COLOR_INSUFFICIENT if insufficient else COLOR_SUFFICIENT)
 
 
 ## Forced display (scene ready, balance resync): jump straight to the balance,

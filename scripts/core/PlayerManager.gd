@@ -2,6 +2,11 @@ extends Node
 
 const _MAP_CONFIG_SCRIPT_PATH: String = "res://scripts/data/MapConfig.gd"
 
+## Emitted after the player roster is (re)built — mission start, map-config load,
+## or default init. Consumers holding a per-player value (e.g. the credit HUD)
+## resync on this instead of trusting whatever was on screen before the rebuild.
+signal players_changed
+
 var _players: Dictionary = {}
 var _local_player_id: int = 0
 
@@ -94,6 +99,117 @@ func _init_from_map_config(config: Node) -> void:
         if first.is_bot:
             push_warning("[PlayerManager] All players are bots, setting local player to first bot")
             _local_player_id = first_id
+    players_changed.emit()
+
+
+## Rebuilds players for a mission start. Resolves per-player values with
+## precedence mission > map > GlobalRules: the mission's `starting_credits` /
+## `player_house` win when set, else the map's (MapConfig) override, else the
+## active game's rules. This is the single entry point future map-defined
+## player lists route through.
+func begin_mission(mission: Mission, map_config: Node = null) -> void:
+    if mission == null:
+        return
+    _players.clear()
+    _local_player_id = 0
+
+    var rules: GlobalRules = _get_global_rules()
+    var global_credits: int = rules.starting_credits if rules else 10000
+    var credits := resolve_starting_credits(
+        mission.starting_credits, _map_starting_credits(map_config), global_credits
+    )
+
+    var playable := _get_playable_factions()
+    var human_house := mission.player_house
+    if human_house.is_empty():
+        human_house = _map_player_house(map_config)
+    var human_faction := _faction_for_house(human_house, playable, 0)
+    var ai_faction := _faction_for_house("", playable, 1)
+
+    var human := _make_player(
+        0,
+        human_faction.id if human_faction else "",
+        human_faction.color if human_faction else Color.WHITE,
+        1,
+        0,
+        "Player",
+        false,
+        credits,
+    )
+    _players[0] = human
+    _local_player_id = 0
+
+    var ai := _make_player(
+        1,
+        ai_faction.id if ai_faction else "",
+        ai_faction.color if ai_faction else Color.WHITE,
+        2,
+        1,
+        "AI Opponent",
+        true,
+        global_credits,
+    )
+    _players[1] = ai
+    players_changed.emit()
+
+
+## Effective starting credits: mission override > map override > global rules.
+## A value of -1 at either override layer means "inherit". Static for
+## testability.
+static func resolve_starting_credits(
+    mission_credits: int, map_credits: int, global_credits: int
+) -> int:
+    if mission_credits >= 0:
+        return mission_credits
+    if map_credits >= 0:
+        return map_credits
+    return global_credits
+
+
+## Faction for a house id, falling back to the playable roster at
+## `fallback_index` when the house is empty or unknown. Returns null when the
+## roster has no entry at that index.
+func _faction_for_house(house_id: String, playable: Array[Faction], fallback_index: int) -> Faction:
+    if not house_id.is_empty():
+        var catalog := get_node_or_null("/root/FactionCatalog")
+        if catalog and catalog.has_method("get_faction"):
+            var faction := catalog.get_faction(house_id) as Faction
+            if faction:
+                return faction
+        push_warning("[PlayerManager] mission player_house '%s' not found" % house_id)
+    if fallback_index < playable.size():
+        return playable[fallback_index]
+    return null
+
+
+## The map's local-player credit override, or -1 when the map config is absent
+## or lists no local player. The map layer of mission > map > global.
+func _map_starting_credits(map_config: Node) -> int:
+    var entry := _map_local_player_config(map_config)
+    if entry == null:
+        return -1
+    return int(entry.get("starting_credits"))
+
+
+## The map's local-player house id, or "" when absent.
+func _map_player_house(map_config: Node) -> String:
+    var entry := _map_local_player_config(map_config)
+    if entry == null:
+        return ""
+    return String(entry.get("faction_id"))
+
+
+## The MapConfig player entry for the local player, or null.
+func _map_local_player_config(map_config: Node) -> Object:
+    if map_config == null:
+        return null
+    var player_configs: Array = map_config.get("players") as Array
+    if player_configs == null:
+        return null
+    for pc in player_configs:
+        if pc and int(pc.get("player_id")) == _local_player_id:
+            return pc
+    return null
 
 
 func _make_player(
@@ -151,6 +267,7 @@ func _init_defaults() -> void:
     _players[1] = ai
 
     _local_player_id = 0
+    players_changed.emit()
 
 
 ## The default-roster factions (ascending order), or [] when the catalog is

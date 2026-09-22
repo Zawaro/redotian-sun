@@ -1,5 +1,9 @@
-## ADDED Requirements
+# map-config Specification
 
+## Purpose
+Defines the per-map player configuration: the `MapConfig` node (a child of the map scene) and its
+`PlayerConfig` entries, and how `PlayerManager` discovers and applies them.
+## Requirements
 ### Requirement: MapConfig resource
 The system SHALL provide a `MapConfig.gd` resource class for per-map player definitions. Each map SHALL have an associated MapConfig as a child node of the map scene.
 
@@ -51,3 +55,17 @@ PlayerManager SHALL find MapConfig as a child node of the current scene at _read
 #### Scenario: MapConfig not found
 - **WHEN** the current scene has no MapConfig child node
 - **THEN** PlayerManager creates default players (player 0 = human GDI team 1, player 1 = AI Nod team 2) with GlobalRules.starting_credits
+
+### Requirement: MapConfig from map JSON
+`MissionMap` SHALL read a map JSON's optional top-level `players` array (entries mirroring
+`MapConfig.PlayerConfig`) and SHALL materialize it as a `MapConfig` node attached to the mission
+map; an absent or empty array SHALL leave the map with no config.
+
+#### Scenario: Players array materialized
+- **WHEN** a mission map JSON carries a top-level `players` array with one entry
+- **THEN** the mission map has a `MapConfig` child whose `players` holds that entry
+
+#### Scenario: No players array leaves no config
+- **WHEN** a mission map JSON has no `players` array (or an empty one)
+- **THEN** the mission map has no `MapConfig` child
+

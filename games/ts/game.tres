@@ -9,4 +9,4 @@ id = "ts"
 display_name = "Tiberian Sun"
 rules = ExtResource("2_rules")
 data_sets = PackedStringArray("res://games/ts/")
-maps_dir = ""
+maps_dir = "res://games/ts/maps/"

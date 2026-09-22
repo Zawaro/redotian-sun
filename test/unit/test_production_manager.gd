@@ -10,6 +10,9 @@ var _test_factories: Array = []
 
 # Unique player ID to avoid state leakage
 const PID := 200
+# Separate ID for funding tests so leftover queues/balances from other suites
+# cannot drain the credits these tests deposit.
+const PID_FUND := 201
 
 
 func _get_pm() -> Node:
@@ -41,18 +44,18 @@ func _make_factory() -> EntityData:
     return data
 
 
-func _ensure_factory() -> void:
+func _ensure_factory(pid: int = PID) -> void:
     if _em == null:
         return
     var ps := _em.get_node_or_null("/root/PrerequisiteSystem")
-    if ps and ps.get_build_count(PID, "test_barracks") > 0:
+    if ps and ps.get_build_count(pid, "test_barracks") > 0:
         return
     var factory_data := _make_factory()
     var ef := _em.get_node_or_null("/root/EntityFactory")
     if ef:
         ef._entity_cache["test_barracks"] = factory_data
     if ps:
-        ps.register_building(PID, factory_data)
+        ps.register_building(pid, factory_data)
 
 
 func _cleanup_queue(pm: Node, queue_key: String) -> void:
@@ -976,3 +979,169 @@ func test_get_build_time_from_build_speed():
             "get_build_time must compute from the TS default build-speed factor",
         )
     )
+
+
+# --- pay-as-you-build funding (production-pay-as-you-build) ---
+
+
+## Force PID_FUND's balance to an exact value, isolated from earlier suites' deposits.
+func _set_balance(amount: int) -> void:
+    var pmgr := _em.get_node_or_null("/root/PlayerManager")
+    if pmgr == null:
+        return
+    var pd: PlayerData = pmgr.get_player_data(PID_FUND)
+    pd.free_credits = amount
+    pd.stored_by_category.clear()
+
+
+func test_start_production_with_zero_balance_queues():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    _ensure_factory(PID_FUND)
+    _set_balance(0)
+    var data := _make_infantry("test_zero_balance", 100)
+    var started: bool = pm.start_production(PID_FUND, data)
+    var key: String = pm.get_queue_key(PID_FUND, "InfantryType")
+    (
+        TestHelper
+        . assert_true(
+            started and pm.get_queue_items(key).size() == 1,
+            "a zero-balance player can still queue a build (pay-as-you-build)",
+        )
+    )
+    _cleanup_queue(pm, key)
+
+
+func test_starved_queue_stalls_then_resumes():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    _ensure_factory(PID_FUND)
+    _set_balance(0)
+    var data := _make_infantry("test_starved", 100)
+    pm.start_production(PID_FUND, data)
+    var key: String = pm.get_queue_key(PID_FUND, "InfantryType")
+    var items: Array = pm.get_queue_items(key)
+    if items.is_empty():
+        TestHelper.fail("expected the starved item to be queued")
+        return
+    var pq: ProductionQueue = items[0] as ProductionQueue
+
+    var stalled := [0]
+    var resumed := [0]
+    var on_stalled := func(k: String) -> void:
+        if k == key:
+            stalled[0] += 1
+    var on_resumed := func(k: String) -> void:
+        if k == key:
+            resumed[0] += 1
+    pm.production_stalled.connect(on_stalled)
+    pm.production_resumed.connect(on_resumed)
+
+    # cost 100 over a pinned 5s build => 20 credits owed per 1s tick; balance 0.
+    pm._process(1.0)
+    var held: bool = pq.deducted == 0 and is_zero_approx(pq.progress)
+    pm._process(1.0)
+    var once: bool = stalled[0] == 1
+    _em.add(PID_FUND, 500, "test")
+    pm._process(1.0)
+    var advanced: bool = pq.progress > 0.0 and resumed[0] == 1
+
+    pm.production_stalled.disconnect(on_stalled)
+    pm.production_resumed.disconnect(on_resumed)
+    (
+        TestHelper
+        . assert_true(
+            held and once and advanced,
+            (
+                "starved queue holds, emits one stall, then resumes: held=%s once=%s advanced=%s"
+                % [held, once, advanced]
+            ),
+        )
+    )
+    _cleanup_queue(pm, key)
+
+
+## Regression: a long starvation must not bank an un-payable debt. A small
+## deposit after many starved frames must resume the queue instead of freezing.
+func test_small_deposit_resumes_long_starved_queue():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    _ensure_factory(PID_FUND)
+    _set_balance(0)
+    var data := _make_infantry("test_starved_small", 100)
+    pm.start_production(PID_FUND, data)
+    var key: String = pm.get_queue_key(PID_FUND, "InfantryType")
+    var items: Array = pm.get_queue_items(key)
+    if items.is_empty():
+        TestHelper.fail("expected the starved item to be queued")
+        return
+    var pq: ProductionQueue = items[0] as ProductionQueue
+
+    # ~100 frames at 60fps of starvation: a buggy carry would demand ~32 credits.
+    for _i in range(100):
+        pm._process(0.016)
+    var frozen: float = pq.progress
+    _em.add(PID_FUND, 5, "test")
+    for _i in range(100):
+        pm._process(0.016)
+    (
+        TestHelper
+        . assert_true(
+            pq.progress > frozen,
+            (
+                "a small deposit resumes a long-starved queue (frozen=%f now=%f)"
+                % [frozen, pq.progress]
+            ),
+        )
+    )
+    _cleanup_queue(pm, key)
+
+
+func test_completion_withheld_while_underpaid():
+    var pm := _get_pm()
+    if pm == null or _em == null:
+        TestHelper.fail("autoloads not available")
+        return
+    _ensure_factory(PID_FUND)
+    _set_balance(0)
+    var data := _make_infantry("test_underpaid", 100)
+    pm.start_production(PID_FUND, data)
+    var key: String = pm.get_queue_key(PID_FUND, "InfantryType")
+    var items: Array = pm.get_queue_items(key)
+    if items.is_empty():
+        TestHelper.fail("expected the item to be queued")
+        return
+    var pq: ProductionQueue = items[0] as ProductionQueue
+    pq.progress = 1.0
+    pq.deducted = 60
+
+    var completed := [0]
+    var on_done := func(k: String, _d: EntityData) -> void:
+        if k == key:
+            completed[0] += 1
+    pm.production_completed.connect(on_done)
+
+    pm._complete_item(key, 0)
+    var withheld: bool = pm.get_queue_items(key).size() == 1 and completed[0] == 0
+    _em.add(PID_FUND, 100, "test")
+    pm._complete_item(key, 0)
+    var done: bool = completed[0] == 1
+    pm.production_completed.disconnect(on_done)
+    (
+        TestHelper
+        . assert_true(
+            withheld and done,
+            (
+                "completion is withheld while underpaid, then completes: withheld=%s done=%s"
+                % [withheld, done]
+            ),
+        )
+    )
+    _cleanup_queue(pm, key)
+    pm._ready_to_spawn.erase(PID_FUND)

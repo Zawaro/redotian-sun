@@ -2,6 +2,10 @@ extends Node
 
 var editor: Node3D = null
 
+## Map-level `players` array preserved from the last loaded map so an editor
+## re-save does not drop it (the editor does not author players yet).
+var _loaded_players: Array = []
+
 var _save_dialog: FileDialog
 var _load_dialog: FileDialog
 
@@ -39,9 +43,13 @@ func _on_save_file_selected(path: String) -> void:
         var entity_entry := build_entity_entry(data)
         entity_entry["cell"] = cell_key
         entities_array.append(entity_entry)
-    TerrainSystem.export_to_json(
-        path, {"entities": entities_array, "start_locations": editor._player_start_tool.save_data()}
-    )
+    var extra: Dictionary = {
+        "entities": entities_array,
+        "start_locations": editor._player_start_tool.save_data(),
+    }
+    if not _loaded_players.is_empty():
+        extra["players"] = _loaded_players
+    TerrainSystem.export_to_json(path, extra)
 
 
 ## Serializes one tracked-entity data dict into its JSON map entry. A `house_id`
@@ -84,6 +92,18 @@ func _read_start_locations(path: String) -> Array:
     return []
 
 
+## Top-level `players` array from a map JSON, or [] when absent.
+func _read_players(path: String) -> Array:
+    var file := FileAccess.open(path, FileAccess.READ)
+    if not file:
+        return []
+    var parsed: Variant = JSON.parse_string(file.get_as_text())
+    file.close()
+    if parsed is Dictionary and parsed.has("players") and parsed["players"] is Array:
+        return parsed["players"] as Array
+    return []
+
+
 func _on_load_file_selected(path: String) -> void:
     for key in editor._painted_entities:
         var node := editor._painted_entities[key].get("node") as Node3D
@@ -92,6 +112,7 @@ func _on_load_file_selected(path: String) -> void:
     editor._painted_entities.clear()
     var loaded := MapLoader.load_map_into(path, editor)
     editor._player_start_tool.load_data(_read_start_locations(path))
+    _loaded_players = _read_players(path)
     for entry in loaded:
         var key: String = entry.get("key", "")
         if key.is_empty():
