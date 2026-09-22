@@ -19,9 +19,6 @@ enum VerticalState { GROUND, ASCENDING, AIR, DESCENDING }
 
 const REPULSION_STRENGTH: float = 0.1
 
-## Locomotor id for tracked vehicles (rules.ini [General] TrackedUphill/Downhill).
-const LOCOMOTOR_TRACK: String = "Track"
-
 ## Timing thresholds in seconds, derived from the frame counts they replaced at 60 FPS.
 ## Delta-accumulated, so they stay frame-rate independent and scale with game speed.
 const REPAIR_INTERVAL: float = 10.0 / 60.0
@@ -200,19 +197,12 @@ func _get_veteran_speed_mult(veteran_level: int) -> float:
 
 
 func _slope_coefficient() -> float:
-    if not _rules or _is_hover:
+    if not _locomotor_data or _is_hover:
         return 1.0
-    var uphill: float
-    var downhill: float
-    match locomotor:
-        LOCOMOTOR_TRACK:
-            uphill = _rules.tracked_uphill
-            downhill = _rules.tracked_downhill
-        "Wheel":
-            uphill = _rules.wheeled_uphill
-            downhill = _rules.wheeled_downhill
-        _:
-            return 1.0
+    var uphill: float = _locomotor_data.uphill_factor
+    var downhill: float = _locomotor_data.downhill_factor
+    if is_equal_approx(uphill, 1.0) and is_equal_approx(downhill, 1.0):
+        return 1.0
     if _waypoints.size() < 2:
         return 1.0
     var seg := _spline_segment()
@@ -1103,8 +1093,14 @@ func _try_crush(cell: Vector2i) -> void:
 ## One-time weight-based damage to breakable surfaces (ice) on cell entry.
 ## Units below the cracking threshold deal none, and floating units (hover,
 ## jumpjet flight) do not touch the surface. Damage is per entry, not per tick.
+## Only active when the game enables the breakable-ice mechanic.
 func _damage_ice(cell: Vector2i) -> void:
-    if _is_floating() or _weight < _ice_cracking_weight or SpatialHash.instance == null:
+    if (
+        not _breakable_ice_enabled()
+        or _is_floating()
+        or _weight < _ice_cracking_weight
+        or SpatialHash.instance == null
+    ):
         return
     for ice in SpatialHash.instance.get_ice_entities_on_cell(cell):
         if not is_instance_valid(ice):
@@ -1112,6 +1108,12 @@ func _damage_ice(cell: Vector2i) -> void:
         var hc := (ice as Node3D).get_node_or_null("HealthComponent") as HealthComponent
         if hc:
             hc.take_damage(roundi(_weight))
+
+
+## True when the active game enables breakable-ice (no context = allow).
+func _breakable_ice_enabled() -> bool:
+    var gc := get_node_or_null("/root/GameContext")
+    return gc == null or gc.has_feature("breakable_ice")
 
 
 func _apply_facing(direction: Vector3) -> void:

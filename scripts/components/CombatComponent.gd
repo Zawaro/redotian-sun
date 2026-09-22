@@ -21,9 +21,10 @@ const PROJECTILE_SCENE: PackedScene = preload("res://scenes/components/Projectil
 ## World-space separation at which airborne attackers stop nudging each other.
 const MIN_AIR_SEPARATION: float = 1.5
 
-## Original TS logic rate: WeaponData.rate_of_fire is a rearm delay in these
-## frames (ModEnc ROF=), so seconds_between_shots = rate_of_fire / 30.
-const TS_LOGIC_FPS: float = 30.0
+## Fallback logic rate: WeaponData.rate_of_fire is a rearm delay in logic
+## frames; seconds_between_shots = rate_of_fire / rules.logic_fps, falling back
+## to this when no rules are active.
+const DEFAULT_LOGIC_FPS: float = 30.0
 
 ## Minimum seconds between chase re-plans; bounds re-plan cost to the enemy's
 ## actual motion rate (#284 budget) and stops target jitter from oscillating
@@ -423,7 +424,9 @@ func _fire_socket(channel: FireChannel, index: int) -> void:
 
 
 func _rof_seconds(weapon: WeaponData) -> float:
-    return maxf(weapon.rate_of_fire, 0.001) / TS_LOGIC_FPS
+    var rules := GlobalRules.get_current()
+    var logic_fps: float = rules.logic_fps if rules else DEFAULT_LOGIC_FPS
+    return maxf(weapon.rate_of_fire, 0.001) / logic_fps
 
 
 ## Body-facing gate for body-mounted / fixed-socket weapons. Returns true when

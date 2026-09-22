@@ -5,6 +5,8 @@
 [resource]
 script = ExtResource("1_script")
 id = "Track"
+uphill_factor = 0.5
+downhill_factor = 1.1
 terrain_speeds = {
 "clear": 1.0,
 "crystal": 1.0,

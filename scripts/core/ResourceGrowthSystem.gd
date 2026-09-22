@@ -47,7 +47,7 @@ func _physics_process(delta: float) -> void:
         _rebuild_cache()
 
     _tree_timer -= delta
-    if _tree_timer <= 0.0:
+    if _tree_timer <= 0.0 and _tree_regrowth_enabled():
         _reset_tree_timer()
         _tick_tree_batch(rules)
 
@@ -55,6 +55,12 @@ func _physics_process(delta: float) -> void:
     if _resource_timer <= 0.0:
         _reset_resource_timer()
         _tick_resource_batch(rules)
+
+
+## True when the active game enables the tree-seeded growth model (no context = allow).
+func _tree_regrowth_enabled() -> bool:
+    var gc := get_node_or_null("/root/GameContext")
+    return gc == null or gc.has_feature("resource_tree_regrowth")
 
 
 func _rebuild_cache() -> void:
@@ -107,9 +113,9 @@ func _tick_resource_batch(rules: GlobalRules) -> void:
     var end := mini(start + batch_size, _cached_resources.size())
 
     for i in range(start, end):
-        var tib_node = _cached_resources[i]
-        if is_instance_valid(tib_node):
-            _process_resource(tib_node as Node3D, rules)
+        var res_node = _cached_resources[i]
+        if is_instance_valid(res_node):
+            _process_resource(res_node as Node3D, rules)
 
     _resource_batch_offset = end % maxi(_cached_resources.size(), 1)
 
@@ -126,21 +132,21 @@ func _process_tree(tree_node: Node3D, rules: GlobalRules) -> void:
     var grow_rate: float = rt.grow_rate if rt else 0.1
 
     var radius_sq: float = float(tree_comp.radius_cells) * float(tree_comp.radius_cells)
-    for tib_node in _cached_resources:
-        if not is_instance_valid(tib_node):
+    for res_node in _cached_resources:
+        if not is_instance_valid(res_node):
             continue
-        var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
-        if not tib_comp:
+        var res_comp := res_node.get_node_or_null("ResourceComponent") as ResourceComponent
+        if not res_comp:
             continue
-        var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
+        var hp := res_node.get_node_or_null("HealthComponent") as HealthComponent
         if not hp or hp.current_health >= hp.max_health:
             continue
-        var tib_cell := CellUtil.world_to_cell(tib_node.global_position)
-        var dx: float = float(tib_cell.x - tree_cell.x)
-        var dz: float = float(tib_cell.y - tree_cell.y)
+        var res_cell := CellUtil.world_to_cell(res_node.global_position)
+        var dx: float = float(res_cell.x - tree_cell.x)
+        var dz: float = float(res_cell.y - tree_cell.y)
         if dx * dx + dz * dz > radius_sq:
             continue
-        tib_comp.add_bales(grow_rate * tib_comp.get_bale_capacity())
+        res_comp.add_bales(grow_rate * res_comp.get_bale_capacity())
 
     _spawn_in_radius(tree_comp, tree_cell, rules.tree_spawn_radius, rules)
 
@@ -169,27 +175,27 @@ func _spawn_in_radius(
             _spawn_at_cell(cell, tree_comp, spawn_bales)
 
 
-func _process_resource(tib_node: Node3D, rules: GlobalRules) -> void:
-    var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
-    if not tib_comp:
+func _process_resource(res_node: Node3D, rules: GlobalRules) -> void:
+    var res_comp := res_node.get_node_or_null("ResourceComponent") as ResourceComponent
+    if not res_comp:
         return
 
-    var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
+    var rt := rules.get_resource_type(res_comp.resource_type_id) if rules else null
     var grow_rate: float = rt.grow_rate if rt else 0.05
     var spread_max: int = rt.spread_max if rt else rules.spread_max
 
-    var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
+    var hp := res_node.get_node_or_null("HealthComponent") as HealthComponent
     if hp and hp.current_health < hp.max_health:
-        tib_comp.add_bales(grow_rate * tib_comp.get_bale_capacity())
+        res_comp.add_bales(grow_rate * res_comp.get_bale_capacity())
 
-    if tib_comp.spread_count < spread_max:
-        _try_spread_from(tib_node, tib_comp, rules)
+    if res_comp.spread_count < spread_max:
+        _try_spread_from(res_node, res_comp, rules)
 
 
-func _try_spread_from(tib_node: Node3D, tib_comp: ResourceComponent, rules: GlobalRules) -> void:
-    var tib_cell := CellUtil.world_to_cell(tib_node.global_position)
+func _try_spread_from(res_node: Node3D, res_comp: ResourceComponent, rules: GlobalRules) -> void:
+    var res_cell := CellUtil.world_to_cell(res_node.global_position)
     var neighbor: Vector2i = SPREAD_NEIGHBORS[randi() % SPREAD_NEIGHBORS.size()]
-    var target_cell := tib_cell + neighbor
+    var target_cell := res_cell + neighbor
 
     if not _is_in_bounds(target_cell):
         return
@@ -202,15 +208,15 @@ func _try_spread_from(tib_node: Node3D, tib_comp: ResourceComponent, rules: Glob
         _grow_entry(existing)
         return
 
-    var tree_comp := _find_nearest_tree_comp(tib_node.global_position)
+    var tree_comp := _find_nearest_tree_comp(res_node.global_position)
     if not tree_comp:
         return
 
-    var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
+    var rt := rules.get_resource_type(res_comp.resource_type_id) if rules else null
     var spread_bales: float = rt.spread_amount if rt else rules.spread_amount
 
     _spawn_at_cell(target_cell, tree_comp, spread_bales)
-    tib_comp.spread_count += 1
+    res_comp.spread_count += 1
 
 
 func _find_nearest_tree_comp(world_pos: Vector3) -> ResourceTreeComponent:
@@ -261,15 +267,15 @@ func _spawn_at_cell(cell: Vector2i, tree_comp: ResourceTreeComponent, bales: flo
 
 
 func _grow_entry(entry: Dictionary) -> void:
-    var tib_node: Node3D = entry.get("node")
-    if tib_node:
-        var tib_comp := tib_node.get_node_or_null("ResourceComponent") as ResourceComponent
-        var hp := tib_node.get_node_or_null("HealthComponent") as HealthComponent
-        if tib_comp and hp and hp.current_health < hp.max_health:
+    var res_node: Node3D = entry.get("node")
+    if res_node:
+        var res_comp := res_node.get_node_or_null("ResourceComponent") as ResourceComponent
+        var hp := res_node.get_node_or_null("HealthComponent") as HealthComponent
+        if res_comp and hp and hp.current_health < hp.max_health:
             var rules := GlobalRules.get_current()
-            var rt := rules.get_resource_type(tib_comp.resource_type_id) if rules else null
+            var rt := rules.get_resource_type(res_comp.resource_type_id) if rules else null
             var grow_rate: float = rt.grow_rate if rt else 0.1
-            tib_comp.add_bales(grow_rate * tib_comp.get_bale_capacity())
+            res_comp.add_bales(grow_rate * res_comp.get_bale_capacity())
 
 
 func _find_resource_entry(entries: Array) -> Dictionary:

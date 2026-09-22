@@ -25,6 +25,7 @@ threat_posed = 0
 buildable = true
 prerequisite = PackedStringArray("NOD_WAR_FACTORY")
 harvester = true
+harvestable_categories = PackedStringArray("tiberium")
 dock = "NOD_TIBERIUM_WASTE_FACILITY"
 weight = 2.0
 

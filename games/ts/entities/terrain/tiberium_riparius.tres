@@ -15,4 +15,5 @@ foundation = Vector2i(1, 1)
 height = 0.5
 owner = PackedStringArray("Neutral")
 resource_category = "tiberium"
+procedural_resource_visual = true
 resource_type_id = "tiberium_green"

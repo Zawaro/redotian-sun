@@ -24,5 +24,6 @@ owner = PackedStringArray("Nod")
 threat_posed = 0
 buildable = false
 harvester = true
+harvestable_categories = PackedStringArray("tiberium")
 dock = "NOD_REFINERY"
 weight = 3.0

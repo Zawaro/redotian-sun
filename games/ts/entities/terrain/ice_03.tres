@@ -9,6 +9,7 @@ art_data = ExtResource("2_art")
 id = "ICE_03"
 display_name = "Ice 03"
 legacy_id = "ICE03"
+breakable_surface = true
 entity_type = 4
 strength = 50
 armor = "none"

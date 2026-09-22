@@ -16,6 +16,7 @@ foundation = Vector2i(1, 1)
 height = 3.0
 owner = PackedStringArray("Neutral")
 resource_category = "tiberium_tree"
+resource_spawner = true
 spawned_entity_id = "TIBERIUM_RIPARIUS"
 radius_cells = 8
 node_count = 12

@@ -27,6 +27,7 @@ threat_posed = 0
 buildable = true
 prerequisite = PackedStringArray("GDI_REFINERY")
 harvester = true
+harvestable_categories = PackedStringArray("tiberium")
 dock = "GDI_REFINERY"
 storage = 28
 crusher = true

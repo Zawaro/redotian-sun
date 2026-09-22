@@ -10,3 +10,10 @@ display_name = "Tiberian Sun"
 rules = ExtResource("2_rules")
 data_sets = PackedStringArray("res://games/ts/")
 maps_dir = "res://games/ts/maps/"
+fallback_terrain_scene = "res://games/ts/assets/models/theater/placeholder/placeholder_terrain01.gltf"
+menu_background = "res://games/ts/assets/ui/tsmenu2k.png"
+menu_accent_color = Color(0.164706, 0.905882, 0.992157, 1)
+features = {
+"breakable_ice": true,
+"resource_tree_regrowth": true
+}

@@ -5,6 +5,8 @@
 [resource]
 script = ExtResource("1_script")
 id = "Wheel"
+uphill_factor = 0.5
+downhill_factor = 1.2
 terrain_speeds = {
 "clear": 1.0,
 "crystal": 1.0,

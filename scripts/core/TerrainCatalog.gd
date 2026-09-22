@@ -7,10 +7,6 @@ extends Node
 ## MapLoader) and the resolve_art mesh-resolution choke point shared by the
 ## renderer and collision.
 
-const TERRAIN_GLB_PATH: String = (
-    "res://games/ts/assets/models/theater/placeholder/" + "placeholder_terrain01.gltf"
-)
-
 var _objects: Dictionary = {}
 var _art: Dictionary = {}
 var _theaters: Dictionary = {}
@@ -66,8 +62,19 @@ func load_terrain_scene() -> PackedScene:
         if scene != null:
             _terrain_scene = scene
             return _terrain_scene
-    _terrain_scene = load(TERRAIN_GLB_PATH) as PackedScene
+    var fallback := _fallback_scene_path()
+    if fallback.is_empty():
+        push_warning("TerrainCatalog: no fallback terrain scene for the active game")
+        _terrain_scene = null
+        return null
+    _terrain_scene = load(fallback) as PackedScene
     return _terrain_scene
+
+
+## The active game's declared fallback terrain scene path, or "" when none.
+func _fallback_scene_path() -> String:
+    var def: GameDefinition = GameContext.current
+    return def.fallback_terrain_scene if def else ""
 
 
 ## Registers a directory to scan, recursing into subdirectories and caching each

@@ -5,10 +5,9 @@ class_name HarvestComponent extends Node
 enum State { IDLE, SEEK_NODE, HARVESTING, DELIVERING, HIBERNATE }
 
 ## Resource categories this harvester collects (e.g. ["tiberium"] for all tiberium types).
+## Empty = every category. Configured from EntityData.harvestable_categories.
 @export_group("Harvest")
-@export var harvestable_types: PackedStringArray = ["tiberium"]
-## Search radius in cells when looking for the nearest harvestable resource.
-@export var search_radius_cells: int = 20
+@export var harvestable_types: PackedStringArray = []
 
 var _state: int = State.IDLE
 var _current_resource: Node3D = null
@@ -56,6 +55,11 @@ func get_dock_id() -> String:
     if dock_client:
         return dock_client.get_dock_id()
     return ""
+
+
+## Applies per-entity harvest configuration from data. Empty categories = all.
+func configure(data: EntityData) -> void:
+    harvestable_types = data.harvestable_categories
 
 
 func get_cargo() -> float:

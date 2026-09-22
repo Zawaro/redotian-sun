@@ -203,6 +203,8 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var dock: String = ""
 ## Whether this unit is a harvester (auto-seeks resources and docks when full).
 @export var harvester: bool = false
+## Resource categories this harvester collects. Empty = every category.
+@export var harvestable_categories: PackedStringArray = []
 ## Maximum resource bales this unit can carry (raw units, not credit value).
 @export var storage: int = 0
 ## Animation scale key for pip overlays on the sidebar.
@@ -218,9 +220,16 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var resource_type_id: String = ""
 ## Regrowth rate override — negative means use the ResourceType's grow_rate.
 @export var resource_regrowth_rate: float = -1.0
+## Renders through the procedural ResourceComponent instead of an ArtComponent.
+@export var procedural_resource_visual: bool = false
+## Breakable surface (e.g. ice): drowns occupants when destroyed. Behavior only
+## runs when the game enables the `breakable_ice` feature.
+@export var breakable_surface: bool = false
 
 ## Resource tree spawner — configuration for entities that spawn resource crystals.
 @export_group("Resource Tree Spawner")
+## True when this entity seeds resource crystals around itself.
+@export var resource_spawner: bool = false
 ## Entity ID of the crystal to spawn (e.g. "TIBERIUM_RIPARIUS").
 @export var spawned_entity_id: String = ""
 ## Spawn radius in cells around this entity.

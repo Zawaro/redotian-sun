@@ -66,6 +66,12 @@ func list_games() -> Array[GameDefinition]:
     return out
 
 
+## True when the active game declares the feature. False when no game is loaded
+## or the id is unknown — never errors.
+func has_feature(id: String) -> bool:
+    return _current.has_feature(id) if _current else false
+
+
 ## Selects a game: validates rules, resets consumer content (consumers re
 ## register from the new definition when they receive game_changed), emits.
 ## select_game("") unloads — consumers reset without re-registering.

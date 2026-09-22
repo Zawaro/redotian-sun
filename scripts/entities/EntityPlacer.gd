@@ -303,7 +303,7 @@ func _add_preview_groups(entity: Node3D, data: EntityData) -> void:
         entity.add_to_group("selectable")
     if data.resource_category != "":
         entity.add_to_group("resources")
-    if data.resource_category == "tiberium_tree":
+    if data.resource_spawner:
         entity.add_to_group("resource_trees")
 
 

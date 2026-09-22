@@ -5,6 +5,18 @@ signal insufficient_funds(player_id: int, cost: int, balance: int)
 
 const DEFAULT_CATEGORY := "tiberium"
 
+## Last category resolved from active rules — the fallback when no rules load.
+var _last_category: String = DEFAULT_CATEGORY
+
+
+## The active game's primary resource category. Caches the last resolved value
+## so callers keep a sensible category when rules are unloaded.
+func get_default_category() -> String:
+    var rules := EntityFactory.get_global_rules()
+    if rules and not rules.primary_resource_category.is_empty():
+        _last_category = rules.primary_resource_category
+    return _last_category
+
 
 func get_balance(player_id: int, category: String = "") -> int:
     var data := _get_player_data(player_id)
@@ -21,7 +33,9 @@ func can_afford(player_id: int, cost: int) -> bool:
     return get_balance(player_id) >= cost
 
 
-func deduct(player_id: int, cost: int, reason: String, category: String = DEFAULT_CATEGORY) -> bool:
+func deduct(player_id: int, cost: int, reason: String, category: String = "") -> bool:
+    if category.is_empty():
+        category = get_default_category()
     # Cheat mode: no cost
     var debug_menu := get_tree().get_first_node_in_group("debug_menu")
     if debug_menu and debug_menu.no_cost:
@@ -45,9 +59,11 @@ func add(
     player_id: int,
     amount: int,
     reason: String,
-    category: String = DEFAULT_CATEGORY,
+    category: String = "",
     is_free: bool = false,
 ) -> void:
+    if category.is_empty():
+        category = get_default_category()
     var data := _get_player_data(player_id)
     if is_free:
         data.free_credits += amount
@@ -56,7 +72,9 @@ func add(
     credits_changed.emit(player_id, get_balance(player_id), reason, category)
 
 
-func get_storage_capacity(player_id: int, category: String = DEFAULT_CATEGORY) -> int:
+func get_storage_capacity(player_id: int, category: String = "") -> int:
+    if category.is_empty():
+        category = get_default_category()
     # Capacity is the sum of each owned building's declared share for the category.
     # ponytail: no cache — small owned set, runs on credits_changed not per frame.
     var capacity := 0
