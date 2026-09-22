@@ -199,12 +199,14 @@ static func try_greedy_step(
 
 
 ## Terrain passability for a unit's locomotor. Fly/hover pass everything; others
-## pass only positive-speed land types. Intact ice provides footing on water.
+## pass only positive-speed land types. Intact ice provides footing on water,
+## but only when the active game enables the breakable-ice mechanic.
 static func _is_terrain_passable(locomotor: Locomotor, land: String, cell: Vector2i) -> bool:
     if locomotor.is_passable(land):
         return true
     if (
         land == "water"
+        and _breakable_ice_enabled()
         and SpatialHash.instance
         and SpatialHash.instance.has_intact_ice_on_cell(cell)
     ):
@@ -218,12 +220,23 @@ static func _cost_multiplier(locomotor: Locomotor, land: String, cell: Vector2i)
     if (
         land == "water"
         and not locomotor.is_passable(land)
+        and _breakable_ice_enabled()
         and SpatialHash.instance
         and SpatialHash.instance.has_intact_ice_on_cell(cell)
     ):
         return 1.0
     var mult: float = locomotor.get_speed_multiplier(land)
     return 1.0 / mult if mult > 0.0 else INF
+
+
+## True when the active game enables the breakable-ice mechanic. Ice footing is
+## only considered when this returns true; other games' water stays impassable.
+static func _breakable_ice_enabled() -> bool:
+    var main_loop := Engine.get_main_loop()
+    if not main_loop:
+        return false
+    var gc: Node = main_loop.root.get_node_or_null("GameContext")
+    return gc != null and gc.has_feature("breakable_ice")
 
 
 static func find_path(

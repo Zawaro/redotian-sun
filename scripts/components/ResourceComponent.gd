@@ -1,6 +1,6 @@
 class_name ResourceComponent extends Node
 
-@export var resource_type_id: String = "tiberium_green"
+@export var resource_type_id: String = ""
 @export var regrowth_rate: float = -1.0
 ## How many times this crystal has spread to adjacent cells. Capped by GlobalRules.spread_max.
 @export var spread_count: int = 0
@@ -84,7 +84,7 @@ func _ensure_visual_nodes() -> void:
                 var mat := StandardMaterial3D.new()
                 var rules := _get_global_rules()
                 var rt: ResourceType = rules.get_resource_type(resource_type_id) if rules else null
-                mat.albedo_color = rt.color if rt else Color(0.2, 0.8, 0.2)
+                mat.albedo_color = rt.color if rt else Color.WHITE
                 _mat_cache[resource_type_id] = mat
             mi.material_override = _mat_cache[resource_type_id]
             container.add_child(mi)

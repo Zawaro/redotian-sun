@@ -33,6 +33,12 @@ class_name Locomotor extends Resource
 ## Ramp speed down to crawl floor as unit approaches its final waypoint.
 @export var decelerate: bool = false
 
+@export_group("Slope")
+## Speed multiplier when moving uphill (1.0 = no slope effect).
+@export var uphill_factor: float = 1.0
+## Speed multiplier when moving downhill (1.0 = no slope effect).
+@export var downhill_factor: float = 1.0
+
 @export_group("Hybrid Thresholds")
 ## Hover height in world units; 0 = use GlobalRules.hover_height.
 @export var hover_height_override: float = 0.0

@@ -1,5 +1,10 @@
 class_name GlobalRules extends Resource
 
+@export_group("Timebase")
+## Logic frames per second the content's tick-based values (weapon
+## rate_of_fire) are authored against.
+@export var logic_fps: float = 30.0
+
 ## Veterancy
 @export_group("Veterancy")
 @export var veteran_ratio: float = 10.0
@@ -41,15 +46,19 @@ class_name GlobalRules extends Resource
 @export var survivor_rate: float = 0.4
 @export var survivor_divisor: int = 100
 @export var placement_delay: float = 0.05
-@export var weed_capacity: int = 56
+## Resource category the HUD, storage display and default economy deductions use
+## (Tiberian Sun "tiberium", Red Alert 2 "ore").
+@export var primary_resource_category: String = "tiberium"
+## Bales deposited per second by a docking harvester while unloading.
+@export var refinery_unload_rate: float = 2.0
 
 ## Transports
 @export_group("Transports")
 ## Seconds between passenger ejects while a transport unloads (one passenger per interval).
 @export var unload_interval: float = 0.25
 
-## Tiberium growth
-@export_group("Tiberium Growth")
+## Resource growth
+@export_group("Resource Growth")
 ## Minutes between tree timer ticks (randomized ±60s).
 @export var tree_growth_rate: float = 3.0
 ## Radius (cells) around tree where new resource crystals spawn (e.g. 3 = 7x7 area).
@@ -94,10 +103,6 @@ class_name GlobalRules extends Resource
 
 ## Movement coefficients
 @export_group("Movement Coefficients")
-@export var tracked_uphill: float = 0.5
-@export var tracked_downhill: float = 1.1
-@export var wheeled_uphill: float = 0.5
-@export var wheeled_downhill: float = 1.2
 ## Weight threshold for breakable-surface (ice) damage, from rules.ini [General].
 @export var ice_cracking_weight: float = 2.0
 ## Extra pathfinding cost for traversing bib cells. High enough to divert
@@ -141,11 +146,19 @@ class_name GlobalRules extends Resource
 ## Fallback flight speed in world units per second when neither
 ## ProjectileData.speed_override nor WeaponData.speed is set.
 @export var default_projectile_speed: float = 12.0
+## Degrees per second per unit of ProjectileData.homing_turn_rate.
+@export var homing_turn_per_sec_per_unit: float = 60.0
 
 @export_group("Resource Types")
 ## Resource type definitions — maps resource ID to ResourceType.
 ## Each holds value, grow_rate, spread_amount, spread_max, color.
 @export var resource_types: Dictionary = {}
+
+@export_group("UI Presentation")
+## Output that fills the sidebar power bar; everything below is relative.
+@export var power_bar_max_output: float = 2000.0
+## Power-bar fill curve exponent: (value / max_output)^exponent.
+@export var power_bar_curve_exponent: float = 0.4
 
 ## Misc
 @export_group("Misc")
@@ -153,9 +166,6 @@ class_name GlobalRules extends Resource
 @export var fog_of_war: bool = false
 @export var shroud_grows: bool = false
 @export var shroud_growth_interval: float = 10.0
-@export var visceroids: bool = false
-@export var meteorites: bool = false
-@export var crew_escape: float = 0.5
 @export var camera_range: int = 9
 @export var maximum_queued_objects: int = 4
 

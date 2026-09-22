@@ -24,6 +24,7 @@ owner = PackedStringArray("GDI")
 threat_posed = 0
 buildable = false
 harvester = true
+harvestable_categories = PackedStringArray("tiberium")
 dock = "GDI_REFINERY"
 weight = 3.0
 crusher = true

@@ -1,8 +1,11 @@
 class_name DockUnloadComponent extends Node
 
-## Bales drained per real second. TS authors this as ~15 logic ticks per bail;
-## this project uses a 2x (30 ticks/second) time base, so 30/15 = 2.0 bales/s.
-@export var unload_rate: float = 2.0
+## Fallback bales per real second when no rules are active.
+const DEFAULT_UNLOAD_RATE: float = 2.0
+
+## Bales drained per real second. Negative = use the active rules'
+## `refinery_unload_rate`; 0 = unload disabled (host evicts the docker).
+@export var unload_rate: float = -1.0
 ## Resource categories this dock accepts (e.g. ["tiberium"]). Empty = accepts all.
 @export var accepted_resource_categories: PackedStringArray = []
 
@@ -24,6 +27,16 @@ func _ready() -> void:
 
 func configure(data: EntityData) -> void:
     accepted_resource_categories = data.accepted_resource_categories
+
+
+## Effective bales/second: the component override when set (>= 0), otherwise the
+## active rules' `refinery_unload_rate`, otherwise the generic fallback.
+func get_effective_unload_rate() -> float:
+    if unload_rate >= 0.0:
+        return unload_rate
+    if _global_rules:
+        return _global_rules.refinery_unload_rate
+    return DEFAULT_UNLOAD_RATE
 
 
 func begin_unload() -> void:
@@ -64,7 +77,7 @@ func _process(delta: float) -> void:
         dock.leave_dock(docker_node)
         return
 
-    var bales_to_unload := unload_rate * delta
+    var bales_to_unload := get_effective_unload_rate() * delta
     var removed := 0.0
 
     for type_id in transport.cargo.keys():

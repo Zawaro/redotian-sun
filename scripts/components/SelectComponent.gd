@@ -342,7 +342,8 @@ func _build_storage_bar(hit_box_size: Vector3, owner_id: int) -> void:
 
     var fill_color := Color(0.2, 0.8, 0.2, 1)
     var rules := EntityFactory.get_global_rules()
-    var rt: ResourceType = rules.get_resource_type("tiberium") if rules else null
+    var category: String = EconomyManager.get_default_category()
+    var rt: ResourceType = rules.get_resource_type(category) if rules else null
     if rt:
         fill_color = rt.color
 
@@ -383,8 +384,9 @@ func update_storage_bar() -> void:
     var capacity: int = EconomyManager.get_storage_capacity(_storage_owner_id)
     var ratio := 0.0
     if capacity > 0:
+        var category: String = EconomyManager.get_default_category()
         ratio = clampf(
-            float(EconomyManager.get_balance(_storage_owner_id, "tiberium")) / float(capacity),
+            float(EconomyManager.get_balance(_storage_owner_id, category)) / float(capacity),
             0.0,
             1.0,
         )
@@ -402,7 +404,7 @@ func _on_credits_changed(player_id: int, _balance: int, _reason: String, categor
     if (
         is_instance_valid(_storage_bar)
         and player_id == _storage_owner_id
-        and category == "tiberium"
+        and category == EconomyManager.get_default_category()
     ):
         update_storage_bar()
 

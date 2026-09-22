@@ -15,10 +15,9 @@ const SNAP_DISTANCE: float = 1.0
 ## Detonations within this radius of the victim snap onto its center.
 const SNAP_RADIUS: float = SNAP_DISTANCE * 2.0
 
-## ponytail: turn-rate scale is a tuning knob. ProjectileData.homing_turn_rate
-## carries the TS ROT integer (8 on heatseekers); 60 deg/s per ROT unit gives
-## a catchable homing arc. Tune here, not in the data files.
-const TURN_RATE_DEG_PER_SEC_PER_UNIT: float = 60.0
+## Fallback degrees/second per unit of ProjectileData.homing_turn_rate when no
+## rules are active.
+const DEFAULT_TURN_DEG_PER_SEC_PER_UNIT: float = 60.0
 
 var _data: ProjectileData
 var _weapon: WeaponData
@@ -177,7 +176,11 @@ func _steer_toward(target_pos: Vector3, delta: float) -> void:
     if angle <= 0.001:
         _heading = desired
         return
-    var max_angle := deg_to_rad(_data.homing_turn_rate * TURN_RATE_DEG_PER_SEC_PER_UNIT) * delta
+    var rules := GlobalRules.get_current()
+    var turn_scale: float = (
+        rules.homing_turn_per_sec_per_unit if rules else DEFAULT_TURN_DEG_PER_SEC_PER_UNIT
+    )
+    var max_angle := deg_to_rad(_data.homing_turn_rate * turn_scale) * delta
     if max_angle <= 0.0 or angle <= max_angle:
         _heading = desired
         return

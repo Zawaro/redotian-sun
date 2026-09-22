@@ -3,7 +3,7 @@ class_name ResourceTreeComponent extends Node
 @export_group("Resource Tree")
 @export var spawned_entity_id: String = ""
 @export var radius_cells: int = 8
-@export var resource_type_id: String = "tiberium_green"
+@export var resource_type_id: String = ""
 @export var node_count: int = 12
 @export var spawn_strength: float = 0.5
 @export var max_spawn_strength: float = 1.0

@@ -196,7 +196,7 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     if data.resource_category != "":
         entity.add_to_group("resources")
         _add_interact_hitbox(entity, data)
-    if data.resource_category == "tiberium_tree":
+    if data.resource_spawner:
         entity.add_to_group("resource_trees")
     return entity
 
@@ -230,7 +230,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_vision_component(entity, data)
     _add_rally_point_component(entity, data)
     _add_ice_component(entity, data)
-    if data.resource_category != "tiberium":
+    if not data.procedural_resource_visual:
         _add_art_component(entity, data)
 
 
@@ -489,7 +489,7 @@ func set_global_rules(rules: GlobalRules) -> void:
 
 
 func _add_resource_tree_component(entity: Node3D, data: EntityData) -> void:
-    if data.resource_category == "tiberium_tree":
+    if data.resource_spawner:
         var component := Node.new()
         component.name = "ResourceTreeComponent"
         component.set_script(RESOURCE_TREE_COMPONENT_SCRIPT)
@@ -498,9 +498,9 @@ func _add_resource_tree_component(entity: Node3D, data: EntityData) -> void:
 
 
 func _add_resource_component(entity: Node3D, data: EntityData) -> void:
-    # Trees are spawners, not harvestable nodes: a ResourceComponent would
-    # register the tree's root cell as a resource and draw crystals on it (#168).
-    if data.resource_category != "" and data.resource_category != "tiberium_tree":
+    # Spawners are not harvestable nodes: a ResourceComponent would register the
+    # spawner's root cell as a resource and draw crystals on it (#168).
+    if data.resource_category != "" and not data.resource_spawner:
         var component := Node.new()
         component.name = "ResourceComponent"
         component.set_script(RESOURCE_COMPONENT_SCRIPT)
@@ -563,12 +563,15 @@ func _add_deploy_component(entity: Node3D, data: EntityData) -> void:
         component.owner = entity
 
 
-## Breakable surface entities (TS ICE01-05). Detected via legacy_id prefix;
-## swap for a dedicated data flag if more breakable surfaces appear.
+## Breakable surface entities (data.breakable_surface), gated by the game's
+## `breakable_ice` feature.
 func _add_ice_component(entity: Node3D, data: EntityData) -> void:
     if data.entity_type != EntityData.EntityType.TERRAIN:
         return
-    if not data.legacy_id.begins_with("ICE"):
+    if not data.breakable_surface:
+        return
+    var gc := get_node_or_null("/root/GameContext")
+    if gc and not gc.has_feature("breakable_ice"):
         return
     var component := Node.new()
     component.name = "IceComponent"
