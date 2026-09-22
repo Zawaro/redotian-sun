@@ -9,10 +9,11 @@ const STATE_SHROUD: int = 0
 const STATE_FOG: int = 1
 const STATE_VISIBLE: int = 2
 
-## Mirrors TerrainSystem.DEFAULT_LAND_TYPE / RESOURCE_LAND_TYPE; kept local so
-## the pure helpers stay static and headless-testable.
-const LAND_TYPE_DEFAULT: String = "clear"
-const LAND_TYPE_RESOURCE: String = "resource"
+## Single source of truth for the land-type sentinels — read from the
+## TerrainSystem script so pure static helpers stay headless-testable.
+const _TERRAIN_SYSTEM: GDScript = preload("res://scripts/core/TerrainSystem.gd")
+const LAND_TYPE_DEFAULT: String = _TERRAIN_SYSTEM.DEFAULT_LAND_TYPE
+const LAND_TYPE_RESOURCE: String = _TERRAIN_SYSTEM.RESOURCE_LAND_TYPE
 
 ## Brightness multiplier for explored-but-not-visible cells.
 const FOG_DIM: float = 0.35

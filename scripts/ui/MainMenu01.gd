@@ -4,6 +4,27 @@ extends Control
 # Main menu controller – handles button clicks and exit logic
 
 @onready var _campaign_dialog: CampaignDialog = $CampaignDialog
+@onready var _background: TextureRect = $TextureRect
+
+
+func _ready() -> void:
+    _apply_game_theme()
+
+
+## Applies the active game's menu background and accent colour, leaving the
+## scene defaults when the game declares none.
+func _apply_game_theme() -> void:
+    var gc := get_node_or_null("/root/GameContext")
+    var def: GameDefinition = gc.current if gc else null
+    if def == null:
+        return
+    if not def.menu_background.is_empty():
+        var texture := load(def.menu_background) as Texture2D
+        if texture:
+            _background.texture = texture
+    for item in _collect_menu_items(self):
+        if item.has_method("set_accent"):
+            item.set_accent(def.menu_accent_color)
 
 
 func _input(event):

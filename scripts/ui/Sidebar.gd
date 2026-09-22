@@ -2,31 +2,54 @@ extends Control
 
 ## Tabbed build menu sidebar with production queue, prerequisites, and angular progress.
 
-const TAB_NAMES: Array[String] = ["Buildings", "Infantry", "Vehicles", "Special"]
 const TAB_ENTITY_TYPES: Dictionary = {
     0: [EntityData.EntityType.BUILDING],
     1: [EntityData.EntityType.INFANTRY],
     2: [EntityData.EntityType.VEHICLE, EntityData.EntityType.AIRCRAFT],
     3: [],
 }
+## Default tab config used when the active game declares no sidebar_tabs.
+const DEFAULT_TABS: Array[Dictionary] = [
+    {"name": "Buildings", "entity_types": ["BUILDING"]},
+    {"name": "Infantry", "entity_types": ["INFANTRY"]},
+    {"name": "Vehicles", "entity_types": ["VEHICLE", "AIRCRAFT"]},
+    {"name": "Special", "entity_types": []},
+]
 ## Rank for entity types absent from the derived rank map (e.g. TERRAIN) —
 ## sorts last.
 const UNKNOWN_TYPE_RANK: int = 999
 
-## Lazily-built rank per entity type, derived from TAB_ENTITY_TYPES order so
+## Lazily-built rank per entity type, derived from the tab config in use so
 ## tabs with mixed types (e.g. Vehicles = ground vehicles + aircraft) always
-## list earlier tab types before later ones.
+## list earlier tab types before later ones. Rebuilt when the config changes.
 static var _type_rank: Dictionary = {}
+static var _rank_key: String = ""
 
 
-static func _get_type_rank(etype: EntityData.EntityType) -> int:
-    if _type_rank.is_empty():
-        var next := 0
-        for tab_index in range(TAB_ENTITY_TYPES.size()):
-            for tab_type in TAB_ENTITY_TYPES[tab_index]:
-                _type_rank[tab_type] = next
-                next += 1
+static func _get_type_rank(etype: EntityData.EntityType, tab_types: Variant = null) -> int:
+    if tab_types == null:
+        tab_types = TAB_ENTITY_TYPES
+    var key := _tab_types_key(tab_types)
+    if key != _rank_key:
+        _rebuild_type_rank(tab_types)
+        _rank_key = key
     return _type_rank.get(etype, UNKNOWN_TYPE_RANK)
+
+
+static func _rebuild_type_rank(tab_types: Variant) -> void:
+    _type_rank.clear()
+    var next := 0
+    for tab_index in range(tab_types.size()):
+        for tab_type in tab_types[tab_index]:
+            _type_rank[tab_type] = next
+            next += 1
+
+
+static func _tab_types_key(tab_types: Variant) -> String:
+    var parts: Array[String] = []
+    for i in range(tab_types.size()):
+        parts.append(str(tab_types[i]))
+    return "|".join(parts)
 
 
 const CAMEO_W: int = 125
@@ -41,15 +64,18 @@ const TINY5_OUTLINE_RATIO := 0.5
 
 @onready var sell_button: Button = %SellButton
 @onready var repair_button: Button = %RepairButton
-@onready var tab_buttons: Array[Button] = [
-    %BuildingsTab,
-    %InfantryTab,
-    %VehiclesTab,
-    %SpecialTab,
-]
+## Tab buttons in display order, resolved from the active game's sidebar_tabs
+## (see GameDefinition) at _ready; the scene supplies the button pool.
+@onready var tab_bar: HBoxContainer = $TabBar
+var tab_buttons: Array[Button] = []
 @onready var grid: GridContainer = %GridContainer
 @onready var scroll_up: Button = %ScrollUp
 @onready var scroll_down: Button = %ScrollDown
+
+## Resolved tab config: Array of { name: String, entity_types: Array[int] }.
+var _tabs: Array[Dictionary] = []
+## Per-tab entity-type arrays (parallel to `_tabs`), used for sort ranking.
+var _tab_types: Array = []
 
 var _current_tab: int = 0
 var _scroll_offset: int = 0
@@ -68,9 +94,10 @@ func _ready() -> void:
     _shader = ShaderMaterial.new()
     _shader.shader = preload("res://shaders/ui/angular_progress.gdshader")
 
-    for i in range(tab_buttons.size()):
-        var btn: Button = tab_buttons[i]
-        btn.pressed.connect(_on_tab_pressed.bind(i))
+    _build_tabs()
+    var gc := get_node_or_null("/root/GameContext")
+    if gc and gc.has_signal("game_changed"):
+        gc.game_changed.connect(_on_game_changed)
 
     scroll_up.pressed.connect(_on_scroll_up)
     scroll_down.pressed.connect(_on_scroll_down)
@@ -100,14 +127,9 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-    if event.is_action_pressed("tab_buildings"):
-        _switch_tab(0)
-    elif event.is_action_pressed("tab_infantry"):
-        _switch_tab(1)
-    elif event.is_action_pressed("tab_vehicles"):
-        _switch_tab(2)
-    elif event.is_action_pressed("tab_special"):
-        _switch_tab(3)
+    var hotkey := _hotkey_tab_index(event)
+    if hotkey >= 0:
+        _switch_tab(hotkey)
     elif event is InputEventMouseButton:
         var mb := event as InputEventMouseButton
         if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -124,11 +146,89 @@ func _on_tab_pressed(tab_index: int) -> void:
     _switch_tab(tab_index)
 
 
+## Resolves the tab set for the active game, falling back to the built-in
+## default when the definition declares none. Feature-gated tabs are dropped
+## when the feature is off.
+func _resolve_tabs() -> Array[Dictionary]:
+    var gc := get_node_or_null("/root/GameContext")
+    var raw: Array = DEFAULT_TABS
+    if gc and gc.current and not gc.current.sidebar_tabs.is_empty():
+        raw = gc.current.sidebar_tabs
+    var out: Array[Dictionary] = []
+    for entry in raw:
+        var required := String(entry.get("requires_feature", ""))
+        if not required.is_empty() and not (gc and gc.has_feature(required)):
+            continue
+        var types: Array[int] = []
+        for type_name: String in entry.get("entity_types", []):
+            if EntityData.EntityType.has(type_name):
+                types.append(EntityData.EntityType[type_name])
+        out.append({"name": String(entry.get("name", "")), "entity_types": types})
+    return out
+
+
+## Builds the tab button row from `_tabs`, reusing the scene's buttons as a pool
+## and duplicating one when the game declares more tabs than the scene provides.
+func _build_tabs() -> void:
+    _tabs = _resolve_tabs()
+    _tab_types = []
+    for tab in _tabs:
+        _tab_types.append(tab["entity_types"])
+    var pool: Array[Button] = []
+    for child in tab_bar.get_children():
+        if child is Button:
+            pool.append(child)
+    var template: Button = pool[0] if not pool.is_empty() else null
+    tab_buttons = []
+    for i in range(_tabs.size()):
+        var btn: Button
+        if i < pool.size():
+            btn = pool[i]
+        elif template:
+            btn = template.duplicate() as Button
+            btn.unique_name_in_owner = false
+            btn.name = "TabButton%d" % i
+            tab_bar.add_child(btn)
+        else:
+            break
+        btn.text = String(_tabs[i]["name"])
+        btn.visible = true
+        for conn in btn.pressed.get_connections():
+            btn.pressed.disconnect(conn["callable"])
+        btn.pressed.connect(_on_tab_pressed.bind(i))
+        tab_buttons.append(btn)
+    for i in range(tab_buttons.size(), pool.size()):
+        pool[i].visible = false
+    _current_tab = clampi(_current_tab, 0, maxi(0, tab_buttons.size() - 1))
+
+
+func _hotkey_tab_index(event: InputEvent) -> int:
+    var idx := -1
+    if event.is_action_pressed("tab_buildings"):
+        idx = 0
+    elif event.is_action_pressed("tab_infantry"):
+        idx = 1
+    elif event.is_action_pressed("tab_vehicles"):
+        idx = 2
+    elif event.is_action_pressed("tab_special"):
+        idx = 3
+    # A hotkey for a tab the active game does not declare is a no-op.
+    return idx if idx >= 0 and idx < tab_buttons.size() else -1
+
+
+func _on_game_changed(_def: GameDefinition) -> void:
+    _build_tabs()
+    _switch_tab(0)
+
+
 func _switch_tab(tab_index: int) -> void:
-    _current_tab = tab_index
+    if tab_buttons.is_empty():
+        _current_tab = 0
+        return
+    _current_tab = clampi(tab_index, 0, tab_buttons.size() - 1)
     _scroll_offset = 0
     for i in range(tab_buttons.size()):
-        tab_buttons[i].button_pressed = (i == tab_index)
+        tab_buttons[i].button_pressed = (i == _current_tab)
     _queue_refresh()
 
 
@@ -147,7 +247,9 @@ func _on_scroll_down() -> void:
 
 
 func _get_current_entities() -> Array[EntityData]:
-    var types: Array = TAB_ENTITY_TYPES.get(_current_tab, [])
+    var types: Array = []
+    if _current_tab >= 0 and _current_tab < _tabs.size():
+        types = _tabs[_current_tab]["entity_types"]
     var result: Array[EntityData] = []
     var ps := get_node("/root/PrerequisiteSystem") as Node
     for etype in types:
@@ -159,25 +261,27 @@ func _get_current_entities() -> Array[EntityData]:
                 result.append(data)
             elif not ps:
                 result.append(data)
-    return sort_buildables(result)
+    return sort_buildables(result, _tab_types)
 
 
 ## Returns a copy sorted into sidebar order: entity type group (rank derived
-## from TAB_ENTITY_TYPES order — e.g. ground vehicles before aircraft in the
+## from the tab config in use — e.g. ground vehicles before aircraft in the
 ## Vehicles tab), then ascending tech_level (-1 = always available first),
-## then display_name, then id. Deterministic tie-breaking prevents
-## load-order flicker between rebuilds.
-static func sort_buildables(items: Array[EntityData]) -> Array[EntityData]:
+## then display_name, then id. Deterministic tie-breaking prevents load-order
+## flicker between rebuilds. `tab_types` defaults to the built-in tab config.
+static func sort_buildables(
+    items: Array[EntityData], tab_types: Variant = null
+) -> Array[EntityData]:
     var sorted := items.duplicate()
     sorted.sort_custom(
-        func(a: EntityData, b: EntityData) -> bool: return _compare_build_items(a, b) < 0
+        func(a: EntityData, b: EntityData) -> bool: return _compare_build_items(a, b, tab_types) < 0
     )
     return sorted
 
 
-static func _compare_build_items(a: EntityData, b: EntityData) -> int:
-    var rank_a := _get_type_rank(a.entity_type)
-    var rank_b := _get_type_rank(b.entity_type)
+static func _compare_build_items(a: EntityData, b: EntityData, tab_types: Variant) -> int:
+    var rank_a := _get_type_rank(a.entity_type, tab_types)
+    var rank_b := _get_type_rank(b.entity_type, tab_types)
     if rank_a != rank_b:
         return rank_a - rank_b
     if a.tech_level != b.tech_level:

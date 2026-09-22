@@ -1,18 +1,15 @@
 class_name PowerBar extends Control
 
-## TS-style twin power bar for the sidebar's left edge: a black column
-## backed by a green fill (power output) with a red fill (drain) drawn in
-## front — on deficit the red bar rises above the green. Fills follow a
-## milder-than-linear power curve and ease toward their targets so grid
-## changes animate instead of jumping.
+## Twin power bar for the sidebar's left edge: a black column backed by a
+## green fill (power output) with a red fill (drain) drawn in front — on
+## deficit the red bar rises above the green. Fills follow the active rules'
+## power-bar curve and ease toward their targets so grid changes animate
+## instead of jumping.
 
-## Full-bar scale: output of 2000 fills the bar, everything below is
-## relative. # ponytail: fixed TS-style scale; GlobalRules export if it ever varies.
-const MAX_POWER := 2000
-## Fill curve exponent: (value / MAX_POWER)^0.4 — a single plant (+100)
-## reads ~30% of the bar instead of 5% linear, while big bases still spread
-## across the top half.
-const CURVE_EXPONENT := 0.4
+## Fallback full-bar scale when no rules are active.
+const DEFAULT_MAX_POWER := 2000.0
+## Fallback fill curve exponent when no rules are active.
+const DEFAULT_CURVE_EXPONENT := 0.4
 ## Exponential ease rate (per second) for the fill animation.
 const ANIM_SPEED := 8.0
 ## Distance at which an animating fill snaps to its target — below this the
@@ -32,7 +29,10 @@ func _process(delta: float) -> void:
     if grid == null:
         return
     var pid := PlayerManager.get_local_player_id()
-    var target := _ratios(grid.get_output(pid), grid.get_drain(pid))
+    var rules := GlobalRules.get_current()
+    var max_power: float = rules.power_bar_max_output if rules else DEFAULT_MAX_POWER
+    var exponent: float = rules.power_bar_curve_exponent if rules else DEFAULT_CURVE_EXPONENT
+    var target := _ratios(grid.get_output(pid), grid.get_drain(pid), max_power, exponent)
     if _displayed.is_equal_approx(target):
         return
     _displayed = _advance(_displayed, target, delta)
@@ -54,14 +54,21 @@ func _draw() -> void:
 
 
 ## Bottom-up fill fractions for output and drain, clamped to the bar height.
-static func _ratios(output: int, drain: int) -> Vector2:
-    return Vector2(_curve(output), _curve(drain))
+static func _ratios(
+    output: int,
+    drain: int,
+    max_power: float = DEFAULT_MAX_POWER,
+    exponent: float = DEFAULT_CURVE_EXPONENT
+) -> Vector2:
+    return Vector2(_curve(output, max_power, exponent), _curve(drain, max_power, exponent))
 
 
 ## Milder-than-linear fill curve; clamped before pow so negative/oversized
 ## values stay well-defined (pow of a negative base is NaN).
-static func _curve(value: int) -> float:
-    return pow(clampf(float(value) / float(MAX_POWER), 0.0, 1.0), CURVE_EXPONENT)
+static func _curve(
+    value: int, max_power: float = DEFAULT_MAX_POWER, exponent: float = DEFAULT_CURVE_EXPONENT
+) -> float:
+    return pow(clampf(float(value) / maxf(max_power, 0.001), 0.0, 1.0), exponent)
 
 
 ## Frame-rate independent exponential ease toward the target, snapping on
