@@ -9,10 +9,6 @@ func _make_rules() -> GlobalRules:
     rules.veteran_speed = 0.30
     rules.veteran_armor = 0.25
     rules.veteran_cap = 2
-    rules.tracked_uphill = 0.5
-    rules.tracked_downhill = 1.1
-    rules.wheeled_uphill = 0.5
-    rules.wheeled_downhill = 1.2
     rules.multiple_factory = 0.5
     rules.build_speed = 0.8
     rules.repair_step = 8

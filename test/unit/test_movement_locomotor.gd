@@ -25,6 +25,14 @@ func _subterranean() -> Locomotor:
     return sub
 
 
+func _track() -> Locomotor:
+    var track := Locomotor.new()
+    track.id = "Track"
+    track.uphill_factor = 0.5
+    track.downhill_factor = 1.1
+    return track
+
+
 func _make_mc(entity_type: int) -> Array:
     var entity := Node3D.new()
     var stats := StatsComponent.new()
@@ -176,13 +184,9 @@ func test_slope_probe_uphill():
         TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
-    var rules := GlobalRules.new()
-    rules.tracked_uphill = 0.5
-    rules.tracked_downhill = 1.1
     var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
     var mc: MovementController = pair[1]
-    mc._rules = rules
-    mc.locomotor = "Track"
+    mc._locomotor_data = _track()
     for v in [Vector2i(51, 50), Vector2i(52, 50), Vector2i(51, 51), Vector2i(52, 51)]:
         _ts._vertex_grid[v.x][v.y] = 3
     mc._waypoints = [Vector3.ZERO, CellUtil.cell_to_world(Vector2i(51, 50))]
@@ -198,13 +202,9 @@ func test_slope_probe_downhill():
         TestHelper.fail("TerrainSystem not injected")
         return
     _reset_terrain()
-    var rules := GlobalRules.new()
-    rules.tracked_uphill = 0.5
-    rules.tracked_downhill = 1.1
     var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
     var mc: MovementController = pair[1]
-    mc._rules = rules
-    mc.locomotor = "Track"
+    mc._locomotor_data = _track()
     for v in [Vector2i(50, 50), Vector2i(50, 51)]:
         _ts._vertex_grid[v.x][v.y] = 3
     mc._waypoints = [Vector3.ZERO, CellUtil.cell_to_world(Vector2i(51, 50))]
@@ -217,13 +217,9 @@ func test_slope_probe_downhill():
 
 func test_slope_probe_flat():
     _reset_terrain()
-    var rules := GlobalRules.new()
-    rules.tracked_uphill = 0.5
-    rules.tracked_downhill = 1.1
     var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
     var mc: MovementController = pair[1]
-    mc._rules = rules
-    mc.locomotor = "Track"
+    mc._locomotor_data = _track()
     mc._waypoints = [Vector3.ZERO, CellUtil.cell_to_world(Vector2i(51, 50))]
     mc._spline_t = 0.0
     var coeff: float = mc._slope_coefficient()

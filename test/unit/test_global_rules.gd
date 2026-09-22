@@ -137,8 +137,21 @@ func test_dock_unload_rate_default():
     (
         TestHelper
         . assert_true(
-            absf(component.unload_rate - 2.0) < 0.01,
-            "DockUnloadComponent default unload rate ~= 2.0 (got %f)" % component.unload_rate,
+            absf(component.unload_rate + 1.0) < 0.01,
+            (
+                "DockUnloadComponent default unload rate is the rules sentinel (got %f)"
+                % component.unload_rate
+            ),
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            absf(component.get_effective_unload_rate() - 2.0) < 0.01,
+            (
+                "effective unload rate falls back to 2.0 with no rules (got %f)"
+                % component.get_effective_unload_rate()
+            ),
         )
     )
     component.free()
