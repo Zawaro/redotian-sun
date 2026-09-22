@@ -3,9 +3,7 @@
 ## Purpose
 
 Pathfinder provides A* pathfinding on the 2m × 2m centered grid: occupancy-aware routing with height cost, optional per-locomotor terrain passability and climb tolerance, line-of-sight smoothing, a binary heap open set, and stagnation fallback.
-
 ## Requirements
-
 ### Requirement: Pathfinder provides A* pathfinding on 2m grid
 `Pathfinder` SHALL be a static GDScript class at `scripts/core/Pathfinder.gd` implementing A* pathfinding on a 2m × 2m grid with 8-direction adjacency (cardinal + diagonal). Diagonal movement SHALL use `sqrt(2)` cost weighting. The heuristic SHALL be octile distance.
 
@@ -217,3 +215,15 @@ Movement orders issued to units SHALL attempt bounded greedy descent toward the 
 #### Scenario: No terrain reference falls back to autoload
 - **WHEN** no terrain node reference is supplied
 - **THEN** the autoload is resolved as before and pathfinding still succeeds
+
+### Requirement: Ice footing gated by feature flag
+`Pathfinder` SHALL consume intact-ice footing only when the active game declares `breakable_ice`. The ice check SHALL be skipped entirely when the flag is off, and water SHALL remain governed by locomotor terrain speeds.
+
+#### Scenario: Feature on
+- **WHEN** `breakable_ice` is on and intact ice occupies a water cell
+- **THEN** the cell is passable for a ground locomotor that could otherwise not cross water
+
+#### Scenario: Feature off
+- **WHEN** `breakable_ice` is off
+- **THEN** the ice check is skipped and water passability follows the locomotor's terrain speeds
+

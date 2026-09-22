@@ -1,5 +1,9 @@
-## ADDED Requirements
+# resource-storage Specification
 
+## Purpose
+
+Per-player per-category resource storage, capacity, and HUD storage display.
+## Requirements
 ### Requirement: Per-player per-category resource storage
 The system SHALL track each player's **stored** resource value per resource category (e.g. `"tiberium"`, `"weed"`) on their `PlayerData` as the single source of truth for storage. Harvest dumps and production-cancel refunds SHALL increase the category's stored value; spending SHALL decrease it (stored first). Free credits (starting credits, crate bonuses, debug money, sell refunds) SHALL be tracked separately and never count toward storage.
 
@@ -86,3 +90,19 @@ The GDI and Nod refinery `EntityData` resources SHALL set `refinery = true` and 
 #### Scenario: Nod refinery declares capability
 - **WHEN** the `nod_refinery.tres` entity data is loaded
 - **THEN** `refinery` is `true` and `storage_capacity["tiberium"]` is 2000
+
+### Requirement: Storage HUD uses the active primary category
+The selected-entity storage display and the default economy category SHALL use `GlobalRules.primary_resource_category`, not the `"tiberium"` literal. `EconomyManager` SHALL resolve its default category from the active rules, falling back to the last-known category when no rules are active.
+
+#### Scenario: TS primary category
+- **WHEN** the active rules set `primary_resource_category = "tiberium"`
+- **THEN** the storage bar reads the player's `"tiberium"` balance
+
+#### Scenario: RA2 primary category
+- **WHEN** the active rules set `primary_resource_category = "ore"`
+- **THEN** the storage bar reads the player's `"ore"` balance and credit updates for `"ore"` refresh it
+
+#### Scenario: Debug credit grant
+- **WHEN** the debug menu grants credits
+- **THEN** the balance is tagged with the active primary category
+
