@@ -94,6 +94,38 @@ func test_list_games_contains_ts_sorted_by_id():
         TestHelper.assert_true(ids[i - 1] < ids[i], "list_games sorted by id")
 
 
+# --- feature flags -----------------------------------------------------------
+
+
+func test_definition_feature_lookup():
+    var def := GameDefinition.new()
+    TestHelper.assert_true(not def.has_feature("breakable_ice"), "undeclared feature reads false")
+    def.features = {"breakable_ice": true, "example_off": false}
+    TestHelper.assert_true(def.has_feature("breakable_ice"), "declared-on reads true")
+    TestHelper.assert_true(not def.has_feature("example_off"), "declared-off reads false")
+    TestHelper.assert_true(not def.has_feature("unknown"), "unknown feature reads false")
+
+
+func test_ts_game_declares_core_features():
+    var ts: GameDefinition = _gc._defs.get("ts")
+    TestHelper.assert_true(ts != null, "ts definition present")
+    if ts == null:
+        return
+    TestHelper.assert_true(ts.has_feature("breakable_ice"), "ts enables breakable_ice")
+    TestHelper.assert_true(
+        ts.has_feature("resource_tree_regrowth"), "ts enables resource_tree_regrowth"
+    )
+
+
+func test_context_has_feature_null_safe():
+    var snap := TestHelper.snapshot_game_context(_gc)
+    _gc.select_game("")
+    TestHelper.assert_true(not _gc.has_feature("breakable_ice"), "no game -> false, no error")
+    _gc.select_game("ts")
+    TestHelper.assert_true(_gc.has_feature("breakable_ice"), "active game feature read through")
+    TestHelper.restore_game_context(_gc, snap)
+
+
 # --- select / unload lifecycle ----------------------------------------------
 
 

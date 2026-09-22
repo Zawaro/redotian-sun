@@ -111,6 +111,7 @@ func _make_tiberium(cell: Vector2i) -> Node3D:
     stats.entity_type = EntityData.EntityType.OVERLAY
     var rc := ResourceComponent.new()
     rc.name = "ResourceComponent"
+    rc.resource_type_id = "tiberium_green"
     tib.add_child(rc)
     var stage := Node3D.new()
     stage.name = "Stage2"
@@ -133,6 +134,7 @@ func _make_tiberium_full(cell: Vector2i) -> Node3D:
     stats.entity_type = EntityData.EntityType.OVERLAY
     var rc := ResourceComponent.new()
     rc.name = "ResourceComponent"
+    rc.resource_type_id = "tiberium_green"
     tib.add_child(rc)
     var stages: Array[Node3D] = []
     for i in 3:
@@ -168,6 +170,7 @@ func _make_tiberium_unstaged(cell: Vector2i) -> Node3D:
     stats.entity_type = EntityData.EntityType.OVERLAY
     var rc := ResourceComponent.new()
     rc.name = "ResourceComponent"
+    rc.resource_type_id = "tiberium_green"
     tib.add_child(rc)
     rc._cube_nodes = []
     rc._current_visual_stage = -1

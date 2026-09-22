@@ -10,6 +10,7 @@ func _make_entity(health: int = 300, max_health: int = 300) -> Node3D:
     entity.name = "TestTiberium"
     var tib := ResourceComponent.new()
     tib.name = "ResourceComponent"
+    tib.resource_type_id = "tiberium_green"
     entity.add_child(tib)
     var hp := HealthComponent.new()
     hp.name = "HealthComponent"
