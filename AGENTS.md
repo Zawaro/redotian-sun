@@ -253,6 +253,15 @@ codebase-memory-mcp index_repository mode="full" name="Redotian-Sun"
 
 Use `resolve-library-id` + `query-docs` for Redot docs (library ID: `/redot-engine/redot-docs`). Prefer Redot docs over upstream Godot docs.
 
+### Serena (LSP Symbol Intelligence + Project Memories)
+
+Serena runs the GDScript language server for symbol-level intelligence and keeps per-project memories under `.serena/` (config `project.yml` is committed; `cache/` and `project.local.yml` are ignored).
+
+- Discovery still starts with `search_graph`; then use Serena `get_symbols_overview` / `find_symbol` to read a symbol body, `find_referencing_symbols` before rename/remove, and the symbolic editors (`replace_symbol_body`, `insert_after_symbol`, `rename_symbol`) for edits.
+- Read `mem:core` first, then the memories it references (`mem:tech_stack`, `mem:conventions`, `mem:suggested_commands`, `mem:task_completion`) before non-trivial work. Persist durable conventions and gotchas with `write_memory`.
+- Validate memory references with `serena memories check` from the repo root.
+- **GDScript LSP prerequisites**: Serena does not launch Redot — it connects over TCP to an already-running Redot editor. Redot's language server defaults to port `6005` (Serena/solidlsp assumes `6008`), overridden in `.serena/project.yml` (`ls_specific_settings.gdscript.port`). That project setting is only applied if the project path is listed in `trusted_project_path_patterns` in the user's global `~/.serena/serena_config.yml` — trust is per-machine, so set it after cloning. Without a running editor or trust, symbol tools fail; fall back to `search_graph` + gdlint.
+
 ### Web Search (SearXNG MCP)
 
 Use `searxng_searxng_web_search` for general web searches, tutorials, third-party resources.
