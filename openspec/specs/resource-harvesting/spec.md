@@ -1,5 +1,9 @@
-## MODIFIED Requirements
+# resource-harvesting Specification
 
+## Purpose
+
+Harvester behavior: seeking resource cells, filling cargo, and unloading at refineries.
+## Requirements
 ### Requirement: HarvestComponent order targeter
 HarvestComponent SHALL implement `get_order_for_target()`. When target has ResourceComponent, it SHALL return an OrderResult with cursor HARVEST, priority 20, and execute callback that calls `set_target_node(target)`. When target has DockHostComponent AND the target's owner exactly matches the harvester's owner (both valid ids), it SHALL return cursor ENTER, priority 15, and execute callback that calls `set_target_refinery(target)`. When the target dock host is foreign-owned or either side has an unset owner id (`< 0` or missing `StatsComponent`), get_order_for_target() SHALL return null so downstream order generators can resolve the order. Harvesters do NOT have CombatComponent — the HARVEST/ENTER priority ordering is correct for harvester-only scenarios.
 
@@ -29,8 +33,6 @@ HarvestComponent SHALL remove the existing `get_cursor_for_target()` method. Cur
 #### Scenario: Old method removed
 - **WHEN** `get_cursor_for_target()` is called on HarvestComponent
 - **THEN** it SHALL not exist (method removed)
-
-## ADDED Requirements
 
 ### Requirement: Full harvester never strands after reaching the field
 A harvester whose cargo is full SHALL not remain idle at a tiberium field. When it is ordered to harvest while full, any in-flight dock SHALL be cancelled at order time so the walk-to-field→unload chain is not disrupted by a busy dock client. After it reaches the field (TS-authentic walk-to-field behavior), it SHALL route to the nearest compatible same-owner refinery dock to unload. If a dock seek still cannot engage — no same-owner dock reachable or the client on retry cooldown — the harvester SHALL remain near the field on its retry cooldown loop and re-attempt docking until a friendly dock becomes reachable, retaining its full cargo. A harvest click SHALL issue only the harvest order: `MouseHandler` pass 2 must return after executing an interact order so the click does not additionally issue a move command that cancels the harvest and strands the full harvester.
@@ -122,3 +124,15 @@ Harvesting SHALL fill cargo at `GlobalRules.harvester_fill_rate` bales per real 
 #### Scenario: Fill time
 - **WHEN** an empty harvester with `storage = 28` harvests continuously at the configured fill rate
 - **THEN** it SHALL reach full cargo in approximately 17 seconds
+
+### Requirement: Harvest categories from data
+`HarvestComponent` SHALL obtain its harvestable categories from `EntityData.harvestable_categories` via a `configure` method, rather than a compile-time `["tiberium"]` default. An empty list SHALL mean the harvester accepts every resource category.
+
+#### Scenario: Configure from data
+- **WHEN** a harvester is created from data with `harvestable_categories = ["tiberium"]`
+- **THEN** `harvestable_types` is `["tiberium"]`
+
+#### Scenario: No restrictive default
+- **WHEN** harvester data leaves `harvestable_categories` empty
+- **THEN** the harvester accepts every category
+

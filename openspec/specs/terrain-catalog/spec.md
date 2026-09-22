@@ -2,9 +2,7 @@
 
 ## Purpose
 TBD - created by archiving change terrain-art-theater-reframe. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: TerrainCatalog registry
 The system SHALL provide a `TerrainCatalog` autoload (`scripts/core/TerrainCatalog.gd`) that scans the terrain subdirectories (`terrain_objects/`, `art/terrain/`, `theaters/`) of each data-set layer root of the active game — as resolved by GameContext at select time — and caches `TerrainObject`, `TerrainArtData`, and `TheaterData` resources by id. The scan SHALL recurse into subdirectories and register only resources of the expected type. The catalog SHALL expose `get_object(id)`, `get_art(id)`, and `get_theater(id)`.
 
@@ -65,3 +63,15 @@ The system SHALL resolve a cell's mesh through `TerrainCatalog.resolve_art(objec
 #### Scenario: Missing art renders a pink placeholder
 - **WHEN** an object has no `art_data` or its art has no `model_path`
 - **THEN** resolution is invalid, a warning is emitted, and the cell renders a pink placeholder mesh
+
+### Requirement: Terrain fallback declared per game
+`TerrainCatalog` SHALL obtain its fallback terrain scene from the active `GameDefinition` (`fallback_terrain_scene`), not a hardcoded `res://games/ts/...` path. When no fallback is declared, missing theater art SHALL warn and return null rather than loading another game's asset.
+
+#### Scenario: Declared fallback
+- **WHEN** the active game declares a fallback terrain scene
+- **THEN** missing theater art resolves to that scene
+
+#### Scenario: No fallback
+- **WHEN** the active game declares no fallback and theater art is missing
+- **THEN** the catalog warns, returns null, and does not load a TS asset
+

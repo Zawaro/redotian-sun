@@ -1,5 +1,9 @@
-## ADDED Requirements
+# sidebar-build-order Specification
 
+## Purpose
+
+Sidebar build menu ordering and tab assignment.
+## Requirements
 ### Requirement: Sidebar build items sort by type group then tech level
 The sidebar build menu SHALL sort buildable items by: entity type group rank (mirroring `Sidebar.TAB_ENTITY_TYPES` order — Buildings, Infantry, Vehicles, Aircraft), then ascending `EntityData.tech_level` (with -1, meaning always available, sorting before all finite levels), then `display_name` (natural case-insensitive), then `id`. Sorting SHALL be deterministic: items with equal keys SHALL resolve to the same sequence regardless of load order.
 
@@ -21,3 +25,23 @@ The sidebar build menu SHALL sort buildable items by: entity type group rank (mi
 #### Scenario: New buildable entity requires no ordering metadata
 - **WHEN** a new buildable entity is added with only entity_type and tech_level set
 - **THEN** it SHALL slot into the sidebar order automatically without editing any sibling entity
+
+### Requirement: Sidebar tabs are per-game data
+The sidebar tab set SHALL be built from per-game configuration declared by the active `GameDefinition` (tab label, accepted entity type groups, and an optional required feature). The sidebar SHALL NOT hardcode the Tiberian Sun four-tab list or its entity-type mapping. Tabs whose required feature is off SHALL be hidden.
+
+#### Scenario: Declared tabs
+- **WHEN** the active game declares sidebar tabs (name + entity types)
+- **THEN** the sidebar builds exactly those tabs in order
+
+#### Scenario: No declared tabs
+- **WHEN** the active game declares no sidebar tabs
+- **THEN** the built-in default tab set is used
+
+#### Scenario: Feature-gated tab hidden
+- **WHEN** a declared tab requires a feature the game does not enable
+- **THEN** that tab is not shown and its hotkey does nothing
+
+#### Scenario: Empty tabs allowed
+- **WHEN** a declared tab maps to no entity type groups (e.g. the special/superweapon tab before that mechanic exists)
+- **THEN** the tab builds empty without error
+

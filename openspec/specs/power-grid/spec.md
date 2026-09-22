@@ -2,7 +2,6 @@
 
 Per-player power aggregation: every PowerComponent registers via scene-tree signals, PowerGrid sums output and drain per player, classifies low power, fans out shutdown to powered structures, and scales production speed. Selection-overlay and sidebar UI read live grid totals; build-cameo tooltips carry each item's data power value.
 ## Requirements
-
 ### Requirement: PowerGrid autoload aggregates per-player power
 The system SHALL provide a `PowerGrid` autoload singleton that maintains a registry of all `PowerComponent` nodes present in the scene tree. For each registered component, PowerGrid SHALL resolve the owning player via the entity's `StatsComponent.player_id` and maintain per-player sums: `output` (sum of positive `power` values) and `drain` (sum of the absolute values of negative `power` values). Registration SHALL be driven by scene-tree `node_added`/`node_removed` signals so that buildings reach the grid through every spawn path (player placement, map-load starting bases, MCV deploy, editor placement) and leave it on free.
 
@@ -181,3 +180,15 @@ A build menu cameo whose `EntityData.power` is nonzero SHALL show a signed power
 #### Scenario: No power line without power values
 - **WHEN** hovering a build menu cameo whose data has `power = 0`
 - **THEN** the tooltip contains no power line
+
+### Requirement: Power bar derives from rules
+The sidebar power bar SHALL read its full-bar scale and fill-curve exponent from the active `GlobalRules` (`power_bar_max_output`, `power_bar_curve_exponent`). When no rules are active it SHALL fall back to a generic default scale of 2000.0 and curve 0.4.
+
+#### Scenario: Rules-driven fill
+- **WHEN** the active rules set `power_bar_max_output = 2000.0` and `power_bar_curve_exponent = 0.4`
+- **THEN** `output = 2000` yields a displayed fill of 1.0 and `output = 500` yields `(0.25)^0.4`
+
+#### Scenario: No rules fallback
+- **WHEN** no GlobalRules are active
+- **THEN** the curve uses the 2000.0 / 0.4 fallback and clamps to `[0,1]` without error
+
