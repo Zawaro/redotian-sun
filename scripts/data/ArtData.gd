@@ -18,9 +18,6 @@ class_name ArtData extends Resource
 ## Path to the sidebar cameo (build icon) image (e.g., "res://games/ts/assets/ui/cameos/e1.png").
 # ponytail: schema-first, no consumer yet
 @export var cameo_path: String = ""
-## Path to the buildup scene played during construction (buildings only).
-# ponytail: schema-first, no consumer yet
-@export var buildup_scene: String = ""
 
 ## Dimensions
 @export_group("Dimensions")
@@ -54,8 +51,9 @@ class_name ArtData extends Resource
 
 ## Animations
 @export_group("Animations")
-## Active animation tracks played on this entity (e.g., idle, walk, fire).
-@export var active_anims: Array[ActiveAnimData] = []
+## Timed/animated clips attached to this entity: looping ACTIVE entries plus
+## one-shot lifecycle roles (door, production, buildup, ...).
+@export var animations: Array[AnimClipData] = []
 ## Infantry sequence name (e.g., "E1Sequence") — references [SequenceName] in art.ini
 ## which defines frame ranges for Ready, Walk, FireUp, Die, etc.
 # ponytail: schema-first, no consumer yet
@@ -78,42 +76,6 @@ class_name ArtData extends Resource
 ## Whether the loading/boarding animation is visible to other players.
 # ponytail: schema-first, no consumer yet
 @export var visible_load: bool = false
-
-## Building animations
-@export_group("Building Animations")
-## Name of the buildup animation played during construction.
-# ponytail: schema-first, no consumer yet
-@export var buildup_name: String = ""
-## Name of the deployment animation (e.g., MCV unfolding).
-# ponytail: schema-first, no consumer yet
-@export var deploying_anim: String = ""
-## Name of the door open/close animation.
-# ponytail: schema-first, no consumer yet
-@export var door_anim: String = ""
-## Number of door stages (for multi-step door animations).
-# ponytail: schema-first, no consumer yet
-@export var door_stages: int = 0
-## Name of the animation played under the door (production output).
-# ponytail: schema-first, no consumer yet
-@export var under_door_anim: String = ""
-## Name of the production animation (e.g., unit emerging from factory).
-# ponytail: schema-first, no consumer yet
-@export var production_anim: String = ""
-## Production animation X offset in voxels.
-# ponytail: schema-first, no consumer yet
-@export var production_anim_x: float = 0.0
-## Production animation Y offset in voxels.
-# ponytail: schema-first, no consumer yet
-@export var production_anim_y: float = 0.0
-## Whether production animation uses Y-sort (render in front of entities at same depth).
-# ponytail: schema-first, no consumer yet
-@export var production_anim_ysort: bool = false
-## Production animation Z-adjust (vertical offset for rendering order).
-# ponytail: schema-first, no consumer yet
-@export var production_anim_zadjust: float = 0.0
-## Name of the animation played before production starts (e.g., door opening).
-# ponytail: schema-first, no consumer yet
-@export var pre_production_anim: String = ""
 
 ## Additional active animation tracks (beyond the first).
 @export_group("Additional Animations")
@@ -146,14 +108,6 @@ class_name ArtData extends Resource
 @export var power_up2_sort: bool = false
 # ponytail: schema-first, no consumer yet
 @export var power_up3_sort: bool = false
-
-## Special animations
-@export_group("Special Animations")
-# ponytail: schema-first, no consumer yet
-@export var special_anim: String = ""
-## Name of the charge-up animation (e.g., Obelisk charging).
-# ponytail: schema-first, no consumer yet
-@export var charge_anim: String = ""
 
 ## SAM site
 @export_group("SAM Site")
@@ -233,9 +187,9 @@ func validate() -> PackedStringArray:
     var errors: PackedStringArray = []
     if id.is_empty():
         errors.append("ArtData: id is empty")
-    for anim in active_anims:
-        if anim and anim.anim_name.is_empty():
-            errors.append("%s: active_anim has empty anim_name" % id)
+    for anim in animations:
+        if anim and anim.model_path.is_empty():
+            errors.append("%s: animation entry has empty model_path" % id)
     var seen_sockets: Dictionary = {}
     for socket in sockets:
         if socket == null or socket.id.is_empty():
@@ -253,6 +207,20 @@ func get_socket(socket_id: String) -> SocketData:
         if socket and socket.id == socket_id:
             return socket
     return null
+
+
+## Resolves an art path for the active theater. With `new_theater` set and a
+## non-empty theater id, tries the theater-suffixed file
+## (`<name>_<theater>.<ext>`, e.g. `gdi_conyard01_snow.glb`) and falls back to
+## the authored generic path when it does not exist. The suffix is the full
+## theater id, not the TS single-letter form.
+func resolve_art_path(path: String, theater_id: String) -> String:
+    if not new_theater or theater_id.is_empty() or path.is_empty():
+        return path
+    var candidate := "%s_%s.%s" % [path.get_basename(), theater_id, path.get_extension()]
+    if ResourceLoader.exists(candidate):
+        return candidate
+    return path
 
 
 ## Minimap color resolution (issue #178):

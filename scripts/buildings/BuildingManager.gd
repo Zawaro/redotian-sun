@@ -272,6 +272,12 @@ func place_building(building_type: EntityData, origin_cell: Vector2i) -> bool:
 
     building_placed.emit(building, building_type)
 
+    # Play the placement buildup, if authored. Map-load and deploy-created
+    # structures never reach place_building, so they skip buildup.
+    var art := building.get_node_or_null("ArtComponent") as ArtComponent
+    if art:
+        art.play_buildup()
+
     # Resume production queue for this player
     if pm:
         pm.clear_waiting_for_placement(pid)
