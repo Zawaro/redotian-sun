@@ -418,3 +418,118 @@ func test_mover_y_on_deck_and_under_deck():
         is_equal_approx(under_y, ground_height), "under-deck mover Y is the ground surface"
     )
     TestHelper.assert_true(is_equal_approx(on_y, deck), "on-deck mover Y is the deck surface")
+
+
+## GAP B: an idle unit placed on a deck at deck height keeps that surface — the
+## idle snap resolves the level from the unit's own Y instead of defaulting to 0.
+func test_idle_deck_unit_keeps_deck_height():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var root: Node = Engine.get_main_loop().root
+    var cell := Vector2i(50, 50)
+    _ts._vertex_grid[50][50] = 1
+    _ts._vertex_grid[51][50] = 1
+    _ts._vertex_grid[50][51] = 1
+    _ts._vertex_grid[51][51] = 1
+    _ts.invalidate_height_snapshot()
+    var ground_height: float = 1.0 * _ts.HEIGHT_STEP
+    var deck: float = ground_height + 4.0 * _ts.HEIGHT_STEP
+    _sh._bridge_cells[CellUtil.cell_level_key(cell, 1)] = {
+        "surface_height": deck,
+        "is_end": false,
+        "piece_id": "piece_test",
+        "level": 1,
+    }
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    mc._locomotor_data = _wheel()
+    root.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(cell)
+    entity.global_position.y = deck
+    # Non-vacuity control: with the resolver bypassed (stale level 0) the idle
+    # memo samples the ground beneath the deck — the bug this fix removes.
+    mc._surface_level = 0
+    var without_resolver: float = mc._memoized_smooth_height(entity.global_position)
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(without_resolver, ground_height),
+            "control: stale level 0 samples the ground beneath the deck",
+        )
+    )
+    mc._idle_snapped = false
+    mc._physics_process(1.0 / 60.0)
+    var resolved_level: int = mc._surface_level
+    var stayed_y: float = entity.global_position.y
+    _sh._bridge_cells.erase(CellUtil.cell_level_key(cell, 1))
+    root.remove_child(entity)
+    entity.free()
+    _reset_terrain()
+    TestHelper.assert_eq(resolved_level, 1, "idle unit on a deck resolves to the deck level")
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(stayed_y, deck),
+            "idle unit on a deck stays at deck height (got %s)" % stayed_y,
+        )
+    )
+
+
+## GAP B: an idle unit placed at ground height under a deck resolves to level 0
+## and stays on the ground, not snapping up to the deck.
+func test_idle_ground_unit_under_deck_stays_on_ground():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var root: Node = Engine.get_main_loop().root
+    var cell := Vector2i(50, 50)
+    _ts._vertex_grid[50][50] = 1
+    _ts._vertex_grid[51][50] = 1
+    _ts._vertex_grid[50][51] = 1
+    _ts._vertex_grid[51][51] = 1
+    _ts.invalidate_height_snapshot()
+    var ground_height: float = 1.0 * _ts.HEIGHT_STEP
+    var deck: float = ground_height + 4.0 * _ts.HEIGHT_STEP
+    _sh._bridge_cells[CellUtil.cell_level_key(cell, 1)] = {
+        "surface_height": deck,
+        "is_end": false,
+        "piece_id": "piece_test",
+        "level": 1,
+    }
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    mc._locomotor_data = _wheel()
+    root.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(cell)
+    entity.global_position.y = ground_height
+    # Non-vacuity control: a stale level 1 would sample the deck above.
+    mc._surface_level = 1
+    var without_resolver: float = mc._memoized_smooth_height(entity.global_position)
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(without_resolver, deck),
+            "control: stale level 1 samples the deck above the ground",
+        )
+    )
+    mc._idle_snapped = false
+    mc._physics_process(1.0 / 60.0)
+    var resolved_level: int = mc._surface_level
+    var stayed_y: float = entity.global_position.y
+    _sh._bridge_cells.erase(CellUtil.cell_level_key(cell, 1))
+    root.remove_child(entity)
+    entity.free()
+    _reset_terrain()
+    TestHelper.assert_eq(resolved_level, 0, "idle unit at ground height resolves to level 0")
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(stayed_y, ground_height),
+            "idle unit under a deck stays at ground height (got %s)" % stayed_y,
+        )
+    )

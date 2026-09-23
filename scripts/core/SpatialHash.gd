@@ -10,9 +10,9 @@ var _reserved: Dictionary = {}
 var _resource_cells: Dictionary = {}
 var _shared_cell_counts: Dictionary = {}
 var _ice_cells: Dictionary = {}
-## Live bridge deck cells: cell_level_key -> {surface_height, is_end, piece_id,
-## level}. Rebuilt from the "bridge" group each `rebuild()` (see `_bridge_cells`
-## note there).
+## Live bridge deck cells: cell_level_key -> {surface_height, bridge_kind, is_end,
+## piece_id, level}. Rebuilt from the "bridge" group each `rebuild()` (see
+## `_bridge_cells` note there).
 var _bridge_cells: Dictionary = {}
 ## Pooled per-entity entries (entity root -> entry dict). Shared with `_grid`.
 var _entry_map: Dictionary = {}
@@ -392,6 +392,7 @@ func _read_bridge_cell_data(node: Node3D) -> Dictionary:
         return {}
     return {
         "surface_height": float(data["surface_height"]),
+        "bridge_kind": int(data.get("bridge_kind", 0)),
         "is_end": bool(data["is_end"]),
         "piece_id": String(data["piece_id"]),
         "level": level,
@@ -518,9 +519,10 @@ func get_crushable_enemies_on_cell(cell: Vector2i, player_id: int) -> Array:
 
 
 ## True when any mobile entity occupies the cell. `level >= 0` restricts to that
-## surface; `level == -1` (default) matches any level, preserving pre-level
-## callers.
-func is_any_entity_on_cell(cell: Vector2i, level: int = -1) -> bool:
+## surface; the no-level call resolves to ground (level 0), so ground building,
+## deploy, and transport queries ignore a deck occupant above. Pass `level == -1`
+## explicitly for the any-level query.
+func is_any_entity_on_cell(cell: Vector2i, level: int = 0) -> bool:
     var entries: Array = _grid.get(CellUtil.cell_key(cell), [])
     for entry in entries:
         if entry["mc"] == null:
@@ -535,7 +537,13 @@ func is_any_entity_on_cell(cell: Vector2i, level: int = -1) -> bool:
 ## `cell_key`, so the no-arg callers reserve exactly as before. A deck
 ## reservation never blocks the ground beneath and vice versa. Buildings are
 ## ground-only, so `_building_cells` (keyed by `cell_key`) only refuses level 0.
+## A `level > 0` reservation requires a live deck at that level: empty air over a
+## deckless cell is refused so nobody paths to a surface the level-aware A* cannot
+## reach. Ground level 0 is unchanged and needs no deck. `force_reserve` bypasses
+## this deliberately for a unit's own occupied cell.
 func reserve_cell(cell: Vector2i, level: int = 0) -> bool:
+    if level > 0 and not has_bridge_on_cell(cell, level):
+        return false
     var key := CellUtil.cell_level_key(cell, level)
     if _reserved.has(key) or _blocked_cells.has(key) or _building_cells.has(key):
         return false

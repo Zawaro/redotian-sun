@@ -263,13 +263,21 @@ func test_sub_slots_are_level_scoped() -> void:
 
 ## Task 1.5: reservation is scoped to (cell, level); a deck reservation does not
 ## block the ground and vice versa, while the same level still refuses a double
-## reservation.
+## reservation. Each level > 0 claim now requires a live deck at that level
+## (review P1-3), so decks are authored at levels 1 and 2 first.
 func test_reserve_cell_is_level_scoped() -> void:
     if _sh == null:
         TestHelper.fail("SpatialHash not injected")
         return
+    _clear_fixture()
+    _reset()
     _sh.clear_reservations()
     var cell := Vector2i(33, 33)
+    _register(cell, 1, 3.0)
+    _register(cell, 2, 6.0)
+    _sh.rebuild()
+    TestHelper.assert_true(_sh.has_bridge_on_cell(cell, 1), "fixture: level-1 deck exists")
+    TestHelper.assert_true(_sh.has_bridge_on_cell(cell, 2), "fixture: level-2 deck exists")
     TestHelper.assert_true(_sh.reserve_cell(cell, 1), "reserve level 1 succeeds")
     TestHelper.assert_true(_sh.reserve_cell(cell, 0), "level 1 reservation leaves ground free")
     TestHelper.assert_true(_sh.reserve_cell(cell, 2), "level 1 reservation leaves level 2 free")
@@ -292,6 +300,7 @@ func test_reserve_cell_is_level_scoped() -> void:
         )
     )
     _sh.clear_reservations()
+    _clear_fixture()
 
 
 ## Task 6.4: a deck at MAX_HEIGHT is refused (no surface created); MAX_HEIGHT-1,

@@ -2,8 +2,8 @@ class_name BridgeComponent extends Node
 
 ## Walkable bridge deck overlay. Joins the parent entity to the "bridge" group so
 ## SpatialHash keys its (cell, level), and publishes
-## {surface_height, is_end, piece_id, level} to the registry. Rendered Y and
-## pathing read the deck via TerrainSystem.get_cell_surface_height.
+## {surface_height, bridge_kind, is_end, piece_id, level} to the registry. Rendered
+## Y and pathing read the deck via TerrainSystem.get_cell_surface_height.
 
 @export var piece_id: String = ""
 
@@ -21,6 +21,8 @@ func configure(data: EntityData) -> void:
     _is_end = data.bridge_end
     _bridge_rise = data.bridge_rise
     _bridge_level = data.bridge_level
+    # RAIL is structurally high-only: it is never authored low, so it shares the
+    # HIGH geometry/rise and the HIGH indestructibility rule (no low-rail path).
 
 
 func _ready() -> void:
@@ -32,6 +34,7 @@ func _ready() -> void:
             root.add_to_group("bridge")
     # Destructibility split (#250): only LOW normal span pieces hook the revert.
     # LOW end pieces (slope ramps) and every high-bridge cell are indestructible.
+    # RAIL is a HIGH variant, so a rail piece is never a destruction target.
     if _health and _bridge_kind == EntityData.BridgeKind.LOW and not _is_end:
         _health.health_zero.connect(_on_destroyed)
 
@@ -47,14 +50,15 @@ func get_bridge_cell_data() -> Dictionary:
         return {}
     return {
         "surface_height": get_surface_height(),
+        "bridge_kind": _bridge_kind,
         "is_end": _is_end,
         "piece_id": piece_id,
         "level": _bridge_level,
     }
 
 
-## World Y of the walkable deck at the entity's cell: the cell's terrain surface
-## plus the authored `bridge_rise`. The same formula serves every kind, so
+## World Y of the walkable deck at the entity's cell: the cell's lowest terrain
+## corner plus the authored `bridge_rise`. The same formula serves every kind, so
 ## `bridge_rise` is the single authored knob (LOW ~0.5 step, HIGH ~4 steps).
 ## Reads the autoload directly because TerrainSystem.get_cell_surface_height
 ## re-enters this registry.
@@ -64,7 +68,12 @@ func get_surface_height() -> float:
     if root == null or terrain == null:
         return 0.0
     var cell := CellUtil.world_to_cell(root.global_position)
-    var base: float = terrain.get_height_at_world_smooth(CellUtil.cell_to_world(cell))
+    # ponytail: min-corner base keeps a span over flat ground flat and stops a
+    # deck cell from inheriting a neighbouring end/cliff's raised corners (the
+    # smooth cell-centre sample averaged them in, fragmenting the deck by 2
+    # steps). A per-piece authored absolute grade is the upgrade if non-flat
+    # spans ever matter.
+    var base: float = terrain.get_cell_min_height(cell)
     return base + _bridge_rise
 
 

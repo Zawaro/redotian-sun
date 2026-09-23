@@ -94,29 +94,30 @@ func test_high_overlay_data_is_four_step_rise() -> void:
         is_equal_approx(HIGH_RISE, 3.26), "4 height steps is exactly 3.26 world units"
     )
     var expected := {
-        "bridge_high": false,
-        "bridge_high_end": true,
-        "rail_bridge": false,
-        "rail_bridge_end": true,
+        "bridge_high": [EntityData.BridgeKind.HIGH, false],
+        "bridge_high_end": [EntityData.BridgeKind.HIGH, true],
+        "rail_bridge": [EntityData.BridgeKind.RAIL, false],
+        "rail_bridge_end": [EntityData.BridgeKind.RAIL, true],
     }
     for id in expected:
         var data := _overlay(id)
         TestHelper.assert_true(data != null, "overlay loads: " + id)
         if data == null:
             continue
-        TestHelper.assert_eq(data.bridge_kind, EntityData.BridgeKind.HIGH, id + " is a HIGH bridge")
+        var entry: Array = expected[id]
+        TestHelper.assert_eq(data.bridge_kind, entry[0], id + " deck kind")
         TestHelper.assert_eq(data.bridge_level, 1, id + " deck level is 1")
         TestHelper.assert_true(
             is_equal_approx(data.bridge_rise, HIGH_RISE), id + " deck rise is 4 height steps"
         )
-        TestHelper.assert_eq(data.bridge_end, bool(expected[id]), id + " end flag")
-    # Rail is high only: no LOW rail resource exists.
+        TestHelper.assert_eq(data.bridge_end, bool(entry[1]), id + " end flag")
+    # Rail is high only: both rail resources carry the RAIL kind, never LOW.
     TestHelper.assert_true(
         (
-            _overlay("rail_bridge").bridge_kind != EntityData.BridgeKind.LOW
-            and _overlay("rail_bridge_end").bridge_kind != EntityData.BridgeKind.LOW
+            _overlay("rail_bridge").bridge_kind == EntityData.BridgeKind.RAIL
+            and _overlay("rail_bridge_end").bridge_kind == EntityData.BridgeKind.RAIL
         ),
-        "no rail bridge is authored as LOW"
+        "rail bridges are authored as RAIL, a HIGH-only variant"
     )
 
 
@@ -262,6 +263,52 @@ func test_high_cells_indestructible_low_normal_still_destructible() -> void:
         _sh.has_bridge_on_cell(low_cell, 1), false, "destroyed LOW piece leaves the registry"
     )
     TestHelper.assert_eq(_ts.get_land_type(low_cell, 1), "", "destroyed LOW cell loses its deck")
+    _clear()
+
+
+func test_rail_bridge_is_high_indestructible() -> void:
+    if _ts == null or _sh == null or _ef == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _clear()
+    _ts.init_grid(50, 50)
+    _ts.clear()
+    _flatten_rect(Vector2i(24, 24), Vector2i(30, 26), 0)
+    var cell := Vector2i(27, 25)
+    var rail := _spawn("RAIL_BRIDGE", cell)
+    _sh.rebuild()
+    TestHelper.assert_true(rail != null, "rail bridge entity created")
+    if rail == null:
+        _clear()
+        return
+    var comp: Node = rail.get_node_or_null("BridgeComponent")
+    var health := rail.get_node_or_null("HealthComponent") as HealthComponent
+    TestHelper.assert_true(comp != null and health != null, "rail has bridge + health")
+    if comp == null or health == null:
+        _clear()
+        return
+    TestHelper.assert_eq(comp._bridge_kind, EntityData.BridgeKind.RAIL, "rail kind is RAIL")
+    # RAIL is a HIGH variant: never a destruction target.
+    (
+        TestHelper
+        . assert_eq(
+            health.health_zero.is_connected(comp._on_destroyed),
+            false,
+            "rail cell does not hook health_zero (indestructible)",
+        )
+    )
+    health.kill()
+    _sh.rebuild()
+    TestHelper.assert_true(_sh.has_bridge_on_cell(cell, 1), "killed rail cell keeps its deck")
+    TestHelper.assert_eq(comp._destroyed, false, "rail never reverts")
+    # It resolves at the high rise — four height steps above the ground.
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(_ts.get_cell_surface_height(cell, 1), HIGH_RISE),
+            "rail deck resolves at the high rise",
+        )
+    )
     _clear()
 
 

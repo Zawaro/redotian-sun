@@ -6,10 +6,10 @@ const _RULES_PATH: String = "res://games/ts/global_rules.tres"
 const _GROUND_LOCOMOTORS: Array[String] = ["Foot", "Wheel", "Track", "Amphibious"]
 var _overlay_expected: Dictionary = {
     "bridge": {"kind": EntityData.BridgeKind.LOW, "end": false},
-    "rail_bridge": {"kind": EntityData.BridgeKind.HIGH, "end": false},
+    "rail_bridge": {"kind": EntityData.BridgeKind.RAIL, "end": false},
     "bridge_high": {"kind": EntityData.BridgeKind.HIGH, "end": false},
     "bridge_end": {"kind": EntityData.BridgeKind.LOW, "end": true},
-    "rail_bridge_end": {"kind": EntityData.BridgeKind.HIGH, "end": true},
+    "rail_bridge_end": {"kind": EntityData.BridgeKind.RAIL, "end": true},
     "bridge_high_end": {"kind": EntityData.BridgeKind.HIGH, "end": true},
 }
 

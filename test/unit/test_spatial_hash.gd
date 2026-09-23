@@ -4,6 +4,8 @@ extends Node
 
 var _sh: Node = null
 var _ts: Node = null
+var _bridge_root: Node = null
+var _spawned_bridges: Array[Node3D] = []
 
 const WHEEL_LOCOMOTOR_PATH: String = "res://games/ts/locomotors/Wheel.tres"
 const A_CELL: Vector2i = Vector2i(20, 20)
@@ -170,6 +172,75 @@ func test_reserve_cell_fails_on_building_cell():
     )
 
 
+## Review P1-3: a `level > 0` reservation is refused unless a live deck exists at
+## that level, so callers cannot claim empty air above a deckless cell. Level 0
+## stays permissive (no deck required) so ground behavior is byte-identical.
+func test_reserve_cell_above_ground_requires_deck():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _clear_bridge_fixture()
+    _sh.clear_reservations()
+    _sh._blocked_cells.clear()
+    _sh._building_cells.clear()
+    var cell := Vector2i(12, 12)
+
+    # Control: ground level 0 needs no deck and still succeeds on a deckless cell.
+    TestHelper.assert_true(
+        _sh.reserve_cell(cell, 0), "level 0 succeeds with no deck (ground unchanged)"
+    )
+    _sh.release_cell(cell, 0)
+
+    # Level 1 over the same deckless cell must be refused and leave no key.
+    TestHelper.assert_true(not _sh.reserve_cell(cell, 1), "level 1 with no deck is refused")
+    (
+        TestHelper
+        . assert_true(
+            not _sh.get_reserved().has(CellUtil.cell_level_key(cell, 1)),
+            "refused level-1 reservation creates no key",
+        )
+    )
+
+    # Register a real level-1 deck on the same cell: the reservation now succeeds.
+    _span_level_bridge(cell, 1)
+    _sh.rebuild()
+    TestHelper.assert_true(
+        _sh.has_bridge_on_cell(cell, 1), "fixture registered a live level-1 deck"
+    )
+    TestHelper.assert_true(_sh.reserve_cell(cell, 1), "level 1 succeeds once a deck exists")
+
+    _sh.clear_reservations()
+    _clear_bridge_fixture()
+    _sh.rebuild()
+
+
+func _span_level_bridge(cell: Vector2i, level: int) -> StubBridge:
+    if _bridge_root == null:
+        _bridge_root = Engine.get_main_loop().root
+    var bridge := StubBridge.new()
+    bridge.data = {
+        "surface_height": 4.0 * float(level),
+        "is_end": false,
+        "piece_id": "res_%d" % level,
+        "level": level,
+    }
+    bridge.add_to_group("bridge")
+    _bridge_root.add_child(bridge)
+    bridge.global_position = CellUtil.cell_to_world(cell)
+    _spawned_bridges.append(bridge)
+    return bridge
+
+
+func _clear_bridge_fixture() -> void:
+    if _bridge_root == null:
+        return
+    for node in _spawned_bridges:
+        if is_instance_valid(node):
+            _bridge_root.remove_child(node)
+            node.free()
+    _spawned_bridges.clear()
+
+
 func _test_entity_on_cell(
     cell: Vector2i, mc: MovementController, expected: bool, label: String
 ) -> void:
@@ -225,6 +296,41 @@ func test_is_any_entity_on_cell_resource_only():
                 + "expected false for resource-only cell, got true"
             ),
         )
+    )
+
+
+## Bridge regression: a deck occupant (level 1) must not make the same cell read
+## as occupied at ground level, so ground building/deploy/transport still work
+## under a bridge. Non-vacuity: the same entry IS found at its deck level and via
+## the explicit any-level query.
+func test_is_any_entity_on_cell_deck_only_ignores_ground():
+    _sh._grid.clear()
+    var cell := Vector2i(10, 10)
+    var key: int = CellUtil.cell_key(cell)
+    var deck_mc := MovementController.new()
+    _sh._grid[key] = [{"node": Node3D.new(), "mc": deck_mc, "level": 1}]
+
+    var at_ground: bool = _sh.is_any_entity_on_cell(cell)
+    var at_deck: bool = _sh.is_any_entity_on_cell(cell, 1)
+    var any_level: bool = _sh.is_any_entity_on_cell(cell, -1)
+
+    var ground_mc := MovementController.new()
+    _sh._grid[key] = [{"node": Node3D.new(), "mc": ground_mc, "level": 0}]
+    var ground_occ: bool = _sh.is_any_entity_on_cell(cell)
+
+    _sh._grid.erase(key)
+    deck_mc.queue_free()
+    ground_mc.queue_free()
+
+    TestHelper.assert_true(
+        not at_ground, "deck-only occupant leaves ground cell unoccupied: expected false, got true"
+    )
+    TestHelper.assert_true(at_deck, "deck occupant is found at its level: expected true, got false")
+    TestHelper.assert_true(
+        any_level, "explicit -1 finds the deck occupant: expected true, got false"
+    )
+    TestHelper.assert_true(
+        ground_occ, "ground occupant reads occupied by default: expected true, got false"
     )
 
 

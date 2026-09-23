@@ -14,6 +14,7 @@ const HEIGHT_STEP: float = 0.815
 const END_OBJECT_ID: String = "cliff_bridge_end_n"
 const STAMP_ORIGIN: Vector2i = Vector2i(25, 25)
 const STACK_CELLS: Array[Vector2i] = [Vector2i(32, 32), Vector2i(33, 32)]
+const SHARED_PIECE_ID: String = "span_piece_one"
 
 var _ts: Node = null
 var _sh: Node = null
@@ -94,7 +95,9 @@ func test_bridge_span_round_trips_through_map_entities() -> void:
     editor._player_start_tool = StubStartTool.new()
     Engine.get_main_loop().root.add_child(editor)
     for cell in SPAN_CELLS:
-        editor._painted_entities[_cell_key(cell)] = {"data": {"id": "BRIDGE"}}
+        editor._painted_entities[_cell_key(cell)] = {
+            "data": {"id": "BRIDGE", "bridge_piece_id": SHARED_PIECE_ID}
+        }
     var saver: Node = SAVE_LOAD_SCRIPT.new()
     saver.editor = editor
     saver._on_save_file_selected(SAVE_PATH)
@@ -106,7 +109,16 @@ func test_bridge_span_round_trips_through_map_entities() -> void:
     )
     var seen_cells: Dictionary = {}
     for entry in entities:
-        seen_cells[String((entry as Dictionary).get("cell", ""))] = true
+        var entry_dict := entry as Dictionary
+        seen_cells[String(entry_dict.get("cell", ""))] = true
+        (
+            TestHelper
+            . assert_eq(
+                String(entry_dict.get("bridge_piece_id", "")),
+                SHARED_PIECE_ID,
+                "entity entry persists the shared bridge_piece_id",
+            )
+        )
     for cell in SPAN_CELLS:
         TestHelper.assert_true(
             seen_cells.has(_cell_key(cell)), "entity entry carries the covered cell %s" % cell
@@ -135,6 +147,19 @@ func test_bridge_span_round_trips_through_map_entities() -> void:
     TestHelper.assert_eq(
         loaded.size(), SPAN_CELLS.size(), "loader re-instantiates every bridge cell"
     )
+    for item in loaded:
+        var node := item.get("node") as Node3D
+        var comp: Node = node.get_node_or_null("BridgeComponent") if node else null
+        TestHelper.assert_true(comp != null, "loaded bridge cell has a BridgeComponent")
+        if comp != null:
+            (
+                TestHelper
+                . assert_eq(
+                    String(comp.get("piece_id")),
+                    SHARED_PIECE_ID,
+                    "reloaded cell keeps the shared bridge_piece_id",
+                )
+            )
     for cell in SPAN_CELLS:
         TestHelper.assert_eq(
             _ts.get_land_type(cell, 1), "bridge", "loaded covered cell resolves as a level-1 deck"
@@ -192,6 +217,105 @@ func test_map_without_bridges_loads_no_bridge_cells() -> void:
         _ts.get_land_type(cell), "water", "bridge-free map keeps its painted water"
     )
     _teardown(editor, null)
+
+
+## MapLoader mesh Y: a loaded bridge overlay is placed at its walkable deck height
+## — the cell's lowest terrain corner plus the authored rise, matching
+## BridgeComponent.get_surface_height — not the ground max_height and not the
+## smooth cell-centre sample. A stacked level-2 deck loads at its own higher Y.
+## Registry-free by design (deck surfaces are not rebuilt at load time).
+func test_loaded_bridge_overlay_y_is_deck_height() -> void:
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _ts.init_grid(50, 50)
+    _ts.clear()
+    var cell := Vector2i(36, 36)
+    var base_grade := 0
+    var neighbour_grade := 4
+    _flatten_rect(Vector2i(34, 34), Vector2i(38, 38), base_grade)
+    # The deck cell shares its west corners with a raised neighbour (an abutting
+    # bridge end/cliff). The min-corner base must stay at the flat span grade
+    # while the smooth cell-centre sample reads raised.
+    _ts._set_vertex_no_cascade(cell.x, cell.y, neighbour_grade)
+    _ts._set_vertex_no_cascade(cell.x, cell.y + 1, neighbour_grade)
+    _ts.invalidate_height_snapshot()
+    var base: float = float(base_grade) * HEIGHT_STEP
+    TestHelper.assert_true(
+        is_equal_approx(_ts.get_cell_min_height(cell), base),
+        "deck cell min corner is the flat grade"
+    )
+    var smooth_base: float = _ts.get_height_at_world_smooth(CellUtil.cell_to_world(cell))
+    (
+        TestHelper
+        . assert_true(
+            smooth_base > base + 0.01,
+            (
+                "control: the smooth sample is raised by the neighbour's corners (got %.4f)"
+                % smooth_base
+            ),
+        )
+    )
+    var level1_rise := 4.0 * HEIGHT_STEP
+    var level2_rise := 8.0 * HEIGHT_STEP
+    var entries: Array[Dictionary] = [
+        {
+            "id": "BRIDGE_HIGH",
+            "cell": _cell_key(cell),
+            "bridge_kind": int(EntityData.BridgeKind.HIGH),
+            "bridge_level": 1,
+            "bridge_end": false,
+            "bridge_rise": level1_rise,
+        },
+        {
+            "id": "BRIDGE_HIGH",
+            "cell": _cell_key(cell),
+            "bridge_kind": int(EntityData.BridgeKind.HIGH),
+            "bridge_level": 2,
+            "bridge_end": false,
+            "bridge_rise": level2_rise,
+        },
+    ]
+    _ts.export_to_json(SAVE_PATH, {"entities": entries, "start_locations": []})
+
+    var tree: SceneTree = Engine.get_main_loop() as SceneTree
+    _parent = Node3D.new()
+    _parent.name = "BridgeMeshYParent"
+    _parent.set_meta("is_map_editor", true)
+    tree.root.add_child(_parent)
+    var loaded := MapLoader.load_map_into(SAVE_PATH, _parent)
+    TestHelper.assert_eq(loaded.size(), 2, "both stacked deck entries load")
+
+    var expected_y: Array[float] = [base + level1_rise, base + level2_rise]
+    for i in loaded.size():
+        var node: Node3D = loaded[i].get("node") as Node3D
+        TestHelper.assert_true(node != null, "loaded deck node %d exists" % i)
+        if node == null:
+            continue
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(node.position.y, expected_y[i]),
+                (
+                    "loaded deck %d sits at min-corner + rise (%.4f), not the raised smooth sample"
+                    % [i + 1, expected_y[i]]
+                ),
+            )
+        )
+        var comp: Node = node.get_node_or_null("BridgeComponent")
+        TestHelper.assert_true(comp != null, "loaded deck %d has a BridgeComponent" % (i + 1))
+        if comp != null:
+            TestHelper.assert_eq(
+                int(comp.get("_bridge_level")), i + 1, "loaded deck %d restores its level" % (i + 1)
+            )
+    (
+        TestHelper
+        . assert_true(
+            expected_y[1] > expected_y[0] and expected_y[1] > base,
+            "level-2 deck loads above the level-1 deck and the flat span grade",
+        )
+    )
+    _teardown(null, null)
 
 
 ## Stacked extra-high decks plus a stamped high-bridge end round-trip through

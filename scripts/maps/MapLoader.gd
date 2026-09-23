@@ -9,14 +9,15 @@ const OVERRIDE_KEYS: PackedStringArray = [
     "node_count",
     "spawn_strength",
     "max_spawn_strength",
-    # Bridge overlay cells carry their deck kind/level/end flag/rise so a
-    # multi-level span resolves each deck at its own surface on reload
-    # (bridges-walkable-surface: "Bridge entity persistence via the entities
-    # array"). Absent keys keep the overlay resource's defaults.
+    # Bridge overlay cells carry their deck kind/level/end flag/rise and shared
+    # piece id so a multi-level span resolves each deck at its own surface on
+    # reload (bridges-walkable-surface: "Bridge entity persistence via the
+    # entities array"). Absent keys keep the overlay resource's defaults.
     "bridge_kind",
     "bridge_level",
     "bridge_end",
     "bridge_rise",
+    "bridge_piece_id",
 ]
 
 
@@ -109,10 +110,23 @@ static func load_map_into(path: String, parent: Node) -> Array[Dictionary]:
                 # position) line up with where the building visually sits.
                 var entity_data := EntityFactory.get_entity_data(entity_id)
                 var world_pos: Vector3 = placement_position(cell, entity_data)
-                var cell_data: Dictionary = TerrainSystem.get_cell(cell)
-                if not cell_data.is_empty():
-                    var h: int = cell_data.get("max_height", cell_data.get("height", 0))
-                    world_pos.y = float(h) * TerrainSystem.HEIGHT_STEP
+                if entity_data and entity_data.bridge_kind != EntityData.BridgeKind.NONE:
+                    # Deck mesh sits at its walkable surface: the cell's lowest
+                    # terrain corner plus the authored rise (matching
+                    # BridgeComponent.get_surface_height, so a deck cell abutting a
+                    # raised end/cliff does not inherit its corners). The persisted
+                    # per-level `bridge_rise` override wins, so a stacked level-2
+                    # deck loads above the level-1 deck. Registry-free by design:
+                    # the bridge registry may not be rebuilt yet at load time.
+                    var deck_rise: float = entity_data.bridge_rise
+                    if overrides.has("bridge_rise"):
+                        deck_rise = float(overrides["bridge_rise"])
+                    world_pos.y = TerrainSystem.get_cell_min_height(cell) + deck_rise
+                else:
+                    var cell_data: Dictionary = TerrainSystem.get_cell(cell)
+                    if not cell_data.is_empty():
+                        var h: int = cell_data.get("max_height", cell_data.get("height", 0))
+                        world_pos.y = float(h) * TerrainSystem.HEIGHT_STEP
                 entity.position = world_pos
                 var rotation_y: float = entry_dict.get("rotation_y", 0.0)
                 if rotation_y != 0.0:

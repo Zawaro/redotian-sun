@@ -3,8 +3,9 @@ class_name EntityData extends Resource
 ## Entity type enum
 enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDGE }
 
-## Bridge deck kind for bridge overlay entities.
-enum BridgeKind { NONE, LOW, HIGH }
+## Bridge deck kind for bridge overlay entities. RAIL is a HIGH variant: rail
+## bridges exist only as high bridges.
+enum BridgeKind { NONE, LOW, HIGH, RAIL }
 
 ## Identity
 @export_group("Identity")
@@ -246,8 +247,11 @@ enum BridgeKind { NONE, LOW, HIGH }
 
 ## Bridge overlay — a walkable deck surface spanning one or more cells.
 @export_group("Bridge")
-## Deck kind: NONE = not a bridge, LOW = surface-level deck, HIGH = elevated deck.
+## Deck kind: NONE = not a bridge, LOW = surface-level deck, HIGH = elevated deck,
+## RAIL = elevated rail deck (HIGH variant).
 @export var bridge_kind: BridgeKind = BridgeKind.NONE
+## Shared identifier for the cells of one bridge piece; empty for a standalone cell.
+@export var bridge_piece_id: String = ""
 ## True when this overlay is an indestructible bridge end piece (destruction is #250).
 @export var bridge_end: bool = false
 ## HIGH bridge deck rise above the cell terrain height, in world units. Defaults
