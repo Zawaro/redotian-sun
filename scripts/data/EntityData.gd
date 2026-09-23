@@ -250,6 +250,9 @@ enum BridgeKind { NONE, LOW, HIGH, RAIL }
 ## Deck kind: NONE = not a bridge, LOW = surface-level deck, HIGH = elevated deck,
 ## RAIL = elevated rail deck (HIGH variant).
 @export var bridge_kind: BridgeKind = BridgeKind.NONE
+## Land the covered deck lane resolves: `road` for road/low/high lanes and rail
+## outer lanes, `railroad` for a rail middle lane.
+@export var bridge_land: String = "road"
 ## Shared identifier for the cells of one bridge piece; empty for a standalone cell.
 @export var bridge_piece_id: String = ""
 ## True when this overlay is an indestructible bridge end piece (destruction is #250).
@@ -257,9 +260,10 @@ enum BridgeKind { NONE, LOW, HIGH, RAIL }
 ## HIGH bridge deck rise above the cell terrain height, in world units. Defaults
 ## to four height steps (4 * TerrainSystem.HEIGHT_STEP = 3.26).
 @export var bridge_rise: float = 4.0 * TerrainSystem.HEIGHT_STEP
-## Deck surface level: 1 = first deck above ground; 0 is ground and invalid for
-## a bridge. Higher levels stack extra-high decks, bounded by MAX_HEIGHT.
-@export var bridge_level: int = 1
+## Deck surface level: 1 = first deck above ground. Defaults to 0 (ground), which
+## is inert for a non-bridge entity and invalid for a bridge. Higher levels stack
+## extra-high decks, bounded by MAX_HEIGHT.
+@export var bridge_level: int = 0
 
 ## Special abilities
 @export_group("Special Abilities")

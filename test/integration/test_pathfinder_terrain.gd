@@ -557,7 +557,7 @@ func test_wheeled_crosses_bridge_over_water():
         return
     _ts.init_grid(32, 32)
     var wheel := Locomotor.new()
-    wheel.terrain_speeds = {"clear": 1.0, "road": 1.25, "bridge": 1.25}
+    wheel.terrain_speeds = {"clear": 1.0, "road": 1.25}
     wheel.climb_tolerance = 1
     var water_cell := Vector2i(16, 16)
     _ts.set_land_type(water_cell, "water")
@@ -570,7 +570,7 @@ func test_wheeled_crosses_bridge_over_water():
             before_crossed = true
             break
     # A real bridge entity over the water cell: the registry must pick it up on
-    # rebuild and get_land_type must then resolve the cell as "bridge".
+    # rebuild and get_land_type must then resolve the cell as its deck land (road).
     _spawn_bridge("BRIDGE", water_cell)
     _sh.rebuild()
     var after: PackedVector3Array = Pathfinder.find_path(start, end, {}, wheel)

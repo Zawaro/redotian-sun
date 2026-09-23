@@ -6,4 +6,4 @@
 script = ExtResource("1_script")
 id = "cliff_bridge_end"
 model_path = "res://games/ts/assets/models/theater/placeholder/placeholder_terrain01.gltf"
-submesh_id = "cliff01"
+submesh_id = "ovrps01"

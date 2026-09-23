@@ -3,9 +3,7 @@
 ## Purpose
 
 LandType is the surface-identity registry: each terrain surface type (clear, rough, road, water, cliff, resource, the editor LAT paint types sand/pavement/green/crystal/mold, and modder-defined types) has an id, display name, editor color, and editor grouping. LandTypes carry no movement behavior — speed and passability per surface live in the Locomotor registry. The `resource` type marks resource-occupied crystal fields; `TerrainSystem.get_land_type()` resolves those cells dynamically. The sparse painted overlay records non-default land types on the terrain grid and round-trips through map JSON.
-
 ## Requirements
-
 ### Requirement: LandType resource class
 The system SHALL provide a `LandType.gd` resource class defining a terrain surface type's identity and editor presentation. Properties SHALL include `id: String`, `display_name: String`, `color: Color` (editor/debug), and `group: String` (editor bottom-bar tileset grouping, default empty). Surface identity is the only functional property — all movement behavior for a surface is defined by per-locomotor terrain speeds, not by the LandType itself. `group` is presentation-only and SHALL have no gameplay effect.
 
@@ -69,32 +67,22 @@ Every locomotor whose `terrain_speeds` lists `clear` SHALL list the five editor 
 - **WHEN** a map with no `"land_types"` key is imported
 - **THEN** every cell reports no painted override
 
-### Requirement: Bridge deck land type registered in GlobalRules
-`GlobalRules.land_types` SHALL register a bridge/deck land type (id `bridge`, display name `"Bridge"`, editor color, group `"Bridge"`), so it can be referenced by locomotor `terrain_speeds` and pass `validate_locomotor_keys()`. The deck land type SHALL be resolved at runtime from bridge overlay surfaces at their level and SHALL NOT be a painted overlay type persisted in `land_types`. Resolving a deck SHALL NOT change the ground cell's painted land type.
-
-#### Scenario: Bridge land type available
-- **WHEN** GlobalRules is loaded
-- **THEN** `get_land_type("bridge")` returns the bridge LandType resource
-
-#### Scenario: Validator accepts the bridge key
-- **WHEN** `GlobalRules.validate_locomotor_keys()` runs after a `bridge` terrain speed is added
-- **THEN** it returns no error for the `bridge` key
-
-#### Scenario: Bridge is not persisted as a painted override
-- **WHEN** a map is exported after a bridge entity is placed
-- **THEN** the bridge cell is not written to the `land_types` overlay
-
 ### Requirement: Deck passability is the road row
-The bridge/deck surface SHALL be treated as a road-cost surface: deck passability and cost SHALL use the locomotor's Road row, and the destination land type's terrain figure SHALL be skipped entirely for the deck. This SHALL hold regardless of the ground land type beneath the deck (water, beach, clear). A water-only locomotor SHALL NOT treat the deck as passable.
+Bridge deck passability and cost SHALL be taken from the land row the deck cell resolves, with the destination terrain figure skipped entirely. A road-bridge lane SHALL use the locomotor's Road row; a rail-bridge middle lane SHALL use its Railroad row. This SHALL hold regardless of the ground land type beneath the deck (water, beach, clear). A water-only locomotor SHALL NOT treat the deck as passable.
 
 #### Scenario: Deck uses road cost over water
-- **WHEN** a wheeled unit crosses a deck cell over water
+- **WHEN** a wheeled unit crosses a road-bridge deck cell over water
 - **THEN** the deck cost uses the wheeled locomotor's Road multiplier
 
+#### Scenario: Rail lane uses the railroad row
+- **WHEN** a unit crosses a rail-bridge middle lane
+- **THEN** the deck cost uses the locomotive's Railroad multiplier
+
 #### Scenario: Terrain figure skipped on deck
-- **WHEN** a tracked unit whose water speed is zero crosses a deck over water
+- **WHEN** a tracked unit whose water speed is zero crosses a road deck over water
 - **THEN** the deck is passable because the deck uses the Road row
 
 #### Scenario: Ship refused on deck
 - **WHEN** `is_passable` is evaluated for a Ship locomotor on a deck surface
 - **THEN** the deck is not passable
+

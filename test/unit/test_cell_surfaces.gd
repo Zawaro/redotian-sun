@@ -135,7 +135,7 @@ func test_bridge_over_water_level_queries():
     TestHelper.assert_true(_sh.has_bridge_on_cell(cell, 1), "level-1 deck registered")
     TestHelper.assert_eq(_sh.has_bridge_on_cell(cell, 0), false, "no deck at level 0")
     TestHelper.assert_true(_sh.has_bridge_on_cell(cell), "any-level probe sees the deck")
-    TestHelper.assert_eq(_ts.get_land_type(cell, 1), "bridge", "level 1 resolves the deck")
+    TestHelper.assert_eq(_ts.get_land_type(cell, 1), "road", "level 1 resolves the deck land")
     TestHelper.assert_eq(_ts.get_land_type(cell, 2), "", "level 2 reports no surface")
     TestHelper.assert_eq(
         _ts.get_land_type(cell, 0), "water", "level 0 keeps the ground land beneath the deck"
@@ -231,7 +231,7 @@ func test_remove_one_deck_level_keeps_other():
     TestHelper.assert_eq(_sh.has_bridge_on_cell(cell, 1), false, "level 1 gone")
     TestHelper.assert_true(_sh.has_bridge_on_cell(cell, 2), "level 2 survives")
     TestHelper.assert_eq(_ts.get_land_type(cell, 1), "", "level 1 no surface")
-    TestHelper.assert_eq(_ts.get_land_type(cell, 2), "bridge", "level 2 still a deck")
+    TestHelper.assert_eq(_ts.get_land_type(cell, 2), "road", "level 2 still a deck")
     _clear()
 
 

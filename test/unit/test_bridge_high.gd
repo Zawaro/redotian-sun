@@ -131,16 +131,30 @@ func test_catalog_end_objects_are_cliffs_with_a_three_cell_road_cut() -> void:
             if obj == null:
                 continue
             TestHelper.assert_eq(obj.cell_type, "cliff", "end object is a cliff: " + obj.id)
-            TestHelper.assert_eq(obj.cells.size(), 9, "end object footprint is 3x3: " + obj.id)
+            # Real TS footprint: 5 wide (bank + three lanes + bank) x 2 deep
+            # (grade-4 cut row over a grade-0 base row).
+            TestHelper.assert_eq(obj.cells.size(), 10, "end object footprint is 5x2: " + obj.id)
             var road_cells := 0
+            var rail_cells := 0
             for key in obj.cells:
-                if obj.land_type_at(String(key)) == "road":
+                var land := obj.land_type_at(String(key))
+                if land == "road":
                     road_cells += 1
+                elif land == "railroad":
+                    rail_cells += 1
                 TestHelper.assert_true(
                     TerrainCatalog.resolve_art(obj.id, "temperate").valid,
                     "end object art resolves: " + obj.id
                 )
-            TestHelper.assert_eq(road_cells, 3, "end object cuts exactly 3 road cells: " + obj.id)
+            TestHelper.assert_eq(
+                road_cells + rail_cells, 3, "end object cuts exactly 3 lane cells: " + obj.id
+            )
+            if base == "cliff_rail_bridge_end":
+                TestHelper.assert_eq(
+                    rail_cells, 1, "rail end has one railroad middle lane: " + obj.id
+                )
+            else:
+                TestHelper.assert_eq(rail_cells, 0, "road end has no rail lane: " + obj.id)
 
 
 func test_high_and_low_decks_coexist_over_flat_grade() -> void:
@@ -341,13 +355,15 @@ func test_stamp_applies_authored_land_and_corners_and_pins() -> void:
     _ts.set_vertex(probe_cell.x, probe_cell.y, 0)
     TestHelper.assert_eq(_cell_corners(probe_cell), before, "pinned stamp rejects height edits")
 
-    # Real catalog end: three road-cut cells + flanking cliff at the deck grade.
+    # Real catalog end at STAMP_ORIGIN: the cut row is local z=0, so the three
+    # road lanes sit at (origin.x+1..3, origin.y); origin itself is the left
+    # grade-4 rock bank.
     _ts.clear()
     _flatten_rect(Vector2i(23, 23), Vector2i(29, 29), 0)
     TestHelper.assert_true(
         _ts.stamp_terrain_object_by_id(END_OBJECT_ID, STAMP_ORIGIN), "catalog end stamps by id"
     )
-    var road_cells: Array[Vector2i] = [Vector2i(25, 26), Vector2i(26, 26), Vector2i(27, 26)]
+    var road_cells: Array[Vector2i] = [Vector2i(26, 25), Vector2i(27, 25), Vector2i(28, 25)]
     for cell in road_cells:
         TestHelper.assert_eq(_ts.get_land_type(cell), "road", "road-cut cell is road at %s" % cell)
         TestHelper.assert_eq(_cell_corners(cell), [4, 4, 4, 4], "road-cut cell at deck grade")
@@ -357,9 +373,9 @@ func test_stamp_applies_authored_land_and_corners_and_pins() -> void:
             is_equal_approx(_ts.get_cell_surface_height(cell), HIGH_RISE),
             "road-cut surface equals the deck grade"
         )
-    TestHelper.assert_eq(_ts.get_land_type(STAMP_ORIGIN), "cliff", "flanking cell is cliff")
+    TestHelper.assert_eq(_ts.get_land_type(STAMP_ORIGIN), "cliff", "flanking bank is cliff")
     TestHelper.assert_eq(
-        _cell_corners(STAMP_ORIGIN), [4, 4, 4, 4], "flanking cliff is at the deck grade too"
+        _cell_corners(STAMP_ORIGIN), [4, 4, 4, 4], "flanking bank is at the deck grade too"
     )
     var wheel := load(WHEEL_LOCOMOTOR_PATH) as Locomotor
     TestHelper.assert_true(wheel != null, "Wheel locomotor loads")
@@ -422,7 +438,7 @@ func test_stamp_round_trips_through_cell_pins() -> void:
     _ts.clear()
     _ts.import_from_json(path)
     DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-    for local_key in ["0,0", "1,1", "2,1"]:
+    for local_key in ["0,0", "1,0", "2,0"]:
         var parts: PackedStringArray = String(local_key).split(",")
         var cell := STAMP_ORIGIN + Vector2i(int(parts[0]), int(parts[1]))
         TestHelper.assert_true(_ts.is_cell_pinned(cell), "pin restored at %s" % cell)
@@ -440,7 +456,7 @@ func test_pins_only_json_rebuilds_stamp_geometry() -> void:
     # A pins-only map (no vertices, no land_types) must still rebuild the stamp,
     # proving the consumer re-applies land/corners from the pinned object id.
     var pins: Dictionary = {}
-    for local_key in ["0,0", "0,1", "0,2", "1,0", "1,1", "1,2", "2,0", "2,1", "2,2"]:
+    for local_key in ["0,0", "1,0", "2,0", "3,0", "4,0", "0,1", "1,1", "2,1", "3,1", "4,1"]:
         var parts: PackedStringArray = String(local_key).split(",")
         var cell := STAMP_ORIGIN + Vector2i(int(parts[0]), int(parts[1]))
         pins["%d,%d" % [cell.x, cell.y]] = END_OBJECT_ID
@@ -453,7 +469,7 @@ func test_pins_only_json_rebuilds_stamp_geometry() -> void:
     _ts.clear()
     _ts.import_from_json(path)
     DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-    var road_cell := Vector2i(26, 26)
+    var road_cell := Vector2i(26, 25)
     TestHelper.assert_eq(
         _ts.get_land_type(road_cell), "road", "pins-only import re-applies the road-cut land"
     )
@@ -463,7 +479,7 @@ func test_pins_only_json_rebuilds_stamp_geometry() -> void:
     TestHelper.assert_eq(
         _ts.get_land_type(STAMP_ORIGIN),
         "cliff",
-        "pins-only import re-applies the flanking cliff land"
+        "pins-only import re-applies the flanking bank land"
     )
     _ts.clear()
     _ts.init_grid(50, 50)

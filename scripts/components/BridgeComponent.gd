@@ -8,6 +8,7 @@ class_name BridgeComponent extends Node
 @export var piece_id: String = ""
 
 var _bridge_kind: EntityData.BridgeKind = EntityData.BridgeKind.NONE
+var _bridge_land: String = "road"
 var _is_end: bool = false
 var _bridge_rise: float = 4.0 * TerrainSystem.HEIGHT_STEP
 var _bridge_level: int = 1
@@ -18,6 +19,7 @@ var _destroyed: bool = false
 
 func configure(data: EntityData) -> void:
     _bridge_kind = data.bridge_kind
+    _bridge_land = data.bridge_land
     _is_end = data.bridge_end
     _bridge_rise = data.bridge_rise
     _bridge_level = data.bridge_level
@@ -51,6 +53,7 @@ func get_bridge_cell_data() -> Dictionary:
     return {
         "surface_height": get_surface_height(),
         "bridge_kind": _bridge_kind,
+        "land": _bridge_land,
         "is_end": _is_end,
         "piece_id": piece_id,
         "level": _bridge_level,

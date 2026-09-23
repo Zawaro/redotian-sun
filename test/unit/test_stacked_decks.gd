@@ -90,7 +90,7 @@ func _flatten(cell: Vector2i, height: int) -> void:
 
 func _wheel() -> Locomotor:
     var wheel := Locomotor.new()
-    wheel.terrain_speeds = {"clear": 1.0, "road": 1.25, "bridge": 1.25}
+    wheel.terrain_speeds = {"clear": 1.0, "road": 1.25}
     wheel.climb_tolerance = 1
     return wheel
 
@@ -325,9 +325,7 @@ func test_deck_at_max_height_is_refused() -> void:
     TestHelper.assert_true(
         _sh.has_bridge_on_cell(accepted, top - 1), "level MAX_HEIGHT-1 is accepted"
     )
-    TestHelper.assert_eq(
-        _ts.get_land_type(accepted, top - 1), "bridge", "MAX_HEIGHT-1 has a surface"
-    )
+    TestHelper.assert_eq(_ts.get_land_type(accepted, top - 1), "road", "MAX_HEIGHT-1 has a surface")
     TestHelper.assert_true(not _sh.has_bridge_on_cell(refused, top), "level MAX_HEIGHT is refused")
     TestHelper.assert_eq(
         _sh.get_bridge_levels(refused).size(), 0, "no deck registered at MAX_HEIGHT"

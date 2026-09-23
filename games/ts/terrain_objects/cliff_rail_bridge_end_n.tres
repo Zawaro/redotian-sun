@@ -10,17 +10,32 @@ id = "cliff_rail_bridge_end_n"
 cell_type = "cliff"
 display_name = "Rail Bridge End Cliff N"
 cells = {
-"0,0": {
-"corners": [4, 4, 4, 4],
+"0,1": {
+"corners": [0, 0, 0, 0],
 "crease": "flat",
 "land": "cliff"
 },
-"0,1": {
-"corners": [4, 4, 4, 4],
+"1,1": {
+"corners": [0, 0, 0, 0],
 "crease": "flat",
-"land": "road"
+"land": "cliff"
 },
-"0,2": {
+"2,1": {
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "cliff"
+},
+"3,1": {
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "cliff"
+},
+"4,1": {
+"corners": [0, 0, 0, 0],
+"crease": "flat",
+"land": "cliff"
+},
+"0,0": {
 "corners": [4, 4, 4, 4],
 "crease": "flat",
 "land": "cliff"
@@ -28,29 +43,19 @@ cells = {
 "1,0": {
 "corners": [4, 4, 4, 4],
 "crease": "flat",
-"land": "cliff"
-},
-"1,1": {
-"corners": [4, 4, 4, 4],
-"crease": "flat",
 "land": "road"
-},
-"1,2": {
-"corners": [4, 4, 4, 4],
-"crease": "flat",
-"land": "cliff"
 },
 "2,0": {
 "corners": [4, 4, 4, 4],
 "crease": "flat",
-"land": "cliff"
+"land": "railroad"
 },
-"2,1": {
+"3,0": {
 "corners": [4, 4, 4, 4],
 "crease": "flat",
 "land": "road"
 },
-"2,2": {
+"4,0": {
 "corners": [4, 4, 4, 4],
 "crease": "flat",
 "land": "cliff"

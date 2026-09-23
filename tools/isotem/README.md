@@ -56,8 +56,10 @@ not assume heights are always multiples of 4.
 
 | id | name | where seen |
 |----|------|------------|
+| 6 | railroad | bridge sets (`Ovrps`/`Tovrps`) rail middle lane |
+| 11 / 12 | road | bridge sets, road deck lane |
 | 13 | clear / slope surface | clear, slope, ramp edge strip |
-| 14 | clear (transition) | clat tiles, slope17–20 |
+| 14 | clear (transition) | clat tiles, slope17–20, bridge clear lane |
 | 15 | rock (0x0F) | cliff / wcliff / ramp walls — all cliff cells, including base cells |
 
 ### Worked example — `cliff01.tem`
@@ -106,3 +108,39 @@ optional `slope` provenance. Shared art is rotated by the variant's suffix.
 ```
 python tools/isotem/generate_tres.py [--catalog PATH] [--out DIR]
 ```
+
+### `bridge.py` — bridge footprints and generated end caps
+
+Keyed by the `temperat.ini` `[General]` role map (`BridgeTopLeft1/2`,
+`BridgeTopRight1/2`, `BridgeBottomLeft1/2`, `BridgeBottomRight1/2`,
+`BridgeMiddle1/2`; suffix `1` = clear, `2` = water), across the `Ovrps`
+(`BridgeSet`, road) and `Tovrps` (`TrainBridgeSet`, rail) sets. A deck lane is
+land `11`/`12` (road) or `6` (railroad, a rail bridge's middle lane); banks and
+base are `15` (rock) at grade `4` and `0`.
+
+The directional end footprint is derived from a real end tile: the grade-4 cut
+row (three deck lanes flanked by rock banks) becomes local row `z=0`, and the
+grade-0 base row becomes `z=1`; the four variants are 90° rotations. The TS
+rock surface (`15`) maps to the registered game land type `cliff` (TS has no
+separate `rock` land type), so the generated objects satisfy the catalog's
+registered-land rule.
+
+```
+python tools/isotem/bridge.py --check      # role map + known footprints + derived end
+python tools/isotem/bridge.py --generate   # write games/ts/terrain_objects/cliff*_bridge_end_*
+```
+
+`bridge.py --check` is also run by `cli.py --check`.
+
+### Bridge overlay art atlases
+
+`bridge.tem` / `railbrdg.tem` / `lobrdg*.tem` are pure art (no pixel import):
+a `u16 0, u16 width, u16 height, u16 frameCount` header. `read_atlas_header`
+reports the three-lane atlas dimensions and frame count.
+
+The clear/water road-end pick is **stamp-time**: the generated clear objects
+(`cliff_bridge_end_*`) alias the placeholder GLB's `ovrps01` (clear-lower)
+submesh, and the parallel `cliff_bridge_end_water_*` objects alias `ovrps02`
+(water-lower). The same real footprint is used for both; only the art reference
+differs, so a mapper chooses the object id for the shore it stamps.
+

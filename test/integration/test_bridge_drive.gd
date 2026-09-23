@@ -13,14 +13,39 @@ extends Node
 # overlays and proves the same ordered crossing no longer routes across them.
 
 const WHEEL_LOCOMOTOR_PATH: String = "res://games/ts/locomotors/Wheel.tres"
-const END_OBJECT_ID: String = "cliff_bridge_end_n"
-## End tiles stamped at opposite ends of the span. Each cuts a 3-cell road lane at
-## local row z=1, so the road cells run east-west and the deck continues east.
-const NEAR_ORIGIN: Vector2i = Vector2i(25, 24)
-const FAR_ORIGIN: Vector2i = Vector2i(31, 24)
-const DECK_CELLS: Array[Vector2i] = [Vector2i(28, 25), Vector2i(29, 25), Vector2i(30, 25)]
-const START_CELL: Vector2i = Vector2i(25, 25)
-const FAR_CELL: Vector2i = Vector2i(33, 25)
+## Real generated end caps: `_s` at the north shore (cut row local z=1, bridge
+## continues south) and `_n` at the south shore (cut row local z=0, bridge
+## continues north). Each cuts a 3-lane road row across x=26..28 and carries a
+## grade-4 rock bank at x=25/29; the bridge thus runs north-south on the middle
+## lane x=27.
+const NEAR_END_ID: String = "cliff_bridge_end_n"
+const FAR_END_ID: String = "cliff_bridge_end_s"
+const NEAR_ORIGIN: Vector2i = Vector2i(29, 27)
+const FAR_ORIGIN: Vector2i = Vector2i(29, 20)
+## Middle-lane deck cells the produced path must cross (the sides are water).
+const DECK_CELLS: Array[Vector2i] = [
+    Vector2i(31, 22), Vector2i(31, 23), Vector2i(31, 24), Vector2i(31, 25), Vector2i(31, 26)
+]
+## Full water corridor under the three lanes, so no land detour exists.
+const WATER_CELLS: Array[Vector2i] = [
+    Vector2i(30, 22),
+    Vector2i(31, 22),
+    Vector2i(32, 22),
+    Vector2i(30, 23),
+    Vector2i(31, 23),
+    Vector2i(32, 23),
+    Vector2i(30, 24),
+    Vector2i(31, 24),
+    Vector2i(32, 24),
+    Vector2i(30, 25),
+    Vector2i(31, 25),
+    Vector2i(32, 25),
+    Vector2i(30, 26),
+    Vector2i(31, 26),
+    Vector2i(32, 26),
+]
+const START_CELL: Vector2i = Vector2i(31, 21)
+const FAR_CELL: Vector2i = Vector2i(31, 27)
 const BASE_GRADE: int = 0
 ## Authored bridge-end road-cut grade (four height steps) per the high-bridge
 ## spec; the flat deck span grade must match it for entry.
@@ -43,19 +68,20 @@ func _flatten_rect(min_v: Vector2i, max_v: Vector2i, grade: int) -> void:
     _ts.invalidate_height_snapshot()
 
 
-## Authors a flat grade-`BASE_GRADE` strip, paints the span water, stamps both end
-## tiles, and places the shipped high-bridge deck over the water.
+## Authors a flat grade-`BASE_GRADE` strip, paints the water corridor, stamps the
+## north (`_s`) and south (`_n`) end tiles, and places the shipped high-bridge
+## deck over the middle water lane.
 func _setup() -> void:
     _ts.init_grid(50, 50)
     _ts.clear()
-    _flatten_rect(Vector2i(23, 22), Vector2i(36, 28), BASE_GRADE)
-    for cell in DECK_CELLS:
+    _flatten_rect(Vector2i(27, 19), Vector2i(35, 29), BASE_GRADE)
+    for cell in WATER_CELLS:
         _ts.set_land_type(cell, "water")
     TestHelper.assert_true(
-        _ts.stamp_terrain_object_by_id(END_OBJECT_ID, NEAR_ORIGIN), "near end tile stamps"
+        _ts.stamp_terrain_object_by_id(NEAR_END_ID, NEAR_ORIGIN), "near end tile stamps"
     )
     TestHelper.assert_true(
-        _ts.stamp_terrain_object_by_id(END_OBJECT_ID, FAR_ORIGIN), "far end tile stamps"
+        _ts.stamp_terrain_object_by_id(FAR_END_ID, FAR_ORIGIN), "far end tile stamps"
     )
     _spawn_bridges()
     _sh.rebuild()
