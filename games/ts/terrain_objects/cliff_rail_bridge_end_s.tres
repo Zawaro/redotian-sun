@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="TerrainObject" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/TerrainObject.gd" id="1_script"]
+[ext_resource type="Resource" path="res://games/ts/art/terrain/cliff_rail_bridge_end.tres" id="2_art"]
+
+[resource]
+script = ExtResource("1_script")
+art_data = ExtResource("2_art")
+id = "cliff_rail_bridge_end_s"
+cell_type = "cliff"
+display_name = "Rail Bridge End Cliff S"
+cells = {
+"0,0": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "cliff"
+},
+"0,1": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "road"
+},
+"0,2": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "cliff"
+},
+"1,0": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "cliff"
+},
+"1,1": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "road"
+},
+"1,2": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "cliff"
+},
+"2,0": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "cliff"
+},
+"2,1": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "road"
+},
+"2,2": {
+"corners": [4, 4, 4, 4],
+"crease": "flat",
+"land": "cliff"
+}
+}

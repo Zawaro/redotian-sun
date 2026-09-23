@@ -3,6 +3,9 @@ class_name EntityData extends Resource
 ## Entity type enum
 enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDGE }
 
+## Bridge deck kind for bridge overlay entities.
+enum BridgeKind { NONE, LOW, HIGH }
+
 ## Identity
 @export_group("Identity")
 @export var id: String = ""
@@ -240,6 +243,19 @@ enum EntityType { INFANTRY, VEHICLE, BUILDING, AIRCRAFT, TERRAIN, OVERLAY, SMUDG
 @export var spawn_strength: float = 0.5
 ## Maximum spawn density (0.0–1.0) — cap for regrowth.
 @export var max_spawn_strength: float = 1.0
+
+## Bridge overlay — a walkable deck surface spanning one or more cells.
+@export_group("Bridge")
+## Deck kind: NONE = not a bridge, LOW = surface-level deck, HIGH = elevated deck.
+@export var bridge_kind: BridgeKind = BridgeKind.NONE
+## True when this overlay is an indestructible bridge end piece (destruction is #250).
+@export var bridge_end: bool = false
+## HIGH bridge deck rise above the cell terrain height, in world units. Defaults
+## to four height steps (4 * TerrainSystem.HEIGHT_STEP = 3.26).
+@export var bridge_rise: float = 4.0 * TerrainSystem.HEIGHT_STEP
+## Deck surface level: 1 = first deck above ground; 0 is ground and invalid for
+## a bridge. Higher levels stack extra-high decks, bounded by MAX_HEIGHT.
+@export var bridge_level: int = 1
 
 ## Special abilities
 @export_group("Special Abilities")

@@ -7,6 +7,7 @@ extends Node
 # queried from the pre-built fixture BEFORE the ray is cast.
 
 var _ts: Node = null
+var _sh: Node = null
 
 
 func _make_camera(eye: Vector3, look_at_point: Vector3) -> Camera3D:
@@ -125,4 +126,51 @@ func test_oblique_ray_stays_on_surface() -> void:
         absf(hit.y - _ts.get_height_at_world_smooth(hit)) < 0.05,
         "hit rests on the sampled surface (fixed point of refinement)"
     )
+    _drop_camera(cam)
+
+
+func test_deck_pick_resolves_level_and_ground() -> void:
+    if not _ts or not _sh:
+        TestHelper.fail("TerrainSystem/SpatialHash not injected")
+        return
+    var cell := CellUtil.world_to_cell(Vector3(5.0, 0.0, 5.0))
+    for vx in [cell.x, cell.x + 1]:
+        for vz in [cell.y, cell.y + 1]:
+            _ts._vertex_grid[vx][vz] = 0
+    _ts.invalidate_height_snapshot()
+    var ground_y: float = _ts.get_height_at_world_smooth(Vector3(5.0, 0.0, 5.0))
+    var deck_y: float = ground_y + 4.0 * _ts.HEIGHT_STEP
+    _sh._bridge_cells[CellUtil.cell_level_key(cell, 1)] = {
+        "surface_height": deck_y,
+        "is_end": false,
+        "piece_id": "piece_pick",
+        "level": 1,
+    }
+    var eye := Vector3(5.0, 20.0, 5.0)
+    var cam := _make_camera(eye, Vector3(5.0, 0.0, 5.0))
+    var candidates: Array[Dictionary] = _ts.mouse_ray_to_terrain_candidates(
+        cam, _screen_center(cam)
+    )
+
+    TestHelper.assert_true(candidates.size() >= 2, "deck pick reports both surfaces")
+    if candidates.size() >= 2:
+        TestHelper.assert_eq(int(candidates[0]["level"]), 1, "nearest surface is the deck")
+        TestHelper.assert_true(
+            absf((candidates[0]["position"] as Vector3).y - deck_y) < 0.05,
+            "deck candidate sits at the deck height"
+        )
+        TestHelper.assert_eq(int(candidates[1]["level"]), 0, "ground beneath is offered too")
+        TestHelper.assert_true(
+            absf((candidates[1]["position"] as Vector3).y - ground_y) < 0.05,
+            "ground candidate sits at the ground height"
+        )
+    # The single-return API keeps returning the nearest surface (the deck).
+    var nearest: Variant = _ts.mouse_ray_to_terrain(cam, _screen_center(cam))
+    _sh._bridge_cells.erase(CellUtil.cell_level_key(cell, 1))
+    TestHelper.assert_true(nearest != null, "single-return pick hits the deck")
+    if nearest != null:
+        TestHelper.assert_true(
+            absf((nearest as Vector3).y - deck_y) < 0.05,
+            "single-return pick defaults to the nearest surface (the deck)"
+        )
     _drop_camera(cam)

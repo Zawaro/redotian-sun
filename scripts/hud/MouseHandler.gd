@@ -305,9 +305,14 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
 
     # No entity — deselect and issue movement command.
     if selection_manager and not selection_manager.selected_entities.is_empty():
-        var ground_pos := _get_ground_position_at_mouse()
-        if ground_pos != Vector3.INF:
-            var orders := OrderSystem.get_orders(null, Vector2i.ZERO, ground_pos, modifiers)
+        var pick := _get_ground_position_at_mouse_leveled()
+        if not pick.is_empty():
+            # Carry the picked surface level so a move onto a bridge deck targets
+            # the deck; ground picks stay at level 0.
+            modifiers[OrderResult.MOD_TARGET_LEVEL] = int(pick["level"])
+            var orders := OrderSystem.get_orders(
+                null, Vector2i.ZERO, pick["position"] as Vector3, modifiers
+            )
             play_order_voices(orders, selection_manager)
             for order in orders:
                 order.execute.call()
@@ -495,21 +500,36 @@ func _handle_hover_preview(mouse_pos: Vector2) -> void:
 
 ## Return where the camera ray through mouse cursor intersects terrain surface (iterative solve).
 func _get_ground_position_at_mouse() -> Vector3:
+    var pick: Dictionary = _get_ground_position_at_mouse_leveled()
+    if pick.is_empty():
+        return Vector3.INF
+    return pick["position"] as Vector3
+
+
+## Level-resolved ground pick: the nearest surface under the cursor plus its cell
+## and surface level (a bridge deck reports its level, the ground beneath reports
+## 0). Returns an empty Dictionary when the ray misses or is out of range.
+func _get_ground_position_at_mouse_leveled() -> Dictionary:
     var camera := _get_camera_3d()
     if not camera:
-        return Vector3.INF
-
-    var mouse_pos := get_viewport().get_mouse_position() as Vector2
-    var hit: Variant = TerrainSystem.mouse_ray_to_terrain(camera, mouse_pos)
-    if hit == null:
-        return Vector3.INF
-    var hit_pos := hit as Vector3
-
+        return {}
+    # Headless/tool contexts instantiate MouseHandler outside the tree; fall back
+    # to the origin like the original single-return path did.
+    var vp := get_viewport()
+    var mouse_pos := Vector2.ZERO
+    if vp:
+        mouse_pos = vp.get_mouse_position()
+    var candidates: Array[Dictionary] = TerrainSystem.mouse_ray_to_terrain_candidates(
+        camera, mouse_pos
+    )
+    if candidates.is_empty():
+        return {}
+    var hit: Dictionary = candidates[0]
+    var hit_pos := hit["position"] as Vector3
     var dist_sq: float = camera.project_ray_origin(mouse_pos).distance_squared_to(hit_pos)
     if 0.0 < dist_sq and dist_sq <= raycast_distance * raycast_distance:
-        return hit_pos
-
-    return Vector3.INF
+        return {"position": hit_pos, "level": int(hit["level"]), "cell": hit["cell"]}
+    return {}
 
 
 func _update_cursor() -> void:

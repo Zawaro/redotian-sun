@@ -60,6 +60,12 @@ const CELL_KEY_OFFSET: int = 1024
 var _state: State = State.IDLE
 var _vertical_state: VerticalState = VerticalState.GROUND
 var _waypoints: PackedVector3Array = PackedVector3Array()
+## Surface level of each waypoint, parallel to `_waypoints` (0 = ground, N = deck
+## level). The unit's current surface level is derived from the segment it is on
+## so Y is sampled from the deck while on a deck and from the ground beneath one.
+var _waypoint_levels: PackedInt32Array = PackedInt32Array()
+## Surface level the unit currently stands on / is stepping onto.
+var _surface_level: int = 0
 var _spline_t: float = 0.0
 ## Baked per-segment spline data: control points [p0,p1,p2,p3] and 3D length per
 ## segment, precomputed at path-build time so `_get_spline_pos`/`_get_spline_tangent`
@@ -222,6 +228,13 @@ func _terrain_speed_factor() -> float:
     if _is_jumpjet and _vertical_state != VerticalState.GROUND:
         return 1.0
     var cell := CellUtil.world_to_cell(_parent.global_position)
+    if _surface_level > 0:
+        # On a deck the terrain figure is skipped: the deck resolves its own land
+        # (the bridge row, road-speed for ground locomotors). Bypasses the
+        # frame-scoped land cache, which is level-0 keyed. ponytail: deck traffic
+        # is rare; fold level into the frame cache only if profiling flags it.
+        var deck_land: String = TerrainSystem.get_land_type(cell, _surface_level)
+        return _locomotor_data.get_speed_multiplier(deck_land)
     return _locomotor_data.get_speed_multiplier(_frame_cell_land(cell))
 
 
@@ -292,7 +305,22 @@ func _frame_cell_entry(cell: Vector2i) -> Dictionary:
     return entry
 
 
+## Bridge deck Y at a world position for the unit's current surface level, or NAN
+## when the unit's level has no deck there. Kept allocation-free (Vector2i/int
+## only) for the movement hot path; callers test with `is_nan`.
+func _bridge_deck_height(pos: Vector3) -> float:
+    if SpatialHash.instance == null or _surface_level <= 0:
+        return NAN
+    var cell := CellUtil.world_to_cell(pos)
+    if not SpatialHash.instance.has_bridge_on_cell(cell, _surface_level):
+        return NAN
+    return TerrainSystem.get_cell_surface_height(cell, _surface_level)
+
+
 func _memoized_smooth_height(pos: Vector3) -> float:
+    var deck := _bridge_deck_height(pos)
+    if not is_nan(deck):
+        return deck
     _ensure_frame_caches_valid()
     var center: float = float(TerrainSystem.grid_cells.x + TerrainSystem.grid_cells.y) * 0.5
     var vx: float = pos.x / CellUtil.CELL_SIZE + center
@@ -422,12 +450,14 @@ func stop() -> void:
                 if candidate_cell != current_cell:
                     next_waypoint = CellUtil.cell_to_world(candidate_cell)
         _waypoints = PackedVector3Array([_parent.global_position, next_waypoint])
+        _waypoint_levels = PackedInt32Array([_surface_level, _surface_level])
         _spline_t = 0.0
         _bake_spline()
 
 
 func _finish_stop() -> void:
     _waypoints = PackedVector3Array()
+    _waypoint_levels = PackedInt32Array()
     _spline_t = 0.0
     _bake_spline()
     _has_sub_slot = false
@@ -436,7 +466,9 @@ func _finish_stop() -> void:
     _ramp_speed = 0.0
     _state = State.IDLE
     _idle_snapped = false
-    SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
+    SpatialHash.instance.release_cell(
+        CellUtil.world_to_cell(_parent.global_position), _surface_level
+    )
     CellReservation.instance.release_all(_parent)
     if debug_show_path:
         DebugVisualizer.clear_path(get_path())
@@ -463,6 +495,7 @@ func set_target_position(
     terrain: Node = null,
     bounded: bool = false,
     exact_target: bool = false,
+    end_level: int = 0,
 ) -> void:
     _exact_target = exact_target
     if (
@@ -499,6 +532,7 @@ func set_target_position(
             fly_move = fly_threshold > 0.0 and fly_dist > fly_threshold
 
     var path: PackedVector3Array
+    var path_levels: PackedInt32Array = PackedInt32Array()
     var blocked: Dictionary = {}
     var hybrid_fallback := false
 
@@ -515,10 +549,10 @@ func set_target_position(
                 var free := _find_nearest_free_idle_cell(target_cell, bounded)
                 target = CellUtil.cell_to_world(free)
                 target_cell = free
-            _assign_sub_slot_at_cell(target_cell)
+            _assign_sub_slot_at_cell(target_cell, end_level)
             if not _has_sub_slot:
                 var free_cell := _find_nearest_free_sub_slot_cell(target_cell, bounded)
-                _assign_sub_slot_at_cell(free_cell)
+                _assign_sub_slot_at_cell(free_cell, end_level)
                 if _has_sub_slot:
                     target = _sub_slot_position
             else:
@@ -526,6 +560,7 @@ func set_target_position(
         # `target` is the exact stop position (clamped attack approach) or the
         # booked landing sub-slot; both are single straight-line fly segments.
         path = PackedVector3Array([target])
+        path_levels = PackedInt32Array([end_level])
     else:
         # Ground move: normal infantry booking, then walk pathfinding.
         # Exact-target moves (boarding) keep the occupied destination and walk
@@ -535,10 +570,10 @@ func set_target_position(
             target = CellUtil.cell_to_world(free)
             target_cell = free
         if _shares_cell:
-            _assign_sub_slot_at_cell(target_cell)
+            _assign_sub_slot_at_cell(target_cell, end_level)
             if not _has_sub_slot:
                 var free_cell := _find_nearest_free_sub_slot_cell(target_cell, bounded)
-                _assign_sub_slot_at_cell(free_cell)
+                _assign_sub_slot_at_cell(free_cell, end_level)
                 target_cell = free_cell
                 if _has_sub_slot:
                     target = _sub_slot_position
@@ -546,9 +581,11 @@ func set_target_position(
                 target = _sub_slot_position
 
         blocked = _build_blocked_cells(unblock_buildings)
-        path = _greedy_or_search_path(
-            target, target_cell, blocked, unblock_buildings, cost_cache, terrain
+        var routed: Dictionary = _greedy_or_search_path(
+            target, target_cell, blocked, unblock_buildings, cost_cache, terrain, end_level
         )
+        path = routed["path"]
+        path_levels = routed["levels"]
         if exact_target and not path.is_empty():
             var last_cell := CellUtil.world_to_cell(path[path.size() - 1])
             # Straight final leg onto the occupied destination (the APC) —
@@ -556,6 +593,7 @@ func set_target_position(
             # cell and still boards via the arrival range check.
             if last_cell != target_cell and TerrainSystem.get_land_type(target_cell) != "water":
                 path.append(target)
+                path_levels.append(end_level)
 
         if _is_jumpjet and _locomotor_data:
             if path.is_empty():
@@ -567,16 +605,19 @@ func set_target_position(
                     # Already at the target cell: settle into the sub-slot on
                     # the ground instead of taking off.
                     path = PackedVector3Array([target])
+                    path_levels = PackedInt32Array([end_level])
                 else:
                     # Unreachable on foot: fly straight to the target, then land.
                     hybrid_fallback = true
                     path = PackedVector3Array([target])
+                    path_levels = PackedInt32Array([end_level])
         elif _is_subterranean and _locomotor_data:
             var dig_dist := _parent.global_position.distance_to(target)
             var dig_threshold: float = _locomotor_data.subterranean_dig_distance
             if path.is_empty() or (dig_threshold > 0.0 and dig_dist > dig_threshold):
                 hybrid_fallback = true
                 path = PackedVector3Array([target])
+                path_levels = PackedInt32Array([end_level])
 
     if _is_jumpjet:
         if _vertical_state == VerticalState.DESCENDING:
@@ -595,7 +636,18 @@ func set_target_position(
         return
 
     if _organic_path and path.size() > 2 and not hybrid_fallback:
+        # Smoothed organic paths drop collinear waypoints; re-map each surviving
+        # waypoint's level from the pre-smoothing path by cell so deck segments
+        # keep their surface.
+        var level_by_cell: Dictionary = {}
+        for j in path.size():
+            var lvl_j: int = path_levels[j] if j < path_levels.size() else 0
+            level_by_cell[CellUtil.world_to_cell(path[j])] = lvl_j
         path = Pathfinder.smooth_path(path, blocked)
+        var smoothed_levels := PackedInt32Array()
+        for j in path.size():
+            smoothed_levels.append(int(level_by_cell.get(CellUtil.world_to_cell(path[j]), 0)))
+        path_levels = smoothed_levels
 
     if _shares_cell and _has_sub_slot and path.size() > 0 and not hybrid_fallback:
         path[path.size() - 1] = _sub_slot_position
@@ -614,6 +666,8 @@ func set_target_position(
 
     var full_path: PackedVector3Array = [_parent.global_position]
     full_path.append_array(path)
+    var full_levels := PackedInt32Array([_surface_level])
+    full_levels.append_array(path_levels)
 
     # The unit's start is a sub-slot offset, not a cell center, so the first
     # waypoint (cell center or its sub-slot) can point sideways off the line to
@@ -630,11 +684,27 @@ func set_target_position(
             )
         ):
             full_path = PackedVector3Array([full_path[0], full_path[full_path.size() - 1]])
+            full_levels = PackedInt32Array([full_levels[0], full_levels[full_levels.size() - 1]])
+
+    if full_levels.size() != full_path.size():
+        # Defensive: never let the level sequence drift out of step with the
+        # waypoints; fill missing entries with the destination level.
+        var repaired := PackedInt32Array()
+        for i in full_path.size():
+            repaired.append(full_levels[i] if i < full_levels.size() else end_level)
+        full_levels = repaired
 
     for i in range(1, full_path.size()):
-        full_path[i].y = TerrainSystem.get_height_at_world_smooth(full_path[i])
+        var wp_level: int = full_levels[i]
+        if wp_level > 0:
+            full_path[i].y = TerrainSystem.get_cell_surface_height(
+                CellUtil.world_to_cell(full_path[i]), wp_level
+            )
+        else:
+            full_path[i].y = TerrainSystem.get_height_at_world_smooth(full_path[i])
 
     _waypoints = full_path
+    _waypoint_levels = full_levels
     _bake_spline()
     _spline_t = 0.0
     _wait_time = 0.0
@@ -696,44 +766,75 @@ func _greedy_or_search_path(
     unblock_buildings: bool,
     cost_cache: Pathfinder.PathCostCache,
     terrain: Node = null,
-) -> PackedVector3Array:
+    end_level: int = 0,
+) -> Dictionary:
     const GREEDY_BUDGET: int = 64
     if terrain == null:
         terrain = Pathfinder._get_terrain_system()
     var start_cell := CellUtil.world_to_cell(_parent.global_position)
     var current := start_cell
+    var current_level := _surface_level
     var prefix := PackedVector3Array()
+    var prefix_levels := PackedInt32Array()
     var prev: Vector2i = current
     var steps := 0
-    while current != target_cell and steps < GREEDY_BUDGET:
-        var step := Pathfinder.try_greedy_step(
-            current, target_cell, blocked, _locomotor_data, prev, cost_cache, terrain
+    while (current != target_cell or current_level != end_level) and steps < GREEDY_BUDGET:
+        var step: Dictionary = (
+            Pathfinder
+            . try_greedy_step_detailed(
+                current,
+                target_cell,
+                blocked,
+                _locomotor_data,
+                prev,
+                cost_cache,
+                terrain,
+                current_level,
+                end_level,
+            )
         )
-        if step == Pathfinder.GREEDY_STALL:
+        if step["cell"] == Pathfinder.GREEDY_STALL:
             break
-        prefix.append(CellUtil.cell_to_world(step))
+        prefix.append(CellUtil.cell_to_world(step["cell"]))
+        prefix_levels.append(int(step["level"]))
         prev = current
-        current = step
+        current = step["cell"]
+        current_level = int(step["level"])
         steps += 1
 
-    if current == target_cell and prefix.size() > 0:
+    if current == target_cell and current_level == end_level and prefix.size() > 0:
         # Greedy completed the whole walk: cell-center waypoints mirror the
         # find_path output shape (start cell excluded).
-        return prefix
+        return {"path": prefix, "levels": prefix_levels}
 
     # Greedy stalled or exhausted the budget: finish the remaining leg with A*
     # from the stalled cell (or the original start when greedy never moved).
     var search_start: Vector3 = (
         _parent.global_position if prefix.is_empty() else CellUtil.cell_to_world(current)
     )
-    var rest := Pathfinder.find_path(
-        search_start, target, blocked, _locomotor_data, unblock_buildings, cost_cache, terrain
+    var rest: Dictionary = (
+        Pathfinder
+        . find_path_detailed(
+            search_start,
+            target,
+            blocked,
+            _locomotor_data,
+            unblock_buildings,
+            cost_cache,
+            terrain,
+            current_level,
+            end_level,
+        )
     )
+    var rest_path: PackedVector3Array = rest["path"]
+    var rest_levels: PackedInt32Array = rest["levels"]
     if prefix.is_empty():
-        return rest
+        return {"path": rest_path, "levels": rest_levels}
     var combined := prefix
-    combined.append_array(rest)
-    return combined
+    combined.append_array(rest_path)
+    var combined_levels := prefix_levels
+    combined_levels.append_array(rest_levels)
+    return {"path": combined, "levels": combined_levels}
 
 
 func validate(data: EntityData) -> PackedStringArray:
@@ -801,6 +902,7 @@ func _handle_rotating(delta: float) -> void:
 
 
 func _handle_moving_movement(delta: float) -> void:
+    _update_surface_level()
     var seg := _spline_segment()
     var seg_begin := _get_spline_pos(float(seg))
     var seg_end := _get_spline_pos(float(seg + 1))
@@ -858,6 +960,10 @@ func _handle_moving_movement(delta: float) -> void:
             for entry in hood[hi]:
                 var node_ref: Object = entry.node
                 if not is_instance_valid(node_ref) or node_ref == _parent:
+                    continue
+                # Level-scoped avoidance: a unit on another surface of the same
+                # cell (deck vs ground) is not a neighbour to steer around.
+                if int(entry.get("level", 0)) != _surface_level:
                     continue
                 var entity_parent := node_ref as Node3D
 
@@ -970,7 +1076,9 @@ func _handle_moving_movement(delta: float) -> void:
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
             # visually broken.
-            SpatialHash.instance.release_cell(CellUtil.world_to_cell(_parent.global_position))
+            SpatialHash.instance.release_cell(
+                CellUtil.world_to_cell(_parent.global_position), _surface_level
+            )
             CellReservation.instance.release_all(_parent)
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
@@ -1068,7 +1176,7 @@ func _handle_wait(delta: float) -> void:
             # ponytail: no _claim_sub_slot() here — sub-slot is determined at
             # movement start in set_target_position(). Snapping on arrival is
             # visually broken.
-            SpatialHash.instance.release_cell(final_cell)
+            SpatialHash.instance.release_cell(final_cell, _surface_level)
             CellReservation.instance.release_all(_parent)
             if debug_show_path:
                 DebugVisualizer.clear_path(get_path())
@@ -1136,19 +1244,51 @@ func _apply_facing(direction: Vector3) -> void:
     _rotation_target.global_transform.basis = rot_basis
 
 
-func _assign_sub_slot_at_cell(cell: Vector2i) -> void:
+## Books a sub-slot for the destination cell. `level` defaults to the mover's
+## current surface; callers booking a deck destination pass the resolved
+## `end_level` so the claim and the booked world Y land on the target surface.
+func _assign_sub_slot_at_cell(cell: Vector2i, level: int = -1) -> void:
+    var assign_level: int = _surface_level if level < 0 else level
     _has_sub_slot = false
-    var slot: int = CellReservation.instance.reserve_sub_slot(cell, _parent, _assigned_slot)
+    var slot: int = CellReservation.instance.reserve_sub_slot(
+        cell, _parent, _assigned_slot, assign_level
+    )
     if slot < 0:
         return
     _assigned_slot = slot
-    var positions: Array[Vector3] = CellSubPositions.get_sub_positions(cell)
-    _sub_slot_position = CellUtil.cell_to_world(cell) + positions[slot]
+    _sub_slot_position = CellSubPositions.get_sub_position(cell, slot, -1, assign_level)
     _has_sub_slot = true
 
 
 func _spline_segment() -> int:
     return clampi(floori(_spline_t), 0, maxi(0, _num_segments() - 1))
+
+
+## Resolves the surface level the unit currently stands on from its cell and the
+## path's per-waypoint levels. The level of either end of the current segment is
+## used only while the unit's cell actually carries a deck at that level, so a
+## unit on a deck stays at deck height until it physically leaves the deck cell
+## and a unit under a deck never samples the deck above it.
+func _update_surface_level() -> void:
+    if _waypoint_levels.is_empty():
+        _surface_level = 0
+        return
+    var cell := CellUtil.world_to_cell(_parent.global_position)
+    var seg := _spline_segment()
+    var start_level: int = _waypoint_levels[clampi(seg, 0, _waypoint_levels.size() - 1)]
+    var end_level: int = _waypoint_levels[clampi(seg + 1, 0, _waypoint_levels.size() - 1)]
+    if start_level > 0 and _cell_has_surface(cell, start_level):
+        _surface_level = start_level
+    elif end_level > 0 and _cell_has_surface(cell, end_level):
+        _surface_level = end_level
+    else:
+        _surface_level = 0
+
+
+func _cell_has_surface(cell: Vector2i, level: int) -> bool:
+    if SpatialHash.instance == null:
+        return true
+    return SpatialHash.instance.has_bridge_on_cell(cell, level)
 
 
 ## Precomputes per-segment Catmull-Rom control points and 3D lengths from
@@ -1201,13 +1341,13 @@ func _get_spline_tangent(t: float) -> Vector3:
 
 
 func _build_blocked_cells(unblock_buildings: bool = false) -> Dictionary:
-    var result: Dictionary = SpatialHash.instance.get_blocked_cells().duplicate()
+    var result: Dictionary = SpatialHash.instance.get_blocked_cells(_surface_level).duplicate()
     var cell := CellUtil.world_to_cell(_parent.global_position)
-    result.erase(CellUtil.cell_key(cell))
+    result.erase(CellUtil.cell_level_key(cell, _surface_level))
     if not _shares_cell and _crusher:
         result.merge(SpatialHash.instance.get_crusher_blocking_cells(_player_id))
     elif not _shares_cell:
-        result.merge(SpatialHash.instance.get_shared_cells())
+        result.merge(SpatialHash.instance.get_shared_cells(_surface_level))
     if unblock_buildings:
         for key in SpatialHash.instance.get_building_cells():
             result.erase(key)
@@ -1220,7 +1360,7 @@ func _build_blocked_cells(unblock_buildings: bool = false) -> Dictionary:
 
 
 func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
-    if SpatialHash.instance.is_cell_blocked(cell):
+    if SpatialHash.instance.is_cell_blocked(cell, _surface_level):
         return true
     var key: int = CellUtil.cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
@@ -1228,6 +1368,8 @@ func _is_cell_occupied_by_idle(cell: Vector2i) -> bool:
     if SpatialHash.instance._grid.has(key):
         for entry in SpatialHash.instance._grid[key]:
             if entry.node != _parent:
+                if int(entry.get("level", 0)) != _surface_level:
+                    continue
                 var entry_mc := entry.mc as MovementController
                 if not entry_mc:
                     continue
@@ -1256,11 +1398,15 @@ func find_nearest_free_cell(cell: Vector2i) -> Vector2i:
 
 func _is_destination_clear(cell: Vector2i) -> bool:
     var key: int = CellUtil.cell_key(cell)
-    if SpatialHash.instance.get_blocked_cells().has(key):
+    if SpatialHash.instance.get_blocked_cells(_surface_level).has(
+        CellUtil.cell_level_key(cell, _surface_level)
+    ):
         return false
     if SpatialHash.instance._grid.has(key):
         for entry in SpatialHash.instance._grid[key]:
             if entry.node != _parent:
+                if int(entry.get("level", 0)) != _surface_level:
+                    continue
                 var entry_mc := entry.mc as MovementController
                 if _shares_cell and entry_mc and entry_mc.shares_cell():
                     continue
@@ -1296,14 +1442,14 @@ func _spiral_bounded(cell: Vector2i, bounded: bool, is_occupied: Callable) -> Ve
 
 
 func _is_cell_unavailable_for_sub_slot(cell: Vector2i) -> bool:
-    if SpatialHash.instance.is_cell_blocked(cell):
+    if SpatialHash.instance.is_cell_blocked(cell, _surface_level):
         return true
     var key := CellUtil.cell_key(cell)
     if SpatialHash.instance.get_building_cells().has(key):
         return true
     if SpatialHash.instance.is_bib_cell(cell):
         return true
-    return CellReservation.instance.is_cell_full(cell)
+    return CellReservation.instance.is_cell_full(cell, _surface_level)
 
 
 func _scatter_blockers() -> void:
@@ -1316,40 +1462,40 @@ func _scatter_blockers() -> void:
         for dz in range(-1, 2):
             if dx == 0 and dz == 0:
                 continue
-            if not SpatialHash.instance.is_cell_blocked(cell + Vector2i(dx, dz)):
+            if not SpatialHash.instance.is_cell_blocked(cell + Vector2i(dx, dz), _surface_level):
                 boxed_in = false
                 break
         if not boxed_in:
             break
     if not boxed_in:
         return
-    var blocked := SpatialHash.instance.get_blocked_cells()
+    var blocked := SpatialHash.instance.get_blocked_cells(_surface_level)
     for radius in range(1, 4):
         for dx in range(-radius, radius + 1):
             for dz in range(-radius, radius + 1):
                 if abs(dx) != radius and abs(dz) != radius:
                     continue
                 var ncell := cell + Vector2i(dx, dz)
-                var nkey := CellUtil.cell_key(ncell)
+                var nkey := CellUtil.cell_level_key(ncell, _surface_level)
                 if not blocked.has(nkey):
                     continue
                 if _scattered_this_frame.has(nkey):
                     continue
                 var push_dir := Vector2i(sign(dx), sign(dz))
                 var push_cell := ncell + push_dir
-                if SpatialHash.instance.is_cell_blocked(push_cell):
+                if SpatialHash.instance.is_cell_blocked(push_cell, _surface_level):
                     continue
                 var scatter_targets: Array[MovementController] = []
-                for entry in SpatialHash.instance.get_entries(ncell):
+                for entry in SpatialHash.instance.get_entries(ncell, _surface_level):
                     var mc := entry.mc as MovementController
                     if mc and mc != self and mc._state == State.IDLE and not _is_enemy_unit(mc):
                         scatter_targets.append(mc)
                 if scatter_targets.is_empty():
                     continue
-                if not SpatialHash.instance.reserve_cell(push_cell):
+                if not SpatialHash.instance.reserve_cell(push_cell, _surface_level):
                     continue
                 _scattered_this_frame[nkey] = true
-                SpatialHash.instance.force_reserve(ncell)
+                SpatialHash.instance.force_reserve(ncell, _surface_level)
                 for target in scatter_targets:
                     (
                         target
@@ -1358,6 +1504,11 @@ func _scatter_blockers() -> void:
                             false,
                             target.is_airborne_jumpjet(),
                             true,
+                            null,
+                            null,
+                            false,
+                            false,
+                            _surface_level,
                         )
                     )
 
@@ -1415,7 +1566,12 @@ func _snap_to_terrain(delta: float = 0.0) -> void:
 func _update_vertical(delta: float) -> void:
     if not _is_jumpjet:
         return
-    var terrain_y := TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    var deck := _bridge_deck_height(_parent.global_position)
+    var terrain_y := (
+        deck
+        if not is_nan(deck)
+        else TerrainSystem.get_height_at_world_smooth(_parent.global_position)
+    )
     match _vertical_state:
         VerticalState.GROUND:
             _parent.global_position.y = terrain_y

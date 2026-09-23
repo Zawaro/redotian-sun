@@ -383,3 +383,37 @@ func test_repeat_reserve_while_in_tree_keeps_single_connection():
             "repeat reserve keeps one cleanup connection: connections=%d, expected 1" % connections,
         )
     )
+
+
+func test_deck_and_ground_places_are_independent():
+    var cr := CellReservation.instance
+    if cr == null:
+        TestHelper.fail("CellReservation not available")
+        return
+    cr.clear()
+    var cell := Vector2i(12, 12)
+    var ground := _make_owner()
+    var deck := _make_owner()
+    var ground_slot: int = cr.reserve_sub_slot(cell, ground, -1, 0)
+    var deck_slot: int = cr.reserve_sub_slot(cell, deck, -1, 1)
+    var ground_count: int = cr.get_claim_count(cell, 0)
+    var deck_count: int = cr.get_claim_count(cell, 1)
+    # Fill the ground level to capacity; the deck level must stay open.
+    var extras: Array[Node3D] = []
+    for i in maxi(0, CellSubPositions.get_slot_count() - 1):
+        var owner := _make_owner()
+        extras.append(owner)
+        cr.reserve_sub_slot(cell, owner, -1, 0)
+    var ground_full: bool = cr.is_cell_full(cell, 0)
+    var deck_full: bool = cr.is_cell_full(cell, 1)
+    cr.clear()
+    ground.queue_free()
+    deck.queue_free()
+    for owner in extras:
+        owner.queue_free()
+    TestHelper.assert_eq(ground_slot, 0, "ground place assigned independently")
+    TestHelper.assert_eq(deck_slot, 0, "deck place assigned independently")
+    TestHelper.assert_eq(ground_count, 1, "ground claim count is level scoped")
+    TestHelper.assert_eq(deck_count, 1, "deck claim count is level scoped")
+    TestHelper.assert_true(ground_full, "ground level reports full at capacity")
+    TestHelper.assert_true(not deck_full, "deck level stays open while ground is full")

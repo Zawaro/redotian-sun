@@ -336,8 +336,11 @@ func _draw_occupied_cells() -> void:
     for key: int in sh._blocked_cells.keys():
         if sh._building_cells.has(key):
             continue
-        var cell_x: int = (key >> 16) - 512
-        var cell_y: int = (key & 0xFFFF) - 512
+        # Blocked keys carry the surface level in the high 32 bits (level 0 =
+        # plain cell_key); mask to the cell half before decoding.
+        var base: int = key & 0xFFFFFFFF
+        var cell_x: int = (base >> 16) - 512
+        var cell_y: int = (base & 0xFFFF) - 512
         var world_x: float = (cell_x + 0.5) * cell_size
         var world_z: float = (cell_y + 0.5) * cell_size
         var y: float = (

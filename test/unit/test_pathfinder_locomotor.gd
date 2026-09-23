@@ -14,7 +14,7 @@ func _reset_terrain() -> void:
 
 func _wheel() -> Locomotor:
     var wheel := Locomotor.new()
-    wheel.terrain_speeds = {"clear": 1.0, "rough": 0.5, "road": 1.25}
+    wheel.terrain_speeds = {"clear": 1.0, "rough": 0.5, "road": 1.25, "bridge": 1.25}
     wheel.climb_tolerance = 1
     return wheel
 
@@ -34,9 +34,26 @@ func _fly() -> Locomotor:
 
 func _foot() -> Locomotor:
     var foot := Locomotor.new()
-    foot.terrain_speeds = {"clear": 1.0}
+    foot.terrain_speeds = {"clear": 1.0, "bridge": 1.0}
     foot.climb_tolerance = 1
     return foot
+
+
+## Injects a live level-1 bridge registry entry directly (the rebuild group scan
+## is exercised by test_bridge_registry / test_bridge_component).
+func _register_bridge(
+    cell: Vector2i, surface_height: float, is_end: bool = false, piece_id: String = "piece_test"
+) -> void:
+    _sh._bridge_cells[CellUtil.cell_level_key(cell, 1)] = {
+        "surface_height": surface_height,
+        "is_end": is_end,
+        "piece_id": piece_id,
+        "level": 1,
+    }
+
+
+func _unregister_bridge(cell: Vector2i) -> void:
+    _sh._bridge_cells.erase(CellUtil.cell_level_key(cell, 1))
 
 
 func _path_cells(path: PackedVector3Array) -> Array:
@@ -360,3 +377,83 @@ func test_foot_routes_around_raised_cell():
     var avoids := not _path_cells(path).has(bump)
     _reset_terrain()
     TestHelper.assert_true(avoids, "foot path routes around a raised cell")
+
+
+func test_wheeled_crosses_bridge_over_water():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var water_cell := Vector2i(50, 50)
+    _ts.set_land_type(water_cell, "water")
+    var start := CellUtil.cell_to_world(Vector2i(49, 50))
+    var end := CellUtil.cell_to_world(Vector2i(51, 50))
+    var uncovered := _path_cells(Pathfinder.find_path(start, end, {}, _wheel()))
+    _register_bridge(water_cell, 0.0)
+    var covered_path := Pathfinder.find_path(start, end, {}, _wheel())
+    var covered := _path_cells(covered_path)
+    _unregister_bridge(water_cell)
+    var removed := _path_cells(Pathfinder.find_path(start, end, {}, _wheel()))
+    _reset_terrain()
+    TestHelper.assert_eq(uncovered.has(water_cell), false, "uncovered water cell is not crossed")
+    TestHelper.assert_true(
+        covered_path.size() > 0 and covered.has(water_cell),
+        "wheeled path crosses the bridge deck cell"
+    )
+    TestHelper.assert_eq(
+        removed.has(water_cell), false, "removed bridge reverts to water and is not crossed"
+    )
+
+
+func test_cell_height_reads_bridge_deck():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var cell := Vector2i(50, 50)
+    var deck: float = 4.0 * _ts.HEIGHT_STEP
+    _register_bridge(cell, deck)
+    var deck_height: float = Pathfinder._cell_height(_ts, cell, 1)
+    var ground_height: float = Pathfinder._cell_height(_ts, cell, 0)
+    _unregister_bridge(cell)
+    _reset_terrain()
+    TestHelper.assert_true(
+        is_equal_approx(deck_height, deck), "level 1 reads the bridge deck (got %s)" % deck_height
+    )
+    TestHelper.assert_true(
+        is_equal_approx(ground_height, 0.0),
+        "level 0 reads the ground beneath, not the deck (got %s)" % ground_height
+    )
+
+
+func test_high_bridge_climb_gated_by_grade():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var base_cell := Vector2i(50, 50)
+    var deck_cell := Vector2i(50, 51)
+    var deck_height: float = 4.0 * _ts.HEIGHT_STEP
+    _register_bridge(deck_cell, deck_height)
+    var foot := _foot()
+    # Base-grade start adjacent to a +4 deck: the deck is not a valid step.
+    var blocked_step := Pathfinder.try_greedy_step(
+        base_cell, deck_cell, {}, foot, Pathfinder.GREEDY_STALL, null, _ts, 0, 1
+    )
+    # Matching-grade start (raised to the deck grade): the deck is a valid step.
+    # This 4-step flat cell is the cliff bridge-end stand-in — a cell at the deck
+    # grade entering the deck, per the cliff-end TerrainObject authored later by
+    # the editor tooling (#228).
+    for vx in [base_cell.x, base_cell.x + 1]:
+        for vz in [base_cell.y, base_cell.y + 1]:
+            _ts._vertex_grid[vx][vz] = 4
+    _ts.invalidate_height_snapshot()
+    var allowed_step := Pathfinder.try_greedy_step(
+        base_cell, deck_cell, {}, foot, Pathfinder.GREEDY_STALL, null, _ts, 0, 1
+    )
+    _unregister_bridge(deck_cell)
+    _reset_terrain()
+    TestHelper.assert_eq(
+        blocked_step, Pathfinder.GREEDY_STALL, "base grade cannot climb the +4 high deck"
+    )
+    TestHelper.assert_eq(allowed_step, deck_cell, "matching grade admits the high deck")
