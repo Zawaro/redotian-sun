@@ -132,7 +132,7 @@ are 45°-rotated rectangles, i.e. diamonds.
 |------|---------|-------|
 | power grid | Per-player aggregate of building power: `output` (Σ positive `power`) − `drain` (Σ \|negative\|). PowerGrid autoload is the authority; registered from tree add/remove of `PowerComponent`s. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · scripts/core/PowerGrid.gd |
 | low power | Grid state where `sum < 0`; immediate on registry change. `drain = 0` grids are never low power. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
-| powered-down | Runtime offline state (`PowerComponent.is_online == false`) of a structure that *requires* power, under low power. Combat holds fire, radar reports offline, active anims pause. Producers never power down in this phase. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
+| powered-down | Runtime offline state (`PowerComponent.is_online == false`) of a structure that *requires* power, under low power. Combat holds fire, radar reports offline, power-gated animation clips pause. Producers never power down in this phase. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
 | build rate | Production speed multiplier from power: 1.0 healthy; in low power `lerp(worst, best, output/drain)` (defaults 0.3 → 0.75). Slows production, never halts it. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · [add-power-grid design](openspec/changes/add-power-grid/design.md) |
 | power bar | TS-style twin bar on the sidebar's left edge: black column backing a green output fill with a red drain fill in front (red rises above green on deficit). Fills map through `(value/2000)^0.4` and ease toward live PowerGrid targets. | [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) · scripts/ui/PowerBar.gd |
 
@@ -202,6 +202,15 @@ are 45°-rotated rectangles, i.e. diamonds.
 | ghost | Destroyed-entity silhouette retained under fog/shroud ("tombstone" for units, fog ghost for buildings). | [fog-rendering](openspec/specs/fog-rendering/spec.md) |
 | revealer | Entity-side registration granting visibility stamps into ShroudSystem. | [fog-of-war](openspec/specs/fog-of-war/spec.md) |
 | shroud vs fog | Shroud = permanently-explored-or-black grid; fog = re-covering dynamic layer. Independently toggleable. | [fog-of-war](openspec/specs/fog-of-war/spec.md) · [fog-rendering](openspec/specs/fog-rendering/spec.md) |
+
+## Art & Animation
+
+| Term | Meaning | Where |
+|------|---------|-------|
+| animation clip | One GLB visual attached to entity art: a model, an offset, playback config, a `role`, and a power flag. `AnimClipData` entries in `ArtData.animations`. One file per clip — not merged into the base model. | [art-component change](openspec/changes/art-component-animation-engine/specs/art-component/spec.md) · scripts/data/AnimClipData.gd |
+| clip role | What drives a clip: `ACTIVE` loops and is power-gated/damaged-swapped; `DOOR`, `PRODUCTION`, `BUILDUP`, etc. are one-shot lifecycle clips. | [art-component change](openspec/changes/art-component-animation-engine/specs/art-component/spec.md) |
+| damaged clip | `AnimClipData.damaged_model_path`: a separate GLB shown in place of an `ACTIVE` clip at health ≤ 50%, reverting above. | [art-component change](openspec/changes/art-component-animation-engine/specs/art-component/spec.md) |
+| theater variant | With `ArtData.new_theater`, an art path resolves to `<name>_<theater>.<ext>` (e.g. `gdi_conyard01_snow.glb`) when that file exists, else the generic path. Suffix is the full theater id, not the TS letter. | [art-component change](openspec/changes/art-component-animation-engine/specs/art-component/spec.md) · scripts/data/ArtData.gd |
 
 ## Data Fields (high-drift picks)
 
