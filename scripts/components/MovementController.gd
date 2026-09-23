@@ -229,19 +229,23 @@ func _terrain_speed_factor() -> float:
         return 1.0
     var cell := CellUtil.world_to_cell(_parent.global_position)
     if _surface_level > 0:
-        # On a deck the terrain figure is skipped: the deck is passed/costed as
-        # the locomotor's Road row (Bridge when it declares only bridge), never
-        # the deck's own land type. Bypasses the frame-scoped land cache, which
-        # is level-0 keyed. ponytail: deck traffic is rare; fold level into the
-        # frame cache only if profiling flags it.
-        return _locomotor_data.get_speed_multiplier(_deck_land_row())
+        # On a deck the terrain figure is skipped: the deck is passed/costed from
+        # the land its cell resolves (Road for a road lane, Railroad for a rail
+        # middle lane), falling back to Road when the locomotor lacks that row.
+        # Bypasses the frame-scoped land cache, which is level-0 keyed.
+        # ponytail: deck traffic is rare; fold level into the frame cache only if
+        # profiling flags it.
+        var deck_land: String = TerrainSystem.get_land_type(cell, _surface_level)
+        return _locomotor_data.get_speed_multiplier(_deck_land_row(deck_land))
     return _locomotor_data.get_speed_multiplier(_frame_cell_land(cell))
 
 
-## Land row a deck surface resolves to for this locomotor's speed: Road, falling
-## back to Bridge for data that declares only bridge.
-func _deck_land_row() -> String:
-    return "road" if _locomotor_data.terrain_speeds.has("road") else "bridge"
+## Land row a deck surface resolves to for this locomotor's speed: the deck's own
+## resolved land when declared, otherwise Road.
+func _deck_land_row(deck_land: String) -> String:
+    if _locomotor_data.terrain_speeds.has(deck_land):
+        return deck_land
+    return "road"
 
 
 func _is_floating() -> bool:

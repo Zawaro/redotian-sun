@@ -3,9 +3,9 @@ extends Node
 # Bridge persistence integration — an authored bridge span round-trips through the
 # real map save/load path. The span is written by EditorSaveLoad (the production
 # save loop: one `entities` entry per covered cell) and read back by
-# MapLoader.load_map_into. The covered cells must resolve as "bridge" again while
-# the underlying painted water — not a bridge land-type override — is what the
-# JSON persists.
+# MapLoader.load_map_into. The covered cells must resolve as their deck land
+# ("road") again while the underlying painted water — not a land-type override —
+# is what the JSON persists.
 
 const SAVE_LOAD_SCRIPT: GDScript = preload("res://scripts/editor/EditorSaveLoad.gd")
 const SAVE_PATH: String = "user://test_bridge_persistence.json"
@@ -162,7 +162,7 @@ func test_bridge_span_round_trips_through_map_entities() -> void:
             )
     for cell in SPAN_CELLS:
         TestHelper.assert_eq(
-            _ts.get_land_type(cell, 1), "bridge", "loaded covered cell resolves as a level-1 deck"
+            _ts.get_land_type(cell, 1), "road", "loaded covered cell resolves as a level-1 deck"
         )
         TestHelper.assert_eq(
             _ts.get_land_type(cell), "water", "level 0 under the span stays the painted water"
@@ -433,11 +433,12 @@ func test_stacked_decks_and_stamped_end_round_trip() -> void:
                 "the upper deck sits above the lower one",
             )
         )
-        TestHelper.assert_eq(_ts.get_land_type(cell, 2), "bridge", "level 2 resolves a deck")
+        TestHelper.assert_eq(_ts.get_land_type(cell, 2), "road", "level 2 resolves a deck")
         TestHelper.assert_eq(_ts.get_land_type(cell), "water", "level 0 keeps the water beneath")
 
-    # Stamped end: land + corners + pin restored from cell_pins alone.
-    var road_cells: Array[Vector2i] = [Vector2i(25, 26), Vector2i(26, 26), Vector2i(27, 26)]
+    # Stamped end: land + corners + pin restored from cell_pins alone. The real
+    # end's cut row is local z=0, so the road lanes sit east of the origin.
+    var road_cells: Array[Vector2i] = [Vector2i(26, 25), Vector2i(27, 25), Vector2i(28, 25)]
     for cell in road_cells:
         TestHelper.assert_eq(_ts.get_land_type(cell), "road", "road-cut land restored at %s" % cell)
         TestHelper.assert_eq(_cell_corners(cell), [4, 4, 4, 4], "road-cut corners restored")

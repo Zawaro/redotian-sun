@@ -393,6 +393,7 @@ func _read_bridge_cell_data(node: Node3D) -> Dictionary:
     return {
         "surface_height": float(data["surface_height"]),
         "bridge_kind": int(data.get("bridge_kind", 0)),
+        "land": String(data.get("land", "road")),
         "is_end": bool(data["is_end"]),
         "piece_id": String(data["piece_id"]),
         "level": level,

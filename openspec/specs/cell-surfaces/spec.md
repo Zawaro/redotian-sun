@@ -3,9 +3,7 @@
 ## Purpose
 
 Every terrain cell holds an ordered stack of walkable surfaces: the ground at level 0 plus zero or more deck levels above it, bounded by `MAX_HEIGHT`. The capability defines height-parameterized surface and land queries, per-level place-sets, the tower height-transition rules for moving between levels, stacked decks, and the default-to-level-0 behavior that keeps every existing caller unchanged.
-
 ## Requirements
-
 ### Requirement: Per-cell surface stack
 A terrain cell SHALL hold an ordered stack of walkable surfaces: the ground surface at level 0, plus zero or more deck levels above it. Every cell SHALL have a ground surface at level 0. A deck surface SHALL be added for a cell when a bridge deck covers that cell at that level, and SHALL be removed when the deck is removed or destroyed. The stack SHALL be bounded by `TerrainSystem.MAX_HEIGHT` (10); a deck level SHALL NOT be created at or above that bound. The stack SHALL be stored per cell and SHALL NOT overwrite the ground surface.
 
@@ -26,7 +24,7 @@ A terrain cell SHALL hold an ordered stack of walkable surfaces: the ground surf
 - **THEN** no surface is created and the request is refused
 
 ### Requirement: Height-parameterized surface queries
-Surface identity and height SHALL be queryable for a given level. `TerrainSystem.get_land_type(cell, level)` SHALL return the land type of the surface at `level`, and `TerrainSystem.get_cell_surface_height(cell, level)` SHALL return the walkable world Y of the surface at `level`. Both queries SHALL accept an optional `level` argument defaulting to `0`. Queried at level 0, they SHALL return the ground land type and ground surface height exactly as today. A query for a level with no surface SHALL report no land type (empty string at levels above 0); the height query MAY fall back to the terrain height so movement/rendering callers never receive an invalid Y.
+Surface identity and height SHALL be queryable for a given level. `TerrainSystem.get_land_type(cell, level)` SHALL return the land type of the surface at `level` — for a deck, the land that lane resolves (`road`, `railroad`, or `clear`), never a synthetic `bridge` type — and `TerrainSystem.get_cell_surface_height(cell, level)` SHALL return the walkable world Y of the surface at `level`. Both queries SHALL accept an optional `level` argument defaulting to `0`. Queried at level 0, they SHALL return the ground land type and ground surface height exactly as today. A query for a level with no surface SHALL report no land type (empty string at levels above 0); the height query MAY fall back to the terrain height so movement/rendering callers never receive an invalid Y.
 
 #### Scenario: Default level is ground
 - **WHEN** `get_land_type(cell)` and `get_cell_surface_height(cell)` are called without a level
@@ -34,7 +32,11 @@ Surface identity and height SHALL be queryable for a given level. `TerrainSystem
 
 #### Scenario: Deck level resolves deck surface
 - **WHEN** a deck surface exists at level `L` for a cell and it is queried at `L`
-- **THEN** the query returns the deck land type and the deck world Y
+- **THEN** the query returns the deck's resolved land type and the deck world Y
+
+#### Scenario: Rail deck reports railroad
+- **WHEN** a rail-bridge middle lane exists at level `L` and is queried at `L`
+- **THEN** the query returns `"railroad"`
 
 #### Scenario: Ground beneath a deck is still ground
 - **WHEN** a cell carries a deck at level > 0 and is queried at level 0
@@ -142,3 +144,4 @@ Every level-parameterized query and movement/occupancy API SHALL default to leve
 #### Scenario: Old map loads unchanged
 - **WHEN** a map with no bridge decks is loaded
 - **THEN** every cell exposes only the ground surface at level 0 and all queries report ground values
+

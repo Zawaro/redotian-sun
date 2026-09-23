@@ -17,3 +17,5 @@ height = 0.1
 owner = PackedStringArray("Neutral")
 bridge_kind = 2
 bridge_end = true
+bridge_level = 1
+bridge_rise = 3.26

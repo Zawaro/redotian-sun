@@ -43,7 +43,7 @@
 [ext_resource type="Resource" path="res://games/ts/land_types/green.tres" id="74_lt_green"]
 [ext_resource type="Resource" path="res://games/ts/land_types/crystal.tres" id="75_lt_crystal"]
 [ext_resource type="Resource" path="res://games/ts/land_types/mold.tres" id="76_lt_mold"]
-[ext_resource type="Resource" path="res://games/ts/land_types/bridge.tres" id="77_lt_bridge"]
+[ext_resource type="Resource" path="res://games/ts/land_types/railroad.tres" id="77_lt_railroad"]
 [ext_resource type="Resource" path="res://games/ts/locomotors/Foot.tres" id="38_lm_foot"]
 [ext_resource type="Resource" path="res://games/ts/locomotors/Track.tres" id="39_lm_track"]
 [ext_resource type="Resource" path="res://games/ts/locomotors/Wheel.tres" id="40_lm_wheel"]
@@ -155,7 +155,7 @@ land_types = {
 "green": ExtResource("74_lt_green"),
 "crystal": ExtResource("75_lt_crystal"),
 "mold": ExtResource("76_lt_mold"),
-"bridge": ExtResource("77_lt_bridge")
+"railroad": ExtResource("77_lt_railroad")
 }
 locomotors = {
 "Foot": ExtResource("38_lm_foot"),

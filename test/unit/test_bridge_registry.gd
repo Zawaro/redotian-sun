@@ -101,7 +101,7 @@ func test_get_land_type_bridge_over_water_reverts():
     TestHelper.assert_eq(_ts.get_land_type(cell), "water", "fixture starts as water")
     _ensure_fixture(cell, {"surface_height": 0.0, "is_end": false, "piece_id": "p", "level": 1})
     _sh.rebuild()
-    TestHelper.assert_eq(_ts.get_land_type(cell, 1), "bridge", "level 1 resolves the deck")
+    TestHelper.assert_eq(_ts.get_land_type(cell, 1), "road", "level 1 resolves the deck land")
     TestHelper.assert_eq(
         _ts.get_land_type(cell), "water", "level 0 keeps the ground land beneath the deck"
     )

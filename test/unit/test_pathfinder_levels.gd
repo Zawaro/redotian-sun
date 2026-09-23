@@ -21,7 +21,7 @@ func _reset() -> void:
 
 func _wheel() -> Locomotor:
     var wheel := Locomotor.new()
-    wheel.terrain_speeds = {"clear": 1.0, "road": 1.25, "bridge": 1.25}
+    wheel.terrain_speeds = {"clear": 1.0, "road": 1.25}
     wheel.climb_tolerance = 1
     return wheel
 
@@ -168,9 +168,10 @@ func test_bridge_step_costed_from_road_row() -> void:
     var deck_cell := Vector2i(25, 26)
     _flatten(base, 0)
     _flatten(deck_cell, 0)
-    # Distinguish road from bridge: road 2.0 -> cost 0.5, bridge 0.5 -> cost 2.0.
+    # The deck lane resolves road, so the step is costed from the Road row
+    # (2.0 -> cost 0.5), never the underlying terrain figure.
     var wheel := Locomotor.new()
-    wheel.terrain_speeds = {"clear": 1.0, "road": 2.0, "bridge": 0.5}
+    wheel.terrain_speeds = {"clear": 1.0, "road": 2.0}
     wheel.climb_tolerance = 1
     _register_deck(deck_cell, 1, 0.0)
     var trans: Dictionary = Pathfinder._evaluate_transition(
@@ -179,7 +180,7 @@ func test_bridge_step_costed_from_road_row() -> void:
     TestHelper.assert_true(trans["allowed"], "matching-grade deck step is allowed")
     TestHelper.assert_true(
         is_equal_approx(float(trans["cost_multiplier"]), 0.5),
-        "bridge step uses the Road multiplier (2.0 -> 0.5), not the deck figure (0.5 -> 2.0)"
+        "deck step uses the Road multiplier (2.0 -> 0.5), not the ground figure"
     )
     _reset()
 
@@ -208,7 +209,7 @@ func test_cost_cache_is_isolated_per_level() -> void:
         is_equal_approx(float(deck_cost["height"]), deck), "deck node height is the deck"
     )
     TestHelper.assert_eq(ground["land"], "clear", "ground node keeps its land")
-    TestHelper.assert_eq(deck_cost["land"], "bridge", "deck node resolves bridge land")
+    TestHelper.assert_eq(deck_cost["land"], "road", "deck node resolves the deck land")
     TestHelper.assert_true(
         not is_equal_approx(float(ground["height"]), float(deck_cost["height"])),
         "the two levels never collide in the cache"

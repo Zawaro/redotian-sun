@@ -154,7 +154,7 @@ func test_low_deck_keeps_underlying_ground_land():
     _spawn_span()
     for cell: Vector2i in DECK_CELLS:
         TestHelper.assert_eq(
-            _ts.get_land_type(cell, 1), "bridge", "level 1 is the deck at %s" % cell
+            _ts.get_land_type(cell, 1), "road", "level 1 is the deck land at %s" % cell
         )
         TestHelper.assert_eq(
             _ts.get_land_type(cell, 0), "water", "level 0 stays water at %s" % cell
@@ -261,6 +261,6 @@ func test_low_destructibility_split():
     TestHelper.assert_true(
         _sh.has_bridge_on_cell(END_CELL, 1), "killed end piece stays in the registry"
     )
-    TestHelper.assert_eq(_ts.get_land_type(END_CELL, 1), "bridge", "end deck still resolves")
+    TestHelper.assert_eq(_ts.get_land_type(END_CELL, 1), "road", "end deck still resolves")
     TestHelper.assert_eq(end_comp._destroyed, false, "end piece never hooked the revert")
     _clear()

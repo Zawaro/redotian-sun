@@ -10,8 +10,6 @@ const DEFAULT_GRID_CELLS: Vector2i = Vector2i(50, 50)
 const DEFAULT_LAND_TYPE: String = "clear"
 ## Land type reported for cells occupied by a resource crystal.
 const RESOURCE_LAND_TYPE: String = "resource"
-## Land type reported for cells covered by an intact bridge deck.
-const BRIDGE_LAND_TYPE: String = "bridge"
 
 var grid_cells: Vector2i = DEFAULT_GRID_CELLS:
     set(value):
@@ -317,13 +315,16 @@ func get_cell_type(cell: Vector2i) -> String:
 ## to `resource`; otherwise the painted overlay applies, defaulting to "clear".
 ## Level 0 ignores any bridge deck above the cell — a deck is a separate surface,
 ## so the ground beneath keeps its own land (this is what makes under-deck
-## pathing possible). Above level 0: a level with a deck resolves to `bridge`,
-## otherwise no surface (""). Level 0 defaults preserve every existing caller.
+## pathing possible). Above level 0: a level with a deck resolves to that deck
+## lane's land (`road`, or `railroad` for a rail middle lane), otherwise no
+## surface (""). Level 0 defaults preserve every existing caller.
 func get_land_type(cell: Vector2i, level: int = 0) -> String:
     land_type_query_count += 1
     if level > 0:
-        if SpatialHash.instance and SpatialHash.instance.has_bridge_on_cell(cell, level):
-            return BRIDGE_LAND_TYPE
+        if SpatialHash.instance:
+            var deck: Dictionary = SpatialHash.instance.get_bridge_cell(cell, level)
+            if not deck.is_empty():
+                return String(deck.get("land", "road"))
         return ""
     if SpatialHash.instance and SpatialHash.instance.has_resource_cell(cell):
         return RESOURCE_LAND_TYPE

@@ -14,7 +14,7 @@ func _reset_terrain() -> void:
 
 func _wheel() -> Locomotor:
     var wheel := Locomotor.new()
-    wheel.terrain_speeds = {"clear": 1.0, "rough": 0.5, "road": 1.25, "bridge": 1.25}
+    wheel.terrain_speeds = {"clear": 1.0, "rough": 0.5, "road": 1.25}
     wheel.climb_tolerance = 1
     return wheel
 
@@ -34,13 +34,13 @@ func _fly() -> Locomotor:
 
 func _foot() -> Locomotor:
     var foot := Locomotor.new()
-    foot.terrain_speeds = {"clear": 1.0, "bridge": 1.0}
+    foot.terrain_speeds = {"clear": 1.0, "road": 1.0}
     foot.climb_tolerance = 1
     return foot
 
 
-## Locomotor data that declares a Road row but no Bridge row: only the deck
-## Road-row rule lets it use a deck over water.
+## Locomotor data that declares a Road row but no Railroad row: only the deck
+## Road-row fallback lets it use a rail lane.
 func _road_only() -> Locomotor:
     var road := Locomotor.new()
     road.terrain_speeds = {"clear": 1.0, "road": 1.25}
@@ -48,7 +48,7 @@ func _road_only() -> Locomotor:
     return road
 
 
-## Locomotor data that declares neither a Road nor a Bridge row: a deck is refused.
+## Locomotor data that declares neither a Road nor a Railroad row: a deck is refused.
 func _no_deck_rows() -> Locomotor:
     var plain := Locomotor.new()
     plain.terrain_speeds = {"clear": 1.0}
@@ -476,10 +476,10 @@ func test_high_bridge_climb_gated_by_grade():
     TestHelper.assert_eq(allowed_step, deck_cell, "matching grade admits the high deck")
 
 
-## GAP A: a deck destination skips its terrain figure and uses the Road row, so a
-## locomotor declaring road but not bridge crosses a deck over water; one
-## declaring neither road nor bridge is refused.
-func test_deck_uses_road_row_for_locomotor_without_bridge():
+## GAP A: a deck destination skips its terrain figure and uses its resolved land
+## row (Road for a road deck), so a locomotor declaring road but not railroad
+## crosses a deck over water; one declaring neither road nor the deck row is refused.
+func test_deck_uses_resolved_row_for_locomotor_without_deck_row():
     if _ts == null or _sh == null:
         TestHelper.fail("autoloads not injected")
         return
@@ -503,15 +503,16 @@ func test_deck_uses_road_row_for_locomotor_without_bridge():
         TestHelper
         . assert_true(
             covered_path.size() > 0 and covered.has(water_cell),
-            "road-only mover crosses the deck via its Road row (no Bridge row declared)",
+            "road-only mover crosses the deck via its Road row (no Railroad row declared)",
         )
     )
     TestHelper.assert_eq(
-        no_rows.has(water_cell), false, "neither-road-nor-bridge mover is refused the deck"
+        no_rows.has(water_cell), false, "neither-road-nor-deck-row mover is refused the deck"
     )
 
 
-## GAP A: a same-level deck step costs from the Road row, not the deck land figure.
+## GAP A: a same-level deck step costs from the deck's resolved land row (Road),
+## not the underlying ground terrain figure.
 func test_same_level_deck_step_costs_from_road_row():
     if _ts == null or _sh == null:
         TestHelper.fail("autoloads not injected")

@@ -54,9 +54,14 @@ CELL_STRUCT = struct.Struct("<9i 4B 3B 3B 3B 3B")
 
 CELL_SIZE = 52
 
-# Known surface ids seen in .tem tiles. 15 (0x0F) is Cliff/Rock per ModEnc.
+# Known surface ids seen in .tem tiles. 15 (0x0F) is Cliff/Rock per ModEnc;
+# 6/11/12/14 are bridge-set surfaces (railroad / road / clear transition).
 LAND_TYPE_NAMES = {
     0: "clear",
+    6: "railroad",
+    11: "road",
+    12: "road",
+    14: "clear",
     15: "rock",
 }
 
@@ -220,6 +225,10 @@ def run_self_check() -> int:
     expect([c.height for c in tile.occupied], [4, 0, 4, 0], "cliff01 heights")
     expect({c.land_type for c in tile.occupied}, {15}, "cliff01 land types (0x0F = rock)")
     expect({c.slope for c in tile.occupied}, {0}, "cliff01 slopes")
+
+    from bridge import run_self_check as bridge_self_check
+
+    ok = bridge_self_check() == 0 and ok
     print("self-check PASS" if ok else "self-check FAIL")
     return 0 if ok else 1
 
