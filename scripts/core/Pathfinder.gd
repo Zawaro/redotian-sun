@@ -107,13 +107,28 @@ static func _surface_levels(terrain: Node, cell: Vector2i) -> Array[int]:
     return only
 
 
-## Cost multiplier for a bridge/level transition (two or more height levels) from
-## the locomotor's Road row, falling back to its Bridge row when no Road row is
-## declared. The destination deck's own terrain figure is skipped entirely.
+## Land row a deck surface resolves to for passability/speed: the Road row,
+## falling back to the Bridge row for data that declares only bridge. The deck's
+## own surface land type is skipped entirely (spec: deck passability is road).
+static func _deck_land_row(locomotor: Locomotor) -> String:
+    return "road" if locomotor.terrain_speeds.has("road") else "bridge"
+
+
+## True when `(cell, level)` is a bridge deck surface (level > 0 and covered by a
+## deck). Level 0 is always the ground surface.
+static func _is_deck_surface(cell: Vector2i, level: int) -> bool:
+    return (
+        level > 0
+        and SpatialHash.instance != null
+        and SpatialHash.instance.has_bridge_on_cell(cell, level)
+    )
+
+
+## Cost multiplier for a deck surface / level transition from the locomotor's
+## Road row, falling back to its Bridge row when no Road row is declared. The
+## destination deck's own terrain figure is skipped entirely.
 static func _road_cost_multiplier(locomotor: Locomotor) -> float:
-    var mult: float = locomotor.get_speed_multiplier("road")
-    if mult <= 0.0:
-        mult = locomotor.get_speed_multiplier("bridge")
+    var mult: float = locomotor.get_speed_multiplier(_deck_land_row(locomotor))
     return 1.0 / mult if mult > 0.0 else INF
 
 
@@ -281,8 +296,10 @@ static func try_greedy_step(
 ## (nl > lvl) is allowed only when `ncell` carries a deck at `nl` and the height
 ## step is within climb tolerance (matching-grade bridge ends and slopes);
 ## descending off a deck (nl < lvl) is allowed subject to the same grade gate.
-## A level transition is costed from the Road row, not the destination figure.
-## Returns {"allowed": bool, "height": float, "bib": bool, "cost_multiplier": float}.
+## A deck destination — whether crossed at the same level or stepped onto — skips
+## its own terrain figure: passability and cost use the Road row (falling back to
+## Bridge for data that declares only bridge). Returns
+## {"allowed": bool, "height": float, "bib": bool, "cost_multiplier": float}.
 static func _evaluate_transition(
     terrain: Node,
     locomotor: Locomotor,
@@ -298,17 +315,24 @@ static func _evaluate_transition(
     var cost: Dictionary = _cell_cost(terrain, ncell, nl, cost_cache)
     var nheight: float = cost["height"]
     var land: String = cost["land"]
+    var on_deck: bool = locomotor != null and _is_deck_surface(ncell, nl)
+    var pass_land: String = _deck_land_row(locomotor) if on_deck else land
     if nl == lvl:
         if locomotor:
             if not ignores_height and absf(nheight - from_height) > climb_limit:
                 return {"allowed": false}
-            if not _is_terrain_passable(locomotor, land, ncell):
+            if not _is_terrain_passable(locomotor, pass_land, ncell):
                 return {"allowed": false}
         return {
             "allowed": true,
             "height": nheight,
             "bib": cost["bib"],
-            "cost_multiplier": _cost_multiplier(locomotor, land, ncell) if locomotor else 1.0,
+            "cost_multiplier":
+            (
+                _road_cost_multiplier(locomotor)
+                if on_deck
+                else (_cost_multiplier(locomotor, land, ncell) if locomotor else 1.0)
+            ),
         }
     if nl > lvl:
         # Entering a higher surface must land on an actual deck at that level.
@@ -317,7 +341,7 @@ static func _evaluate_transition(
     if locomotor:
         if not ignores_height and absf(nheight - from_height) > climb_limit:
             return {"allowed": false}
-        if not _is_terrain_passable(locomotor, land, ncell):
+        if not _is_terrain_passable(locomotor, pass_land, ncell):
             return {"allowed": false}
     return {
         "allowed": true,

@@ -39,6 +39,23 @@ func _foot() -> Locomotor:
     return foot
 
 
+## Locomotor data that declares a Road row but no Bridge row: only the deck
+## Road-row rule lets it use a deck over water.
+func _road_only() -> Locomotor:
+    var road := Locomotor.new()
+    road.terrain_speeds = {"clear": 1.0, "road": 1.25}
+    road.climb_tolerance = 1
+    return road
+
+
+## Locomotor data that declares neither a Road nor a Bridge row: a deck is refused.
+func _no_deck_rows() -> Locomotor:
+    var plain := Locomotor.new()
+    plain.terrain_speeds = {"clear": 1.0}
+    plain.climb_tolerance = 1
+    return plain
+
+
 ## Injects a live level-1 bridge registry entry directly (the rebuild group scan
 ## is exercised by test_bridge_registry / test_bridge_component).
 func _register_bridge(
@@ -457,3 +474,69 @@ func test_high_bridge_climb_gated_by_grade():
         blocked_step, Pathfinder.GREEDY_STALL, "base grade cannot climb the +4 high deck"
     )
     TestHelper.assert_eq(allowed_step, deck_cell, "matching grade admits the high deck")
+
+
+## GAP A: a deck destination skips its terrain figure and uses the Road row, so a
+## locomotor declaring road but not bridge crosses a deck over water; one
+## declaring neither road nor bridge is refused.
+func test_deck_uses_road_row_for_locomotor_without_bridge():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var water_cell := Vector2i(50, 50)
+    _ts.set_land_type(water_cell, "water")
+    var start := CellUtil.cell_to_world(Vector2i(49, 50))
+    var end := CellUtil.cell_to_world(Vector2i(51, 50))
+    # Control: with no deck the water is impassable to a road-only mover.
+    var uncovered := _path_cells(Pathfinder.find_path(start, end, {}, _road_only()))
+    _register_bridge(water_cell, 0.0)
+    var covered_path := Pathfinder.find_path(start, end, {}, _road_only())
+    var covered := _path_cells(covered_path)
+    var no_rows := _path_cells(Pathfinder.find_path(start, end, {}, _no_deck_rows()))
+    _unregister_bridge(water_cell)
+    _reset_terrain()
+    TestHelper.assert_eq(
+        uncovered.has(water_cell), false, "road-only mover cannot cross uncovered water"
+    )
+    (
+        TestHelper
+        . assert_true(
+            covered_path.size() > 0 and covered.has(water_cell),
+            "road-only mover crosses the deck via its Road row (no Bridge row declared)",
+        )
+    )
+    TestHelper.assert_eq(
+        no_rows.has(water_cell), false, "neither-road-nor-bridge mover is refused the deck"
+    )
+
+
+## GAP A: a same-level deck step costs from the Road row, not the deck land figure.
+func test_same_level_deck_step_costs_from_road_row():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var cell := Vector2i(50, 50)
+    var deck: float = 4.0 * _ts.HEIGHT_STEP
+    _register_bridge(cell, deck)
+    # Expected cost 1 / 1.25 derived from the spec's "costed from the Road row",
+    # not from the production formula.
+    var trans: Dictionary = Pathfinder._evaluate_transition(
+        _ts, _road_only(), deck, cell, 1, cell, 1, 1.0 * _ts.HEIGHT_STEP, false, null
+    )
+    _unregister_bridge(cell)
+    _reset_terrain()
+    TestHelper.assert_true(
+        trans.get("allowed", false), "same-level deck step is allowed via the Road row"
+    )
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(float(trans["cost_multiplier"]), 1.0 / 1.25),
+            (
+                "same-level deck cost is the inverse Road multiplier (got %s)"
+                % trans["cost_multiplier"]
+            ),
+        )
+    )

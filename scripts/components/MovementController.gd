@@ -229,13 +229,19 @@ func _terrain_speed_factor() -> float:
         return 1.0
     var cell := CellUtil.world_to_cell(_parent.global_position)
     if _surface_level > 0:
-        # On a deck the terrain figure is skipped: the deck resolves its own land
-        # (the bridge row, road-speed for ground locomotors). Bypasses the
-        # frame-scoped land cache, which is level-0 keyed. ponytail: deck traffic
-        # is rare; fold level into the frame cache only if profiling flags it.
-        var deck_land: String = TerrainSystem.get_land_type(cell, _surface_level)
-        return _locomotor_data.get_speed_multiplier(deck_land)
+        # On a deck the terrain figure is skipped: the deck is passed/costed as
+        # the locomotor's Road row (Bridge when it declares only bridge), never
+        # the deck's own land type. Bypasses the frame-scoped land cache, which
+        # is level-0 keyed. ponytail: deck traffic is rare; fold level into the
+        # frame cache only if profiling flags it.
+        return _locomotor_data.get_speed_multiplier(_deck_land_row())
     return _locomotor_data.get_speed_multiplier(_frame_cell_land(cell))
+
+
+## Land row a deck surface resolves to for this locomotor's speed: Road, falling
+## back to Bridge for data that declares only bridge.
+func _deck_land_row() -> String:
+    return "road" if _locomotor_data.terrain_speeds.has("road") else "bridge"
 
 
 func _is_floating() -> bool:
@@ -1271,7 +1277,7 @@ func _spline_segment() -> int:
 ## and a unit under a deck never samples the deck above it.
 func _update_surface_level() -> void:
     if _waypoint_levels.is_empty():
-        _surface_level = 0
+        _surface_level = _resolve_idle_surface_level()
         return
     var cell := CellUtil.world_to_cell(_parent.global_position)
     var seg := _spline_segment()
@@ -1544,10 +1550,36 @@ func _is_enemy_unit(other: MovementController) -> bool:
     return PlayerManager.is_enemy(own_stats.player_id, other_stats.player_id)
 
 
+## Resolves the surface level the unit stands on while idle from its own Y: the
+## level whose walkable height is nearest the unit's current Y within a small
+## tolerance (well under half a height step), tie-breaking to the lower level.
+## Returns 0 when no surface matches. Floating/air units own their Y, so they are
+## left on their current level.
+func _resolve_idle_surface_level() -> int:
+    if _is_floating():
+        return _surface_level
+    var pos_y: float = _parent.global_position.y
+    var cell := CellUtil.world_to_cell(_parent.global_position)
+    var tolerance: float = 0.25 * TerrainSystem.HEIGHT_STEP
+    var best_level: int = 0
+    var best_delta: float = INF
+    for level in TerrainSystem.get_cell_surface_levels(cell):
+        var delta: float = absf(TerrainSystem.get_cell_surface_height(cell, level) - pos_y)
+        if delta > tolerance:
+            continue
+        # Levels iterate ascending, so a strictly-smaller test keeps the lower
+        # level on a tie.
+        if delta < best_delta:
+            best_delta = delta
+            best_level = level
+    return best_level
+
+
 func _snap_if_idle_cell_changed() -> void:
     var cell := CellUtil.world_to_cell(_parent.global_position)
     if _idle_snapped and cell == _idle_snap_cell:
         return
+    _surface_level = _resolve_idle_surface_level()
     var idle_y := _memoized_smooth_height(_parent.global_position)
     _parent.global_position.y = idle_y + (_hover_height if _is_floating() else 0.0)
     _idle_snap_cell = cell

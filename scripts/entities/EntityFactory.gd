@@ -595,6 +595,11 @@ func _add_bridge_component(entity: Node3D, data: EntityData) -> void:
     entity.add_child(component)
     component.owner = entity
     entity.add_to_group("bridge")
+    # A shared piece id keeps the cells of one span addressed as a unit. Applied
+    # after the component is added; `_configure_components` runs later and never
+    # touches `piece_id`, so the id survives configuration.
+    if data.bridge_piece_id != "":
+        component.assign_piece_id(data.bridge_piece_id)
 
 
 func _add_interact_hitbox(entity: Node3D, data: EntityData) -> void:

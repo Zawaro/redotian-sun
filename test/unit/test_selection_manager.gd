@@ -415,6 +415,63 @@ func test_find_sharer_cell_at_capacity():
     )
 
 
+## Review P1-3: at level > 0 the infantry stand-off spiral must only land on a
+## live deck. With the deck destination occupied and a deck authored only on the
+## target, every deckless neighbor is skipped, so both `_find_sharer_cell` and
+## `_fallback_target` stay on a real deck surface instead of claiming empty air.
+func test_level_one_sharer_cell_requires_deck():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var sh := SpatialHash.instance
+    if sh == null:
+        TestHelper.fail("SpatialHash not available")
+        return
+    if _ts:
+        _ts.init_grid(50, 50)
+    CellReservation.instance.clear()
+    sh.clear_reservations()
+    var target := Vector2i(30, 30)
+    var deck_key := CellUtil.cell_level_key(target, 1)
+    var had_deck: bool = sh._bridge_cells.has(deck_key)
+    sh._bridge_cells[deck_key] = {
+        "surface_height": 4.0,
+        "is_end": false,
+        "piece_id": "sharer_deck",
+        "level": 1,
+    }
+    # Occupy the deck destination so the spiral must move away from it.
+    TestHelper.assert_true(sh.reserve_cell(target, 1), "fixture: deck destination reserved")
+
+    var sharer_cell: Vector2i = _sm._find_sharer_cell(CellUtil.cell_to_world(target), 1)
+    var sharer_on_deck: bool = sh.has_bridge_on_cell(sharer_cell, 1)
+    var fallback: Vector3 = _sm._fallback_target(CellUtil.cell_to_world(target), 1)
+    var fallback_on_deck: bool = sh.has_bridge_on_cell(CellUtil.world_to_cell(fallback), 1)
+
+    sh.clear_reservations()
+    if not had_deck:
+        sh._bridge_cells.erase(deck_key)
+    CellReservation.instance.clear()
+
+    (
+        TestHelper
+        . assert_true(
+            sharer_on_deck,
+            "level-1 sharer cell sits on a live deck: got %s (deckless)" % sharer_cell,
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            fallback_on_deck,
+            (
+                "level-1 fallback target sits on a live deck: got %s"
+                % CellUtil.world_to_cell(fallback)
+            ),
+        )
+    )
+
+
 func test_deselect_all_emits_selection_changed_once():
     if _sm == null:
         TestHelper.fail("SelectionManager not injected")

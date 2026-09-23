@@ -1,26 +1,32 @@
 extends Node
 
-# Bridge drive integration — a wheeled vehicle is ordered from one shore across a
-# high-bridge span over water and stops on the far shore. The per-frame harness
-# drives the real MovementController physics tick (no faked teleport): the
-# produced path must cross every bridge cell, the driven Y on each bridge cell
-# must equal TerrainSystem.get_cell_surface_height (the walkable deck), and the
-# drive must end idle on the far shore.
+# Bridge drive integration — the SHIPPED high-bridge geometry driven with the
+# default four-step deck rise (no `bridge_rise` override) and a real bridge-end
+# TerrainObject (cliff + 3-cell road cut at grade 4) stamped at the span end.
 #
-# The fixture flattens the whole strip one grade step and authors the high bridge
-# with a one-step rise so the deck is exactly one climb step above the shore —
-# drivable at Wheel's climb_tolerance of 1 while still observably above the water
-# terrain beneath.
+# A high bridge is built on one authored flat span grade: each deck cell's
+# walkable height is its lowest terrain corner plus the authored rise, so a deck
+# cell abutting the stamped end does not inherit the end cliff's raised corners.
+# With that flat base the road cut (grade 4) and every deck cell (grade 0 + the
+# four-step rise) resolve to the same height, so the deck is internally level and
+# Wheel traffic crosses the span end to end. The companion test removes the deck
+# overlays and proves the same ordered crossing no longer routes across them.
 
 const WHEEL_LOCOMOTOR_PATH: String = "res://games/ts/locomotors/Wheel.tres"
-const START_CELL: Vector2i = Vector2i(19, 20)
-const FAR_CELL: Vector2i = Vector2i(23, 20)
-const WATER_CELLS: Array[Vector2i] = [Vector2i(20, 20), Vector2i(21, 20), Vector2i(22, 20)]
-const BASE_GRADE: int = 1
-const BRIDGE_RISE_STEPS: float = 1.0
+const END_OBJECT_ID: String = "cliff_bridge_end_n"
+## End tiles stamped at opposite ends of the span. Each cuts a 3-cell road lane at
+## local row z=1, so the road cells run east-west and the deck continues east.
+const NEAR_ORIGIN: Vector2i = Vector2i(25, 24)
+const FAR_ORIGIN: Vector2i = Vector2i(31, 24)
+const DECK_CELLS: Array[Vector2i] = [Vector2i(28, 25), Vector2i(29, 25), Vector2i(30, 25)]
+const START_CELL: Vector2i = Vector2i(25, 25)
+const FAR_CELL: Vector2i = Vector2i(33, 25)
+const BASE_GRADE: int = 0
+## Authored bridge-end road-cut grade (four height steps) per the high-bridge
+## spec; the flat deck span grade must match it for entry.
+const DECK_GRADE: int = 4
 const DRIVE_DT: float = 1.0 / 60.0
 const MAX_DRIVE_FRAMES: int = 1800
-const SETTLE_FRAMES: int = 4
 
 var _ts: Node = null
 var _sh: Node = null
@@ -37,15 +43,43 @@ func _flatten_rect(min_v: Vector2i, max_v: Vector2i, grade: int) -> void:
     _ts.invalidate_height_snapshot()
 
 
-func _spawn_bridges(rise: float) -> void:
+## Authors a flat grade-`BASE_GRADE` strip, paints the span water, stamps both end
+## tiles, and places the shipped high-bridge deck over the water.
+func _setup() -> void:
+    _ts.init_grid(50, 50)
+    _ts.clear()
+    _flatten_rect(Vector2i(23, 22), Vector2i(36, 28), BASE_GRADE)
+    for cell in DECK_CELLS:
+        _ts.set_land_type(cell, "water")
+    TestHelper.assert_true(
+        _ts.stamp_terrain_object_by_id(END_OBJECT_ID, NEAR_ORIGIN), "near end tile stamps"
+    )
+    TestHelper.assert_true(
+        _ts.stamp_terrain_object_by_id(END_OBJECT_ID, FAR_ORIGIN), "far end tile stamps"
+    )
+    _spawn_bridges()
+    _sh.rebuild()
+
+
+func _spawn_bridges() -> void:
     var root: Node = Engine.get_main_loop().root
-    for cell in WATER_CELLS:
-        var bridge: Node3D = _ef.create_entity("BRIDGE_HIGH", {"bridge_rise": rise})
+    for cell in DECK_CELLS:
+        var bridge: Node3D = _ef.create_entity("BRIDGE_HIGH")
         if bridge == null:
             continue
         root.add_child(bridge)
         bridge.global_position = CellUtil.cell_to_world(cell)
         _bridges.append(bridge)
+
+
+func _remove_bridges() -> void:
+    var root: Node = Engine.get_main_loop().root
+    for bridge in _bridges:
+        if is_instance_valid(bridge):
+            root.remove_child(bridge)
+            bridge.free()
+    _bridges.clear()
+    _sh.rebuild()
 
 
 func _make_vehicle() -> Array:
@@ -66,137 +100,15 @@ func _make_vehicle() -> Array:
     return [entity, mc]
 
 
-func _path_cells(path: PackedVector3Array) -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for wp in path:
-        cells.append(CellUtil.world_to_cell(wp))
-    return cells
-
-
-## Deck level the produced path reports for `cell`, or -1 when the cell is not on
-## the path. Proves the route is planned on the deck surface, not merely over its
-## cell center.
-func _path_level_for_cell(
-    path: PackedVector3Array, levels: PackedInt32Array, cell: Vector2i
-) -> int:
-    for i in path.size():
-        if CellUtil.world_to_cell(path[i]) == cell:
-            return levels[i] if i < levels.size() else 0
-    return -1
-
-
-func test_wheeled_vehicle_drives_across_high_bridge_deck() -> void:
-    if _ts == null or _sh == null or _ef == null:
-        TestHelper.fail("autoloads not injected")
-        return
-    _ts.init_grid(50, 50)
-    _ts.clear()
-    # Flat shore + water strip, one grade step, so the bridge is drivable at the
-    # climb boundary without any raised-shore vertex leak.
-    _flatten_rect(Vector2i(19, 19), Vector2i(24, 22), BASE_GRADE)
-    for cell in WATER_CELLS:
-        _ts.set_land_type(cell, "water")
-    var base_height: float = float(BASE_GRADE) * _ts.HEIGHT_STEP
-    var deck_height: float = base_height + BRIDGE_RISE_STEPS * _ts.HEIGHT_STEP
-    _spawn_bridges(BRIDGE_RISE_STEPS * _ts.HEIGHT_STEP)
-    _sh.rebuild()
-
-    var pair := _make_vehicle()
-    var vehicle: Node3D = pair[0] as Node3D
-    var mc: MovementController = pair[1] as MovementController
-    mc._locomotor_data = load(WHEEL_LOCOMOTOR_PATH) as Locomotor
-    vehicle.global_position = CellUtil.cell_to_world(START_CELL)
-    vehicle.global_position.y = base_height
-
-    mc.set_target_position(CellUtil.cell_to_world(FAR_CELL))
-    TestHelper.assert_true(
-        mc._state != MovementController.State.IDLE, "vehicle accepted the move order"
-    )
-    var path_cells := _path_cells(mc._waypoints)
-    for cell in WATER_CELLS:
-        TestHelper.assert_true(path_cells.has(cell), "produced path crosses bridge cell %s" % cell)
-    # The route must be planned on the level-1 deck, not the level-0 ground/water
-    # beneath it — a level-0 crossing would be refused for a wheeled unit.
-    for cell in WATER_CELLS:
-        (
-            TestHelper
-            . assert_eq(
-                _path_level_for_cell(mc._waypoints, mc._waypoint_levels, cell),
-                1,
-                "produced path carries the deck level at %s" % cell,
-            )
-        )
-
-    # Drive the real physics tick. Track the Y error per bridge cell, keeping the
-    # last (most settled) sample from each cell because the deck is entered from
-    # a lower grade and the vertical snap lerps over a few frames.
-    var frames_on_cell: Dictionary = {}
-    var settled_error: Dictionary = {}
-    var frames := 0
-    while frames < MAX_DRIVE_FRAMES and mc._state != MovementController.State.IDLE:
-        mc._physics_process(DRIVE_DT)
-        frames += 1
-        var cell := CellUtil.world_to_cell(vehicle.global_position)
-        if not _sh.has_bridge_on_cell(cell, 1):
-            continue
-        frames_on_cell[cell] = int(frames_on_cell.get(cell, 0)) + 1
-        if int(frames_on_cell[cell]) < SETTLE_FRAMES:
-            continue
-        var error: float = absf(vehicle.global_position.y - _ts.get_cell_surface_height(cell, 1))
-        settled_error[cell] = error
-
-    TestHelper.assert_true(
-        frames < MAX_DRIVE_FRAMES, "vehicle completed the drive within the frame budget"
-    )
-    TestHelper.assert_eq(mc._state, MovementController.State.IDLE, "vehicle stopped")
-    for cell in WATER_CELLS:
-        TestHelper.assert_true(settled_error.has(cell), "vehicle drove onto bridge cell %s" % cell)
-    var worst_error := 0.0
-    for cell in settled_error:
-        worst_error = maxf(worst_error, float(settled_error[cell]))
-    TestHelper.assert_true(
-        worst_error < 0.05, "driven Y follows the bridge deck (worst error %.4f)" % worst_error
-    )
-
-    var final_cell := CellUtil.world_to_cell(vehicle.global_position)
-    TestHelper.assert_eq(final_cell, FAR_CELL, "vehicle stopped on the far shore")
-    (
-        TestHelper
-        . assert_true(
-            is_equal_approx(vehicle.global_position.y, base_height),
-            "far-shore Y matches the shore grade",
-        )
-    )
-    # The deck is one step above the water terrain beneath, so following the deck
-    # (not the terrain sample) is observable. The deck lives at level 1; level 0
-    # keeps the water's own ground height.
-    var mid: Vector2i = WATER_CELLS[1]
-    (
-        TestHelper
-        . assert_true(
-            is_equal_approx(_ts.get_cell_surface_height(mid, 1), deck_height),
-            "high deck sits one rise above the cell's base grade",
-        )
-    )
-    (
-        TestHelper
-        . assert_true(
-            (
-                _ts.get_cell_surface_height(mid, 1)
-                > _ts.get_height_at_world_smooth(CellUtil.cell_to_world(mid))
-            ),
-            "bridge deck is elevated above the water terrain beneath",
-        )
-    )
-    (
-        TestHelper
-        . assert_true(
-            is_equal_approx(_ts.get_cell_surface_height(mid, 0), base_height),
-            "level 0 under the deck keeps the water's ground height",
-        )
-    )
-
-    _teardown(pair)
+## Cell -> surface level for every deck cell the produced path crosses. Empty when
+## the route avoids the deck cells entirely.
+func _path_deck_levels(mc: MovementController) -> Dictionary:
+    var levels: Dictionary = {}
+    for i in mc._waypoints.size():
+        var cell := CellUtil.world_to_cell(mc._waypoints[i])
+        if DECK_CELLS.has(cell):
+            levels[cell] = mc._waypoint_levels[i] if i < mc._waypoint_levels.size() else -1
+    return levels
 
 
 func _teardown(pair: Array) -> void:
@@ -206,15 +118,121 @@ func _teardown(pair: Array) -> void:
         if is_instance_valid(vehicle):
             root.remove_child(vehicle)
             vehicle.free()
-    for bridge in _bridges:
-        if is_instance_valid(bridge):
-            root.remove_child(bridge)
-            bridge.free()
-    _bridges.clear()
-    if _sh != null:
-        _sh.rebuild()
+    _remove_bridges()
     if CellReservation.instance:
         CellReservation.instance.clear()
     if _ts != null:
         _ts.init_grid(50, 50)
         _ts.clear()
+
+
+## The shipped high bridge, driven end to end with the default four-step rise.
+func test_shipped_high_bridge_drive_crosses_the_span() -> void:
+    if _ts == null or _sh == null or _ef == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _setup()
+    var wheel := load(WHEEL_LOCOMOTOR_PATH) as Locomotor
+    TestHelper.assert_true(wheel != null, "Wheel locomotor loads")
+
+    # Geometry: the near road cut and every deck cell resolve to the same flat
+    # grade, so the deck is enterable and internally level.
+    var deck_height: float = float(DECK_GRADE) * _ts.HEIGHT_STEP
+    (
+        TestHelper
+        . assert_true(
+            is_equal_approx(_ts.get_cell_min_height(START_CELL), deck_height),
+            "the near road cut sits at the deck grade",
+        )
+    )
+    for cell in DECK_CELLS:
+        (
+            TestHelper
+            . assert_true(
+                is_equal_approx(_ts.get_cell_surface_height(cell, 1), deck_height),
+                "deck cell %s sits at the flat span grade" % cell,
+            )
+        )
+
+    var pair := _make_vehicle()
+    var vehicle: Node3D = pair[0] as Node3D
+    var mc: MovementController = pair[1] as MovementController
+    mc._locomotor_data = wheel
+    vehicle.global_position = CellUtil.cell_to_world(START_CELL)
+    vehicle.global_position.y = deck_height
+    mc.set_target_position(CellUtil.cell_to_world(FAR_CELL))
+
+    # The produced path crosses every deck cell on the level-1 surface.
+    var crossed: Dictionary = _path_deck_levels(mc)
+    for cell in DECK_CELLS:
+        TestHelper.assert_true(crossed.has(cell), "the path crosses deck cell %s" % cell)
+        if crossed.has(cell):
+            TestHelper.assert_eq(int(crossed[cell]), 1, "deck cell %s is crossed at level 1" % cell)
+
+    # Drive the real physics tick: the unit follows each deck cell's surface Y and
+    # arrives on the far road cut within the frame budget.
+    var deck_y: Dictionary = {}
+    var frames := 0
+    while frames < MAX_DRIVE_FRAMES and mc._state != MovementController.State.IDLE:
+        mc._physics_process(DRIVE_DT)
+        frames += 1
+        var cell := CellUtil.world_to_cell(vehicle.global_position)
+        if DECK_CELLS.has(cell):
+            deck_y[cell] = vehicle.global_position.y
+    TestHelper.assert_true(
+        frames < MAX_DRIVE_FRAMES, "the vehicle finished within the frame budget"
+    )
+    TestHelper.assert_eq(mc._state, MovementController.State.IDLE, "the vehicle ends idle")
+    TestHelper.assert_eq(
+        CellUtil.world_to_cell(vehicle.global_position), FAR_CELL, "the vehicle ends on FAR_CELL"
+    )
+    for cell in DECK_CELLS:
+        TestHelper.assert_true(deck_y.has(cell), "the vehicle drove across deck cell %s" % cell)
+        if deck_y.has(cell):
+            var expected: float = _ts.get_cell_surface_height(cell, 1)
+            (
+                TestHelper
+                . assert_true(
+                    absf(float(deck_y[cell]) - expected) < 0.05,
+                    (
+                        "driven Y on deck cell %s follows the deck surface (got %.4f, want %.4f)"
+                        % [cell, float(deck_y[cell]), expected]
+                    ),
+                )
+            )
+    _teardown(pair)
+
+
+## Non-vacuity control: with the deck overlays removed the same ordered crossing
+## must not use the deck cells (they are water at ground level); restoring the
+## decks puts the crossing back on the route.
+func test_shipped_high_bridge_crossing_needs_the_decks() -> void:
+    if _ts == null or _sh == null or _ef == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _setup()
+    _remove_bridges()
+    TestHelper.assert_true(
+        not _sh.has_bridge_on_cell(DECK_CELLS[1], 1), "control: no deck registered after removal"
+    )
+    var wheel := load(WHEEL_LOCOMOTOR_PATH) as Locomotor
+    var pair := _make_vehicle()
+    var vehicle: Node3D = pair[0] as Node3D
+    var mc: MovementController = pair[1] as MovementController
+    mc._locomotor_data = wheel
+    vehicle.global_position = CellUtil.cell_to_world(START_CELL)
+    vehicle.global_position.y = float(DECK_GRADE) * _ts.HEIGHT_STEP
+    mc.set_target_position(CellUtil.cell_to_world(FAR_CELL))
+    TestHelper.assert_eq(
+        _path_deck_levels(mc).size(), 0, "without decks the route uses no deck cell"
+    )
+
+    # Restore the decks: the same order now routes across them, proving the
+    # control had a reachable crossing to lose.
+    _spawn_bridges()
+    _sh.rebuild()
+    mc.set_target_position(CellUtil.cell_to_world(FAR_CELL))
+    TestHelper.assert_true(
+        _path_deck_levels(mc).size() > 0, "restored decks put the crossing back on the route"
+    )
+    _teardown(pair)

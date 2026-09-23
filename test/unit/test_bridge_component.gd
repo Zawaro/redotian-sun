@@ -203,6 +203,55 @@ func test_piece_id_shared_across_three_cells():
     _clear()
 
 
+func test_cell_data_publishes_kind_and_assign_piece_id():
+    if _ts == null or _sh == null or _ef == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _clear()
+    _ts.init_grid(50, 50)
+    var low_cell := Vector2i(28, 28)
+    var high_cell := Vector2i(29, 28)
+    _flatten(low_cell, 0)
+    _flatten(high_cell, 0)
+    var low := _spawn("BRIDGE", low_cell)
+    var high := _spawn("BRIDGE_HIGH", high_cell)
+    if low == null or high == null:
+        TestHelper.fail("bridge entities created")
+        _clear()
+        return
+    var low_comp: Node = low.get_node_or_null("BridgeComponent")
+    var high_comp: Node = high.get_node_or_null("BridgeComponent")
+    TestHelper.assert_true(low_comp != null and high_comp != null, "bridge components present")
+    if low_comp == null or high_comp == null:
+        _clear()
+        return
+    var low_data: Dictionary = low_comp.call("get_bridge_cell_data")
+    TestHelper.assert_true(low_data.has("bridge_kind"), "cell data publishes bridge_kind")
+    (
+        TestHelper
+        . assert_eq(
+            int(low_data.get("bridge_kind", -1)),
+            EntityData.BridgeKind.LOW,
+            "LOW bridge publishes its configured kind",
+        )
+    )
+    var high_data: Dictionary = high_comp.call("get_bridge_cell_data")
+    (
+        TestHelper
+        . assert_eq(
+            int(high_data.get("bridge_kind", -1)),
+            EntityData.BridgeKind.HIGH,
+            "HIGH bridge publishes its configured kind",
+        )
+    )
+    low_comp.call("assign_piece_id", "x")
+    var reassigned: Dictionary = low_comp.call("get_bridge_cell_data")
+    TestHelper.assert_eq(
+        String(reassigned.get("piece_id", "")), "x", "assigned piece id is published"
+    )
+    _clear()
+
+
 func test_destroyed_bridge_drops_from_registry():
     if _ts == null or _sh == null or _ef == null:
         TestHelper.fail("autoloads not injected")

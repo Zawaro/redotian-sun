@@ -413,6 +413,8 @@ func _fallback_target(target: Vector3, level: int = 0) -> Vector3:
                 return true
             if CellReservation.instance.get_claim_count(c, level) > 0:
                 return true
+            # `reserve_cell` itself refuses a `level > 0` cell with no live deck,
+            # so the spiral never lands on a deckless above-ground cell.
             return not SpatialHash.instance.reserve_cell(c, level)
     )
     if result == cell:
@@ -498,6 +500,10 @@ func _find_sharer_cell(target_position: Vector3, level: int = 0) -> Vector2i:
         4,
         func(cell: Vector2i) -> bool:
             if not BoundsSystem.is_in_order_area(cell):
+                return true
+            # A `level > 0` stand-off spot must sit on a live deck: without one
+            # the level-aware A* has no `(cell, level)` surface to reach.
+            if level > 0 and not SpatialHash.instance.has_bridge_on_cell(cell, level):
                 return true
             if CellReservation.instance.is_cell_full(cell, level):
                 return true
