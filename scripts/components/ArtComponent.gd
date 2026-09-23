@@ -4,32 +4,47 @@ class_name ArtComponent extends Node3D
 ## Emitted once the model mesh has been added as a child — for both the
 ## cache-hit path and a completed background load.
 signal model_loaded
+## Emitted when a BUILDUP clip finishes and the normal art is revealed.
+signal buildup_finished
 
 @export var art_data: ArtData = null
 
-var _animation_player: AnimationPlayer
+## Health ratio at or below which an ACTIVE clip swaps to its damaged variant.
+const DAMAGED_HEALTH_THRESHOLD: float = 0.5
+
 var _foundation: Vector2i = Vector2i(1, 1)
 var _configured: bool = false
 var _waiting_for_path: String = ""
+## Resolved (theater-applied) path of the base model currently loading/loaded.
+var _resolved_model_path: String = ""
 var _entity_type: int = -1
 var _is_remappable: bool = false
 var _registered: bool = false
 var _entity_root: Node3D = null
 var _model_root: Node3D = null
-## Whether active_anims should be playing (online + model loaded).
-var _active_anims_running: bool = false
+
+## Instantiated animation clips. Each record:
+## {entry: AnimClipData, node, player, anim_name, damaged_node, damaged_player,
+##  damaged_anim_name}
+var _clips: Array[Dictionary] = []
+var _clips_built: bool = false
+var _health: HealthComponent = null
+var _is_damaged: bool = false
+var _power_online: bool = true
+var _buildup_requested: bool = false
+var _buildup_running: bool = false
+var _buildup_record: Dictionary = {}
 
 
 func _ready() -> void:
     if Engine.is_editor_hint():
         return
-    if not _configured:
-        if art_data and not art_data.model_path.is_empty():
-            _try_load_model()
-            if not art_data.active_anims.is_empty():
-                _setup_animation_player()
-        else:
-            _add_placeholder()
+    if _configured:
+        return
+    if art_data and not art_data.model_path.is_empty():
+        _try_load_model()
+    else:
+        _add_placeholder()
 
 
 func _exit_tree() -> void:
@@ -47,27 +62,53 @@ func configure(data: EntityData) -> void:
     _entity_root = get_parent() as Node3D
     _is_remappable = data.art_data.is_remappable if data.art_data else false
     _configured = true
+    # Connect first: _build_clips runs on the synchronous (cache-hit/placeholder)
+    # path and must see the real power/damaged state, not the defaults.
+    _connect_siblings()
     if art_data and not art_data.model_path.is_empty():
         _try_load_model()
-        if not art_data.active_anims.is_empty():
-            _setup_animation_player()
     else:
         _add_placeholder()
-    # Connect to ExitComponent if present
-    var exit := get_parent().get_node_or_null("ExitComponent")
-    if exit and exit.has_signal("unit_spawned"):
-        exit.unit_spawned.connect(_on_exit_unit_spawned)
-    # Powered-down structures freeze their active animations (power-grid).
-    var power := get_parent().get_node_or_null("PowerComponent") as PowerComponent
+
+
+## Wires the sibling components that drive gated and one-shot clips. Signal up:
+## children emit, this component reacts — no sibling method calls.
+func _connect_siblings() -> void:
+    var parent := get_parent()
+    if parent == null:
+        return
+    var exit := parent.get_node_or_null("ExitComponent")
+    if exit:
+        if (
+            exit.has_signal("unit_spawned")
+            and not exit.unit_spawned.is_connected(_on_exit_unit_spawned)
+        ):
+            exit.unit_spawned.connect(_on_exit_unit_spawned)
+        if (
+            exit.has_signal("exit_completed")
+            and not exit.exit_completed.is_connected(_on_exit_completed)
+        ):
+            exit.exit_completed.connect(_on_exit_completed)
+    var factory := parent.get_node_or_null("FactoryComponent") as FactoryComponent
+    if factory and not factory.exit_in_progress.is_connected(_on_exit_in_progress):
+        factory.exit_in_progress.connect(_on_exit_in_progress)
+    var power := parent.get_node_or_null("PowerComponent") as PowerComponent
     if power:
-        power.power_state_changed.connect(_on_power_state_changed)
-        _active_anims_running = power.is_online
+        if not power.power_state_changed.is_connected(_on_power_state_changed):
+            power.power_state_changed.connect(_on_power_state_changed)
+        _power_online = power.is_online
+    _health = parent.get_node_or_null("HealthComponent") as HealthComponent
+    if _health:
+        if not _health.health_changed.is_connected(_on_health_changed):
+            _health.health_changed.connect(_on_health_changed)
+        _is_damaged = _health.get_health_ratio() <= DAMAGED_HEALTH_THRESHOLD
 
 
 func _try_load_model() -> void:
     if art_data == null or art_data.model_path.is_empty():
         return
-    var path := art_data.model_path
+    var path := _resolve_path(art_data.model_path)
+    _resolved_model_path = path
     # 1. Check BatchLoader cache — instant hit
     var cached := BatchLoader.get_scene(path)
     if cached != null:
@@ -148,7 +189,8 @@ func _finalize_model(scene: PackedScene) -> void:
     model_loaded.emit.call_deferred()
     _request_registration(instance)
     _maybe_freeze_into_depot(instance)
-    _start_active_anims_if_online()
+    _build_clips()
+    _maybe_start_buildup()
 
 
 ## The loaded GLB instance, used by fog-ghost freeze to reparent it into the
@@ -215,11 +257,12 @@ func _register_with_renderer(instance: Node3D) -> void:
     if renderer == null:
         return
     var model_offset := transform * instance.transform
+    var key := _resolved_model_path if not _resolved_model_path.is_empty() else art_data.model_path
     if (
         renderer
         . register(
             _entity_root,
-            art_data.model_path,
+            key,
             instance,
             model_offset,
             _is_remappable,
@@ -325,55 +368,355 @@ func _add_placeholder() -> void:
         _request_registration(instance)
     else:
         _maybe_freeze_into_depot(instance)
+    _build_clips()
+    _maybe_start_buildup()
 
 
-func _setup_animation_player() -> void:
-    if not has_node("AnimationPlayer"):
-        var ap := AnimationPlayer.new()
-        ap.name = "AnimationPlayer"
-        add_child(ap)
-    _animation_player = get_node("AnimationPlayer") as AnimationPlayer
+# --- Animation clips ---------------------------------------------------------
 
 
-func play_animation(anim_name: String) -> void:
-    if _animation_player and _animation_player.has_animation(anim_name):
-        _animation_player.play(anim_name)
+## Resolves an art path for the active theater id (see ArtData.resolve_art_path).
+func _resolve_path(path: String) -> String:
+    if art_data == null:
+        return path
+    return art_data.resolve_art_path(path, TerrainCatalog.get_active_theater_id())
 
 
-## Start/pause every active_anim. The Animation resource's loop mode follows
-## ActiveAnimData.loop. Missing animations are skipped silently (play_animation
-## guards on has_animation). Pausing preserves the playhead; play() resumes it.
-func set_active_anims_running(running: bool) -> void:
-    _active_anims_running = running
-    if art_data == null or _animation_player == null:
+## Instantiates and wires every authored clip once. Idempotent: clips are built
+## after the base model (or placeholder) lands, whichever path runs first.
+## ponytail: builds for every entity type. Instanced units render through
+## UnitMeshRenderer and an animated sub-mesh here would double-render; unit
+## animation is out of scope for now — see #437 before authoring unit clips.
+func _build_clips() -> void:
+    if _clips_built or art_data == null:
         return
-    if not running:
-        _animation_player.pause()
+    _clips_built = true
+    for entry in art_data.animations:
+        if entry == null or entry.model_path.is_empty():
+            continue
+        var record := _instantiate_clip(entry, entry.model_path)
+        if record.is_empty():
+            continue
+        record["anim_name"] = _configure_player(record.get("player"), entry)
+        if entry.role == AnimClipData.Role.ACTIVE and not entry.damaged_model_path.is_empty():
+            var damaged := _instantiate_clip(entry, entry.damaged_model_path)
+            if not damaged.is_empty():
+                record["damaged_node"] = damaged.get("node")
+                record["damaged_player"] = damaged.get("player")
+                record["damaged_anim_name"] = _configure_player(damaged.get("player"), entry, true)
+        var node: Node3D = record.get("node")
+        if is_instance_valid(node):
+            node.visible = _role_starts_visible(entry.role)
+        _clips.append(record)
+        _apply_clip_state(record)
+        if entry.role == AnimClipData.Role.DOOR:
+            _rest_at_first_frame(record.get("player"), record.get("anim_name", ""))
+
+
+## Instantiates one clip scene as a child at its offset and finds its player.
+## Returns {} when the scene cannot be loaded or instantiated.
+func _instantiate_clip(entry: AnimClipData, raw_path: String) -> Dictionary:
+    var path := _resolve_path(raw_path)
+    var scene := _load_clip_scene(path)
+    if scene == null:
+        push_warning("ArtComponent: animation clip not found: %s" % path)
+        return {}
+    var node := scene.instantiate() as Node3D
+    if node == null:
+        push_warning("ArtComponent: animation clip is not a Node3D: %s" % path)
+        return {}
+    add_child(node)
+    node.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else owner
+    node.position = entry.offset
+    var player := _find_animation_player(node)
+    return {"entry": entry, "node": node, "player": player}
+
+
+## Cached first, then a synchronous load — clip GLBs are small and resolve at
+## model-finalize time, not per frame.
+func _load_clip_scene(path: String) -> PackedScene:
+    var cached := BatchLoader.get_scene(path)
+    if cached != null:
+        return cached
+    if not ResourceLoader.exists(path):
+        return null
+    return load(path) as PackedScene
+
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+    if node is AnimationPlayer:
+        return node as AnimationPlayer
+    for child in node.get_children():
+        var found := _find_animation_player(child)
+        if found != null:
+            return found
+    return null
+
+
+## Applies speed and loop to a clip player and returns the resolved animation
+## name ("" when the player or the named animation is missing). With
+## `fallback_first`, a missing named animation falls back to the player's first
+## animation — the damaged variant is a separate GLB and may name its clip
+## differently.
+func _configure_player(
+    player: AnimationPlayer, entry: AnimClipData, fallback_first := false
+) -> String:
+    if player == null:
+        return ""
+    _isolate_player_library(player)
+    var anim_name := _resolve_clip_name(player, entry.clip_name)
+    if anim_name.is_empty() and fallback_first:
+        anim_name = _resolve_clip_name(player, "")
+    player.speed_scale = entry.speed_scale
+    if not anim_name.is_empty():
+        var animation := player.get_animation(anim_name)
+        if animation:
+            var loop_mode := Animation.LOOP_LINEAR if _clip_loops(entry) else Animation.LOOP_NONE
+            animation.loop_mode = loop_mode
+    return anim_name
+
+
+## Only ACTIVE clips loop; every other role is a one-shot lifecycle clip and
+## must stop (BUILDUP needs animation_finished; DOOR must not cycle). The
+## per-entry `loop` flag is honored for ACTIVE only.
+func _clip_loops(entry: AnimClipData) -> bool:
+    return entry.role == AnimClipData.Role.ACTIVE and entry.loop
+
+
+## Duplicates every animation library on a clip player so per-instance loop
+## edits never mutate the shared PackedScene handed out by the BatchLoader
+## cache (all entities using a clip would otherwise share one Animation).
+# ponytail: duplicates per clip instance; clips are small and few per entity.
+func _isolate_player_library(player: AnimationPlayer) -> void:
+    for lib_name in player.get_animation_library_list():
+        var library := player.get_animation_library(lib_name)
+        if library == null:
+            continue
+        player.remove_animation_library(lib_name)
+        player.add_animation_library(lib_name, library.duplicate(true) as AnimationLibrary)
+
+
+func _resolve_clip_name(player: AnimationPlayer, clip_name: String) -> String:
+    if not clip_name.is_empty():
+        return clip_name if player.has_animation(clip_name) else ""
+    var list := player.get_animation_list()
+    return String(list[0]) if not list.is_empty() else ""
+
+
+## ACTIVE and DOOR clips are visible from the start (idle shows the door's first
+## frame); other one-shots stay hidden until triggered.
+func _role_starts_visible(role: AnimClipData.Role) -> bool:
+    return role == AnimClipData.Role.ACTIVE or role == AnimClipData.Role.DOOR
+
+
+## Applies the current power and damaged state to one clip record. ACTIVE clips
+## swap to their damaged variant and play/pause; one-shot clips only pause on a
+## blackout (they are event-driven and never auto-resume).
+func _apply_clip_state(record: Dictionary) -> void:
+    var entry: AnimClipData = record.get("entry")
+    if entry == null:
         return
-    for anim in art_data.active_anims:
-        if anim == null or anim.anim_name.is_empty():
-            continue
-        if not _animation_player.has_animation(anim.anim_name):
-            continue
-        if anim.loop:
-            _animation_player.get_animation(anim.anim_name).loop_mode = Animation.LOOP_LINEAR
-        _animation_player.play(anim.anim_name)
+    var powered := _power_online or not entry.requires_power
+    if entry.role != AnimClipData.Role.ACTIVE:
+        if not powered:
+            var one_shot: AnimationPlayer = record.get("player")
+            if one_shot != null and one_shot.is_playing():
+                one_shot.pause()
+        return
+    var damaged_node: Node3D = record.get("damaged_node")
+    var use_damaged := _is_damaged and is_instance_valid(damaged_node)
+    var node: Node3D = record.get("node")
+    if is_instance_valid(node):
+        node.visible = not use_damaged
+    if is_instance_valid(damaged_node):
+        damaged_node.visible = use_damaged
+    _set_player_running(
+        record.get("player"), record.get("anim_name", ""), powered and not use_damaged
+    )
+    _set_player_running(
+        record.get("damaged_player"),
+        record.get("damaged_anim_name", ""),
+        powered and use_damaged,
+    )
+
+
+## Rests a door clip on its first frame while idle. A never-played player shows
+## the bind pose, which is not necessarily keyframe 0.
+func _rest_at_first_frame(player: AnimationPlayer, anim_name: String) -> void:
+    if player == null or anim_name.is_empty():
+        return
+    player.play(anim_name)
+    player.seek(0.0, true)
+    player.pause()
+
+
+## Plays/pauses a clip player, resuming from the paused playhead on resume.
+## (AnimationPlayer.pause() clears current_animation but keeps the position.)
+func _set_player_running(player: AnimationPlayer, anim_name: String, running: bool) -> void:
+    if player == null or anim_name.is_empty():
+        return
+    if running:
+        if player.is_playing():
+            return
+        var position := player.current_animation_position
+        player.play(anim_name)
+        if position > 0.0:
+            player.seek(position, true)
+    elif player.is_playing():
+        player.pause()
 
 
 func _on_power_state_changed(is_online: bool) -> void:
-    set_active_anims_running(is_online)
+    _power_online = is_online
+    for record in _clips:
+        _apply_clip_state(record)
 
 
-## Kick active animations once the model (and its animations) has landed.
-func _start_active_anims_if_online() -> void:
-    if _active_anims_running:
-        set_active_anims_running(true)
+func _on_health_changed(_new_health: int, _old_health: int) -> void:
+    if _health == null:
+        return
+    var damaged := _health.get_health_ratio() <= DAMAGED_HEALTH_THRESHOLD
+    if damaged == _is_damaged:
+        return
+    _is_damaged = damaged
+    for record in _clips:
+        _apply_clip_state(record)
+
+
+# --- One-shot lifecycle clips ------------------------------------------------
+
+
+func _on_exit_in_progress() -> void:
+    _set_door_open(true)
+    _set_production(true)
+
+
+func _on_exit_completed() -> void:
+    _set_door_open(false)
+    _set_production(false)
 
 
 func _on_exit_unit_spawned(_unit: Node3D) -> void:
-    if not art_data:
+    _play_role_once(AnimClipData.Role.UNDER_DOOR)
+
+
+## DOOR clips are one mesh: forward opens, backward closes to the holding frame.
+func _set_door_open(open: bool) -> void:
+    for record in _clips:
+        var entry: AnimClipData = record.get("entry")
+        if entry == null or entry.role != AnimClipData.Role.DOOR:
+            continue
+        var node: Node3D = record.get("node")
+        if is_instance_valid(node):
+            node.visible = true
+        var player: AnimationPlayer = record.get("player")
+        var anim_name: String = record.get("anim_name", "")
+        if player == null or anim_name.is_empty():
+            continue
+        player.speed_scale = entry.speed_scale
+        if open:
+            player.play(anim_name)
+        else:
+            player.play_backwards(anim_name)
+
+
+func _set_production(on: bool) -> void:
+    for record in _clips:
+        var entry: AnimClipData = record.get("entry")
+        if entry == null or entry.role != AnimClipData.Role.PRODUCTION:
+            continue
+        var node: Node3D = record.get("node")
+        if is_instance_valid(node):
+            node.visible = on
+        var player: AnimationPlayer = record.get("player")
+        var anim_name: String = record.get("anim_name", "")
+        if player == null or anim_name.is_empty():
+            continue
+        if on:
+            if not player.is_playing():
+                player.play(anim_name)
+        elif player.is_playing():
+            player.stop()
+
+
+func _play_role_once(role: AnimClipData.Role) -> void:
+    for record in _clips:
+        var entry: AnimClipData = record.get("entry")
+        if entry == null or entry.role != role:
+            continue
+        var node: Node3D = record.get("node")
+        if is_instance_valid(node):
+            node.visible = true
+        var player: AnimationPlayer = record.get("player")
+        var anim_name: String = record.get("anim_name", "")
+        if player != null and not anim_name.is_empty():
+            player.play(anim_name)
+
+
+## Plays the BUILDUP clip once, hiding the base model and ACTIVE clips until it
+## finishes. Called by BuildingManager on placement; map-load and deploy-created
+## structures never call it, so they skip buildup.
+func play_buildup() -> void:
+    _buildup_requested = true
+    _maybe_start_buildup()
+
+
+func _maybe_start_buildup() -> void:
+    if not _buildup_requested or _buildup_running or not _clips_built:
         return
-    if not art_data.door_anim.is_empty():
-        play_animation(art_data.door_anim)
-    if not art_data.under_door_anim.is_empty():
-        play_animation(art_data.under_door_anim)
+    var record := _first_role(AnimClipData.Role.BUILDUP)
+    if record.is_empty():
+        return
+    _buildup_running = true
+    _buildup_record = record
+    if is_instance_valid(_model_root):
+        _model_root.visible = false
+    for active in _clips:
+        var entry: AnimClipData = active.get("entry")
+        if entry == null or entry.role != AnimClipData.Role.ACTIVE:
+            continue
+        var node: Node3D = active.get("node")
+        if is_instance_valid(node):
+            node.visible = false
+        var damaged_node: Node3D = active.get("damaged_node")
+        if is_instance_valid(damaged_node):
+            damaged_node.visible = false
+    var buildup_node: Node3D = record.get("node")
+    if is_instance_valid(buildup_node):
+        buildup_node.visible = true
+    var player: AnimationPlayer = record.get("player")
+    var anim_name: String = record.get("anim_name", "")
+    if player != null and not anim_name.is_empty():
+        if not player.animation_finished.is_connected(_on_buildup_finished):
+            player.animation_finished.connect(_on_buildup_finished, CONNECT_ONE_SHOT)
+        player.play(anim_name)
+    else:
+        _finish_buildup()
+
+
+func _on_buildup_finished(_anim_name: StringName) -> void:
+    _finish_buildup()
+
+
+func _finish_buildup() -> void:
+    _buildup_running = false
+    _buildup_requested = false
+    var record := _buildup_record
+    _buildup_record = {}
+    if not record.is_empty():
+        var node: Node3D = record.get("node")
+        if is_instance_valid(node):
+            node.visible = false
+    if is_instance_valid(_model_root):
+        _model_root.visible = true
+    for active in _clips:
+        _apply_clip_state(active)
+    buildup_finished.emit()
+
+
+func _first_role(role: AnimClipData.Role) -> Dictionary:
+    for record in _clips:
+        var entry: AnimClipData = record.get("entry")
+        if entry != null and entry.role == role:
+            return record
+    return {}

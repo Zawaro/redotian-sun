@@ -294,7 +294,12 @@ func test_radar_offline_reports_no_radar():
     _free(no_radar_cap)
 
 
-func test_powered_down_structure_pauses_active_anims():
+func test_powered_down_structure_pauses_power_gated_clips():
+    var clip_path := "res://__test_power_clip__.tscn"
+    BatchLoader._cache[clip_path] = _make_animated_scene("spin")
+    var base_path := "res://__test_power_base__.tscn"
+    BatchLoader._cache[base_path] = _make_plain_scene()
+
     var entity := Node3D.new()
     var pc := PowerComponent.new()
     pc.name = "PowerComponent"
@@ -306,32 +311,67 @@ func test_powered_down_structure_pauses_active_anims():
     art_comp.set_script(preload("res://scripts/components/ArtComponent.gd"))
     entity.add_child(art_comp)
     var art := art_comp as ArtComponent
+
     var data := EntityData.new()
     data.id = "TEST_POWERED_ART"
     var art_data := ArtData.new()
     art_data.id = "TEST_POWERED_ART"
-    var anim := ActiveAnimData.new()
-    anim.anim_name = "spin"
-    anim.loop = true
-    art_data.active_anims = [anim]
+    art_data.model_path = base_path
+    var clip := AnimClipData.new()
+    clip.role = AnimClipData.Role.ACTIVE
+    clip.model_path = clip_path
+    clip.clip_name = "spin"
+    clip.requires_power = true
+    art_data.animations = [clip]
     data.art_data = art_data
+
     art.configure(data)
-    var ap := art.get_node("AnimationPlayer") as AnimationPlayer
-    var lib := AnimationLibrary.new()
-    var spin := Animation.new()
-    spin.length = 1.0
-    lib.add_animation("spin", spin)
-    ap.add_animation_library("", lib)
-    # Model-load start path (placeholder path skips it, so start explicitly).
-    art._start_active_anims_if_online()
-    TestHelper.assert_true(ap.is_playing(), "active anim plays while online")
-    TestHelper.assert_eq(ap.current_animation, "spin", "the active anim is the one playing")
+    var player: AnimationPlayer = art._clips[0]["player"]
+    TestHelper.assert_true(player.is_playing(), "power-gated clip plays while online")
+    TestHelper.assert_eq(String(player.current_animation), "spin", "the clip's animation plays")
+
+    player.seek(0.4, true)
     pc.set_online(false)
-    TestHelper.assert_true(not ap.is_playing(), "power down pauses active anim")
-    TestHelper.assert_eq(ap.current_animation, "spin", "paused anim stays assigned")
+    TestHelper.assert_true(not player.is_playing(), "power down pauses a power-gated clip")
+    var paused_position := player.current_animation_position
+
     pc.set_online(true)
-    TestHelper.assert_true(ap.is_playing(), "power restore resumes active anim")
+    TestHelper.assert_true(player.is_playing(), "power restore resumes the clip")
+    TestHelper.assert_true(
+        absf(player.current_animation_position - paused_position) < 0.05,
+        "resume keeps the paused playhead"
+    )
+
+    BatchLoader._cache.erase(clip_path)
+    BatchLoader._cache.erase(base_path)
     _free(entity)
+
+
+func _make_plain_scene() -> PackedScene:
+    var root := Node3D.new()
+    root.name = "Base"
+    var ps := PackedScene.new()
+    ps.pack(root)
+    root.free()
+    return ps
+
+
+func _make_animated_scene(anim_name: String) -> PackedScene:
+    var root := Node3D.new()
+    root.name = "Clip"
+    var ap := AnimationPlayer.new()
+    ap.name = "AnimationPlayer"
+    var lib := AnimationLibrary.new()
+    var anim := Animation.new()
+    anim.length = 1.0
+    lib.add_animation(anim_name, anim)
+    ap.add_animation_library("", lib)
+    root.add_child(ap)
+    ap.owner = root
+    var ps := PackedScene.new()
+    ps.pack(root)
+    root.free()
+    return ps
 
 
 # --- Selected-producer power label (task 4.1, format per issue feedback) ---
