@@ -11,7 +11,7 @@ class_name CombatComponent extends Node3D
 # - Use WarheadData.armor_damage_multipliers for per-armor damage calculation
 # - Apply WarheadData.sets_on_fire, WarheadData.rocks_target, WarheadData.produces_sparks
 # - Use ArtData fields: primary_fire_offset, barrel_length, sequence,
-#   walk_frames, firing_frames, buildup_name, door_anim, production_anim, etc.
+#   walk_frames, firing_frames, and the role-tagged animation clips, etc.
 
 signal weapon_fired(weapon: WeaponData, target: Node3D)
 
