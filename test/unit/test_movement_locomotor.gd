@@ -3,6 +3,7 @@ extends Node
 # MovementController terrain speed factor, hover float, hybrids, and slope probe
 
 var _ts: Node = null
+var _sh: Node = null
 
 
 func _reset_terrain() -> void:
@@ -341,3 +342,79 @@ func test_baked_spline_matches_spline_util():
     )
     _reset_terrain()
     pair[0].queue_free()
+
+
+func test_memoized_height_follows_bridge_deck():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var mc: MovementController = pair[1]
+    var cell := Vector2i(50, 50)
+    var deck: float = 4.0 * _ts.HEIGHT_STEP
+    _sh._bridge_cells[CellUtil.cell_level_key(cell, 1)] = {
+        "surface_height": deck,
+        "is_end": false,
+        "piece_id": "piece_test",
+        "level": 1,
+    }
+    # Ground level ignores the deck above; deck level samples it.
+    mc._surface_level = 0
+    var ground_y: float = mc._memoized_smooth_height(CellUtil.cell_to_world(cell))
+    mc._surface_level = 1
+    var deck_y: float = mc._memoized_smooth_height(CellUtil.cell_to_world(cell))
+    _sh._bridge_cells.erase(CellUtil.cell_level_key(cell, 1))
+    _reset_terrain()
+    pair[0].queue_free()
+    TestHelper.assert_true(
+        is_equal_approx(ground_y, 0.0), "(_surface_level 0 ignores the deck, got %s)" % ground_y
+    )
+    TestHelper.assert_true(
+        is_equal_approx(deck_y, deck), "(_surface_level 1 follows the deck, got %s)" % deck_y
+    )
+
+
+func test_mover_y_on_deck_and_under_deck():
+    if _ts == null or _sh == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _reset_terrain()
+    var root: Node = Engine.get_main_loop().root
+    var cell := Vector2i(50, 50)
+    _ts._vertex_grid[50][50] = 1
+    _ts._vertex_grid[51][50] = 1
+    _ts._vertex_grid[50][51] = 1
+    _ts._vertex_grid[51][51] = 1
+    _ts.invalidate_height_snapshot()
+    var ground_height: float = 1.0 * _ts.HEIGHT_STEP
+    var deck: float = ground_height + 4.0 * _ts.HEIGHT_STEP
+    _sh._bridge_cells[CellUtil.cell_level_key(cell, 1)] = {
+        "surface_height": deck,
+        "is_end": false,
+        "piece_id": "piece_test",
+        "level": 1,
+    }
+    var pair: Array = _make_mc(EntityData.EntityType.VEHICLE)
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    root.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(cell)
+    # Ground mover under the deck snaps to the ground surface.
+    mc._surface_level = 0
+    for _i in 5:
+        mc._snap_to_terrain()
+    var under_y: float = entity.global_position.y
+    # Deck mover snaps to the deck surface.
+    mc._surface_level = 1
+    for _i in 5:
+        mc._snap_to_terrain()
+    var on_y: float = entity.global_position.y
+    _sh._bridge_cells.erase(CellUtil.cell_level_key(cell, 1))
+    root.remove_child(entity)
+    entity.free()
+    _reset_terrain()
+    TestHelper.assert_true(
+        is_equal_approx(under_y, ground_height), "under-deck mover Y is the ground surface"
+    )
+    TestHelper.assert_true(is_equal_approx(on_y, deck), "on-deck mover Y is the deck surface")

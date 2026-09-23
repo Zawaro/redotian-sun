@@ -10,6 +10,10 @@ var _reserved: Dictionary = {}
 var _resource_cells: Dictionary = {}
 var _shared_cell_counts: Dictionary = {}
 var _ice_cells: Dictionary = {}
+## Live bridge deck cells: cell_level_key -> {surface_height, is_end, piece_id,
+## level}. Rebuilt from the "bridge" group each `rebuild()` (see `_bridge_cells`
+## note there).
+var _bridge_cells: Dictionary = {}
 ## Pooled per-entity entries (entity root -> entry dict). Shared with `_grid`.
 var _entry_map: Dictionary = {}
 var _rebuild_pending := false
@@ -54,10 +58,17 @@ func _on_node_removed(node: Node) -> void:
 
 
 func _is_membership_node(node: Node) -> bool:
-    if node.is_in_group("entities") or node.is_in_group("ice"):
+    if node.is_in_group("entities") or node.is_in_group("ice") or node.is_in_group("bridge"):
         return true
     var parent := node.get_parent()
-    return parent != null and (parent.is_in_group("entities") or parent.is_in_group("ice"))
+    return (
+        parent != null
+        and (
+            parent.is_in_group("entities")
+            or parent.is_in_group("ice")
+            or parent.is_in_group("bridge")
+        )
+    )
 
 
 func _physics_process(_delta: float) -> void:
@@ -73,6 +84,10 @@ func rebuild() -> void:
     _blocked_cells.clear()
     _shared_cell_counts.clear()
     _ice_cells.clear()
+    var old_bridge_keys: Dictionary = {}
+    for key in _bridge_cells:
+        old_bridge_keys[key] = true
+    _bridge_cells.clear()
     _entry_map.clear()
     # ponytail: ice spawned mid-game by EntityFactory._add_ice_component only
     # joins _ice_cells on the next membership rebuild, so a freshly spawned ice
@@ -88,6 +103,22 @@ func rebuild() -> void:
         if not _ice_cells.has(ice_key):
             _ice_cells[ice_key] = []
         _ice_cells[ice_key].append(ice_root)
+    # ponytail: a bridge spawned/removed mid-frame enters/leaves _bridge_cells on
+    # the next membership rebuild; static map bridges are placed before the first
+    # rebuild, so this only affects runtime bridge destruction (#250).
+    perf_group_scans += 1
+    for bridge in get_tree().get_nodes_in_group("bridge"):
+        var bridge_root := bridge as Node3D
+        if not is_instance_valid(bridge_root):
+            continue
+        var bridge_data := _read_bridge_cell_data(bridge_root)
+        if bridge_data.is_empty():
+            continue
+        var bridge_cell := CellUtil.world_to_cell(bridge_root.global_position)
+        var bridge_level: int = int(bridge_data.get("level", 1))
+        _bridge_cells[CellUtil.cell_level_key(bridge_cell, bridge_level)] = bridge_data
+    if _bridge_cell_keys_changed(old_bridge_keys):
+        _on_bridge_cells_changed()
     perf_group_scans += 1
     for entity in get_tree().get_nodes_in_group("entities"):
         # ponytail: scene-placed units add SelectComponent (Node) to group,
@@ -105,6 +136,7 @@ func rebuild() -> void:
         var pid: int = stats.player_id if stats else -1
         var state: int = mc._state if mc else -1
         var shares: bool = mc.shares_cell() if mc else false
+        var entry_level: int = mc._surface_level if mc else 0
         var entry := {
             "node": entity_root,
             "mc": mc,
@@ -112,6 +144,7 @@ func rebuild() -> void:
             "entity_type": etype,
             "player_id": pid,
             "cell_key": key,
+            "level": entry_level,
             "state": state,
             "shares": shares,
             "last_x": entity_root.global_position.x,
@@ -123,10 +156,11 @@ func rebuild() -> void:
         # beyond capacity transiently, but crush clears them. Counting
         # MOVING would block pathfinding for all cells with moving sharers.
         if mc and state == MovementController.State.IDLE:
+            var level_key := CellUtil.cell_level_key(cell, entry_level)
             if shares:
-                _shared_cell_counts[key] = _shared_cell_counts.get(key, 0) + 1
+                _shared_cell_counts[level_key] = _shared_cell_counts.get(level_key, 0) + 1
             else:
-                _blocked_cells[key] = true
+                _blocked_cells[level_key] = true
     _rebuild_pending = false
 
 
@@ -142,22 +176,26 @@ func _reconcile() -> void:
         var mc: MovementController = entry["mc"]
         var state: int = -1
         var shares := false
+        var level: int = 0
         if mc and is_instance_valid(mc):
             state = mc._state
             shares = mc.shares_cell()
+            level = mc._surface_level
         var pos: Vector3 = node.global_position
         var last_x: float = entry["last_x"]
         var last_z: float = entry["last_z"]
         var cached_key: int = entry["cell_key"]
+        var cached_level: int = int(entry.get("level", 0))
         # Short-circuit: an unchanged position implies an unchanged cell (the only
         # continuous position writer, MovementController, mutates in place; spawn
         # and Deploy set position before add_child, which triggers a rebuild).
-        # Unchanged position + unchanged state/shares => nothing to reconcile.
+        # Unchanged position + unchanged state/shares/level => nothing to reconcile.
         if (
             pos.x == last_x
             and pos.z == last_z
             and state == entry["state"]
             and shares == entry["shares"]
+            and level == cached_level
         ):
             continue
         var key: int
@@ -168,28 +206,36 @@ func _reconcile() -> void:
             perf_reconcile_recomputes += 1
         entry["last_x"] = pos.x
         entry["last_z"] = pos.z
-        if key == cached_key and state == entry["state"] and shares == entry["shares"]:
+        if (
+            key == cached_key
+            and state == entry["state"]
+            and shares == entry["shares"]
+            and level == cached_level
+        ):
             continue
+        var cached_level_key := CellUtil.cell_level_key(_level_key_cell(cached_key), cached_level)
+        var level_key := CellUtil.cell_level_key(_level_key_cell(key), level)
         var was_blocking: bool = (
             entry["state"] == MovementController.State.IDLE and not entry["shares"]
         )
         var was_sharing: bool = entry["state"] == MovementController.State.IDLE and entry["shares"]
         _remove_entry_from_grid(entry, cached_key)
         if was_sharing:
-            _decrement_shared(cached_key)
-        elif was_blocking and not _has_blocking_entity(cached_key):
+            _decrement_shared(cached_level_key)
+        elif was_blocking and not _has_blocking_entity(cached_key, cached_level):
             # _blocked_cells is a set (key -> true), so only erase when the
-            # last blocking occupant leaves.
-            _blocked_cells.erase(cached_key)
+            # last blocking occupant on this level leaves.
+            _blocked_cells.erase(cached_level_key)
         entry["cell_key"] = key
+        entry["level"] = level
         entry["state"] = state
         entry["shares"] = shares
         _add_entry_to_grid(entry, key)
         if state == MovementController.State.IDLE:
             if shares:
-                _shared_cell_counts[key] = _shared_cell_counts.get(key, 0) + 1
+                _shared_cell_counts[level_key] = _shared_cell_counts.get(level_key, 0) + 1
             else:
-                _blocked_cells[key] = true
+                _blocked_cells[level_key] = true
 
 
 func _add_entry_to_grid(entry: Dictionary, key: int) -> void:
@@ -217,20 +263,41 @@ func _decrement_shared(key: int) -> void:
         _shared_cell_counts[key] = count
 
 
-## True when at least one entry on the cell still blocks it (IDLE + non-shaver).
-func _has_blocking_entity(key: int) -> bool:
+## True when at least one entry on the cell at `level` still blocks it
+## (IDLE + non-shaver). Level-scoped: a deck blocker does not keep the ground
+## cell blocked, and vice versa.
+func _has_blocking_entity(key: int, level: int) -> bool:
     var arr: Variant = _grid.get(key)
     if arr == null:
         return false
     for entry in arr:
-        if entry["state"] == MovementController.State.IDLE and not entry["shares"]:
+        if (
+            entry["state"] == MovementController.State.IDLE
+            and not entry["shares"]
+            and int(entry.get("level", 0)) == level
+        ):
             return true
     return false
 
 
-func get_entries(cell: Vector2i) -> Array:
+func get_entries(cell: Vector2i, level: int = -1) -> Array:
     perf_get_entries_calls += 1
-    return _grid.get(CellUtil.cell_key(cell), [])
+    var arr: Array = _grid.get(CellUtil.cell_key(cell), [])
+    if level < 0 or arr.is_empty():
+        return arr
+    var filtered: Array = []
+    for entry in arr:
+        if int(entry.get("level", 0)) == level:
+            filtered.append(entry)
+    return filtered
+
+
+## Decodes the cell half of a `CellUtil.cell_level_key`.
+static func _level_key_cell(key: int) -> Vector2i:
+    var base := key & 0xFFFFFFFF
+    var x := ((base >> 16) & 0xFFFF) - CellUtil.CELL_KEY_OFFSET
+    var y := (base & 0xFFFF) - CellUtil.CELL_KEY_OFFSET
+    return Vector2i(x, y)
 
 
 ## Ice entities (breakable surfaces) occupying a cell.
@@ -249,10 +316,127 @@ func has_intact_ice_on_cell(cell: Vector2i) -> bool:
     return false
 
 
-func get_blocked_cells() -> Dictionary:
-    var result: Dictionary = _blocked_cells.duplicate()
-    for key in _building_cells:
-        result[key] = true
+## Bridge deck metadata on a cell. `level >= 0` reads that exact deck level;
+## `level == -1` returns the lowest-level (ground-most) deck entry, else {}.
+func get_bridge_cell(cell: Vector2i, level: int = -1) -> Dictionary:
+    if level >= 0:
+        return _bridge_cells.get(CellUtil.cell_level_key(cell, level), {})
+    var levels: Array[int] = get_bridge_levels(cell)
+    if levels.is_empty():
+        return {}
+    return _bridge_cells.get(CellUtil.cell_level_key(cell, levels[0]), {})
+
+
+## True when a bridge deck covers the cell. `level == -1` means any level on the
+## cell (legacy behavior); otherwise the exact level. The any-level probe scans
+## the small deck registry so direct-write test fixtures stay valid without a
+## separate index; level 0 is `cell_key`, level N is `cell_level_key`.
+func has_bridge_on_cell(cell: Vector2i, level: int = -1) -> bool:
+    if level >= 0:
+        return _bridge_cells.has(CellUtil.cell_level_key(cell, level))
+    var base: int = CellUtil.cell_key(cell)
+    for key in _bridge_cells:
+        if (int(key) & 0xFFFFFFFF) == base:
+            return true
+    return false
+
+
+## Sorted ascending deck levels present on a cell (empty when none). A
+## directly-written legacy level-0 entry reads back as level 0.
+func get_bridge_levels(cell: Vector2i) -> Array[int]:
+    var levels: Array[int] = []
+    var base: int = CellUtil.cell_key(cell)
+    for key in _bridge_cells:
+        if (int(key) & 0xFFFFFFFF) == base:
+            levels.append(int(key) >> 32)
+    levels.sort()
+    return levels
+
+
+## Metadata for every deck level on a cell, lowest level first.
+func get_bridge_surfaces(cell: Vector2i) -> Array[Dictionary]:
+    var surfaces: Array[Dictionary] = []
+    for level in get_bridge_levels(cell):
+        var data: Variant = _bridge_cells.get(CellUtil.cell_level_key(cell, level))
+        if data is Dictionary:
+            surfaces.append(data)
+    return surfaces
+
+
+## Bridge cell metadata published by a bridge entity, or {} when no publisher is
+## present or its data is malformed (missing required keys). Reads the entity's
+## own `get_bridge_cell_data()` when it has one (stub/legacy), otherwise the
+## `BridgeComponent` child's method.
+func _read_bridge_cell_data(node: Node3D) -> Dictionary:
+    var source: Variant = null
+    if node.has_method("get_bridge_cell_data"):
+        source = node.get_bridge_cell_data()
+    else:
+        var component := node.get_node_or_null("BridgeComponent")
+        if component and component.has_method("get_bridge_cell_data"):
+            source = component.get_bridge_cell_data()
+    if not (source is Dictionary):
+        return {}
+    var data: Dictionary = source
+    if not (data.has("surface_height") and data.has("is_end") and data.has("piece_id")):
+        return {}
+    var level := 1
+    if data.has("level"):
+        var raw_level: int = int(data["level"])
+        if raw_level > 0:
+            level = raw_level
+    # Spec "Stack over max height refused": a deck at or above MAX_HEIGHT is
+    # refused here — the registry is the single source of deck surfaces, so no
+    # surface is created for the cell and every consumer sees ground only.
+    if level >= TerrainSystem.MAX_HEIGHT:
+        return {}
+    return {
+        "surface_height": float(data["surface_height"]),
+        "is_end": bool(data["is_end"]),
+        "piece_id": String(data["piece_id"]),
+        "level": level,
+    }
+
+
+func _bridge_cell_keys_changed(old_keys: Dictionary) -> bool:
+    if old_keys.size() != _bridge_cells.size():
+        return true
+    for key in _bridge_cells:
+        if not old_keys.has(key):
+            return true
+    return false
+
+
+## A bridge register/unregister changes per-cell walkable height, so any cached
+## height snapshot and any batch-lifetime path-cost cache are stale. Invalidates
+## the terrain height snapshot and bumps the Pathfinder world generation (the same
+## API blocker/building changes use via SelectionManager.request_move).
+func _on_bridge_cells_changed() -> void:
+    var terrain := _resolve_terrain_system()
+    if terrain and terrain.has_method("invalidate_height_snapshot"):
+        terrain.invalidate_height_snapshot()
+    Pathfinder.bump_world_generation()
+
+
+func _resolve_terrain_system() -> Node:
+    var tree: SceneTree = get_tree()
+    if tree == null:
+        return null
+    return tree.root.get_node_or_null("TerrainSystem")
+
+
+## Level-scoped blocked set for pathfinding. Returns only the blockers on
+## `level` (keys are `cell_level_key`, `cell_key` at level 0) plus the building
+## footprint at level 0 — buildings never sit on a deck. The no-arg call is
+## byte-identical to the pre-level behavior for ground maps.
+func get_blocked_cells(level: int = 0) -> Dictionary:
+    var result: Dictionary = {}
+    for key in _blocked_cells:
+        if (int(key) >> 32) == level:
+            result[key] = true
+    if level == 0:
+        for key in _building_cells:
+            result[key] = true
     return result
 
 
@@ -263,22 +447,26 @@ func all_entries() -> Array:
     return result
 
 
-func is_cell_blocked(cell: Vector2i) -> bool:
-    return _blocked_cells.has(CellUtil.cell_key(cell))
+func is_cell_blocked(cell: Vector2i, level: int = 0) -> bool:
+    return _blocked_cells.has(CellUtil.cell_level_key(cell, level))
 
 
-func get_shared_cell_count(cell: Vector2i) -> int:
-    return _shared_cell_counts.get(CellUtil.cell_key(cell), 0)
+func get_shared_cell_count(cell: Vector2i, level: int = 0) -> int:
+    return _shared_cell_counts.get(CellUtil.cell_level_key(cell, level), 0)
 
 
-func is_cell_full_for_shared(cell: Vector2i) -> bool:
-    return get_shared_cell_count(cell) >= CellSubPositions.get_slot_count()
+func is_cell_full_for_shared(cell: Vector2i, level: int = 0) -> bool:
+    return get_shared_cell_count(cell, level) >= CellSubPositions.get_slot_count()
 
 
-func get_shared_cells() -> Dictionary:
+## Level-scoped shared (sharing-unit) cells with at least one occupant. Keys are
+## `cell_key` at level 0 (legacy callers) and `cell_level_key` for decks.
+func get_shared_cells(level: int = 0) -> Dictionary:
     var result: Dictionary = {}
     for key in _shared_cell_counts:
-        if _shared_cell_counts[key] > 0:
+        if _shared_cell_counts[key] <= 0:
+            continue
+        if (int(key) >> 32) == level:
             result[key] = true
     return result
 
@@ -288,7 +476,10 @@ func get_crusher_blocking_cells(player_id: int) -> Dictionary:
     for key in _shared_cell_counts:
         if _shared_cell_counts[key] <= 0:
             continue
-        var entries: Array = _grid.get(key, [])
+        # Crushers are ground vehicles: deck (level > 0) sharers do not block them.
+        if (int(key) >> 32) != 0:
+            continue
+        var entries: Array = _grid.get(CellUtil.cell_key(_level_key_cell(key)), [])
         for entry in entries:
             if not is_instance_valid(entry["node"]):
                 continue
@@ -326,28 +517,38 @@ func get_crushable_enemies_on_cell(cell: Vector2i, player_id: int) -> Array:
     return result
 
 
-func is_any_entity_on_cell(cell: Vector2i) -> bool:
+## True when any mobile entity occupies the cell. `level >= 0` restricts to that
+## surface; `level == -1` (default) matches any level, preserving pre-level
+## callers.
+func is_any_entity_on_cell(cell: Vector2i, level: int = -1) -> bool:
     var entries: Array = _grid.get(CellUtil.cell_key(cell), [])
     for entry in entries:
-        if entry["mc"] != null:
-            return true
+        if entry["mc"] == null:
+            continue
+        if level >= 0 and int(entry.get("level", 0)) != level:
+            continue
+        return true
     return false
 
 
-func reserve_cell(cell: Vector2i) -> bool:
-    var key := CellUtil.cell_key(cell)
+## Level-scoped cell reservation. Keys are `CellUtil.cell_level_key`; level 0 is
+## `cell_key`, so the no-arg callers reserve exactly as before. A deck
+## reservation never blocks the ground beneath and vice versa. Buildings are
+## ground-only, so `_building_cells` (keyed by `cell_key`) only refuses level 0.
+func reserve_cell(cell: Vector2i, level: int = 0) -> bool:
+    var key := CellUtil.cell_level_key(cell, level)
     if _reserved.has(key) or _blocked_cells.has(key) or _building_cells.has(key):
         return false
     _reserved[key] = true
     return true
 
 
-func release_cell(cell: Vector2i) -> void:
-    _reserved.erase(CellUtil.cell_key(cell))
+func release_cell(cell: Vector2i, level: int = 0) -> void:
+    _reserved.erase(CellUtil.cell_level_key(cell, level))
 
 
-func force_reserve(cell: Vector2i) -> void:
-    _reserved[CellUtil.cell_key(cell)] = true
+func force_reserve(cell: Vector2i, level: int = 0) -> void:
+    _reserved[CellUtil.cell_level_key(cell, level)] = true
 
 
 func clear_reservations() -> void:

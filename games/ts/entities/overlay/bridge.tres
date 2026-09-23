@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="EntityData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EntityData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EntityData.gd" id="1_script"]
+[ext_resource type="Resource" path="res://games/ts/art/terrain/bridge_art.tres" id="2_art"]
 
 [resource]
 script = ExtResource("1_script")
+art_data = ExtResource("2_art")
 id = "BRIDGE"
 display_name = "Bridge"
 legacy_id = "BRIDGE"
@@ -13,3 +15,6 @@ armor = "concrete"
 foundation = Vector2i(1, 1)
 height = 0.1
 owner = PackedStringArray("Neutral")
+bridge_kind = 1
+bridge_level = 1
+bridge_rise = 0.4075

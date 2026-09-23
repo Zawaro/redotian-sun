@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ArtData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ArtData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "BRIDGE"
+texture_path = "res://games/ts/assets/textures/terrain/placeholder_terrain01_Bridge_1m_x_1m.png"
+placeholder_size = Vector3(1.0, 0.1, 1.0)

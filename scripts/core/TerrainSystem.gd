@@ -10,6 +10,8 @@ const DEFAULT_GRID_CELLS: Vector2i = Vector2i(50, 50)
 const DEFAULT_LAND_TYPE: String = "clear"
 ## Land type reported for cells occupied by a resource crystal.
 const RESOURCE_LAND_TYPE: String = "resource"
+## Land type reported for cells covered by an intact bridge deck.
+const BRIDGE_LAND_TYPE: String = "bridge"
 
 var grid_cells: Vector2i = DEFAULT_GRID_CELLS:
     set(value):
@@ -311,11 +313,18 @@ func get_cell_type(cell: Vector2i) -> String:
     return data.get("type", "")
 
 
-## Land type id for a cell. Resource-occupied cells resolve to `resource`
-## (derived from the SpatialHash registry, so it tracks growth and harvest);
-## otherwise the painted overlay applies, defaulting to "clear".
-func get_land_type(cell: Vector2i) -> String:
+## Land type id for a cell surface. At level 0: resource-occupied cells resolve
+## to `resource`; otherwise the painted overlay applies, defaulting to "clear".
+## Level 0 ignores any bridge deck above the cell — a deck is a separate surface,
+## so the ground beneath keeps its own land (this is what makes under-deck
+## pathing possible). Above level 0: a level with a deck resolves to `bridge`,
+## otherwise no surface (""). Level 0 defaults preserve every existing caller.
+func get_land_type(cell: Vector2i, level: int = 0) -> String:
     land_type_query_count += 1
+    if level > 0:
+        if SpatialHash.instance and SpatialHash.instance.has_bridge_on_cell(cell, level):
+            return BRIDGE_LAND_TYPE
+        return ""
     if SpatialHash.instance and SpatialHash.instance.has_resource_cell(cell):
         return RESOURCE_LAND_TYPE
     return _land_types.get(CellUtil.cell_key(cell), DEFAULT_LAND_TYPE)
@@ -366,6 +375,34 @@ func get_cell_min_height(cell: Vector2i) -> float:
     return float(h_min) * HEIGHT_STEP
 
 
+## Walkable surface height for a cell at `level`: the deck height when a bridge
+## covers the cell at that level, otherwise the smooth terrain height at the cell
+## center. Level 0 is the ground surface and ignores any deck above it (the deck
+## is a separate level), so the ground beneath a deck reads its own height.
+## Level 0 defaults to the pre-level behavior.
+func get_cell_surface_height(cell: Vector2i, level: int = 0) -> float:
+    if level > 0:
+        if SpatialHash.instance and SpatialHash.instance.has_bridge_on_cell(cell, level):
+            var deck: Dictionary = SpatialHash.instance.get_bridge_cell(cell, level)
+            if deck.has("surface_height"):
+                return float(deck["surface_height"])
+        return get_height_at_world_smooth(CellUtil.cell_to_world(cell))
+    return get_height_at_world_smooth(CellUtil.cell_to_world(cell))
+
+
+## Surface levels present on a cell: always ground (0), plus each deck level
+## above it, sorted ascending. Delegates to the SpatialHash bridge registry
+## (single source of deck surfaces). Returns [0] when no deck covers the cell.
+func get_cell_surface_levels(cell: Vector2i) -> Array[int]:
+    var levels: Array[int] = [0]
+    if SpatialHash.instance:
+        for deck_level in SpatialHash.instance.get_bridge_levels(cell):
+            if deck_level > 0 and not levels.has(deck_level):
+                levels.append(deck_level)
+    levels.sort()
+    return levels
+
+
 func get_cell_corner_heights(cell: Vector2i) -> Array[float]:
     var cx := cell.x
     var cz := cell.y
@@ -395,8 +432,11 @@ func get_cell_snapshot_corners_raw(cell: Vector2i) -> Array:
 ## read as 1 or less; a true cliff face whose single edge jumps two or more
 ## levels reads as 2 or more. Used by LOS blocking to exempt walkable graded
 ## faces (edge rise <= 1, matching Foot/Track climb_tolerance) from the
-## height-delta check while keeping sheer cliff faces blocking.
-func get_cell_grade_steps(cell: Vector2i) -> int:
+## height-delta check while keeping sheer cliff faces blocking. At a deck level
+## (> 0) the deck is flat, so its grade is the surface height in steps.
+func get_cell_grade_steps(cell: Vector2i, level: int = 0) -> int:
+    if level > 0:
+        return roundi(get_cell_surface_height(cell, level) / HEIGHT_STEP)
     var corners := _snapshot_corners(cell)
     if corners.is_empty():
         return 0
@@ -477,18 +517,35 @@ func get_normal_at_world(world_pos: Vector3) -> Vector3:
 
 
 ## Cast a ray from `camera` through `screen_pos` and return the world position
-## where it meets the terrain surface, or null when the ray never reaches the
-## ground plane (e.g. the camera is pitched above the horizon). Intersects the
-## Y=0 plane first, then refines the hit against the smoothed heightfield for a
-## fixed 4 iterations. Single shared implementation for placement previews,
-## order ground targeting, and any future cursor-to-terrain consumer.
+## where it meets the nearest terrain surface, or null when the ray never reaches
+## the ground plane (e.g. the camera is pitched above the horizon). Back-compatible
+## single-return wrapper around `mouse_ray_to_terrain_candidates`; callers that
+## ignore surface levels get the nearest surface (a deck over the ground picks the
+## deck). Intersects the Y=0 plane first, then refines the hit against the smoothed
+## heightfield for a fixed 4 iterations. Single shared implementation for placement
+## previews, order ground targeting, and any future cursor-to-terrain consumer.
 func mouse_ray_to_terrain(camera: Camera3D, screen_pos: Vector2) -> Variant:
+    var candidates: Array[Dictionary] = mouse_ray_to_terrain_candidates(camera, screen_pos)
+    if candidates.is_empty():
+        return null
+    return candidates[0]["position"] as Vector3
+
+
+## Every terrain surface the camera ray through `screen_pos` hits, nearest first,
+## as `{"position": Vector3, "cell": Vector2i, "level": int}`. The ground (level 0)
+## uses the existing heightfield solve; each bridge deck covered by the ray is a
+## flat horizontal plane at its walkable surface height. A ray over a high deck
+## therefore reports the deck level first and still reports the ground beneath as
+## a second candidate, so the ground under a bridge stays selectable. Returns an
+## empty array when the ray never reaches the ground plane.
+func mouse_ray_to_terrain_candidates(camera: Camera3D, screen_pos: Vector2) -> Array[Dictionary]:
+    var result: Array[Dictionary] = []
     var from := camera.project_ray_origin(screen_pos)
     var dir := camera.project_ray_normal(screen_pos)
     var ground_plane := Plane(Vector3.UP, 0.0)
     var intersection = ground_plane.intersects_ray(from, dir)
     if intersection == null:
-        return null
+        return result
     var hit_pos := intersection as Vector3
     for i in 4:
         var terrain_y := get_height_at_world_smooth(hit_pos)
@@ -497,7 +554,32 @@ func mouse_ray_to_terrain(camera: Camera3D, screen_pos: Vector2) -> Variant:
         if new_hit == null:
             break
         hit_pos = new_hit as Vector3
-    return hit_pos
+    var ground_cell := CellUtil.world_to_cell(hit_pos)
+    # ponytail: decks are scanned over the ground-hit cell's 3x3 hood only. A deck
+    # several cells off the ground hit under an extremely oblique ray is not
+    # resolved; widen the scan only if a real map needs it.
+    for dx in range(-1, 2):
+        for dz in range(-1, 2):
+            var cell := ground_cell + Vector2i(dx, dz)
+            for level in get_cell_surface_levels(cell):
+                if level <= 0:
+                    continue
+                var deck_y := get_cell_surface_height(cell, level)
+                var deck_hit = Plane(Vector3.UP, deck_y).intersects_ray(from, dir)
+                if deck_hit == null:
+                    continue
+                var deck_pos := deck_hit as Vector3
+                if dir.dot(deck_pos - from) <= 0.0:
+                    continue
+                if CellUtil.world_to_cell(deck_pos) != cell:
+                    continue
+                result.append({"position": deck_pos, "cell": cell, "level": level})
+    result.append({"position": hit_pos, "cell": ground_cell, "level": 0})
+    result.sort_custom(
+        func(a: Dictionary, b: Dictionary) -> bool:
+            return from.distance_squared_to(a["position"]) < from.distance_squared_to(b["position"])
+    )
+    return result
 
 
 ## First point where a segment crosses the terrain surface, descending.
@@ -712,6 +794,160 @@ func _is_vertex_editable(vx: int, vz: int) -> bool:
         Vector2i(vx - 1, vz - 1), Vector2i(vx, vz - 1), Vector2i(vx - 1, vz), Vector2i(vx, vz)
     ]:
         if _cell_pins.has(CellUtil.cell_key_str(cell)):
+            return false
+    return true
+
+
+# ========================================
+# TerrainObject stamping
+# ========================================
+
+## Sentinel "no cell"/"no origin" for the stamp helpers (outside any playable diamond).
+const _NO_STAMP_CELL: Vector2i = Vector2i(1 << 30, 1 << 30)
+
+
+## Stamps a `TerrainObject` onto the grid at `origin`: every object-local cell
+## `"x,z"` maps to `origin + (x, z)`; its four absolute corner heights
+## (`[nw, ne, se, sw]`) are written to that cell's vertices with the
+## non-cascading setter (so the authored cliff face is exact and never smoothed
+## into the neighbours), its `land` is painted when non-default, and the cell is
+## pinned to `obj.id` so later height edits cannot deform the stamp. Absolute
+## writes make stamping idempotent; shared vertices are written in authored order,
+## so a well-formed object (adjacent cells agree on the shared corner) stamps
+## deterministically. Recomputes and emits the footprint plus its in-diamond ring.
+func stamp_terrain_object(obj: TerrainObject, origin: Vector2i) -> void:
+    if obj == null:
+        return
+    var touched: Dictionary = {}
+    for local_key in obj.cells:
+        var cell := _stamp_cell_for(obj, origin, String(local_key))
+        if cell == _NO_STAMP_CELL:
+            continue
+        _apply_object_cell(obj, String(local_key), cell)
+        pin_cell(cell, obj.id)
+        touched[cell] = true
+    if touched.is_empty():
+        return
+    invalidate_height_snapshot()
+    var affected: Dictionary = {}
+    for cell: Vector2i in touched:
+        _add_cells_for_vertex(cell.x, cell.y, affected)
+        _add_cells_for_vertex(cell.x + 1, cell.y, affected)
+        _add_cells_for_vertex(cell.x, cell.y + 1, affected)
+        _add_cells_for_vertex(cell.x + 1, cell.y + 1, affected)
+    for key in affected:
+        var parts: PackedStringArray = String(key).split(",")
+        if parts.size() != 2:
+            continue
+        var cell := Vector2i(int(parts[0]), int(parts[1]))
+        if CellUtil.is_in_diamond(cell, grid_cells):
+            compute_and_emit_cell(cell)
+
+
+## Convenience: resolves `id` via TerrainCatalog and stamps it. Returns false when
+## the id is not a registered terrain object (nothing is written).
+func stamp_terrain_object_by_id(id: String, origin: Vector2i) -> bool:
+    var obj := TerrainCatalog.get_object(id)
+    if obj == null:
+        push_warning("TerrainSystem: unknown terrain object '%s'" % id)
+        return false
+    stamp_terrain_object(obj, origin)
+    return true
+
+
+## Applies one object cell's authored `corners` and `land` to a world cell.
+func _apply_object_cell(obj: TerrainObject, local_key: String, cell: Vector2i) -> void:
+    var corners := obj.corners_at(local_key)
+    if corners.size() == 4:
+        _apply_cell_corners(cell, corners)
+    var land := obj.land_type_at(local_key)
+    if not land.is_empty() and land != DEFAULT_LAND_TYPE:
+        set_land_type(cell, land)
+
+
+## Writes a cell's authored corner heights (`[nw, ne, se, sw]`) to the vertex
+## grid without cascading, so the stamped cliff face is not smoothed away.
+func _apply_cell_corners(cell: Vector2i, corners: Array) -> void:
+    _set_vertex_no_cascade(cell.x, cell.y, clampi(int(corners[0]), 0, MAX_HEIGHT))
+    _set_vertex_no_cascade(cell.x + 1, cell.y, clampi(int(corners[1]), 0, MAX_HEIGHT))
+    _set_vertex_no_cascade(cell.x + 1, cell.y + 1, clampi(int(corners[2]), 0, MAX_HEIGHT))
+    _set_vertex_no_cascade(cell.x, cell.y + 1, clampi(int(corners[3]), 0, MAX_HEIGHT))
+
+
+## Applies an object's cells at `origin` without pinning or emitting — used to
+## rebuild a stamped object after import (pins and `cell_changed` are handled by
+## the import loop).
+func _apply_object_land_and_corners(obj: TerrainObject, origin: Vector2i) -> void:
+    for local_key in obj.cells:
+        var cell := _stamp_cell_for(obj, origin, String(local_key))
+        if cell == _NO_STAMP_CELL:
+            continue
+        _apply_object_cell(obj, String(local_key), cell)
+
+
+## Object-local `"x,z"` key -> absolute world cell at `origin`, or `_NO_STAMP_CELL`
+## when malformed or outside the playable diamond.
+func _stamp_cell_for(_obj: TerrainObject, origin: Vector2i, local_key: String) -> Vector2i:
+    var parts: PackedStringArray = local_key.split(",")
+    if parts.size() != 2:
+        return _NO_STAMP_CELL
+    var cell := origin + Vector2i(int(parts[0]), int(parts[1]))
+    if not CellUtil.is_in_diamond(cell, grid_cells):
+        return _NO_STAMP_CELL
+    return cell
+
+
+## Rebuilds stamped objects after import from their pins. `cell_pins` stores only
+## `cell -> object_id`, so each object's origin is recovered by finding the
+## object-local cell whose translation maps the whole footprint onto cells pinned
+## to the same id; then the authored land/corners are re-applied. A pin set that
+## does not cover a full footprint (e.g. a hand-pinned single cliff cell) is left
+## untouched.
+func _restore_pinned_objects() -> void:
+    if _cell_pins.is_empty():
+        return
+    var resolved: Dictionary = {}
+    for pin_key in _cell_pins:
+        var parts: PackedStringArray = String(pin_key).split(",")
+        if parts.size() != 2:
+            continue
+        var pinned_cell := Vector2i(int(parts[0]), int(parts[1]))
+        var object_id := String(_cell_pins[pin_key])
+        if object_id.is_empty():
+            continue
+        if not resolved.has(object_id):
+            resolved[object_id] = TerrainCatalog.get_object(object_id)
+        var obj: TerrainObject = resolved[object_id]
+        if obj == null:
+            continue
+        var origin := _resolve_stamp_origin(obj, pinned_cell, object_id)
+        if origin != _NO_STAMP_CELL:
+            _apply_object_land_and_corners(obj, origin)
+
+
+## The stamp origin for `obj` that places `pinned_cell` on one of its cells and
+## pins the whole footprint to `object_id`, or `_NO_STAMP_CELL`.
+func _resolve_stamp_origin(
+    obj: TerrainObject, pinned_cell: Vector2i, object_id: String
+) -> Vector2i:
+    for local_key in obj.cells:
+        var parts: PackedStringArray = String(local_key).split(",")
+        if parts.size() != 2:
+            continue
+        var origin := pinned_cell - Vector2i(int(parts[0]), int(parts[1]))
+        if _is_stamp_at(obj, origin, object_id):
+            return origin
+    return _NO_STAMP_CELL
+
+
+## True when every cell of `obj` translated by `origin` is in the diamond and
+## pinned to `object_id`.
+func _is_stamp_at(obj: TerrainObject, origin: Vector2i, object_id: String) -> bool:
+    if obj.cells.is_empty():
+        return false
+    for local_key in obj.cells:
+        var cell := _stamp_cell_for(obj, origin, String(local_key))
+        if cell == _NO_STAMP_CELL or get_pin(cell) != object_id:
             return false
     return true
 
@@ -1004,6 +1240,9 @@ func import_from_json(path: String) -> void:
             var land_id := String(json_land[land_key])
             if not land_id.is_empty() and land_id != DEFAULT_LAND_TYPE:
                 _land_types[CellUtil.cell_key(land_cell)] = land_id
+
+    # Pins carry no geometry, so rebuild stamped objects from their pinned ids.
+    _restore_pinned_objects()
 
     for cx in extent.x:
         for cz in extent.y:

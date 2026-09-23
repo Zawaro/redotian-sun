@@ -69,6 +69,18 @@ static func cell_key_str(cell: Vector2i) -> String:
     return str(cell.x) + "," + str(cell.y)
 
 
+## Level-scoped cell identity: `cell_key(cell)` for level 0 (bit-identical), a
+## distinct key for each deck level above ground. Movement/occupancy identity
+## becomes `(cell, level)` without touching `cell_key`.
+static func cell_level_key(cell: Vector2i, level: int) -> int:
+    return cell_key(cell) | (level << 32)
+
+
+## String form of `cell_level_key` ("x,y,level"), matching "x,y" at level 0.
+static func cell_level_key_str(cell: Vector2i, level: int) -> String:
+    return "%d,%d,%d" % [cell.x, cell.y, level]
+
+
 static func heuristic(a: Vector2i, b: Vector2i) -> float:
     var dx: float = abs(float(a.x - b.x))
     var dy: float = abs(float(a.y - b.y))

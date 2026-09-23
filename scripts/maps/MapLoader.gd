@@ -9,6 +9,14 @@ const OVERRIDE_KEYS: PackedStringArray = [
     "node_count",
     "spawn_strength",
     "max_spawn_strength",
+    # Bridge overlay cells carry their deck kind/level/end flag/rise so a
+    # multi-level span resolves each deck at its own surface on reload
+    # (bridges-walkable-surface: "Bridge entity persistence via the entities
+    # array"). Absent keys keep the overlay resource's defaults.
+    "bridge_kind",
+    "bridge_level",
+    "bridge_end",
+    "bridge_rise",
 ]
 
 

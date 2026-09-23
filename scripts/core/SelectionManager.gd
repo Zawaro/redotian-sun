@@ -218,7 +218,9 @@ func _emit_hover(node: Node3D):
     hover_changed.emit(node)
 
 
-func request_move(target_position: Vector3, skip_formation: bool = false) -> void:
+func request_move(
+    target_position: Vector3, skip_formation: bool = false, target_level: int = 0
+) -> void:
     if selected_entities.is_empty():
         return
 
@@ -237,7 +239,11 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
         if deploy and deploy.can_undeploy():
             continue
         if is_instance_valid(parent):
-            SpatialHash.instance.force_reserve(CellUtil.world_to_cell(parent.global_position))
+            var own_mc := parent.get_node_or_null("MovementController") as MovementController
+            var own_level: int = own_mc._surface_level if own_mc else 0
+            SpatialHash.instance.force_reserve(
+                CellUtil.world_to_cell(parent.global_position), own_level
+            )
 
     var center := Vector3.ZERO
     var count := 0
@@ -319,19 +325,19 @@ func request_move(target_position: Vector3, skip_formation: bool = false) -> voi
         # A cell with infantry sub-slot claims (in flight or already boarded
         # destinations) is no parking spot for a vehicle.
         if (
-            CellReservation.instance.get_claim_count(cell) > 0
-            or not SpatialHash.instance.reserve_cell(cell)
+            CellReservation.instance.get_claim_count(cell, target_level) > 0
+            or not SpatialHash.instance.reserve_cell(cell, target_level)
         ):
-            target = _fallback_target(target)
-        _pending_moves.append([ent, target])
+            target = _fallback_target(target, target_level)
+        _pending_moves.append([ent, target, target_level])
 
     for sharer in sharers:
         var parent := sharer.get_parent() as Node3D
         if not is_instance_valid(parent):
             continue
-        var assigned_cell := _find_sharer_cell(target_position)
+        var assigned_cell := _find_sharer_cell(target_position, target_level)
         var cell_center: Vector3 = _bounded_player_target(CellUtil.cell_to_world(assigned_cell))
-        _pending_moves.append([sharer, cell_center])
+        _pending_moves.append([sharer, cell_center, target_level])
 
 
 func _process(_delta: float) -> void:
@@ -341,7 +347,8 @@ func _process(_delta: float) -> void:
     var batch: int = 8
     while _pending_index < _pending_moves.size() and batch > 0:
         var data: Array = _pending_moves[_pending_index]
-        _execute_move(data[0] as SelectComponent, data[1] as Vector3)
+        var pending_level: int = int(data[2]) if data.size() > 2 else 0
+        _execute_move(data[0] as SelectComponent, data[1] as Vector3, pending_level)
         _pending_index += 1
         batch -= 1
 
@@ -378,7 +385,7 @@ func _on_selection_state_changed(select_comp: SelectComponent) -> void:
         selection_changed.emit(selected_entities.duplicate())
 
 
-func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
+func _execute_move(select_comp: SelectComponent, position: Vector3, target_level: int = 0) -> void:
     var parent := select_comp.get_parent() as Node
     if not is_instance_valid(parent):
         return
@@ -388,13 +395,15 @@ func _execute_move(select_comp: SelectComponent, position: Vector3) -> void:
         return
     var mc := parent.get_node("MovementController") as MovementController
     if is_instance_valid(mc):
-        mc.set_target_position(position, false, false, false, _cost_cache, _terrain, true)
+        mc.set_target_position(
+            position, false, false, false, _cost_cache, _terrain, true, false, target_level
+        )
     var harvest := parent.get_node_or_null("HarvestComponent") as HarvestComponent
     if harvest:
         harvest.cancel_harvest(true)
 
 
-func _fallback_target(target: Vector3) -> Vector3:
+func _fallback_target(target: Vector3, level: int = 0) -> Vector3:
     var cell := CellUtil.world_to_cell(target)
     var result := CellUtil.spiral_first_free(
         cell,
@@ -402,9 +411,9 @@ func _fallback_target(target: Vector3) -> Vector3:
         func(c: Vector2i) -> bool:
             if not BoundsSystem.is_in_order_area(c):
                 return true
-            if CellReservation.instance.get_claim_count(c) > 0:
+            if CellReservation.instance.get_claim_count(c, level) > 0:
                 return true
-            return not SpatialHash.instance.reserve_cell(c)
+            return not SpatialHash.instance.reserve_cell(c, level)
     )
     if result == cell:
         return target
@@ -482,7 +491,7 @@ func request_set_rally_point(target_position: Vector3) -> void:
             rally.set_rally_point(cell)
 
 
-func _find_sharer_cell(target_position: Vector3) -> Vector2i:
+func _find_sharer_cell(target_position: Vector3, level: int = 0) -> Vector2i:
     var target := CellUtil.world_to_cell(target_position)
     return CellUtil.spiral_first_free(
         target,
@@ -490,13 +499,13 @@ func _find_sharer_cell(target_position: Vector3) -> Vector2i:
         func(cell: Vector2i) -> bool:
             if not BoundsSystem.is_in_order_area(cell):
                 return true
-            if CellReservation.instance.is_cell_full(cell):
+            if CellReservation.instance.is_cell_full(cell, level):
                 return true
             # Cells reserved as vehicle destinations (or force-reserved own
             # cells of the selection) are no infantry stand-off spots.
-            if SpatialHash.instance.get_reserved().has(CellUtil.cell_key(cell)):
+            if SpatialHash.instance.get_reserved().has(CellUtil.cell_level_key(cell, level)):
                 return true
-            if SpatialHash.instance.is_cell_blocked(cell):
+            if SpatialHash.instance.is_cell_blocked(cell, level):
                 return true
             return false
     )

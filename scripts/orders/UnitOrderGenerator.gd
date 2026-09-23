@@ -56,6 +56,7 @@ func get_orders(
     if not sm or sm.selected_entities.is_empty():
         return []
     var result: Array[OrderResult] = []
+    var target_level: int = int(modifiers.get(OrderResult.MOD_TARGET_LEVEL, 0))
     if not target:
         if _has_undeployable(sm):
             result = OrderResolver.resolve_all(
@@ -63,16 +64,16 @@ func get_orders(
             )
         elif _has_movable(sm):
             var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
-            result = [
-                OrderResult.new(
-                    CursorState.Type.MOVE,
-                    5,
-                    null,
-                    target_pos,
-                    queued,
-                    func(): sm.request_move(target_pos),
-                )
-            ]
+            var move_order := OrderResult.new(
+                CursorState.Type.MOVE,
+                5,
+                null,
+                target_pos,
+                queued,
+                func(): sm.request_move(target_pos, false, target_level),
+            )
+            move_order.target_level = target_level
+            result = [move_order]
     else:
         result = OrderResolver.resolve_all(
             sm.selected_entities, target, target_cell, target_pos, modifiers
@@ -80,16 +81,16 @@ func get_orders(
         if result.is_empty() and _is_already_selected(target, sm):
             if target.get_node_or_null("MovementController"):
                 var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
-                result = [
-                    OrderResult.new(
-                        CursorState.Type.MOVE,
-                        5,
-                        target,
-                        target_pos,
-                        queued,
-                        func(): sm.request_move(target_pos, true),
-                    )
-                ]
+                var move_order := OrderResult.new(
+                    CursorState.Type.MOVE,
+                    5,
+                    target,
+                    target_pos,
+                    queued,
+                    func(): sm.request_move(target_pos, true, target_level),
+                )
+                move_order.target_level = target_level
+                result = [move_order]
     return result
 
 

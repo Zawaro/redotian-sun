@@ -14,8 +14,10 @@ func _enter_tree() -> void:
     instance = self
 
 
-func reserve_sub_slot(cell: Vector2i, claimant: Node3D, preferred_slot: int = -1) -> int:
-    var key := CellUtil.cell_key(cell)
+func reserve_sub_slot(
+    cell: Vector2i, claimant: Node3D, preferred_slot: int = -1, level: int = 0
+) -> int:
+    var key := CellUtil.cell_level_key(cell, level)
     var cell_claims: Array = _claims.get(key, [])
     for i in cell_claims.size():
         if cell_claims[i] == claimant:
@@ -23,8 +25,8 @@ func reserve_sub_slot(cell: Vector2i, claimant: Node3D, preferred_slot: int = -1
     release_all(claimant)
     cell_claims = _claims.get(key, [])
     var slot: int = preferred_slot
-    if slot < 0 or not _is_slot_free(cell, claimant, slot):
-        slot = _first_free_slot(cell, claimant)
+    if slot < 0 or not _is_slot_free(cell, claimant, slot, level):
+        slot = _first_free_slot(cell, claimant, level)
     if slot < 0:
         return -1
     while cell_claims.size() <= slot:
@@ -36,8 +38,8 @@ func reserve_sub_slot(cell: Vector2i, claimant: Node3D, preferred_slot: int = -1
     return slot
 
 
-func release_sub_slot(cell: Vector2i, claimant: Node3D) -> void:
-    _remove_claimant_from_cell(CellUtil.cell_key(cell), claimant)
+func release_sub_slot(cell: Vector2i, claimant: Node3D, level: int = 0) -> void:
+    _remove_claimant_from_cell(CellUtil.cell_level_key(cell, level), claimant)
 
 
 func release_all(claimant: Node3D) -> void:
@@ -52,8 +54,8 @@ func clear() -> void:
     _claimant_cells.clear()
 
 
-func get_slot_owner(cell: Vector2i, slot: int) -> Node3D:
-    var cell_claims: Array = _claims.get(CellUtil.cell_key(cell), [])
+func get_slot_owner(cell: Vector2i, slot: int, level: int = 0) -> Node3D:
+    var cell_claims: Array = _claims.get(CellUtil.cell_level_key(cell, level), [])
     if slot < 0 or slot >= cell_claims.size():
         return null
     var claimant = cell_claims[slot]
@@ -62,37 +64,37 @@ func get_slot_owner(cell: Vector2i, slot: int) -> Node3D:
     return null
 
 
-func get_available_sub_slot(cell: Vector2i) -> int:
+func get_available_sub_slot(cell: Vector2i, level: int = 0) -> int:
     for i in CellSubPositions.get_slot_count():
-        if get_slot_owner(cell, i) == null:
+        if get_slot_owner(cell, i, level) == null:
             return i
     return -1
 
 
-func get_claim_count(cell: Vector2i) -> int:
-    return _valid_claim_count(_claims.get(CellUtil.cell_key(cell), []))
+func get_claim_count(cell: Vector2i, level: int = 0) -> int:
+    return _valid_claim_count(_claims.get(CellUtil.cell_level_key(cell, level), []))
 
 
-func is_cell_full(cell: Vector2i) -> bool:
+func is_cell_full(cell: Vector2i, level: int = 0) -> bool:
     var idle := 0
     if SpatialHash.instance:
-        idle = SpatialHash.instance.get_shared_cell_count(cell)
-    return idle + get_claim_count(cell) >= CellSubPositions.get_slot_count()
+        idle = SpatialHash.instance.get_shared_cell_count(cell, level)
+    return idle + get_claim_count(cell, level) >= CellSubPositions.get_slot_count()
 
 
-func _first_free_slot(cell: Vector2i, claimant: Node3D) -> int:
+func _first_free_slot(cell: Vector2i, claimant: Node3D, level: int) -> int:
     for i in CellSubPositions.get_slot_count():
-        if _is_slot_free(cell, claimant, i):
+        if _is_slot_free(cell, claimant, i, level):
             return i
     return -1
 
 
-func _is_slot_free(cell: Vector2i, claimant: Node3D, slot: int) -> bool:
-    if get_slot_owner(cell, slot) != null:
+func _is_slot_free(cell: Vector2i, claimant: Node3D, slot: int, level: int) -> bool:
+    if get_slot_owner(cell, slot, level) != null:
         return false
     if not SpatialHash.instance:
         return true
-    for entry in SpatialHash.instance.get_entries(cell):
+    for entry in SpatialHash.instance.get_entries(cell, level):
         if entry["node"] == claimant:
             continue
         var mc: Node = entry["mc"]

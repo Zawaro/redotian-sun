@@ -3,6 +3,20 @@ extends Node
 # SpatialHash tests — cell reservation logic
 
 var _sh: Node = null
+var _ts: Node = null
+
+const WHEEL_LOCOMOTOR_PATH: String = "res://games/ts/locomotors/Wheel.tres"
+const A_CELL: Vector2i = Vector2i(20, 20)
+const MID_CELL: Vector2i = Vector2i(21, 20)
+const B_CELL: Vector2i = Vector2i(22, 20)
+
+
+class StubBridge:
+    extends Node3D
+    var data: Dictionary = {}
+
+    func get_bridge_cell_data() -> Dictionary:
+        return data
 
 
 func test_reserve_cell_succeeds():
@@ -607,3 +621,278 @@ func test_rebuild_skips_queued_for_deletion_entities():
         )
     )
     TestHelper.assert_true(not blocked, "queued-for-deletion entity does not block its cell")
+
+
+## Spec: deck and ground are independent occupancy levels. An idle non-sharing
+## unit standing at level 1 must report blocked only at level 1.
+func test_deck_occupant_does_not_block_ground():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entity := _make_grid_entity("DeckBlocker")
+    _sh.add_child(entity)
+    var mc := entity.get_node("MovementController") as MovementController
+    mc._surface_level = 1
+    _sh.rebuild()
+    var cell := CellUtil.world_to_cell(entity.global_position)
+    var deck_bound: bool = _sh.get_blocked_cells(1).has(CellUtil.cell_level_key(cell, 1))
+    var ground_blocked_default: bool = _sh.is_cell_blocked(cell)
+    var ground_in_level_zero: bool = _sh.get_blocked_cells(0).has(CellUtil.cell_level_key(cell, 0))
+    _sh.remove_child(entity)
+    entity.free()
+    _sh.rebuild()
+    TestHelper.assert_true(deck_bound, "level-1 occupant blocks the deck level")
+    TestHelper.assert_true(
+        not ground_blocked_default, "level-1 occupant does NOT block the ground (default level 0)"
+    )
+    TestHelper.assert_true(
+        not ground_in_level_zero, "level-1 occupant absent from the level-0 blocked set"
+    )
+
+
+## Spec: ground and deck are independent occupancy levels. An idle non-sharing
+## unit standing at level 0 must report blocked only at level 0.
+func test_ground_occupant_does_not_block_deck():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._shared_cell_counts.clear()
+    _sh._blocked_cells.clear()
+    var entity := _make_grid_entity("GroundBlocker")
+    _sh.add_child(entity)
+    _sh.rebuild()
+    var cell := CellUtil.world_to_cell(entity.global_position)
+    var ground_blocked: bool = _sh.is_cell_blocked(cell)
+    var deck_in_level_one: bool = _sh.get_blocked_cells(1).has(CellUtil.cell_level_key(cell, 1))
+    var deck_blocked: bool = _sh.is_cell_blocked(cell, 1)
+    _sh.remove_child(entity)
+    entity.free()
+    _sh.rebuild()
+    TestHelper.assert_true(ground_blocked, "level-0 occupant blocks the ground (default)")
+    TestHelper.assert_true(
+        not deck_in_level_one, "level-0 occupant absent from the level-1 blocked set"
+    )
+    TestHelper.assert_true(not deck_blocked, "level-0 occupant does NOT block the deck level")
+
+
+## Spec scenario "Default level is ground": the no-arg query and no-arg helpers
+## return level-0 results identical to the pre-level behavior.
+func test_default_level_zero_blocking_unchanged():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh._blocked_cells.clear()
+    _sh._building_cells.clear()
+    var cell := Vector2i(30, 30)
+    var key: int = CellUtil.cell_key(cell)
+    _sh._blocked_cells[key] = true
+    var no_arg: Dictionary = _sh.get_blocked_cells()
+    var level_zero: Dictionary = _sh.get_blocked_cells(0)
+    var level_one: Dictionary = _sh.get_blocked_cells(1)
+    var building: Array[Vector2i] = [Vector2i(31, 30)]
+    _sh.register_building_cells(building)
+    var building_key: int = CellUtil.cell_key(Vector2i(31, 30))
+    var has_building_ground: bool = _sh.get_blocked_cells(0).has(building_key)
+    var has_building_deck: bool = _sh.get_blocked_cells(1).has(building_key)
+    var is_blocked_default: bool = _sh.is_cell_blocked(cell)
+    var is_blocked_deck: bool = _sh.is_cell_blocked(cell, 1)
+    _sh._blocked_cells.clear()
+    _sh._building_cells.clear()
+    (
+        TestHelper
+        . assert_true(
+            no_arg.has(key) and level_zero.has(key),
+            "no-arg and level-0 get_blocked_cells both contain the ground blocker",
+        )
+    )
+    TestHelper.assert_true(not level_one.has(key), "level-1 query excludes the ground blocker")
+    TestHelper.assert_true(is_blocked_default, "is_cell_blocked defaults to level 0")
+    TestHelper.assert_true(
+        not is_blocked_deck, "is_cell_blocked(cell, 1) false for a ground blocker"
+    )
+    (
+        TestHelper
+        . assert_true(
+            has_building_ground and not has_building_deck,
+            "building cells merge into level 0 only (buildings are ground-only)",
+        )
+    )
+
+
+## Spec: `get_entries(cell, level)` and `is_any_entity_on_cell(cell, level)` are
+## level-scoped; the no-arg forms keep matching any level.
+func test_get_entries_and_any_entity_level_scoped():
+    if _sh == null:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _sh._grid.clear()
+    var cell := Vector2i(40, 40)
+    var key: int = CellUtil.cell_key(cell)
+    var mc_ground := MovementController.new()
+    var mc_deck := MovementController.new()
+    var node_ground := Node3D.new()
+    var node_deck := Node3D.new()
+    _sh._grid[key] = [
+        {"node": node_ground, "mc": mc_ground, "level": 0},
+        {"node": node_deck, "mc": mc_deck, "level": 1},
+    ]
+    var entries_ground: Array = _sh.get_entries(cell, 0)
+    var entries_deck: Array = _sh.get_entries(cell, 1)
+    var entries_any: Array = _sh.get_entries(cell)
+    var any_ground: bool = _sh.is_any_entity_on_cell(cell, 0)
+    var any_deck: bool = _sh.is_any_entity_on_cell(cell, 1)
+    var any_default: bool = _sh.is_any_entity_on_cell(cell)
+    # Drop the deck entry, leaving ground only: the deck query must go false.
+    _sh._grid[key] = [{"node": node_ground, "mc": mc_ground, "level": 0}]
+    var any_deck_after_remove: bool = _sh.is_any_entity_on_cell(cell, 1)
+    var any_ground_after_remove: bool = _sh.is_any_entity_on_cell(cell, 0)
+    _sh._grid.erase(key)
+    mc_ground.free()
+    mc_deck.free()
+    node_ground.free()
+    node_deck.free()
+    (
+        TestHelper
+        . assert_true(
+            entries_ground.size() == 1 and int(entries_ground[0]["level"]) == 0,
+            "get_entries(cell, 0) returns only the ground occupant",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            entries_deck.size() == 1 and int(entries_deck[0]["level"]) == 1,
+            "get_entries(cell, 1) returns only the deck occupant",
+        )
+    )
+    TestHelper.assert_true(entries_any.size() == 2, "get_entries(cell) returns both levels")
+    (
+        TestHelper
+        . assert_true(
+            any_ground and any_deck and any_default,
+            "is_any_entity_on_cell finds occupants at the queried and any level",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            not any_deck_after_remove and any_ground_after_remove,
+            "level query is exact: a ground-only occupant does not answer the deck query",
+        )
+    )
+
+
+## Spec scenarios: a blocked ground cell still routes around while the deck over
+## the same XZ stays free, and a blocked deck routes around while the ground
+## stays free. Exercised through the real level-aware A* with the blocked keys
+## `get_blocked_cells(level)` produces.
+func test_level_scoped_blocking_routes_by_surface():
+    if _sh == null or _ts == null:
+        TestHelper.fail("SpatialHash/TerrainSystem not injected")
+        return
+    _sh.set_process(false)
+    _sh.set_physics_process(false)
+    _sh._blocked_cells.clear()
+    _sh._building_cells.clear()
+    _sh._shared_cell_counts.clear()
+    _ts.init_grid(50, 50)
+    _ts.clear()
+    _flatten_bridge_fixture(0)
+    var bridges: Array[Node3D] = []
+    for cell in [A_CELL, MID_CELL, B_CELL]:
+        bridges.append(_spawn_level_bridge(cell))
+    _sh.rebuild()
+
+    var wheel := load(WHEEL_LOCOMOTOR_PATH) as Locomotor
+    var start := CellUtil.cell_to_world(A_CELL)
+    var goal := CellUtil.cell_to_world(B_CELL)
+    var mid_ground := Vector3i(MID_CELL.x, MID_CELL.y, 0)
+    var mid_deck := Vector3i(MID_CELL.x, MID_CELL.y, 1)
+
+    # Baseline: both surfaces have a direct corridor through the mid cell.
+    var ground_open := _path_states(
+        Pathfinder.find_path_detailed(start, goal, {}, wheel, false, null, _ts, 0, 0)
+    )
+    var deck_open := _path_states(
+        Pathfinder.find_path_detailed(start, goal, {}, wheel, false, null, _ts, 1, 1)
+    )
+    TestHelper.assert_true(
+        ground_open.has(mid_ground), "baseline ground path crosses the mid cell at level 0"
+    )
+    TestHelper.assert_true(
+        deck_open.has(mid_deck), "baseline deck path crosses the mid cell at level 1"
+    )
+
+    # A ground blocker detours the ground path but leaves the deck free.
+    var ground_block: Dictionary = {CellUtil.cell_level_key(MID_CELL, 0): true}
+    var ground_around := _path_states(
+        Pathfinder.find_path_detailed(start, goal, ground_block, wheel, false, null, _ts, 0, 0)
+    )
+    var deck_through := _path_states(
+        Pathfinder.find_path_detailed(start, goal, ground_block, wheel, false, null, _ts, 1, 1)
+    )
+    TestHelper.assert_true(
+        not ground_around.has(mid_ground), "ground blocker forces the level-0 path around the cell"
+    )
+    TestHelper.assert_true(
+        deck_through.has(mid_deck), "ground blocker leaves the level-1 deck path through the cell"
+    )
+
+    # A deck blocker detours the deck path but leaves the ground free.
+    var deck_block: Dictionary = {CellUtil.cell_level_key(MID_CELL, 1): true}
+    var ground_through := _path_states(
+        Pathfinder.find_path_detailed(start, goal, deck_block, wheel, false, null, _ts, 0, 0)
+    )
+    var deck_around := _path_states(
+        Pathfinder.find_path_detailed(start, goal, deck_block, wheel, false, null, _ts, 1, 1)
+    )
+    TestHelper.assert_true(
+        ground_through.has(mid_ground), "deck blocker leaves the level-0 path through the cell"
+    )
+    TestHelper.assert_true(
+        not deck_around.has(mid_deck), "deck blocker removes the level-1 passage through the cell"
+    )
+
+    for bridge in bridges:
+        bridge.get_parent().remove_child(bridge)
+        bridge.free()
+    _sh.rebuild()
+    _ts.init_grid(50, 50)
+    _ts.clear()
+
+
+func _flatten_bridge_fixture(grade: int) -> void:
+    for vx in range(A_CELL.x - 2, B_CELL.x + 3):
+        for vz in range(A_CELL.y - 2, A_CELL.y + 3):
+            _ts._set_vertex_no_cascade(vx, vz, grade)
+    _ts.invalidate_height_snapshot()
+
+
+func _spawn_level_bridge(cell: Vector2i) -> StubBridge:
+    var bridge := StubBridge.new()
+    bridge.data = {
+        "surface_height": 4.0 * _ts.HEIGHT_STEP,
+        "is_end": false,
+        "piece_id": "p",
+        "level": 1,
+    }
+    bridge.add_to_group("bridge")
+    Engine.get_main_loop().root.add_child(bridge)
+    bridge.global_position = CellUtil.cell_to_world(cell)
+    return bridge
+
+
+func _path_states(result: Dictionary) -> Array[Vector3i]:
+    var states: Array[Vector3i] = []
+    var path: PackedVector3Array = result["path"]
+    var levels: PackedInt32Array = result["levels"]
+    for i in path.size():
+        var cell := CellUtil.world_to_cell(path[i])
+        states.append(Vector3i(cell.x, cell.y, levels[i]))
+    return states

@@ -6,6 +6,7 @@
 script = ExtResource("1_script")
 id = "Amphibious"
 terrain_speeds = {
+"bridge": 1.25,
 "clear": 1.0,
 "crystal": 1.0,
 "green": 1.0,

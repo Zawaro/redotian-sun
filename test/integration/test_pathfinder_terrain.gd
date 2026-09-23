@@ -4,8 +4,36 @@ extends Node
 
 var _ts: Node = null
 var _sh: Node = null
+var _ef: Node = null
 var _test_passed := 0
 var _test_failed := 0
+var _root: Node = null
+var _spawned_bridges: Array[Node3D] = []
+
+
+## Places a real bridge overlay entity (created by EntityFactory) on a cell so
+## the "bridge" registry resolves it end-to-end.
+func _spawn_bridge(entity_id: String, cell: Vector2i) -> Node3D:
+    if _root == null:
+        _root = Engine.get_main_loop().root
+    var entity: Node3D = _ef.create_entity(entity_id)
+    if entity == null:
+        return null
+    _root.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(cell)
+    _spawned_bridges.append(entity)
+    return entity
+
+
+func _clear_bridges() -> void:
+    for entity in _spawned_bridges:
+        if is_instance_valid(entity):
+            if entity.get_parent():
+                entity.get_parent().remove_child(entity)
+            entity.free()
+    _spawned_bridges.clear()
+    if _sh:
+        _sh.rebuild()
 
 
 func test_find_path_returns_array():
@@ -520,4 +548,41 @@ func test_threaded_greedy_step_matches_autoload():
     _ts.clear()
     TestHelper.assert_eq(
         threaded, baseline, "try_greedy_step with threaded terrain matches autoload-resolved step"
+    )
+
+
+func test_wheeled_crosses_bridge_over_water():
+    if _ts == null or _sh == null or _ef == null:
+        TestHelper.fail("autoloads not injected")
+        return
+    _ts.init_grid(32, 32)
+    var wheel := Locomotor.new()
+    wheel.terrain_speeds = {"clear": 1.0, "road": 1.25, "bridge": 1.25}
+    wheel.climb_tolerance = 1
+    var water_cell := Vector2i(16, 16)
+    _ts.set_land_type(water_cell, "water")
+    var start := CellUtil.cell_to_world(Vector2i(15, 16))
+    var end := CellUtil.cell_to_world(Vector2i(17, 16))
+    var before: PackedVector3Array = Pathfinder.find_path(start, end, {}, wheel)
+    var before_crossed := false
+    for wp in before:
+        if CellUtil.world_to_cell(wp) == water_cell:
+            before_crossed = true
+            break
+    # A real bridge entity over the water cell: the registry must pick it up on
+    # rebuild and get_land_type must then resolve the cell as "bridge".
+    _spawn_bridge("BRIDGE", water_cell)
+    _sh.rebuild()
+    var after: PackedVector3Array = Pathfinder.find_path(start, end, {}, wheel)
+    var after_crossed := false
+    for wp in after:
+        if CellUtil.world_to_cell(wp) == water_cell:
+            after_crossed = true
+            break
+    _clear_bridges()
+    _ts.set_land_type(water_cell, "clear")
+    _ts.clear()
+    TestHelper.assert_eq(before_crossed, false, "no bridge -> wheeled avoids the uncovered water")
+    TestHelper.assert_true(
+        after.size() > 0 and after_crossed, "bridge -> wheeled path crosses the bridge cell"
     )

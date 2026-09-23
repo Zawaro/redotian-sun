@@ -52,6 +52,7 @@ const DOCK_UNLOAD_COMPONENT_SCRIPT: GDScript = preload(
 )
 const DEPLOY_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/DeployComponent.gd")
 const ICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/IceComponent.gd")
+const BRIDGE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/BridgeComponent.gd")
 const VOICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/VoiceComponent.gd")
 const VISION_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/VisionComponent.gd")
 const TURRET_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/TurretComponent.gd")
@@ -230,6 +231,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
     _add_vision_component(entity, data)
     _add_rally_point_component(entity, data)
     _add_ice_component(entity, data)
+    _add_bridge_component(entity, data)
     if not data.procedural_resource_visual:
         _add_art_component(entity, data)
 
@@ -579,6 +581,20 @@ func _add_ice_component(entity: Node3D, data: EntityData) -> void:
     entity.add_child(component)
     component.owner = entity
     entity.add_to_group("ice")
+
+
+## Walkable bridge deck overlays (data.bridge_kind != NONE). Joins "bridge" so
+## SpatialHash keys the covered cell; the OVERLAY guard above keeps it out of
+## "entities", so a bridge never blocks occupancy.
+func _add_bridge_component(entity: Node3D, data: EntityData) -> void:
+    if data.bridge_kind == EntityData.BridgeKind.NONE:
+        return
+    var component := Node.new()
+    component.name = "BridgeComponent"
+    component.set_script(BRIDGE_COMPONENT_SCRIPT)
+    entity.add_child(component)
+    component.owner = entity
+    entity.add_to_group("bridge")
 
 
 func _add_interact_hitbox(entity: Node3D, data: EntityData) -> void:
