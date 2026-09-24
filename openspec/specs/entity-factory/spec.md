@@ -26,6 +26,7 @@ The factory SHALL add components based on these rules:
 - HitboxComponent: if `resource_category == ""` (skipped for resource entities — they use interact hitbox on layer 17)
 - SelectComponent: if `entity_type != TERRAIN`
 - CombatComponent: if `weapons.size() > 0`
+- GuardComponent: if `weapons.size() > 0`
 - MovementController: if `speed > 0`
 - FoundationComponent: if `foundation != Vector2i(1,1)`
 - PowerComponent: if `power != 0` or `powered == true`
@@ -50,7 +51,7 @@ The factory SHALL add components based on these rules:
 
 #### Scenario: Full entity (Nod Buggy)
 - **WHEN** EntityData has `entity_type = VEHICLE`, `strength = 220`, `speed = 10`, `weapons = [raider_cannon]`, `foundation = Vector2i(1,1)`
-- **THEN** entity gets StatsComponent, HealthComponent, HitboxComponent, SelectComponent, CombatComponent, MovementController, ArtComponent
+- **THEN** entity gets StatsComponent, HealthComponent, HitboxComponent, SelectComponent, CombatComponent, GuardComponent, MovementController, ArtComponent
 
 #### Scenario: Harvester entity
 - **WHEN** EntityData has `harvester = true`, `dock = "PROC"`, `storage = 1`, `speed = 5.0`
