@@ -56,6 +56,7 @@ const BRIDGE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/Brid
 const VOICE_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/VoiceComponent.gd")
 const VISION_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/VisionComponent.gd")
 const TURRET_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/TurretComponent.gd")
+const GUARD_COMPONENT_SCRIPT: GDScript = preload("res://scripts/components/GuardComponent.gd")
 
 var _entity_cache: Dictionary = {}
 var _global_rules: GlobalRules = null
@@ -209,6 +210,7 @@ func _add_components(entity: Node3D, data: EntityData) -> void:
         _add_hitbox_component(entity, data)
         _add_select_component(entity, data)
     _add_combat_component(entity, data)
+    _add_guard_component(entity, data)
     _add_turret_component(entity, data)
     _add_movement_controller(entity, data)
     _add_foundation_component(entity, data)
@@ -308,6 +310,16 @@ func _add_combat_component(entity: Node3D, data: EntityData) -> void:
         component.name = "CombatComponent"
         entity.add_child(component)
         component.owner = entity
+
+
+func _add_guard_component(entity: Node3D, data: EntityData) -> void:
+    if data.weapons.is_empty():
+        return
+    var component := Node.new()
+    component.name = "GuardComponent"
+    component.set_script(GUARD_COMPONENT_SCRIPT)
+    entity.add_child(component)
+    component.owner = entity
 
 
 func _add_turret_component(entity: Node3D, data: EntityData) -> void:
