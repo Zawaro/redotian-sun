@@ -662,13 +662,16 @@ func _set_plane_visible(visible: bool) -> void:
 
 ## Hide or restore the world-space fog/shroud overlay. Standalone preview scenes
 ## call this with `false` so gameplay fog never drapes over the inspected asset;
-## `true` rebuilds it from the current shroud state.
-func set_overlay_enabled(enabled: bool) -> void:
+## `true` rebuilds it from the current shroud state. Returns the previous flag
+## so callers can restore the exact prior state on exit.
+func set_overlay_enabled(enabled: bool) -> bool:
+    var previous := overlay_enabled
     overlay_enabled = enabled
     if not enabled:
         _set_plane_visible(false)
-        return
+        return previous
     _on_shroud_changed(PackedInt32Array())
+    return previous
 
 
 func _on_node_added(node: Node) -> void:

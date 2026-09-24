@@ -215,6 +215,89 @@ func test_rotation_only_uses_pitch_in_perspective():
         )
     )
     _controller.set_camera_mode(CAM_ISOMETRIC)
+    (
+        TestHelper
+        . assert_true(
+            is_zero_approx(_controller.get_pitch_degrees()),
+            "switching back to isometric clears pitch",
+        )
+    )
+    var root: Node3D = _controller.get_object_root()
+    TestHelper.assert_true(
+        is_zero_approx(root.rotation.x), "object root is upright after isometric switch"
+    )
+    _finish()
+
+
+func test_asset_is_grounded_at_world_origin():
+    if not _ensure_scene():
+        _finish()
+        return
+    _controller.select_category(0)
+    _controller.select_asset(0)
+    _controller.set_auto_rotate(false)
+    var root: Node3D = _controller.get_object_root()
+    var boxes: Array[AABB] = []
+    _controller._collect_bounds(root, root.global_transform, boxes)
+    TestHelper.assert_true(not boxes.is_empty(), "preview has mesh bounds to ground")
+    if boxes.is_empty():
+        _finish()
+        return
+    var merged: AABB = boxes[0]
+    for i in range(1, boxes.size()):
+        merged = merged.merge(boxes[i])
+    TestHelper.assert_true(
+        absf(merged.position.y) < 0.05,
+        "lowest mesh point sits at world y=0 (got %s)" % merged.position.y
+    )
+    _finish()
+
+
+func test_image_mode_fills_info_resource():
+    if not _ensure_scene():
+        _finish()
+        return
+    var image_idx := -1
+    for i in _controller.get_category_count():
+        if _controller.get_category_label(i) == "Cameos / UI":
+            image_idx = i
+            break
+    TestHelper.assert_true(image_idx >= 0, "Cameos / UI category exists")
+    if image_idx < 0:
+        _finish()
+        return
+    _controller.select_category(image_idx)
+    TestHelper.assert_true(_controller.get_asset_count() > 0, "cameos populated")
+    _controller.select_asset(0)
+    TestHelper.assert_eq(_controller.get_preview_mode(), 3, "image mode")
+    TestHelper.assert_true(_controller._current_resource != null, "image sets current resource")
+    TestHelper.assert_true(_controller._image_rect.visible, "image pane shown")
+    _finish()
+
+
+func test_failed_resolution_shows_explicit_message():
+    if not _ensure_scene():
+        _finish()
+        return
+    _controller.select_category(0)
+    TestHelper.assert_true(_controller.get_asset_count() > 0, "terrain category has assets")
+    _controller._assets = [{"id": "__missing__", "path": "res://does/not/exist.tres"}]
+    _controller.select_asset(0)
+    (
+        TestHelper
+        . assert_true(
+            _controller._message_label != null and _controller._message_label.visible,
+            "failed resolution shows an explicit empty state",
+        )
+    )
+    (
+        TestHelper
+        . assert_true(
+            not _controller._message_label.text.is_empty(),
+            "failure message has visible text",
+        )
+    )
+    _controller.select_category(0)
     _finish()
 
 
