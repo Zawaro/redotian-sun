@@ -943,6 +943,167 @@ func test_range_horizontal_distance_used():
     target.free()
 
 
+## A building target with a FoundationComponent (footprint != 1x1) and health.
+func _make_building_target(foundation: Vector2i, pos: Vector3) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "BuildingTarget"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = 1
+    stats.entity_type = EntityData.EntityType.BUILDING
+    entity.add_child(stats)
+    var hc := HealthComponent.new()
+    hc.name = "HealthComponent"
+    hc.max_health = 100
+    hc.current_health = 100
+    entity.add_child(hc)
+    var fc := FoundationComponent.new()
+    fc.name = "FoundationComponent"
+    fc.foundation = foundation
+    entity.add_child(fc)
+    # local position == global once parented to the identity-transform root.
+    entity.position = pos
+    return entity
+
+
+func test_building_attacks_measure_nearest_foundation_point():
+    # Regression: a 4x4 building at origin has half-extent 4, so its near edge is
+    # 4 world units closer than its center. An attacker 12 from the center is out
+    # of the 10-unit weapon range of the center but 8 from the near edge, so it
+    # must fire. Center-only measurement (pre-fix) does not fire.
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    if SpatialHash.instance:
+        SpatialHash.instance._grid.clear()
+        SpatialHash.instance._building_cells.clear()
+    var root: Node = Engine.get_main_loop().root
+    var entity := _make_combat_entity(true, 0)
+    root.add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var building := _make_building_target(Vector2i(4, 4), Vector3.ZERO)
+    root.add_child(building)
+    var weapon := cc.get_current_weapon()
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    var center_dist := 12.0
+    var nearest_dist := center_dist - 4.0
+    TestHelper.assert_true(center_dist > range_world, "fixture: footprint center is out of range")
+    TestHelper.assert_true(
+        nearest_dist <= range_world, "fixture: nearest foundation edge is in range"
+    )
+    entity.global_position = Vector3(-center_dist, 0.0, 0.0)
+    cc.set_target(building)
+    cc._physics_process(0.1)
+    cc._physics_process(0.1)
+    var health: int = building.get_node("HealthComponent").current_health
+    root.remove_child(entity)
+    root.remove_child(building)
+    entity.free()
+    building.free()
+    TestHelper.assert_true(
+        health < 100, "building is engaged when its nearest footprint edge is in range"
+    )
+
+
+func test_building_attack_stops_at_nearest_edge_range():
+    # The chase stop must sit `range` from the nearest footprint point, not the
+    # footprint centre: a 4x4 building at origin, attacker 20 west, range 10 ->
+    # stop near x = -4 - 10 = -14, well short of the centre-based -10.
+    var setup: Array = _make_chase_attacker()
+    if setup.is_empty():
+        return
+    var entity: Node3D = setup[0]
+    var mc: MovementController = setup[1]
+    var cc: CombatComponent = setup[2]
+    var root: Node = Engine.get_main_loop().root
+    var building := _make_building_target(Vector2i(4, 4), Vector3.ZERO)
+    root.add_child(building)
+    entity.global_position = Vector3(-20.0, 0.0, 0.0)
+    var range_world: float = cc.get_current_weapon().attack_range * CellUtil.CELL_SIZE
+    cc.set_target(building)
+    var dest: Vector3 = mc.get_target_position()
+    var nearest := Vector3(-4.0, 0.0, 0.0)
+    var dist_to_nearest := Vector2(dest.x - nearest.x, dest.z - nearest.z).length()
+    var dist_to_center := Vector2(dest.x, dest.z).length()
+    root.remove_child(entity)
+    root.remove_child(building)
+    entity.free()
+    building.free()
+    TestHelper.assert_true(
+        dist_to_nearest <= range_world + 0.5,
+        "stop lands within weapon range of the nearest footprint edge (got %s)" % dest
+    )
+    TestHelper.assert_true(
+        dist_to_center > range_world + 1.0,
+        "stop is short of the center-based point, not closed to the centre (got %s)" % dest
+    )
+
+
+func test_building_facing_targets_nearest_footprint_corner():
+    # Diagonal approach: the effective target point is the footprint corner, not
+    # the centre. 4x4 at origin, attacker at (-20,0,-20) -> nearest (-4,0,-4).
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var building := _make_building_target(Vector2i(4, 4), Vector3.ZERO)
+    var root: Node = Engine.get_main_loop().root
+    root.add_child(entity)
+    root.add_child(building)
+    entity.global_position = Vector3(-20.0, 0.0, -20.0)
+    cc.set_target(building)
+    var pos: Vector3 = cc._effective_target_pos()
+    # A point target (unit) still resolves to its own origin.
+    var unit_target := _make_target_with_health(1, 100)
+    root.add_child(unit_target)
+    unit_target.position = Vector3(7.0, 0.0, 7.0)
+    cc.set_target(unit_target)
+    var unit_pos: Vector3 = cc._effective_target_pos()
+    root.remove_child(entity)
+    root.remove_child(building)
+    root.remove_child(unit_target)
+    entity.free()
+    building.free()
+    unit_target.free()
+    TestHelper.assert_true(
+        pos.distance_to(Vector3(-4.0, 0.0, -4.0)) < 0.001,
+        "building facing point is the nearest footprint corner (got %s)" % pos
+    )
+    TestHelper.assert_true(
+        unit_pos.distance_to(Vector3(7.0, 0.0, 7.0)) < 0.001,
+        "unit facing point is the entity origin (got %s)" % unit_pos
+    )
+
+
+func test_multi_cell_non_structure_measures_to_origin():
+    # Classifier parity with GuardComponent: a multi-cell entity that is not a
+    # structure keeps point semantics, even though it carries a
+    # FoundationComponent (EntityFactory attaches one for any foundation != 1x1).
+    var root: Node = Engine.get_main_loop().root
+    var entity := _make_combat_entity(true, 0)
+    root.add_child(entity)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target_with_health(1, 100)
+    var stats := target.get_node("StatsComponent") as StatsComponent
+    stats.entity_type = EntityData.EntityType.VEHICLE
+    var fc := FoundationComponent.new()
+    fc.name = "FoundationComponent"
+    fc.foundation = Vector2i(4, 4)
+    target.add_child(fc)
+    root.add_child(target)
+    entity.global_position = Vector3(-20.0, 0.0, 0.0)
+    target.position = Vector3(7.0, 0.0, 7.0)
+    cc.set_target(target)
+    var pos: Vector3 = cc._effective_target_pos()
+    root.remove_child(entity)
+    root.remove_child(target)
+    entity.free()
+    target.free()
+    TestHelper.assert_true(
+        pos.distance_to(Vector3(7.0, 0.0, 7.0)) < 0.001,
+        "multi-cell non-structure measures to its origin, not the footprint (got %s)" % pos
+    )
+
+
 # --- Follow-attack blocker routing (#277) ---
 
 

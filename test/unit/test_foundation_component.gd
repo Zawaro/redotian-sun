@@ -102,3 +102,79 @@ func test_is_buildable_false_on_steep_height():
     TerrainSystem.init_grid(64, 64)
     fc.free()
     _ok(not result, "is_buildable false when height delta too steep")
+
+
+# --- nearest_world_point: axis-aligned footprint rectangle, per-axis clamp ---
+# Expected points are derived from the rectangle geometry, not the production
+# formula: footprint half-extents are foundation * CELL_SIZE / 2 world units.
+
+
+func _make_foundation(foundation: Vector2i, at: Vector3) -> FoundationComponent:
+    var entity := Node3D.new()
+    var fc := FoundationComponent.new()
+    fc.foundation = foundation
+    entity.add_child(fc)
+    # global_position only resolves inside the tree.
+    Engine.get_main_loop().root.add_child(entity)
+    entity.global_position = at
+    return fc
+
+
+func _drop(fc: FoundationComponent) -> void:
+    var entity := fc.get_parent()
+    Engine.get_main_loop().root.remove_child(entity)
+    entity.free()
+
+
+func _near(a: Vector3, b: Vector3) -> bool:
+    return absf(a.x - b.x) < 0.001 and absf(a.y - b.y) < 0.001 and absf(a.z - b.z) < 0.001
+
+
+func test_nearest_world_point_outside_face():
+    # 4x4 at origin -> rect x,z in [-4,4]. Attacker 10 east, 2 north of center.
+    var fc := _make_foundation(Vector2i(4, 4), Vector3.ZERO)
+    var got: Vector3 = fc.nearest_world_point(Vector3(10.0, 0.0, 2.0))
+    TestHelper.assert_true(
+        _near(got, Vector3(4.0, 0.0, 2.0)),
+        "nearest point clamps x to the near face, keeps lateral z (got %s)" % got
+    )
+    _drop(fc)
+
+
+func test_nearest_world_point_outside_corner():
+    # Diagonally beyond the +x/+z corner -> the corner itself.
+    var fc := _make_foundation(Vector2i(4, 4), Vector3.ZERO)
+    var got: Vector3 = fc.nearest_world_point(Vector3(10.0, 0.0, 10.0))
+    TestHelper.assert_true(
+        _near(got, Vector3(4.0, 0.0, 4.0)), "nearest point clamps to the corner (got %s)" % got
+    )
+    _drop(fc)
+
+
+func test_nearest_world_point_inside_returns_self():
+    var fc := _make_foundation(Vector2i(4, 4), Vector3.ZERO)
+    var inside := Vector3(1.0, 0.0, -2.0)
+    var got: Vector3 = fc.nearest_world_point(inside)
+    TestHelper.assert_true(
+        _near(got, inside), "point inside the footprint is unchanged (got %s)" % got
+    )
+    _drop(fc)
+
+
+func test_nearest_world_point_single_cell():
+    # 1x1 at origin -> rect x,z in [-1,1].
+    var fc := _make_foundation(Vector2i(1, 1), Vector3.ZERO)
+    var got: Vector3 = fc.nearest_world_point(Vector3(5.0, 0.0, 0.0))
+    TestHelper.assert_true(
+        _near(got, Vector3(1.0, 0.0, 0.0)), "1x1 footprint clamps to the near edge (got %s)" % got
+    )
+    _drop(fc)
+
+
+func test_nearest_world_point_uses_entity_y():
+    var fc := _make_foundation(Vector2i(2, 2), Vector3(3.0, 7.0, -3.0))
+    var got: Vector3 = fc.nearest_world_point(Vector3(50.0, 0.0, -3.0))
+    TestHelper.assert_true(
+        is_equal_approx(got.y, 7.0), "returned point takes Y from the entity (got %s)" % got
+    )
+    _drop(fc)

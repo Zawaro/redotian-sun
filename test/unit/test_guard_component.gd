@@ -516,3 +516,80 @@ func test_map_editor_ancestor_disables_guard_scan():
     if is_instance_valid(editor):
         root.remove_child(editor)
         editor.free()
+
+
+func _make_building_enemy(player_id: int, foundation: Vector2i) -> Node3D:
+    var entity := _make_enemy(player_id)
+    var stats := entity.get_node("StatsComponent") as StatsComponent
+    stats.entity_type = EntityData.EntityType.BUILDING
+    var fc := FoundationComponent.new()
+    fc.name = "FoundationComponent"
+    fc.foundation = foundation
+    entity.add_child(fc)
+    return entity
+
+
+func test_guard_acquires_building_by_nearest_footprint_edge():
+    # 4x4 building at origin: centre is 12 away (> 10 range), nearest edge 8
+    # (<= 10). The guard must acquire it, matching CombatComponent range.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(0)
+    var building := _make_building_enemy(1, Vector2i(4, 4))
+    _place(root, unit, Vector3(-12, 0, 0))
+    _place(root, building, Vector3(0, 0, 0))
+    _rebuild()
+    _tick_guard(unit)
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    TestHelper.assert_eq(
+        combat.get_target(), building, "guard acquires a building whose nearest edge is in range"
+    )
+    TestHelper.assert_true(combat._hold_ground, "building acquisition uses hold_ground")
+    _cleanup([unit, building])
+
+
+func test_guard_ignores_point_enemy_at_same_center_distance():
+    # Same 12-unit centre offset as the building case, but a point target: out of
+    # the 10-unit range, so it must stay unacquired. Proves the building case is
+    # about the footprint edge, not a wider hood alone.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(0)
+    var enemy := _make_enemy(1)
+    _place(root, unit, Vector3(-12, 0, 0))
+    _place(root, enemy, Vector3(0, 0, 0))
+    _rebuild()
+    _tick_guard(unit)
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    TestHelper.assert_true(
+        combat.get_target() == null, "a point enemy 12 away stays outside the 10-unit range"
+    )
+    _cleanup([unit, enemy])
+
+
+func test_guard_acquires_building_corner_diagonal():
+    # Diagonal approach: centre 14.14 away (out of 10 range) but the nearest
+    # footprint corner 8.49 away (in range). Pins the corner path and the hood
+    # margin in the diagonal direction.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(0)
+    var building := _make_building_enemy(1, Vector2i(4, 4))
+    _place(root, unit, Vector3(-10, 0, -10))
+    _place(root, building, Vector3(0, 0, 0))
+    _rebuild()
+    _tick_guard(unit)
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    TestHelper.assert_eq(
+        combat.get_target(), building, "guard acquires a diagonal building by its nearest corner"
+    )
+    _cleanup([unit, building])

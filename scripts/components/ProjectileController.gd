@@ -53,6 +53,16 @@ func setup(data: ProjectileData, weapon: WeaponData, shooter: Node3D, target: No
     _max_range = weapon.attack_range * CellUtil.CELL_SIZE
     if target:
         _last_known_target_pos = target.global_position
+        # Combat stops a building attacker at weapon range from the nearest
+        # footprint edge, but the projectile flies to the (further) footprint
+        # centre. Extend reach by the half-diagonal so the centre stays inside
+        # max range; without this a physical shot fizzles before the wall.
+        var stats := target.get_node_or_null("StatsComponent") as StatsComponent
+        var fc := target.get_node_or_null("FoundationComponent") as FoundationComponent
+        if stats and stats.is_structure() and fc:
+            var hx := fc.foundation.x * CellUtil.CELL_SIZE * 0.5
+            var hz := fc.foundation.y * CellUtil.CELL_SIZE * 0.5
+            _max_range += Vector2(hx, hz).length()
     var shooter_stats := (
         shooter.get_node_or_null("StatsComponent") as StatsComponent if shooter else null
     )
