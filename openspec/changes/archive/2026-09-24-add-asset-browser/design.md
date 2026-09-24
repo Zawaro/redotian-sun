@@ -41,7 +41,7 @@ Bring back the old preview's inspection overlays as independent checkboxes (Mesh
 - *Alternative*: terrain-only overlays on a separate pane (the old behavior). Rejected — the browser covers entities/art too, and one basis/AABB path covers all of them.
 
 ### Standalone scene turns off gameplay overlays
-The browser is a standalone dev scene, but autoloads still run: `FogRenderer` drapes its world-space fog/shroud plane over the origin (the grey/black sheet that buried the asset). Give `FogRenderer` a public `set_overlay_enabled(false)` (the same suppression the map editor gets) and call it on browser entry, restoring `true` on `_exit_tree` so the autoload is left as found. The browser's own preview overlays are unaffected.
+The browser is a standalone dev scene, but autoloads still run: `FogRenderer` drapes its world-space fog/shroud plane over the origin (the grey/black sheet that buried the asset). Give `FogRenderer` a public `set_overlay_enabled(false)` (the same suppression the map editor gets) that returns the previous flag, call it on browser entry, and restore that prior flag on `_exit_tree` so the autoload is left as found. The browser's own preview overlays are unaffected.
 
 - *Alternative*: hide the fog plane nodes directly from the browser. Rejected — reaching into another system's private children is fragile and re-shows on the next shroud signal.
 
@@ -54,7 +54,7 @@ A single const registry (array of dictionaries or a tiny Resource) of rows: `lab
 On game/category change, list asset *paths* by scanning each `GameContext.current.data_sets` root's category directory (recursively where needed, e.g. `entities/structures/<faction>/`), with later roots overriding same-id entries. Show id/filename immediately; `load()` only the selected path.
 
 - *Alternatives*: reuse autoload getters (many expose no "get all"; `EntityFactory` would eagerly load 408 entities); eager-load everything (slow, wasteful for a browser). Rejected.
-- Entity categories scan `entities/` once and filter by `EntityData.entity_type`; structures live in nested faction dirs, so scanning by directory name is fragile.
+- Entity categories scan their type subdirectory recursively (faction dirs nest under `entities/structures/`) **and** enforce the registry's `etype` from the resource header, so a mis-filed entity cannot leak into the wrong category. Directory scan alone would be fragile; `etype` alone would force loading every entity.
 
 ### Direct 3D instantiation, not `ArtComponent`
 For a 3D asset, resolve the model path, `load()` the PackedScene, and instantiate it under the preview root. Ladder: `EntityData.art_data.model_path` → `ArtData.model_path` → `TerrainCatalog.resolve_art()` (terrain) → procedural box from `placeholder_size` → empty state with a warning.

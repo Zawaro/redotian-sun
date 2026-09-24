@@ -13,16 +13,16 @@
 **Migration**: Use the asset browser's camera controls; there is no isometric-gameplay camera mode.
 
 ### Requirement: Stackable render-state toggles
-**Reason**: Terrain-specific inspection (vector footprint, collision AABB, theater context overlay, resolved-submesh state) is out of scope for the generalized visual/audio asset browser.
-**Migration**: Not carried over. Re-introduce under a future terrain-inspection change if the detail is still needed.
+**Reason**: Superseded by `asset-browser`. Generalized stackable overlays (mesh, footprint, collision, theater, ground, axis) replace the terrain-only render-state toggles.
+**Migration**: Use the asset browser's overlay checkboxes and `asset_browser_cycle_overlay`.
 
 ### Requirement: Info box with cell linkage
-**Reason**: Terrain-cell-specific inspection is out of scope for the generalized asset browser.
-**Migration**: Not carried over; the browser shows asset-level information instead.
+**Reason**: Superseded by `asset-browser`. Asset-level info plus a per-cell list (terrain assets) with click-to-highlight replaces the old terrain-only info box.
+**Migration**: Use the asset browser info panel and cell list.
 
 ### Requirement: Placement and orientation
-**Reason**: Terrain-specific footprint grounding and direction cycling are out of scope for the generalized asset browser.
-**Migration**: Not carried over.
+**Reason**: Superseded by `asset-browser`. Grounding (lowest point at world origin), bounds-center rotation, and base art yaw fold replace the old placement/direction-cycle contract; directional variants are distinct asset ids.
+**Migration**: Select each directional variant as its own asset; grounding and rotation follow the `asset-browser` requirements.
 
 ### Requirement: Preview input actions
 **Reason**: Superseded by `asset-browser`. The `asset_preview_*` InputMap actions are replaced by `asset_browser_*` actions matching the new controls.

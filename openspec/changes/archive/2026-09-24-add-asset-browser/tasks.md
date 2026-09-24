@@ -54,11 +54,12 @@
 - [x] 7.4 Rewrite/replace `test/unit/test_asset_preview_data.gd` for the registry/modes
 - [x] 7.5 Regression: camera transform is stable across idle frames; zoom clamps; 90-degree step is exact
 - [x] 7.6 `gdlint` + `gdformat --check` + `redot --headless -s test/run_tests.gd` green
+- [x] 7.7 Unit/integration: `entity_type` filter, `.tres.remap` scan, real cliff/ramp footprint bounds, all-catalog GLB submesh resolution, grounding at y=0, isometric pitch reset, image info resource, failed-resolution empty state
 
 ## 8. Specs and docs
 
 - [x] 8.1 Confirm `asset-browser` spec delta validates (`openspec validate add-asset-browser --strict`)
-- [ ] 8.2 Delete the superseded `openspec/specs/asset-preview-scene/` directory at archive time
+- [x] 8.2 Delete the superseded `openspec/specs/asset-preview-scene/` directory at archive time
 - [x] 8.3 Propose a GLOSSARY entry for "asset browser" if it proves durable
 
 ## 9. Camera modes, asset rotation, and render overlays
@@ -72,4 +73,5 @@
 - [x] 9.7 Add the per-cell terrain list with click-to-highlight (highlight attached to the asset)
 - [x] 9.8 Tests: projection modes, asset-rotation/camera-fixed, per-mode pitch, zoom clamps in both modes, overlay visibility, world-fixed ground/axis, cell highlight, footprint/corner geometry
 - [x] 9.9 Sync spec/design/proposal; re-run `gdlint` + `gdformat --check` + full headless suite
-- [x] 9.10 Suppress the gameplay fog/shroud plane in the standalone browser (`FogRenderer.set_overlay_enabled`), restoring it on exit
+- [x] 9.10 Suppress the gameplay fog/shroud plane in the standalone browser (`FogRenderer.set_overlay_enabled`), restoring the prior flag on exit
+- [x] 9.11 Fix review gaps: enforce registry `etype`, `push_warning` on failed resolution/missing category, image info resource, grounding min-y=0, clear pitch on isometric switch, `.tres.remap` header scan, line-material alpha, input not blocked by info panel
