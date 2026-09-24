@@ -250,7 +250,7 @@ func _detonate_on(victim: Node3D) -> void:
         else:
             var health := victim.get_node_or_null("HealthComponent") as HealthComponent
             if health:
-                health.take_damage(_payload["amount"], _payload["type"])
+                health.take_damage(_payload["amount"], _payload["type"], _payload["source"])
     impacted.emit(final_pos)
     queue_free()
 

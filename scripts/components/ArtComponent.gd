@@ -238,11 +238,7 @@ func _request_registration(instance: Node3D) -> void:
 
 
 func _eligible_for_instancing() -> bool:
-    return (
-        _entity_type == EntityData.EntityType.INFANTRY
-        or _entity_type == EntityData.EntityType.VEHICLE
-        or _entity_type == EntityData.EntityType.AIRCRAFT
-    )
+    return StatsComponent.is_unit_type(_entity_type)
 
 
 func _register_with_renderer(instance: Node3D) -> void:

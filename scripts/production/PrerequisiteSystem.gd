@@ -51,6 +51,15 @@ func can_build(player_id: int, entity_data: EntityData) -> bool:
 
     var result := true
 
+    # Tech level check — -1 is never buildable; otherwise the house must
+    # have reached the type's level.
+    if entity_data.tech_level == -1:
+        result = false
+    elif result:
+        var player := PlayerManager.get_player_data(player_id)
+        if player == null or player.tech_level < entity_data.tech_level:
+            result = false
+
     # Build limit check
     if result and entity_data.build_limit > 0:
         var count := get_build_count(player_id, entity_data.id)

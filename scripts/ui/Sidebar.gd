@@ -266,7 +266,7 @@ func _get_current_entities() -> Array[EntityData]:
 
 ## Returns a copy sorted into sidebar order: entity type group (rank derived
 ## from the tab config in use — e.g. ground vehicles before aircraft in the
-## Vehicles tab), then ascending tech_level (-1 = always available first),
+## Vehicles tab), then ascending tech_level (-1 = never buildable, sorted first),
 ## then display_name, then id. Deterministic tie-breaking prevents load-order
 ## flicker between rebuilds. `tab_types` defaults to the built-in tab config.
 static func sort_buildables(

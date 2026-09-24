@@ -291,11 +291,7 @@ func _add_preview_groups(entity: Node3D, data: EntityData) -> void:
     if etype != EntityData.EntityType.OVERLAY:
         if etype != EntityData.EntityType.TERRAIN or data.foundation != Vector2i(1, 1):
             entity.add_to_group("entities")
-    var is_unit := (
-        etype == EntityData.EntityType.INFANTRY
-        or etype == EntityData.EntityType.VEHICLE
-        or etype == EntityData.EntityType.AIRCRAFT
-    )
+    var is_unit := StatsComponent.is_unit_type(etype)
     if is_unit:
         entity.add_to_group("selectable")
         entity.add_to_group("drag_selectable")

@@ -8,6 +8,8 @@ func _make_rules() -> GlobalRules:
     rules.veteran_combat = 0.25
     rules.veteran_speed = 0.30
     rules.veteran_armor = 0.25
+    rules.veteran_sight = 0.25
+    rules.veteran_rof = 0.20
     rules.veteran_cap = 2
     rules.multiple_factory = 0.5
     rules.build_speed = 0.8
@@ -50,6 +52,35 @@ func test_veteran_armor_multiplier():
     TestHelper.assert_eq(
         rules.get_veteran_armor_multiplier(1), 0.75, "level 1 -> 0.75 (25% reduction)"
     )
+
+
+func test_veteran_sight_multiplier():
+    var rules := _make_rules()
+    TestHelper.assert_eq(rules.get_veteran_sight_multiplier(0), 1.0, "level 0 -> 1.0")
+    TestHelper.assert_eq(rules.get_veteran_sight_multiplier(1), 1.25, "level 1 -> 1.25")
+    TestHelper.assert_eq(rules.get_veteran_sight_multiplier(9), 1.5, "level 9 clamped to cap 2")
+
+
+func test_veteran_sight_neutral_default():
+    var rules := GlobalRules.new()
+    TestHelper.assert_eq(rules.veteran_sight, 0.0, "default veteran_sight is 0.0")
+    TestHelper.assert_eq(
+        rules.get_veteran_sight_multiplier(2), 1.0, "neutral sight resolves to 1.0"
+    )
+
+
+func test_veteran_rof_multiplier():
+    var rules := _make_rules()
+    TestHelper.assert_eq(rules.get_veteran_rof_multiplier(0), 1.0, "level 0 -> 1.0")
+    TestHelper.assert_eq(rules.get_veteran_rof_multiplier(1), 1.2, "level 1 -> 1.2")
+    TestHelper.assert_eq(rules.get_veteran_rof_multiplier(9), 1.4, "level 9 clamped to cap 2")
+
+
+func test_default_tech_level():
+    var rules := GlobalRules.new()
+    TestHelper.assert_eq(rules.tech_level, 10, "default tech_level is 10")
+    rules.tech_level = 5
+    TestHelper.assert_eq(rules.tech_level, 5, "tech_level overridable")
 
 
 func test_veteran_armor_reduces_damage():

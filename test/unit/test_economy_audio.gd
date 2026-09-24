@@ -309,6 +309,7 @@ func _make_infantry(id: String, cost: int) -> EntityData:
     data.build_time_mult = 5.0 / data.get_build_time()
     data.buildable_queue = "InfantryType"
     data.buildable = true
+    data.tech_level = 1
     return data
 
 
@@ -319,6 +320,7 @@ func _ensure_local_factory(pid: int) -> void:
     factory_data.display_name = "Test Barracks"
     factory_data.factory = "InfantryType"
     factory_data.buildable = true
+    factory_data.tech_level = 1
     EntityFactory._entity_cache[FACTORY_ID] = factory_data
     var ps := _em.get_node_or_null("/root/PrerequisiteSystem")
     if ps:

@@ -1205,7 +1205,7 @@ func _try_crush(cell: Vector2i) -> void:
             continue
         var hc := (enemy as Node3D).get_node_or_null("HealthComponent") as HealthComponent
         if hc:
-            hc.kill()
+            hc.kill(get_parent() as Node3D)
 
 
 ## One-time weight-based damage to breakable surfaces (ice) on cell entry.

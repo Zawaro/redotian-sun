@@ -8,6 +8,7 @@ const LINE_WIDTH := 1.0
 const MAX_CARGO_SLOTS := 10
 const MAX_PASSENGER_SLOTS := 5
 const PIP_GAP_RATIO := 0.002
+const RANK_COLOR := Color(1.0, 0.85, 0.2)
 ## Fixed-px gap between the bottom pip row and the bracket line. Strokes are
 ## fixed-width, so a ratio would shrink below the line width on small rects.
 const PIP_BRACKET_CLEARANCE_PX := 2.0
@@ -120,6 +121,7 @@ func _do_draw(node: Node2D):
         _draw_health_bar_outline(node, e.bracket_rect)
         _draw_brackets(node, e.bracket_rect, e.is_selected)
         _draw_pips(node, e.cargo_pips, e.cargo_color, e.pass_pips)
+        _draw_rank_insignia(node, e)
         _draw_power_label(node, e)
 
 
@@ -293,9 +295,39 @@ func _collect_entities():
                     "pass_pips": pass_pips,
                     "world_size": size,
                     "power_label": _power_label_for(parent, ent.is_selected),
+                    "veteran_level": _visible_veteran_level(parent),
                 }
             )
         )
+
+
+## Rank chevrons for allied/local veterans and elites. Enemy and unowned ranks stay hidden.
+func _visible_veteran_level(entity: Node3D) -> int:
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats == null or stats.veteran_level <= 0:
+        return 0
+    if stats.player_id < 0:
+        return 0
+    var local := PlayerManager.get_local_player_id()
+    if stats.player_id != local and PlayerManager.is_enemy(local, stats.player_id):
+        return 0
+    return stats.veteran_level
+
+
+func _draw_rank_insignia(node: Node2D, e: Dictionary) -> void:
+    var level: int = e.get("veteran_level", 0)
+    if level <= 0:
+        return
+    var rect: Rect2 = e.bracket_rect
+    var w: float = maxf(rect.size.x * 0.14, 6.0)
+    var h: float = w * 0.5
+    var x: float = rect.position.x + rect.size.x - w * 1.2
+    var y: float = rect.position.y + h * 1.6
+    for i in level:
+        var apex := Vector2(x + w * 0.5, y - h)
+        node.draw_line(Vector2(x, y), apex, RANK_COLOR, 2.0)
+        node.draw_line(apex, Vector2(x + w, y), RANK_COLOR, 2.0)
+        y += h * 1.7
 
 
 func _get_selection_size(ent: SelectComponent, parent: Node3D) -> Vector2:
