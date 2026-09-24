@@ -29,6 +29,19 @@ func is_enemy(a_id: int, b_id: int) -> bool:
     return a.team_id != b.team_id
 
 
+## True when `entity` is controlled by the local player (`local_id`). Entities
+## without a StatsComponent, or with `player_id < 0` (neutral), count as local.
+## Single source of the ownership rule shared by SelectionManager and
+## UnitOrderGenerator. Invalid nodes are not local.
+static func is_entity_local(entity: Node3D, local_id: int) -> bool:
+    if not is_instance_valid(entity):
+        return false
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if not stats:
+        return true
+    return stats.player_id < 0 or stats.player_id == local_id
+
+
 func get_all_players() -> Array[PlayerData]:
     var result: Array[PlayerData] = []
     for key in _players:
