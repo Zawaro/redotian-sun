@@ -352,22 +352,38 @@ func test_non_combat_empty_orders_allows_enemy_selection():
         return
     var pm := get_node_or_null("/root/PlayerManager")
     var local_id: int = pm.get_local_player_id() if pm else 0
+    var center := Vector2i(BoundsSystem.grid_cells.x / 2, BoundsSystem.grid_cells.y / 2)
+    var in_play := CellUtil.cell_to_world(center)
+    var rules := GlobalRules.get_current()
+    var saved_fog: bool = rules.fog_of_war
+    var saved_shroud: bool = rules.shroud_enabled
+    rules.fog_of_war = false
+    rules.shroud_enabled = false
     var entity := _make_non_combat_entity(local_id)
     _setup_selection([entity])
+    entity.global_position = in_play
     var target := _make_target(local_id + 1, true)
+    target.global_position = in_play
     var target_sc := target.get_node_or_null("SelectComponent") as SelectComponent
     var gen := _get_generator()
     var orders := gen.get_orders(target, Vector2i.ZERO, Vector3.ZERO, {})
     TestHelper.assert_eq(orders.size(), 0, "non-combat + enemy -> empty orders")
     if orders.is_empty() and target_sc:
-        _sm.add_entity(target_sc)
+        _sm.select_entity(target_sc)
+        var local_sc := entity.get_node_or_null("SelectComponent") as SelectComponent
         TestHelper.assert_true(
             _sm.is_entity_selected(target_sc),
             "enemy selected after empty orders (MouseHandler fallthrough)"
         )
+        TestHelper.assert_true(
+            not _sm.is_entity_selected(local_sc),
+            "enemy selection cleared the local unit (no mixed selection)"
+        )
         _sm.deselect_all()
     _teardown_selection([entity])
     target.free()
+    rules.fog_of_war = saved_fog
+    rules.shroud_enabled = saved_shroud
 
 
 func test_orders_already_selected_self():
@@ -642,3 +658,185 @@ func test_has_movable_false_without_movement_controller():
     var result := gen._has_movable(_sm)
     TestHelper.assert_true(not result, "_has_movable returns false when no MovementController")
     _teardown_selection([entity])
+
+
+# --- enemy (non-local) selection: viewing only, never commandable (#166) ---
+
+
+func _make_armed_building(player_id: int) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "ArmedBuilding"
+    var combat := CombatComponent.new()
+    combat.name = "CombatComponent"
+    combat.weapons = [_make_weapon()]
+    entity.add_child(combat)
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    stats.entity_type = EntityData.EntityType.BUILDING
+    entity.add_child(stats)
+    return entity
+
+
+func _make_resource_target() -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "ResourceTarget"
+    var res := ResourceComponent.new()
+    res.name = "ResourceComponent"
+    entity.add_child(res)
+    return entity
+
+
+func test_cursor_enemy_selection_default_over_ground():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var enemy := _make_combat_entity(local_id + 1)
+    _setup_selection([enemy])
+    var gen := _get_generator()
+    var cursor := gen.get_cursor(null, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "enemy selection + ground -> DEFAULT")
+    _teardown_selection([enemy])
+
+
+func test_cursor_enemy_selection_select_over_selectable():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var enemy := _make_combat_entity(local_id + 1)
+    _setup_selection([enemy])
+    var target := _make_target(local_id + 1, true)
+    var gen := _get_generator()
+    var cursor := gen.get_cursor(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_eq(
+        cursor, CursorState.Type.SELECT, "enemy selection + unselected selectable -> SELECT"
+    )
+    _teardown_selection([enemy])
+    target.free()
+
+
+func test_cursor_enemy_selection_default_over_self():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var enemy := _make_combat_entity(local_id + 1)
+    enemy.add_to_group("selectable")
+    _setup_selection([enemy])
+    var gen := _get_generator()
+    var cursor := gen.get_cursor(enemy, Vector2i.ZERO, enemy.global_position, {})
+    TestHelper.assert_eq(
+        cursor, CursorState.Type.DEFAULT, "enemy selection + the selected enemy itself -> DEFAULT"
+    )
+    _teardown_selection([enemy])
+
+
+func test_orders_enemy_selection_empty_for_ground():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var enemy := _make_combat_entity(local_id + 1)
+    _setup_selection([enemy])
+    var gen := _get_generator()
+    var orders := gen.get_orders(null, Vector2i.ZERO, Vector3(10.0, 0.0, 20.0), {})
+    TestHelper.assert_eq(orders.size(), 0, "enemy selection + ground -> no move order")
+    _teardown_selection([enemy])
+
+
+func test_orders_enemy_harvester_no_harvest_or_dock():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var harvester := _make_harvester_entity(local_id + 1)
+    _setup_selection([harvester])
+    var gen := _get_generator()
+    var resource := _make_resource_target()
+    var orders := gen.get_orders(resource, Vector2i.ZERO, resource.global_position, {})
+    TestHelper.assert_eq(orders.size(), 0, "enemy harvester + tiberium -> no HARVEST order")
+    var cursor := gen.get_cursor(resource, Vector2i.ZERO, resource.global_position, {})
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "enemy harvester cursor -> DEFAULT")
+    var refinery := _make_refinery_target(local_id + 1)
+    orders = gen.get_orders(refinery, Vector2i.ZERO, refinery.global_position, {})
+    TestHelper.assert_eq(orders.size(), 0, "enemy harvester + enemy refinery -> no ENTER order")
+    _teardown_selection([harvester])
+    resource.free()
+    refinery.free()
+
+
+func test_enemy_armed_building_not_commandable():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var building := _make_armed_building(local_id + 1)
+    _setup_selection([building])
+    var target := _make_target(local_id + 2)
+    var gen := _get_generator()
+    var cursor := gen.get_cursor(target, Vector2i.ZERO, Vector3.ZERO, {})
+    var orders := gen.get_orders(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "enemy armed building cursor -> DEFAULT")
+    TestHelper.assert_eq(orders.size(), 0, "enemy armed building -> no ATTACK order")
+    _teardown_selection([building])
+    target.free()
+
+
+func test_enemy_undeployable_building_not_commandable():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var building := _make_deploy_entity(true, local_id + 1)
+    _setup_selection([building])
+    var gen := _get_generator()
+    var cursor := gen.get_cursor(null, Vector2i.ZERO, Vector3.ZERO, {})
+    var orders := gen.get_orders(null, Vector2i.ZERO, Vector3(5.0, 0.0, 5.0), {})
+    TestHelper.assert_eq(cursor, CursorState.Type.DEFAULT, "enemy undeployable building -> DEFAULT")
+    TestHelper.assert_eq(orders.size(), 0, "enemy undeployable building -> no undeploy order")
+    _teardown_selection([building])
+
+
+func test_local_armed_building_remains_commandable():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var building := _make_armed_building(local_id)
+    _setup_selection([building])
+    var target := _make_target(local_id + 1)
+    var gen := _get_generator()
+    var cursor := gen.get_cursor(target, Vector2i.ZERO, Vector3.ZERO, {})
+    var orders := gen.get_orders(target, Vector2i.ZERO, Vector3.ZERO, {})
+    TestHelper.assert_eq(cursor, CursorState.Type.ATTACK, "local armed building + enemy -> ATTACK")
+    TestHelper.assert_eq(orders.size(), 1, "local armed building + enemy -> 1 attack order")
+    _teardown_selection([building])
+    target.free()
+
+
+func test_local_undeployable_building_remains_commandable():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_id: int = pm.get_local_player_id() if pm else 0
+    var building := _make_deploy_entity(true, local_id)
+    _setup_selection([building])
+    var gen := _get_generator()
+    var cursor := gen.get_cursor(null, Vector2i.ZERO, Vector3.ZERO, {})
+    var orders := gen.get_orders(null, Vector2i.ZERO, Vector3(5.0, 0.0, 5.0), {})
+    TestHelper.assert_eq(cursor, CursorState.Type.MOVE, "local undeployable building -> MOVE")
+    TestHelper.assert_true(
+        orders.size() >= 1, "local undeployable building still produces an undeploy order"
+    )
+    _teardown_selection([building])

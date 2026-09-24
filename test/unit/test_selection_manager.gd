@@ -953,3 +953,242 @@ func test_shroud_gate_still_blocks_inside_visible_bounds():
         blocked, "fog/shroud gate still blocks unrevealed entity inside visible bounds"
     )
     TestHelper.assert_true(allowed_after_reveal, "revealed in-bounds entity becomes selectable")
+
+
+# ========================================
+# Ownership exclusivity (#166) — no mixed own+enemy selection
+# ========================================
+
+
+func _make_owner_entity(player_id: int) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "OwnerEntity%d" % player_id
+    var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    sc.name = "SelectComponent"
+    entity.add_child(sc)
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    entity.add_child(stats)
+    _sm.add_child(entity)
+    entity.global_position = CellUtil.cell_to_world(BOUNDS_IN_CELL)
+    return entity
+
+
+func test_shift_click_enemy_clears_local_selection():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var local := _make_owner_entity(local_pid)
+    var enemy := _make_owner_entity(local_pid + 1)
+    var local_sc := _select_comp_of(local)
+    var enemy_sc := _select_comp_of(enemy)
+
+    _sm.deselect_all()
+    _sm.select_entity(local_sc)
+    var local_first: bool = _sm.is_entity_selected(local_sc)
+    _sm.select_entity(enemy_sc, true)
+    var enemy_only: bool = _sm.selected_entities.size() == 1 and _sm.is_entity_selected(enemy_sc)
+    var local_cleared: bool = not _sm.is_entity_selected(local_sc)
+
+    _sm.deselect_all()
+    local.free()
+    enemy.free()
+    _bounds_teardown()
+    TestHelper.assert_true(local_first, "fixture: local unit selected first")
+    TestHelper.assert_true(local_cleared, "shift-click enemy clears the local selection")
+    TestHelper.assert_true(enemy_only, "enemy becomes the sole selection (no mix)")
+
+
+func test_shift_click_local_clears_enemy_selection():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var local := _make_owner_entity(local_pid)
+    var enemy := _make_owner_entity(local_pid + 1)
+    var local_sc := _select_comp_of(local)
+    var enemy_sc := _select_comp_of(enemy)
+
+    _sm.deselect_all()
+    _sm.select_entity(enemy_sc)
+    var enemy_first: bool = _sm.is_entity_selected(enemy_sc)
+    _sm.select_entity(local_sc, true)
+    var local_only: bool = _sm.selected_entities.size() == 1 and _sm.is_entity_selected(local_sc)
+    var enemy_cleared: bool = not _sm.is_entity_selected(enemy_sc)
+
+    _sm.deselect_all()
+    local.free()
+    enemy.free()
+    _bounds_teardown()
+    TestHelper.assert_true(enemy_first, "fixture: enemy selected first")
+    TestHelper.assert_true(enemy_cleared, "shift-click local unit clears the enemy selection")
+    TestHelper.assert_true(local_only, "local unit becomes the sole selection (no mix)")
+
+
+func test_shift_click_second_enemy_replaces_first():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var enemy_a := _make_owner_entity(local_pid + 1)
+    var enemy_b := _make_owner_entity(local_pid + 2)
+    var enemy_a_sc := _select_comp_of(enemy_a)
+    var enemy_b_sc := _select_comp_of(enemy_b)
+
+    _sm.deselect_all()
+    _sm.select_entity(enemy_a_sc)
+    _sm.select_entity(enemy_b_sc, true)
+    var b_only: bool = _sm.selected_entities.size() == 1 and _sm.is_entity_selected(enemy_b_sc)
+    var a_cleared: bool = not _sm.is_entity_selected(enemy_a_sc)
+
+    _sm.deselect_all()
+    enemy_a.free()
+    enemy_b.free()
+    _bounds_teardown()
+    TestHelper.assert_true(a_cleared, "second enemy click clears the first")
+    TestHelper.assert_true(b_only, "only the newest enemy stays selected")
+
+
+func test_shift_click_second_local_still_adds():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var local_a := _make_owner_entity(local_pid)
+    var local_b := _make_owner_entity(local_pid)
+    var local_a_sc := _select_comp_of(local_a)
+    var local_b_sc := _select_comp_of(local_b)
+
+    _sm.deselect_all()
+    _sm.select_entity(local_a_sc)
+    _sm.select_entity(local_b_sc, true)
+    var both: bool = (
+        _sm.selected_entities.size() == 2
+        and _sm.is_entity_selected(local_a_sc)
+        and _sm.is_entity_selected(local_b_sc)
+    )
+
+    _sm.deselect_all()
+    local_a.free()
+    local_b.free()
+    _bounds_teardown()
+    TestHelper.assert_true(both, "two local units coexist (shift adds, no clearing)")
+
+
+func test_plain_click_selects_lone_enemy():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var enemy := _make_owner_entity(local_pid + 1)
+    var enemy_sc := _select_comp_of(enemy)
+
+    _sm.deselect_all()
+    _sm.select_entity(enemy_sc)
+    var selected: bool = _sm.selected_entities.size() == 1 and _sm.is_entity_selected(enemy_sc)
+
+    _sm.deselect_all()
+    enemy.free()
+    _bounds_teardown()
+    TestHelper.assert_true(selected, "a lone enemy is selectable for viewing")
+
+
+func test_box_select_while_enemy_selected_clears_enemy():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var local := _make_owner_entity(local_pid)
+    local.add_to_group("drag_selectable")
+    var enemy := _make_owner_entity(local_pid + 1)
+    var local_sc := _select_comp_of(local)
+    var enemy_sc := _select_comp_of(enemy)
+
+    var pivot := CameraController.new()
+    pivot.name = "CameraPivot"
+    var cam := Camera3D.new()
+    cam.name = "Camera3D"
+    cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+    cam.size = 120.0
+    pivot.add_child(cam)
+    _sm.add_child(pivot)
+    cam.look_at_from_position(Vector3(0, 80, 0), Vector3.ZERO, Vector3(0, 0, -1))
+
+    var mh := MOUSE_HANDLER_SCENE.instantiate() as MouseHandler
+    _sm.add_child(mh)
+    mh.camera_controller = pivot
+
+    var p := cam.unproject_position(local.global_position)
+    var rect := Rect2(p - Vector2(4, 4), Vector2(8, 8))
+
+    _sm.deselect_all()
+    _sm.select_entity(enemy_sc)
+    mh._select_entities_2d_projected(rect)
+    var local_selected: bool = _sm.is_entity_selected(local_sc)
+    var enemy_cleared: bool = not _sm.is_entity_selected(enemy_sc)
+
+    _sm.deselect_all()
+    mh.free()
+    pivot.free()
+    local.free()
+    enemy.free()
+    _bounds_teardown()
+    TestHelper.assert_true(local_selected, "box-select selects the local unit")
+    TestHelper.assert_true(enemy_cleared, "box-select clears a selected enemy (no mix)")
+
+
+func test_hotkey_stop_skips_enemy_selection():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var local := _make_owner_entity(local_pid)
+    var enemy := _make_owner_entity(local_pid + 1)
+    var local_harvest := HarvestComponent.new()
+    local_harvest.name = "HarvestComponent"
+    local.add_child(local_harvest)
+    var enemy_harvest := HarvestComponent.new()
+    enemy_harvest.name = "HarvestComponent"
+    enemy.add_child(enemy_harvest)
+
+    var mh := MOUSE_HANDLER_SCENE.instantiate() as MouseHandler
+    _sm.add_child(mh)
+    mh.selection_manager = _sm
+
+    local_harvest._state = HarvestComponent.State.SEEK_NODE
+    enemy_harvest._state = HarvestComponent.State.SEEK_NODE
+    _sm.deselect_all()
+    _sm.select_entity(_select_comp_of(local))
+    mh.apply_selection_hotkey(true)
+    var local_stopped: bool = local_harvest._state == HarvestComponent.State.IDLE
+
+    enemy_harvest._state = HarvestComponent.State.SEEK_NODE
+    _sm.select_entity(_select_comp_of(enemy))
+    mh.apply_selection_hotkey(true)
+    var enemy_untouched: bool = enemy_harvest._state == HarvestComponent.State.SEEK_NODE
+
+    _sm.deselect_all()
+    mh.free()
+    local.free()
+    enemy.free()
+    _bounds_teardown()
+    TestHelper.assert_true(local_stopped, "stop hotkey cancels a local harvester")
+    TestHelper.assert_true(
+        enemy_untouched, "stop hotkey never commands a selected enemy (issue #166)"
+    )
