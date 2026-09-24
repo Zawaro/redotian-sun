@@ -34,6 +34,8 @@ func configure(data: EntityData) -> void:
 func _ready() -> void:
     _parent = get_parent() as Node3D
     _stats = _parent.get_node_or_null("StatsComponent") as StatsComponent
+    if _stats and not _stats.veterancy_changed.is_connected(_on_veterancy_changed):
+        _stats.veterancy_changed.connect(_on_veterancy_changed)
 
 
 func _physics_process(_delta: float) -> void:
@@ -73,11 +75,31 @@ func _viewer_height() -> float:
     return _parent.global_position.y + maxf(_height * 0.5, 0.5)
 
 
+## Effective sight radius, including the veteran sight bonus from GlobalRules.
+func _effective_sight() -> int:
+    if _stats == null:
+        return _sight
+    var rules := GlobalRules.get_current()
+    if rules == null:
+        return _sight
+    var mult: float = rules.get_veteran_sight_multiplier(_stats.veteran_level)
+    return maxi(1, roundi(float(_sight) * mult))
+
+
+## A promotion widens (or narrows) the revealed disc: re-stamp the revealer.
+func _on_veterancy_changed(_level: int) -> void:
+    if _stats == null or _stats.player_id < 0 or _registered_key < 0:
+        return
+    var cell := _center_cell()
+    _unregister()
+    _register(cell)
+
+
 func _register(cell: Vector2i) -> void:
     if _stats == null:
         return
     _registered_key = ShroudSystem.register_revealer(
-        _stats.player_id, cell, _sight, _viewer_height(), _blocks_terrain
+        _stats.player_id, cell, _effective_sight(), _viewer_height(), _blocks_terrain
     )
     _registered_player_id = _stats.player_id
     _registered_cell = cell

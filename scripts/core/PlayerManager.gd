@@ -118,6 +118,7 @@ func begin_mission(mission: Mission, map_config: Node = null) -> void:
     var credits := resolve_starting_credits(
         mission.starting_credits, _map_starting_credits(map_config), global_credits
     )
+    var tech_level := resolve_tech_level(mission.tech_level, rules.tech_level if rules else 10)
 
     var playable := _get_playable_factions()
     var human_house := mission.player_house
@@ -150,6 +151,8 @@ func begin_mission(mission: Mission, map_config: Node = null) -> void:
         global_credits,
     )
     _players[1] = ai
+    human.tech_level = tech_level
+    ai.tech_level = tech_level
     players_changed.emit()
 
 
@@ -164,6 +167,13 @@ static func resolve_starting_credits(
     if map_credits >= 0:
         return map_credits
     return global_credits
+
+
+## Current tech level: a non-negative mission override wins, else the rules default.
+static func resolve_tech_level(mission_level: int, rules_level: int) -> int:
+    if mission_level >= 0:
+        return mission_level
+    return rules_level
 
 
 ## Faction for a house id, falling back to the playable roster at
@@ -231,12 +241,15 @@ func _make_player(
     data.display_name = display_name
     data.is_bot = is_bot
     data.free_credits = credits
+    var rules: GlobalRules = _get_global_rules()
+    data.tech_level = rules.tech_level if rules else 10
     return data
 
 
 func _init_defaults() -> void:
     var rules: GlobalRules = _get_global_rules()
     var starting_credits: int = rules.starting_credits if rules else 10000
+    var tech_level: int = rules.tech_level if rules else 10
 
     var playable := _get_playable_factions()
     var human_faction: Faction = playable[0] if playable.size() > 0 else null
@@ -265,6 +278,8 @@ func _init_defaults() -> void:
         starting_credits,
     )
     _players[1] = ai
+    human.tech_level = tech_level
+    ai.tech_level = tech_level
 
     _local_player_id = 0
     players_changed.emit()

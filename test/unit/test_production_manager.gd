@@ -31,6 +31,7 @@ func _make_infantry(id: String = "test_infantry", cost: int = 100) -> EntityData
     data.build_time_mult = 5.0 / data.get_build_time()
     data.buildable_queue = "InfantryType"
     data.buildable = true
+    data.tech_level = 1
     return data
 
 
@@ -41,6 +42,7 @@ func _make_factory() -> EntityData:
     data.display_name = "Test Barracks"
     data.factory = "InfantryType"
     data.buildable = true
+    data.tech_level = 1
     return data
 
 

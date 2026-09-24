@@ -37,11 +37,7 @@ func configure(data: EntityData) -> void:
             if socket and not socket.id.is_empty():
                 _yaws[socket.id] = 0.0
     var etype := data.entity_type
-    _use_instanced = (
-        etype == EntityData.EntityType.INFANTRY
-        or etype == EntityData.EntityType.VEHICLE
-        or etype == EntityData.EntityType.AIRCRAFT
-    )
+    _use_instanced = StatsComponent.is_unit_type(etype)
     if not _use_instanced:
         _build_node_turrets()
     # CombatComponent (priority 0) aims first, then the default move/idle pass

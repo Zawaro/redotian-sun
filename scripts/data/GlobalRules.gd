@@ -17,6 +17,9 @@ class_name GlobalRules extends Resource
 @export var veteran_armor: float = 0.25
 @export var veteran_rof: float = 0.20
 
+## Default current tech level for a session with no mission override.
+@export var tech_level: int = 10
+
 ## Repair and refit
 @export_group("Repair and Refit")
 @export var refund_percent: float = 0.5
@@ -276,6 +279,17 @@ func get_veteran_speed_multiplier(level: int) -> float:
 ## Armor (incoming damage) multiplier for a veteran level (level clamped to veteran_cap).
 func get_veteran_armor_multiplier(level: int) -> float:
     return _veteran_multiplier(-veteran_armor, level)
+
+
+## Sight range multiplier for a veteran level (level clamped to veteran_cap).
+func get_veteran_sight_multiplier(level: int) -> float:
+    return _veteran_multiplier(veteran_sight, level)
+
+
+## Weapon reload multiplier for a veteran level (level clamped to veteran_cap).
+## Used as a divisor on the reload delay.
+func get_veteran_rof_multiplier(level: int) -> float:
+    return _veteran_multiplier(veteran_rof, level)
 
 
 ## Returns the damage multiplier a warhead applies against a given armor type,

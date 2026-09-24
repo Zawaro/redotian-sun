@@ -23,6 +23,9 @@ extends Resource
 ## Starting credits for the local player. -1 inherits map/global rules.
 @export var starting_credits: int = -1
 
+## Current tech level for the mission. -1 inherits the active game's GlobalRules.
+@export var tech_level: int = -1
+
 ## Start-camera cell override as "x,y". "" defers to the map start location.
 @export var home_cell: String = ""
 

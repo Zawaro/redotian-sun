@@ -432,7 +432,16 @@ func _fire_socket(channel: FireChannel, index: int) -> void:
 func _rof_seconds(weapon: WeaponData) -> float:
     var rules := GlobalRules.get_current()
     var logic_fps: float = rules.logic_fps if rules else DEFAULT_LOGIC_FPS
-    return maxf(weapon.rate_of_fire, 0.001) / logic_fps
+    var base := maxf(weapon.rate_of_fire, 0.001) / logic_fps
+    if not rules:
+        return base
+    var parent := get_parent()
+    if parent == null:
+        return base
+    var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
+    if stats == null or stats.veteran_level <= 0:
+        return base
+    return base / rules.get_veteran_rof_multiplier(stats.veteran_level)
 
 
 ## Body-facing gate for body-mounted / fixed-socket weapons. Returns true when
@@ -523,7 +532,7 @@ func _apply_hitscan_damage(weapon: WeaponData, target: Node3D) -> void:
     var damage := GlobalRules.compute_warhead_damage(
         get_effective_damage(weapon), weapon.warhead, target_armor
     )
-    health.take_damage(damage, weapon.warhead)
+    health.take_damage(damage, weapon.warhead, get_parent() as Node3D)
 
 
 func _play_fire_sound(weapon: WeaponData) -> void:

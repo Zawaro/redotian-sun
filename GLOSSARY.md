@@ -153,6 +153,9 @@ are 45°-rotated rectangles, i.e. diamonds.
 | armor type | Target protection class; warhead's table keys select the final damage fraction. | [armor-types](openspec/specs/armor-types/spec.md) |
 | projectile | Flight-behavior definition referenced by `WeaponData.projectile` string id. | [projectile-data](openspec/specs/projectile-data/spec.md) |
 | veterancy | Promotion levels granting combat/speed/armor/rof multipliers, clamped at `veteran_cap`. | [global-rules](openspec/specs/global-rules/spec.md) |
+| `experience` | Per-instance combat experience (`StatsComponent.experience`); rank is derived from it at thresholds 1 and 2. | [veterancy](openspec/specs/veterancy/spec.md) |
+| `trainable` | Whether an entity's kills accumulate experience; units default on, buildings opt in. | [veterancy](openspec/specs/veterancy/spec.md) |
+| `veteran_cap` | Ceiling on accumulated experience, so rank cannot exceed it; 2 enables elite. | [global-rules](openspec/specs/global-rules/spec.md) |
 | crusher / crushable | Vehicle flags; crushers destroy crushable targets standing in an entered cell. | [vehicle-crush](openspec/specs/vehicle-crush/spec.md) |
 | `weight` | Crush pairing + ice-breakage threshold (`ice_cracking_weight`). Explicitly not a speed factor. | [entity-data](openspec/specs/entity-data/spec.md) · [ice-drowning](openspec/specs/ice-drowning/spec.md) |
 | hitscan | Damage applied instantly at fire time, no projectile travel. | [combat-firing](openspec/specs/combat-firing/spec.md) |
@@ -226,7 +229,8 @@ Full dictionaries: scripts/data/*.gd. Only ambiguous pairs listed here.
 | `passengers` vs `storage` | Infantry seat count on transports vs raw-bale carry capacity on harvesters. | scripts/data/EntityData.gd |
 | `pip_color` | Seat pip color for a passenger riding in a transport (per entity type, default white); harvesters' cargo pips are unaffected. | scripts/data/EntityData.gd |
 | `strength` | Max hit points (legacy rules.ini name — do not rename casually). | scripts/data/EntityData.gd |
-| `tech_level` | Build availability gate; -1 = always available. | scripts/data/EntityData.gd |
+| `tech_level` | Per-type build gate; the house's current level must be at least this. `-1` = never buildable (original TS semantics). | scripts/data/EntityData.gd · [tech-level](openspec/specs/tech-level/spec.md) |
+| current tech level | A player's live level (`PlayerData.tech_level`), resolved from the mission or the rules default; compared against `EntityData.tech_level` on the build list. | [tech-level](openspec/specs/tech-level/spec.md) |
 | `powered` vs `is_online` | Data-level "requires power to function" flag (`EntityData.powered`, copied to PowerComponent) vs runtime state (`PowerComponent.is_online`, driven by the grid). Deliberately different names — never write `is_powered()` for the runtime state. | scripts/data/EntityData.gd · [add-power-grid change](openspec/changes/add-power-grid/specs/power-grid/spec.md) |
 
 ## Cross-Title Systems (unified-engine target)

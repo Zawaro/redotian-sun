@@ -27,7 +27,8 @@ enum BridgeKind { NONE, LOW, HIGH, RAIL }
 @export var armor: String = "none"
 ## Cost in credits to produce this entity.
 @export var cost: int = 0
-## Tech level required to build. -1 = always available, 0 = needs prerequisite, etc.
+## Tech level required to build: the house's current level must be at least
+## this. -1 = never buildable (original TS semantics).
 @export var tech_level: int = -1
 ## Sight range in cells — how far this entity can see on the map.
 @export var sight: int = 1

@@ -183,11 +183,7 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
             entity.add_to_group("entities")
 
     # Selection — selectable (single-click) and drag_selectable (box-select).
-    var is_unit := (
-        etype == EntityData.EntityType.INFANTRY
-        or etype == EntityData.EntityType.VEHICLE
-        or etype == EntityData.EntityType.AIRCRAFT
-    )
+    var is_unit := StatsComponent.is_unit_type(etype)
     if is_unit:
         entity.add_to_group("selectable")
         entity.add_to_group("drag_selectable")
@@ -409,10 +405,7 @@ func _add_voice_component(entity: Node3D, data: EntityData) -> void:
 func _add_vision_component(entity: Node3D, data: EntityData) -> void:
     var etype := data.entity_type
     var is_player_owned := (
-        etype == EntityData.EntityType.INFANTRY
-        or etype == EntityData.EntityType.VEHICLE
-        or etype == EntityData.EntityType.AIRCRAFT
-        or etype == EntityData.EntityType.BUILDING
+        StatsComponent.is_unit_type(etype) or etype == EntityData.EntityType.BUILDING
     )
     if data.sight > 0 and is_player_owned:
         var component := Node.new()

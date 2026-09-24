@@ -21,6 +21,7 @@ GameContext="*res://scripts/core/GameContext.gd" ; Must resolve the active game 
 FactionCatalog="*res://scripts/core/FactionCatalog.gd" ; Must load the active game's factions before PlayerManager reads the default roster
 CampaignCatalog="*res://scripts/core/CampaignCatalog.gd" ; Must load the active game's campaigns/missions before any mission boots
 PlayerManager="*res://scripts/core/PlayerManager.gd"
+VeterancySystem="*res://scripts/core/VeterancySystem.gd" ; Credits kills to trainable killers; watches HealthComponent death
 InputSettings="*res://scripts/core/InputSettings.gd" ; Must init before scene-loading autoloads that read input
 SelectionManager="*res://scripts/core/SelectionManager.gd"
 OrderSystem="*res://scripts/core/OrderSystem.gd"

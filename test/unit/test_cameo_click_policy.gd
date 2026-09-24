@@ -41,6 +41,7 @@ func _make_infantry() -> EntityData:
     data.build_time_mult = 5.0 / data.get_build_time()
     data.buildable_queue = "InfantryType"
     data.buildable = true
+    data.tech_level = 1
     return data
 
 
@@ -51,6 +52,7 @@ func _make_factory() -> EntityData:
     data.display_name = "Test Click Barracks"
     data.factory = "InfantryType"
     data.buildable = true
+    data.tech_level = 1
     return data
 
 
@@ -213,6 +215,7 @@ func _make_ready_building() -> EntityData:
     building.display_name = "Test Ready Building"
     building.buildable_queue = "BuildingType"
     building.buildable = true
+    building.tech_level = 1
     return building
 
 

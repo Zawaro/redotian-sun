@@ -9,6 +9,9 @@ class_name PlayerData extends Resource
 @export var display_name: String = ""
 @export var is_bot: bool = false
 
+## Current tech level for this player; build-list types above it are unavailable.
+var tech_level: int = 10
+
 ## Per-category stored resource value (e.g. "tiberium" -> 1000). Harvested
 ## deposits and refunds; subject to storage capacity. Single source of truth.
 var stored_by_category: Dictionary = {}

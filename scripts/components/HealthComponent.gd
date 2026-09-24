@@ -4,6 +4,8 @@ signal health_changed(new_health: int, old_health: int)
 signal damage_taken(damage_amount: int, damage_type: String)
 signal healed(heal_amount: int)
 signal health_zero
+## Emitted on death with the last recorded attacker (null when killerless).
+signal killed(killer: Node3D)
 
 @export_range(0, 65535) var max_health: int = 100
 @export_range(0, 65535) var current_health: int = 100:
@@ -13,6 +15,9 @@ signal health_zero
         if old_health != current_health:
             health_changed.emit(current_health, old_health)
 
+## Last entity to deal damage to this one, used for kill credit.
+var last_attacker: Node3D = null
+
 
 func configure(data: EntityData) -> void:
     if data.strength > 0:
@@ -20,18 +25,23 @@ func configure(data: EntityData) -> void:
         current_health = data.spawn_health if data.spawn_health > 0 else data.strength
 
 
-func take_damage(damage: int, damage_type: String = "") -> void:
-    if damage <= 0:
+func take_damage(damage: int, damage_type: String = "", source: Node3D = null) -> void:
+    if damage <= 0 or current_health <= 0:
         return
+    last_attacker = source
     var applied := _apply_veteran_armor(damage)
     current_health -= applied
     damage_taken.emit(applied, damage_type)
     if current_health <= 0:
         health_zero.emit()
+        killed.emit(last_attacker)
 
 
 func _apply_veteran_armor(damage: int) -> int:
-    var stats := get_parent().get_node_or_null("StatsComponent") as StatsComponent
+    var parent := get_parent()
+    if parent == null:
+        return damage
+    var stats := parent.get_node_or_null("StatsComponent") as StatsComponent
     if not stats or stats.veteran_level <= 0:
         return damage
     var rules := GlobalRules.get_current()
@@ -65,6 +75,11 @@ func reset_health() -> void:
         healed.emit(current_health - old_value)
 
 
-func kill() -> void:
+func kill(source: Node3D = null) -> void:
+    if current_health <= 0:
+        return
+    if source:
+        last_attacker = source
     current_health = 0
     health_zero.emit()
+    killed.emit(last_attacker)

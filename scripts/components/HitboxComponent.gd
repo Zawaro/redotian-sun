@@ -36,8 +36,9 @@ func receive_damage_source(node: Node3D) -> void:
         return
     var damage: int = info.get("amount", 0)
     var damage_type: String = info.get("type", "")
+    var attacker: Node3D = info.get("source", node) as Node3D
     if damage > 0:
-        health_component.take_damage(damage, damage_type)
+        health_component.take_damage(damage, damage_type, attacker)
         received_damage.emit(damage, damage_type, node)
 
 

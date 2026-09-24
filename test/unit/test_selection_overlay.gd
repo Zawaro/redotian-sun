@@ -399,6 +399,88 @@ func test_collect_entities_includes_selected_structure_with_power_label():
     cam.free()
 
 
+func _make_ranked_unit(veteran_level: int, player_id: int) -> Dictionary:
+    var entity := Node3D.new()
+    entity.position = Vector3(0, 0, -5)
+    entity.add_to_group("selectable")
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.veteran_level = veteran_level
+    stats.player_id = player_id
+    entity.add_child(stats)
+    var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    sc.name = "SelectComponent"
+    entity.add_child(sc)
+    _sm.add_child(entity)
+    return {"entity": entity, "select_comp": sc}
+
+
+func _collected_rank(overlay: Node, fixture: Dictionary) -> int:
+    _sm.add_entity(fixture["select_comp"] as SelectComponent)
+    overlay._entities.clear()
+    overlay._collect_entities()
+    if overlay._entities.is_empty():
+        return -1
+    return int(overlay._entities[0]["veteran_level"])
+
+
+func test_veteran_insignia_visible_for_local_player():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    _sm.deselect_all()
+    var fixture := _make_ranked_unit(1, pm.get_local_player_id())
+    var cam := _ensure_camera()
+    TestHelper.assert_eq(_collected_rank(overlay, fixture), 1, "local veteran rank is visible")
+    _sm.deselect_all()
+    fixture["entity"].free()
+    cam.free()
+
+
+func test_rookie_has_no_insignia():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    _sm.deselect_all()
+    var fixture := _make_ranked_unit(0, pm.get_local_player_id())
+    var cam := _ensure_camera()
+    TestHelper.assert_eq(_collected_rank(overlay, fixture), 0, "rookie shows no insignia")
+    _sm.deselect_all()
+    fixture["entity"].free()
+    cam.free()
+
+
+func test_enemy_rank_hidden():
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    var overlay := _overlay()
+    if overlay == null:
+        TestHelper.fail("SelectionOverlay autoload not present")
+        return
+    var pm := get_node_or_null("/root/PlayerManager")
+    pm._local_player_id = 0
+    pm.get_player_data(0).team_id = 1
+    pm.get_player_data(99).team_id = 2
+    _sm.deselect_all()
+    var fixture := _make_ranked_unit(2, 99)
+    var cam := _ensure_camera()
+    TestHelper.assert_eq(_collected_rank(overlay, fixture), 0, "enemy rank is hidden")
+    _sm.deselect_all()
+    fixture["entity"].free()
+    cam.free()
+
+
 func test_selected_structure_consumer_has_no_power_label():
     if _sm == null:
         TestHelper.fail("SelectionManager not injected")
