@@ -12,6 +12,7 @@ const OVERLAY_COLLISION := 2
 const OVERLAY_THEATER := 3
 const OVERLAY_GROUND := 4
 const OVERLAY_AXIS := 5
+const OVERLAY_SELECT := 6
 const OVERLAY_STATES: Array[int] = [
     OVERLAY_MESH,
     OVERLAY_FOOTPRINT,
@@ -250,6 +251,115 @@ func test_asset_is_grounded_at_world_origin():
         absf(merged.position.y) < 0.05,
         "lowest mesh point sits at world y=0 (got %s)" % merged.position.y
     )
+    TestHelper.assert_true(
+        absf(merged.position.x) < 0.05 and absf(merged.position.z) < 0.05,
+        "object min corner sits at world origin (got %s)" % merged.position
+    )
+    _finish()
+
+
+func test_camera_zoom_survives_asset_change():
+    if not _ensure_scene():
+        _finish()
+        return
+    _controller.select_category(0)
+    _controller.select_asset(0)
+    _controller.set_camera_mode(CAM_ISOMETRIC)
+    _controller.zoom(-10000.0)
+    var zoom0: float = _controller.get_ortho_size()
+    TestHelper.assert_true(zoom0 <= 1.01, "user zoom applied")
+    _controller.select_asset(1 if _controller.get_asset_count() > 1 else 0)
+    TestHelper.assert_true(
+        is_equal_approx(_controller.get_ortho_size(), zoom0),
+        "ortho zoom preserved across asset change (got %s)" % _controller.get_ortho_size()
+    )
+    _finish()
+
+
+func test_reset_rotation_returns_to_base_yaw():
+    if not _ensure_scene():
+        _finish()
+        return
+    _controller.select_category(0)
+    _controller.select_asset(0)
+    _controller.set_auto_rotate(false)
+    _controller.set_camera_mode(CAM_ISOMETRIC)
+    var base_yaw: float = _controller.get_yaw_degrees()
+    _controller.rotate_step(90.0)
+    _controller.rotate_free(0.0, 30.0)
+    _controller.reset_rotation()
+    TestHelper.assert_true(is_zero_approx(_controller.get_pitch_degrees()), "reset clears pitch")
+    var after := wrapf(_controller.get_yaw_degrees() - base_yaw, -180.0, 180.0)
+    TestHelper.assert_true(absf(after) < 0.01, "reset returns to base yaw (delta %s)" % after)
+    _finish()
+
+
+func test_theater_selector_lists_theaters():
+    if not _ensure_scene():
+        _finish()
+        return
+    TestHelper.assert_true(_controller._theater_option != null, "theater selector exists")
+    TestHelper.assert_true(
+        _controller._theater_option.item_count >= 1, "at least one theater listed"
+    )
+    _finish()
+
+
+func test_building_shows_select_and_health_preview():
+    if not _ensure_scene():
+        _finish()
+        return
+    var buildings_idx := -1
+    for i in _controller.get_category_count():
+        if _controller.get_category_label(i) == "Buildings":
+            buildings_idx = i
+            break
+    TestHelper.assert_true(buildings_idx >= 0, "Buildings category exists")
+    if buildings_idx < 0:
+        _finish()
+        return
+    _controller.select_category(buildings_idx)
+    TestHelper.assert_true(_controller.get_asset_count() > 0, "buildings populated")
+    _controller.select_asset(0)
+    _controller.set_overlay(OVERLAY_SELECT, true)
+    var sel: Node3D = _controller.get_overlay_node(OVERLAY_SELECT)
+    TestHelper.assert_true(sel != null, "select preview node exists")
+    TestHelper.assert_true(sel != null and sel.visible, "select preview visible")
+    TestHelper.assert_true(
+        _controller._health_bar_mesh != null and _controller._health_bar_mesh.visible,
+        "health bar preview visible"
+    )
+    # Health bar sits at the top of the select box (gameplay structure bar),
+    # long axis along Z after -90° yaw — not a free-floating mid-air slab.
+    var bar: MeshInstance3D = _controller._health_bar_mesh
+    TestHelper.assert_true(absf(bar.rotation_degrees.y + 90.0) < 0.1, "bar yawed -90 like gameplay")
+    var root: Node3D = _controller.get_object_root()
+    var boxes: Array[AABB] = []
+    _controller._collect_bounds(bar, bar.transform, boxes)
+    TestHelper.assert_true(not boxes.is_empty(), "health bar has bounds")
+    if not boxes.is_empty() and _controller._select_mesh != null:
+        var select_boxes: Array[AABB] = []
+        _controller._collect_bounds(
+            _controller._select_mesh, _controller._select_mesh.transform, select_boxes
+        )
+        TestHelper.assert_true(not select_boxes.is_empty(), "select box has bounds")
+        if not select_boxes.is_empty():
+            var select_top := select_boxes[0].end.y
+            var bar_top := boxes[0].end.y
+            TestHelper.assert_true(
+                absf(bar_top - select_top) < 0.5,
+                (
+                    "health bar top aligns with select box top (bar %s vs select %s)"
+                    % [bar_top, select_top]
+                )
+            )
+            TestHelper.assert_true(
+                boxes[0].position.y > root.position.y - 1.0,
+                (
+                    "health bar not below ground/local mid (y=%s root=%s)"
+                    % [boxes[0].position.y, root.position.y]
+                )
+            )
     _finish()
 
 

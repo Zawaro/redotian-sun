@@ -33,6 +33,7 @@ const OVERLAY_COLLISION := 2
 const OVERLAY_THEATER := 3
 const OVERLAY_GROUND := 4
 const OVERLAY_AXIS := 5
+const OVERLAY_SELECT := 6
 const _OVERLAY_NAMES := {
     OVERLAY_MESH: "Mesh",
     OVERLAY_FOOTPRINT: "Footprint",
@@ -40,6 +41,7 @@ const _OVERLAY_NAMES := {
     OVERLAY_THEATER: "Theater",
     OVERLAY_GROUND: "Ground",
     OVERLAY_AXIS: "Axis",
+    OVERLAY_SELECT: "Select",
 }
 
 ## Category registry. Each row: label, source dirs under each data_set root
@@ -138,6 +140,9 @@ var _base_yaw_deg := 0.0
 var _ortho_size := 20.0
 var _distance := 12.0
 var _auto_rotate := false
+## Zoom is computed once (and on projection toggle), not on every asset change.
+var _zoom_initialized := false
+var _entity_data: EntityData = null
 
 var _overlay_states: Dictionary = {
     OVERLAY_MESH: true,
@@ -146,6 +151,7 @@ var _overlay_states: Dictionary = {
     OVERLAY_THEATER: false,
     OVERLAY_GROUND: false,
     OVERLAY_AXIS: true,
+    OVERLAY_SELECT: true,
 }
 var _overlay_focus := OVERLAY_MESH
 
@@ -165,6 +171,8 @@ var _fog_was_enabled := true
 var _preview_bounds := AABB()
 var _object_center := Vector3.ZERO
 var _terrain_min_height := 0
+## Local Y of world ground (y=0) under ObjectRoot after placement/centering.
+var _local_ground_y := 0.0
 
 var _visual_node: Node3D = null
 var _footprint_mesh: MeshInstance3D = null
@@ -173,6 +181,8 @@ var _theater_label: Label3D = null
 var _ground_mesh: MeshInstance3D = null
 var _axis_mesh: MeshInstance3D = null
 var _highlight_mesh: MeshInstance3D = null
+var _select_mesh: MeshInstance3D = null
+var _health_bar_mesh: MeshInstance3D = null
 
 var _hud: CanvasLayer = null
 var _game_option: OptionButton = null
@@ -191,6 +201,8 @@ var _audio_label: Label = null
 var _play_button: Button = null
 var _stop_button: Button = null
 var _auto_button: CheckButton = null
+var _reset_rot_button: Button = null
+var _theater_option: OptionButton = null
 
 
 func _ready() -> void:
@@ -211,6 +223,7 @@ func _ready() -> void:
     _build_world_overlays()
     _build_hud()
     _rebuild_games()
+    _rebuild_theaters()
     _rebuild_categories()
     _apply_camera_transform()
 
@@ -373,6 +386,7 @@ func get_overlay_node(state: int) -> Node3D:
         OVERLAY_THEATER: _theater_label,
         OVERLAY_GROUND: _ground_mesh,
         OVERLAY_AXIS: _axis_mesh,
+        OVERLAY_SELECT: _select_mesh,
     }
     var node: Node3D = nodes.get(state, null)
     return node
@@ -436,6 +450,13 @@ func rotate_step(degrees: float) -> void:
     _apply_object_transform()
 
 
+## Snap the asset back to its authored base yaw (and clear pitch).
+func reset_rotation() -> void:
+    _object_yaw = deg_to_rad(_base_yaw_deg)
+    _object_pitch = 0.0
+    _apply_object_transform()
+
+
 ## Free-rotation entry point: yaw always applies; pitch only in perspective mode.
 ## Isometric keeps the asset upright (Y-only), matching the gameplay view.
 func rotate_free(delta_yaw_deg: float, delta_pitch_deg: float) -> void:
@@ -452,7 +473,9 @@ func set_camera_mode(mode: int) -> void:
     if is_isometric():
         _object_pitch = 0.0
         _apply_object_transform()
-    _frame_camera()
+    _compute_default_zoom()
+    _zoom_initialized = true
+    _apply_camera_transform()
     _sync_camera_button()
 
 
@@ -505,6 +528,7 @@ func is_audio_playing() -> bool:
 func _on_game_changed(_def: GameDefinition) -> void:
     _glb_mesh_cache.clear()
     _rebuild_games()
+    _rebuild_theaters()
     _rebuild_categories()
 
 
@@ -520,6 +544,39 @@ func _rebuild_games() -> void:
         if GameContext.current != null and def.id == GameContext.current.id:
             _game_option.select(i)
     _game_option.disabled = games.size() <= 1
+
+
+func _rebuild_theaters() -> void:
+    if _theater_option == null:
+        return
+    _theater_option.clear()
+    var theaters := TerrainCatalog.get_all_theaters()
+    var ids: Array[String] = []
+    for id in theaters:
+        ids.append(String(id))
+    ids.sort()
+    var active := TerrainCatalog.get_active_theater_id()
+    var active_idx := 0
+    for i in ids.size():
+        var th: TheaterData = theaters[ids[i]]
+        var label := th.display_name if not th.display_name.is_empty() else th.id
+        _theater_option.add_item("%s (%s)" % [label, th.id], i)
+        _theater_option.set_item_metadata(i, th.id)
+        if th.id == active:
+            active_idx = i
+    if _theater_option.item_count > 0:
+        _theater_option.select(active_idx)
+    _theater_option.disabled = _theater_option.item_count <= 1
+
+
+func _on_theater_selected(index: int) -> void:
+    if _theater_option == null:
+        return
+    var id := str(_theater_option.get_item_metadata(index))
+    if id.is_empty() or id == TerrainCatalog.get_active_theater_id():
+        return
+    TerrainCatalog.set_active_theater(id)
+    _refresh_asset()
 
 
 func _rebuild_categories() -> void:
@@ -744,6 +801,7 @@ func _preview_model(path: String) -> void:
     var placeholder := Vector3.ZERO
     if res is EntityData:
         var data := res as EntityData
+        _entity_data = data
         _foundation = data.foundation
         if data.art_data != null:
             model_path = data.art_data.model_path
@@ -936,18 +994,33 @@ func _finalize_object() -> void:
     if _preview_bounds.size == Vector3.ZERO:
         _object_center = Vector3.ZERO
     _center_object_children(_object_center)
-    # Children are now centered on the root origin; lift so the AABB's lowest
-    # point sits at world y=0 (ground grid). Rotation about the root stays
-    # rotation about the bounds center.
-    var ground_y := _preview_bounds.size.y * 0.5 if _preview_bounds.size != Vector3.ZERO else 0.0
-    _object_root.position = Vector3(0.0, ground_y, 0.0)
+    # Buildings sit on foundation center in gameplay (cell_origin_to_world);
+    # put that center at (fw/2, ·, fh/2) so the foundation spans world 0..fw.
+    # Other assets keep AABB-min at the origin. Y always grounds AABB min at 0.
+    # Children stay centered so root rotation pivots on the bounds center.
+    var size := _preview_bounds.size
+    var root := Vector3.ZERO
+    if size != Vector3.ZERO:
+        root.y = size.y * 0.5
+        if _entity_data != null and _foundation.x > 0 and _foundation.y > 0:
+            root.x = float(_foundation.x) * CellUtil.CELL_SIZE * 0.5
+            root.z = float(_foundation.y) * CellUtil.CELL_SIZE * 0.5
+        else:
+            root.x = size.x * 0.5
+            root.z = size.z * 0.5
+    _object_root.position = root
+    _local_ground_y = -root.y
     _object_yaw = deg_to_rad(_base_yaw_deg)
     _object_pitch = 0.0
     _apply_object_transform()
     _build_object_overlays()
     _world_overlays.visible = true
     _update_overlay_visibility()
-    _frame_camera()
+    # Keep the user's zoom across asset changes; frame only the first time.
+    if not _zoom_initialized:
+        _compute_default_zoom()
+        _zoom_initialized = true
+    _apply_camera_transform()
 
 
 func _center_object_children(center: Vector3) -> void:
@@ -968,12 +1041,12 @@ func _object_bounds() -> AABB:
 
 
 func _collect_bounds(node: Node, xform: Transform3D, out: Array[AABB]) -> void:
+    if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+        out.append(_transformed_aabb((node as MeshInstance3D).mesh.get_aabb(), xform))
     for child in node.get_children():
         var child_xform := xform
         if child is Node3D:
             child_xform = xform * (child as Node3D).transform
-        if child is MeshInstance3D and (child as MeshInstance3D).mesh != null:
-            out.append(_transformed_aabb((child as MeshInstance3D).mesh.get_aabb(), child_xform))
         _collect_bounds(child, child_xform, out)
 
 
@@ -1004,7 +1077,7 @@ func _ortho_camera_distance() -> float:
     return clampf(span * 2.0 + 50.0, 50.0, 400.0)
 
 
-func _frame_camera() -> void:
+func _compute_default_zoom() -> void:
     var radius := maxf(_preview_bounds.size.length() * 0.5, 0.5)
     if is_isometric():
         _ortho_size = clampf(2.0 * radius * 1.6, MIN_ORTHO_SIZE, MAX_ORTHO_SIZE)
@@ -1013,7 +1086,6 @@ func _frame_camera() -> void:
         _distance = clampf(
             radius / maxf(tan(half_fov), 0.01) * 1.6, MIN_ZOOM_DISTANCE, MAX_ZOOM_DISTANCE
         )
-    _apply_camera_transform()
 
 
 func _apply_camera_transform() -> void:
@@ -1039,13 +1111,21 @@ func _build_object_overlays() -> void:
     _build_footprint_overlay()
     _build_collision_overlay()
     _build_theater_overlay()
+    _build_select_preview()
     _apply_overlay_offset()
 
 
 func _apply_overlay_offset() -> void:
-    for node in [_footprint_mesh, _collision_mesh, _highlight_mesh]:
+    # Collision/highlight and terrain cell footprint are authored in pre-center
+    # space; shift them into the centered root. Foundation and select preview
+    # are already authored centered on the root (position stays zero).
+    for node in [_collision_mesh, _highlight_mesh]:
         if node != null:
             node.position = -_object_center
+    if _terrain_object != null and _footprint_mesh != null:
+        _footprint_mesh.position = -_object_center
+    elif _footprint_mesh != null:
+        _footprint_mesh.position = Vector3.ZERO
 
 
 func _build_footprint_overlay() -> void:
@@ -1114,17 +1194,20 @@ func _build_foundation_footprint() -> void:
     var cs := CellUtil.CELL_SIZE
     var sx := float(_foundation.x) * cs
     var sz := float(_foundation.y) * cs
+    var hx := sx * 0.5
+    var hz := sz * 0.5
+    var y := _local_ground_y + 0.02
     var immesh := ImmediateMesh.new()
     var mat := _line_material("browser_footprint", Color(0.0, 1.0, 1.0, 1.0))
     immesh.surface_begin(Mesh.PRIMITIVE_LINES, mat)
     for i in _foundation.x + 1:
-        var x := float(i) * cs
-        immesh.surface_add_vertex(Vector3(x, 0.02, 0.0))
-        immesh.surface_add_vertex(Vector3(x, 0.02, sz))
+        var x := -hx + float(i) * cs
+        immesh.surface_add_vertex(Vector3(x, y, -hz))
+        immesh.surface_add_vertex(Vector3(x, y, hz))
     for j in _foundation.y + 1:
-        var z := float(j) * cs
-        immesh.surface_add_vertex(Vector3(0.0, 0.02, z))
-        immesh.surface_add_vertex(Vector3(sx, 0.02, z))
+        var z := -hz + float(j) * cs
+        immesh.surface_add_vertex(Vector3(-hx, y, z))
+        immesh.surface_add_vertex(Vector3(hx, y, z))
     immesh.surface_end()
     var mi := MeshInstance3D.new()
     mi.name = "FoundationGrid"
@@ -1186,26 +1269,142 @@ func _build_theater_overlay() -> void:
     label.font_size = 64
     label.no_depth_test = true
     label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-    label.position = Vector3(0.0, _preview_bounds.size.y * 0.5 + 1.5, 0.0)
+    label.position = Vector3(0.0, _local_ground_y + _preview_bounds.size.y + 1.5, 0.0)
     _object_root.add_child(label)
     _theater_label = label
 
 
 func _context_label_text() -> String:
+    var theater := TerrainCatalog.get_active_theater_id()
     if _terrain_object != null:
-        var theater := TerrainCatalog.get_active_theater_id()
         return "%s\nTheater: %s" % [_terrain_object.id, theater]
-    return current_asset_id()
+    if _entity_data != null:
+        return "%s\nTheater: %s" % [_entity_data.id, theater]
+    return "%s\nTheater: %s" % [current_asset_id(), theater]
+
+
+## Selection outline + full health-bar preview for building/unit entities —
+## Mirrors SelectComponent: structure brackets + segmented health bar along Z
+## at the top-left of the select box (same axes/rotation as gameplay).
+func _build_select_preview() -> void:
+    if _entity_data == null:
+        return
+    var etype := _entity_data.entity_type
+    if (
+        etype == EntityData.EntityType.TERRAIN
+        or etype == EntityData.EntityType.OVERLAY
+        or etype == EntityData.EntityType.SMUDGE
+    ):
+        return
+    var box := _select_box_size()
+    if box == Vector3.ZERO:
+        return
+    var min_y := _local_ground_y + 0.01
+    var max_y := _local_ground_y + box.y
+    _select_mesh = MeshInstance3D.new()
+    _select_mesh.name = "SelectPreview"
+    _select_mesh.mesh = _build_select_box_mesh(box, min_y, max_y)
+    _select_mesh.material_override = _line_material("browser_select", Color.WHITE)
+    _select_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    _object_root.add_child(_select_mesh)
+
+    if etype != EntityData.EntityType.BUILDING:
+        return
+    _health_bar_mesh = _build_structure_health_bar(box, max_y)
+    if _health_bar_mesh != null:
+        _object_root.add_child(_health_bar_mesh)
+
+
+func _select_box_size() -> Vector3:
+    if _entity_data != null and _entity_data.entity_type == EntityData.EntityType.BUILDING:
+        return Vector3(
+            float(_foundation.x) * CellUtil.CELL_SIZE,
+            maxf(_entity_data.height, 1.0),
+            float(_foundation.y) * CellUtil.CELL_SIZE,
+        )
+    if _preview_bounds.size != Vector3.ZERO:
+        var s := _preview_bounds.size
+        return Vector3(maxf(s.x, 1.0), maxf(s.y, 1.0), maxf(s.z, 1.0))
+    return Vector3.ZERO
+
+
+## Gameplay structure select box: corner feet + top L-brackets (SelectComponent).
+## Y range is ground-relative (min_y..max_y in local ObjectRoot space).
+func _build_select_box_mesh(box: Vector3, min_y: float, max_y: float) -> ImmediateMesh:
+    var hx := box.x * 0.5
+    var hz := box.z * 0.5
+    var x_len := minf(box.x * 0.25, 1.0)
+    var y_len := minf(box.y * 0.25, 0.5)
+    var z_len := minf(box.z * 0.25, 1.0)
+    var corners := [
+        Vector3(-hx, min_y, -hz),
+        Vector3(hx, min_y, -hz),
+        Vector3(-hx, min_y, hz),
+        Vector3(hx, min_y, hz),
+    ]
+    var immesh := ImmediateMesh.new()
+    immesh.surface_begin(Mesh.PRIMITIVE_LINES)
+    for c: Vector3 in corners:
+        var sx := 1.0 if c.x < 0.0 else -1.0
+        var sz := 1.0 if c.z < 0.0 else -1.0
+        var foot := [
+            [c, c + Vector3(0, y_len, 0)],
+            [c, c + Vector3(sx * x_len, 0, 0)],
+            [c, c + Vector3(0, 0, sz * z_len)],
+        ]
+        for pair in foot:
+            immesh.surface_add_vertex(pair[0])
+            immesh.surface_add_vertex(pair[1])
+        var top := Vector3(c.x, max_y, c.z)
+        var top_pairs := [
+            [top, top + Vector3(0, -y_len, 0)],
+            [top, top + Vector3(sx * x_len, 0, 0)],
+            [top, top + Vector3(0, 0, sz * z_len)],
+        ]
+        for pair in top_pairs:
+            immesh.surface_add_vertex(pair[0])
+            immesh.surface_add_vertex(pair[1])
+    immesh.surface_end()
+    return immesh
+
+
+## Structure health bar exactly as SelectComponent._build_segmented_bar(span_is_x=false):
+## full-depth span along Z, cross-section at the left edge, Y at the select-box top,
+## fill BoxMesh rotated -90° about Y so its long axis follows Z.
+func _build_structure_health_bar(box: Vector3, max_y: float) -> MeshInstance3D:
+    const CUBE := 0.33333333
+    var hx := box.x * 0.5
+    var hz := box.z * 0.5
+    var y_lo := max_y - CUBE
+    var y_hi := max_y
+    var length := box.z
+    var fill := MeshInstance3D.new()
+    fill.name = "HealthBarPreview"
+    fill.mesh = BoxMesh.new()
+    fill.scale = Vector3(maxf(length, 0.001), CUBE - 0.02, CUBE - 0.02)
+    fill.position = Vector3(-hx + CUBE * 0.5, (y_lo + y_hi) * 0.5, -hz + length * 0.5)
+    fill.rotation_degrees.y = -90.0
+    var mat := ORMMaterial3D.new()
+    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    mat.albedo_color = Color.GREEN
+    fill.material_override = mat
+    fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    return fill
 
 
 func _update_overlay_visibility() -> void:
     if _object_root == null:
         return
     var is_3d := _current_mode == MODE_MODEL or _current_mode == MODE_TERRAIN
-    for state in [OVERLAY_MESH, OVERLAY_FOOTPRINT, OVERLAY_COLLISION, OVERLAY_THEATER]:
+    for state in [
+        OVERLAY_MESH, OVERLAY_FOOTPRINT, OVERLAY_COLLISION, OVERLAY_THEATER, OVERLAY_SELECT
+    ]:
         var node := get_overlay_node(state)
         if node != null:
-            node.visible = is_3d and get_overlay(state)
+            var on := is_3d and get_overlay(state)
+            if state == OVERLAY_SELECT and _health_bar_mesh != null:
+                _health_bar_mesh.visible = on
+            node.visible = on
     for state in [OVERLAY_GROUND, OVERLAY_AXIS]:
         var node := get_overlay_node(state)
         if node != null:
@@ -1339,7 +1538,9 @@ func _clear_object_root() -> void:
     _object_root.rotation = Vector3.ZERO
     _preview_bounds = AABB()
     _object_center = Vector3.ZERO
+    _local_ground_y = 0.0
     _terrain_object = null
+    _entity_data = null
     _foundation = Vector2i.ZERO
     _base_yaw_deg = 0.0
     _visual_node = null
@@ -1347,6 +1548,8 @@ func _clear_object_root() -> void:
     _collision_mesh = null
     _theater_label = null
     _highlight_mesh = null
+    _select_mesh = null
+    _health_bar_mesh = null
 
 
 func _hide_all_previews() -> void:
@@ -1530,6 +1733,17 @@ func _build_hud() -> void:
     _auto_button.toggled.connect(func(on: bool) -> void: _auto_rotate = on)
     top.add_child(_auto_button)
 
+    _reset_rot_button = Button.new()
+    _reset_rot_button.text = "Reset Rot"
+    _reset_rot_button.tooltip_text = "Reset asset rotation to authored facing"
+    _reset_rot_button.pressed.connect(reset_rotation)
+    top.add_child(_reset_rot_button)
+
+    _theater_option = OptionButton.new()
+    _theater_option.tooltip_text = "Active theater (terrain art)"
+    _theater_option.item_selected.connect(_on_theater_selected)
+    top.add_child(_theater_option)
+
     _build_overlay_hud()
 
     _message_label = Label.new()
@@ -1631,7 +1845,8 @@ func _build_overlay_hud() -> void:
         OVERLAY_COLLISION,
         OVERLAY_THEATER,
         OVERLAY_GROUND,
-        OVERLAY_AXIS
+        OVERLAY_AXIS,
+        OVERLAY_SELECT
     ]:
         var cb := CheckButton.new()
         cb.text = String(_OVERLAY_NAMES[state])
