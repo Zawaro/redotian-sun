@@ -18,17 +18,26 @@ func get_cursor(
     var cursor := CursorState.Type.DEFAULT
     var sm := _get_selection_manager()
     if sm and not sm.selected_entities.is_empty():
+        # Non-local (enemy) selections are viewing-only: no command cursors and no
+        # orders. A selectable, not-yet-selected target still shows SELECT so the
+        # player can click to re-select (TS ACTION_SELECT on a hovered selectable);
+        # everything else (ground, the selected enemy itself) is DEFAULT.
+        var locals := _local_selection(sm)
+        if locals.is_empty():
+            if target and target.is_in_group("selectable") and not _is_already_selected(target, sm):
+                return CursorState.Type.SELECT
+            return CursorState.Type.DEFAULT
         if not target:
             if _has_undeployable(sm):
                 var result := OrderResolver.resolve_single(
-                    sm.selected_entities, target, target_cell, target_pos, modifiers
+                    locals, target, target_cell, target_pos, modifiers
                 )
                 cursor = result.cursor if result else CursorState.Type.MOVE
             elif _has_movable(sm):
                 cursor = CursorState.Type.MOVE
         else:
             var result: OrderResult = OrderResolver.resolve_single(
-                sm.selected_entities, target, target_cell, target_pos, modifiers
+                locals, target, target_cell, target_pos, modifiers
             )
             if result:
                 cursor = result.cursor
@@ -55,13 +64,14 @@ func get_orders(
     var sm := _get_selection_manager()
     if not sm or sm.selected_entities.is_empty():
         return []
+    var locals := _local_selection(sm)
+    if locals.is_empty():
+        return []
     var result: Array[OrderResult] = []
     var target_level: int = int(modifiers.get(OrderResult.MOD_TARGET_LEVEL, 0))
     if not target:
         if _has_undeployable(sm):
-            result = OrderResolver.resolve_all(
-                sm.selected_entities, target, target_cell, target_pos, modifiers
-            )
+            result = OrderResolver.resolve_all(locals, target, target_cell, target_pos, modifiers)
         elif _has_movable(sm):
             var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
             var move_order := OrderResult.new(
@@ -75,9 +85,7 @@ func get_orders(
             move_order.target_level = target_level
             result = [move_order]
     else:
-        result = OrderResolver.resolve_all(
-            sm.selected_entities, target, target_cell, target_pos, modifiers
-        )
+        result = OrderResolver.resolve_all(locals, target, target_cell, target_pos, modifiers)
         if result.is_empty() and _is_already_selected(target, sm):
             if target.get_node_or_null("MovementController"):
                 var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
@@ -92,6 +100,22 @@ func get_orders(
                 move_order.target_level = target_level
                 result = [move_order]
     return result
+
+
+## Selected entities owned by the local player (missing StatsComponent or
+## player_id < 0 counts as local, matching `_is_local_entity`). Non-local (enemy)
+## entities contribute no cursor or orders — selecting one is viewing only.
+func _local_selection(sm: SelectionManager) -> Array[SelectComponent]:
+    var locals: Array[SelectComponent] = []
+    for sc in sm.selected_entities:
+        if not is_instance_valid(sc):
+            continue
+        var entity := sc.get_parent() as Node3D
+        if not is_instance_valid(entity):
+            continue
+        if _is_local_entity(entity):
+            locals.append(sc)
+    return locals
 
 
 func _has_undeployable(sm: SelectionManager) -> bool:
@@ -125,10 +149,7 @@ func _has_movable(sm: SelectionManager) -> bool:
 
 
 func _is_local_entity(entity: Node3D) -> bool:
-    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
-    if not stats:
-        return true
-    return stats.player_id < 0 or stats.player_id == PlayerManager.get_local_player_id()
+    return PlayerManager.is_entity_local(entity, PlayerManager.get_local_player_id())
 
 
 func _is_enemy(target: Node3D) -> bool:

@@ -45,11 +45,28 @@ func select_entity(entity: SelectComponent, shift_pressed: bool = false):
         return
 
     if shift_pressed:
+        clear_incompatible_selection(entity)
         add_entity(entity)
     else:
         deselect_all()
         add_entity(entity)
     _play_select_voice(entity)
+
+
+## Reference rule (TS `ObjectClass::Select`): a selection never mixes local and
+## non-local owners. Clear when the current head and the incoming entity are not
+## both local — adding an enemy wipes the player's units, and adding a unit wipes
+## a selected enemy. Enemy selection is therefore always a single entity.
+func clear_incompatible_selection(entity: SelectComponent) -> void:
+    if selected_entities.is_empty():
+        return
+    var head := selected_entities[0]
+    if not is_instance_valid(head) or not is_instance_valid(entity):
+        return
+    var head_parent := head.get_parent() as Node3D
+    var new_parent := entity.get_parent() as Node3D
+    if not (_is_local_entity_node(head_parent) and _is_local_entity_node(new_parent)):
+        deselect_all()
 
 
 func deselect_entity(entity: SelectComponent):
@@ -144,12 +161,7 @@ func _is_local_unit(entity: Node3D) -> bool:
 
 
 func _is_local_entity_node(entity: Node3D) -> bool:
-    if not is_instance_valid(entity):
-        return false
-    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
-    if not stats:
-        return true
-    return stats.player_id < 0 or stats.player_id == PlayerManager.get_local_player_id()
+    return PlayerManager.is_entity_local(entity, PlayerManager.get_local_player_id())
 
 
 func remove_entity(entity: SelectComponent):

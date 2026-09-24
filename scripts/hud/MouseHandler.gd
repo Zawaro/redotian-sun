@@ -60,6 +60,40 @@ func _notification(what: int) -> void:
         _skip_input_frames = 2
 
 
+## Applies the deploy (Ctrl+D) or stop (Ctrl+S) hotkey to the selection. Non-local
+## (enemy) entities are skipped: hotkeys must never command an enemy (issue #166),
+## matching the order funnel's ownership filter. Extracted for testability.
+func apply_selection_hotkey(is_stop: bool) -> void:
+    if not selection_manager:
+        return
+    var local_id := PlayerManager.get_local_player_id()
+    for sc in selection_manager.selected_entities:
+        if not is_instance_valid(sc):
+            continue
+        var entity := sc.get_parent() as Node3D
+        if not PlayerManager.is_entity_local(entity, local_id):
+            continue
+        var transport := entity.get_node_or_null("TransportComponent") as TransportComponent
+        if not is_stop:
+            var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
+            if deploy and deploy.can_deploy():
+                deploy.execute_deploy(entity)
+            if transport:
+                transport.execute_unload()
+        else:
+            var harvest := entity.get_node_or_null("HarvestComponent") as HarvestComponent
+            if harvest:
+                harvest.cancel_harvest(true)
+            if transport:
+                transport.cancel_unload()
+            var mc := entity.get_node_or_null("MovementController") as MovementController
+            if mc:
+                mc.stop()
+    if is_stop:
+        selection_manager._pending_moves.clear()
+        selection_manager._pending_index = 0
+
+
 # Poll input directly (like CameraController.gd) instead of using _input().
 # This is required because Control nodes embedded under Node3D root don't receive
 # _input() events without focus in Play Scene mode. The Input singleton polls OS-level state
@@ -85,33 +119,7 @@ func _process(_delta):
 
     # Deploy hotkey (Ctrl+D) or Stop hotkey (Ctrl+S) — above _skip_release so hotkeys always work.
     if Input.is_action_just_pressed("deploy") or Input.is_action_just_pressed("stop"):
-        if selection_manager:
-            var is_stop := Input.is_action_just_pressed("stop")
-            for sc in selection_manager.selected_entities:
-                if not is_instance_valid(sc):
-                    continue
-                var entity := sc.get_parent() as Node3D
-                if not is_instance_valid(entity):
-                    continue
-                var transport := entity.get_node_or_null("TransportComponent") as TransportComponent
-                if Input.is_action_just_pressed("deploy"):
-                    var deploy := entity.get_node_or_null("DeployComponent") as DeployComponent
-                    if deploy and deploy.can_deploy():
-                        deploy.execute_deploy(entity)
-                    if transport:
-                        transport.execute_unload()
-                else:
-                    var harvest := entity.get_node_or_null("HarvestComponent") as HarvestComponent
-                    if harvest:
-                        harvest.cancel_harvest(true)
-                    if transport:
-                        transport.cancel_unload()
-                    var mc := entity.get_node_or_null("MovementController") as MovementController
-                    if mc:
-                        mc.stop()
-            if is_stop:
-                selection_manager._pending_moves.clear()
-                selection_manager._pending_index = 0
+        apply_selection_hotkey(Input.is_action_just_pressed("stop"))
         return
 
     # Skip input while the unpause debounce or a mode-exit release-suppression
@@ -275,16 +283,10 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
         if already_selected or not select_comp:
             _try_execute_orders(target, target_cell, target_pos, modifiers)
             return
-        # Unselected entity while we have a selection — enemy? skip select, go to orders
-        if selection_manager and not selection_manager.selected_entities.is_empty():
-            var stats := target.get_node_or_null("StatsComponent") as StatsComponent
-            if stats and stats.player_id >= 0:
-                var local_id := PlayerManager.get_local_player_id()
-                if PlayerManager.is_enemy(stats.player_id, local_id):
-                    if _try_execute_orders(target, target_cell, target_pos, modifiers):
-                        return
-        # Friendly/neutral unselected — try orders (dock/harvest) before selecting;
-        # only select when no order applies. Shift+click keeps forced selection.
+        # Unselected entity — try orders (attack/dock/harvest) before selecting;
+        # only select when no order applies (enemy and friendly alike, so a
+        # shift+click selects rather than queueing an attack). SelectionManager
+        # clears cross-ownership mixes.
         if select_comp and selection_manager:
             if not shift_pressed:
                 if _try_execute_orders(target, target_cell, target_pos, modifiers):
@@ -401,6 +403,7 @@ func _select_entities_2d_projected(rect: Rect2):
 
         if rect.has_point(camera.unproject_position(select_component.global_position)):
             if not selection_manager.is_entity_selected(select_component):
+                selection_manager.clear_incompatible_selection(select_component)
                 selection_manager.add_entity(select_component)
                 newly_added.append(select_component)
     # C&C: one select voice for the whole box event (NW-most unit), not one per unit.
