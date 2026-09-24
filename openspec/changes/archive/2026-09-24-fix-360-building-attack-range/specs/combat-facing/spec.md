@@ -1,21 +1,4 @@
-## Purpose
-
-Combat engagement aligns the attacker to its target before firing: mobile turretless units slew the whole body via `face_toward`, buildings and immobile entities are exempt, and rotatable turret mounts (see the `turrets` capability) aim independently while the body holds course.
-## Requirements
-### Requirement: MovementController exposes body-facing API
-MovementController SHALL expose `face_toward(target_pos: Vector3, delta: float) -> bool`, which slews the entity body toward a world position and reports alignment. Desired yaw SHALL be computed from the XZ direction to `target_pos` (Y ignored). For `instant_turn` locomotors the body SHALL snap via `_apply_facing` and return aligned immediately. Otherwise the yaw SHALL advance toward the desired yaw by at most `deg_to_rad(rotation_speed) * delta` using the `angle_difference` step idiom, applied through `_apply_facing`, and return true only when `abs(angle_difference(current_yaw, desired_yaw)) <= rotation_angle_threshold`. The method SHALL NOT touch `_waypoints`, issue moves, or emit `movement_started` / `arrived` / `pathfinding_failed`.
-
-#### Scenario: Instant-turn unit snaps
-- **WHEN** `face_toward` is called on a Foot-locomotor unit facing away from the target position
-- **THEN** the body yaw points at the target position and the method returns true in the same call
-
-#### Scenario: Vehicle slews at rotation speed
-- **WHEN** `face_toward` is called on a Track-locomotor unit 90 degrees off target with `rotation_speed = 180.0`
-- **THEN** one call with `delta = 0.25` advances yaw by 45 degrees and returns false, and repeated calls converge to aligned within `rotation_angle_threshold`
-
-#### Scenario: No signals or waypoints touched
-- **WHEN** `face_toward` runs on an idle unit
-- **THEN** no `movement_started` signal is emitted and the unit's waypoint state is unchanged
+## MODIFIED Requirements
 
 ### Requirement: Combat engagement gates firing behind facing
 Weapons mounted on a `yaw_free` turret socket (per the `turrets` capability) SHALL NOT require the whole body to face the target: CombatComponent SHALL slew the turret toward the target each physics tick and hold fire until the turret is within its angle threshold, and SHALL allow firing while the body is driving a `MOVING` / `ROTATING` leg because movement does not affect turret aim. Weapons that are body-mounted, or mounted on a socket with `yaw_free = false`, SHALL retain the body-facing gate: when the attacker is a mobile entity (has a `MovementController` sibling and no live move leg), CombatComponent SHALL call `face_toward` toward the target position each physics tick before firing — if the call reports not-aligned it SHALL hold fire for that tick (cooldowns keep ticking down); if aligned it SHALL fire subject to cooldown. The facing position SHALL be the target's effective target point: the nearest point on the foundation footprint for a target that has a `FoundationComponent`, otherwise the target's `global_position`. While the MovementController is driving a `MOVING` / `ROTATING` leg with live waypoints, a body-mounted weapon SHALL hold fire for those ticks and SHALL NOT call `face_toward` into the moving body. While `WAIT`ing, the unit is not driving a leg, so CombatComponent SHALL slew via `face_toward` as if idle. Targets closer than `CellUtil.CELL_SIZE` (measured to the effective target point) SHALL fire regardless of body or turret alignment.
@@ -52,20 +35,6 @@ Weapons mounted on a `yaw_free` turret socket (per the `turrets` capability) SHA
 - **WHEN** the target is at a different altitude but within horizontal range
 - **THEN** body and turret yaw are computed from the XZ direction only
 
-### Requirement: rotation_speed wired from entity data
-`MovementController.configure(data)` SHALL adopt `data.rotation_speed` (the `rules.ini` `ROT=` value, degrees per second) as the controller's turn rate. The scene-export default remains only as a fallback when no data is configured.
-
-#### Scenario: Per-unit turn rates diverge
-- **WHEN** a unit configured from entity data with `rotation_speed = 90.0` and another with `rotation_speed = 180.0` each slew 90 degrees
-- **THEN** the first takes twice as long as the second
-
-### Requirement: Buildings and immobile entities exempt
-Entities without a `MovementController` sibling (buildings, `speed = 0`) SHALL fire exactly as before with no facing precondition.
-
-#### Scenario: Building fires out-of-arc
-- **WHEN** a defensive structure engages an in-range target at any bearing
-- **THEN** it fires subject to cooldown with no rotation
-
 ### Requirement: Turret mounts track the target while closing
 Weapons mounted on a `yaw_free` turret socket SHALL slew toward the target every physics tick a target exists, including while the target is out of weapon range and the body is chasing it. The slew position SHALL be the target's effective target point (nearest foundation-footprint point for a building, `global_position` otherwise). This tracking SHALL NOT require the body to face the target and SHALL NOT itself fire the weapon; firing remains gated by range, cooldown, and turret alignment.
 
@@ -76,4 +45,3 @@ Weapons mounted on a `yaw_free` turret socket SHALL slew toward the target every
 #### Scenario: Chase tracking a building
 - **WHEN** a turreted unit chases an out-of-range building
 - **THEN** the turret SHALL track the nearest point on the building's foundation footprint, not the footprint center
-

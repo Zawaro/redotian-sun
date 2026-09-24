@@ -1,9 +1,7 @@
 ## Purpose
 
 Runtime projectile nodes close the gap between weapon dispatch and damage application: when a weapon's projectile id resolves through the GlobalRules registry, a `ProjectileController` node flies (or teleport-detonates) from the muzzle to the target and delivers its damage payload through the `HitboxComponent` → `HealthComponent` pipeline, replacing instant hitscan application for resolvable ids while preserving the legacy damage math. Flight behavior is data-driven from `ProjectileData` flags, mirroring how `MovementController` resolves locomotors.
-
 ## Requirements
-
 ### Requirement: Projectile node lifecycle
 The system SHALL provide a `Projectile.tscn` scene with a `ProjectileController` script. `CombatComponent` SHALL instantiate it when firing a weapon whose projectile id resolves, configure it with the projectile data, weapon, shooter, and target, and parent it to the gameplay root. The projectile SHALL free itself after detonation, after flying its maximum range, or after reaching the last known position of a target that died in flight. It SHALL emit `impacted(position: Vector3)` at the detonation point.
 
@@ -87,7 +85,7 @@ A projectile SHALL NOT detonate during the first `arm_delay` physics frames of i
 - **THEN** it does not detonate and continues flying
 
 ### Requirement: Detonation triggers
-A visible, armed projectile SHALL detonate when any of the following occurs first: contact with a valid hitbox along its motion; close proximity to its target while armed; overshoot, meaning the distance to the target stops decreasing between frames; or exhaustion of its maximum range. Max range SHALL be derived from the firing weapon's `attack_range`. When the projectile exhausts range or flies past the map's playable bounds without hitting, it SHALL free itself without dealing damage.
+A visible, armed projectile SHALL detonate when any of the following occurs first: contact with a valid hitbox along its motion; close proximity to its target while armed; overshoot, meaning the distance to the target stops decreasing between frames; or exhaustion of its maximum range. Max range SHALL be derived from the firing weapon's `attack_range`. When the target is a structure (has a `FoundationComponent` and its `StatsComponent.is_structure()` is true), max range SHALL additionally include the target foundation's half-diagonal in world units, because the projectile flies to the footprint centre while the attacker stops at weapon range from the nearest footprint edge; without this the shot fizzles before reaching the wall. Non-structure targets SHALL keep max range equal to the weapon range. When the projectile exhausts range or flies past the map's playable bounds without hitting, it SHALL free itself without dealing damage.
 
 #### Scenario: Contact detonation
 - **WHEN** an armed projectile's motion segment intersects an enemy hitbox
@@ -100,6 +98,14 @@ A visible, armed projectile SHALL detonate when any of the following occurs firs
 #### Scenario: Max range fizzle
 - **WHEN** a projectile has flown farther than its weapon's attack range without contact
 - **THEN** it frees itself without dealing damage and without emitting `impacted`
+
+#### Scenario: Physical shot reaches a large structure fired from nearest-edge range
+- **WHEN** a visible non-invisible projectile is fired at a 4x4 structure whose centre is `range + half_extent` away (the attacker stopped at weapon range from the nearest edge)
+- **THEN** the projectile's max range covers the footprint centre and it detonates through the hitbox pipeline, dealing damage
+
+#### Scenario: Non-structure max range unchanged
+- **WHEN** a projectile is fired at a non-structure target beyond weapon range
+- **THEN** max range remains the weapon range and the projectile fizzles without damage
 
 ### Requirement: Snap-to-victim detonation
 When an armed projectile detonates by close proximity or contact within a short distance of its target, the detonation position SHALL snap onto the victim's center so the blast visually strikes the victim.
@@ -129,3 +135,4 @@ A projectile SHALL detect hits by casting a shape along each physics frame's ful
 #### Scenario: Fast projectile cannot skip a hitbox
 - **WHEN** a projectile moves more than one cell width in a single physics frame across an enemy hitbox
 - **THEN** the motion-segment cast still registers the hit and the projectile detonates on that hitbox
+
