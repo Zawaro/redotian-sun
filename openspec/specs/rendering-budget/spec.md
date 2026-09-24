@@ -4,7 +4,7 @@
 The default world environment SHALL have SSAO disabled (`ssao_enabled = false`). Directional shadow size SHALL remain 4096, glow SHALL remain enabled, and fog SHALL remain enabled.
 
 #### Scenario: Environment configuration
-- **WHEN** the default world environment is loaded in MainScene, MapEditor, or AssetPreview
+- **WHEN** the default world environment is loaded in MainScene, MapEditor, or AssetBrowser
 - **THEN** `ssao_enabled` is false on the environment resource
 
 #### Scenario: Shadow resolution preserved
