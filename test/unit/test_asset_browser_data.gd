@@ -22,17 +22,13 @@ func _registry() -> Array:
     return script.get_script_constant_map()["CATEGORIES"]
 
 
-func _write_tres(path: String, cls: String, id: String) -> void:
+func _write_tres(path: String, cls: String, id: String, etype: int = -1) -> void:
+    var header := '[gd_resource type="Resource" script_class="%s" load_steps=1 format=3]\n' % cls
+    var body := header + '\n[resource]\nid = "%s"\n' % id
+    if etype >= 0:
+        body += "entity_type = %d\n" % etype
     var f := FileAccess.open(path, FileAccess.WRITE)
-    f.store_string(
-        (
-            (
-                '[gd_resource type="Resource" script_class="%s" load_steps=1 format=3]\n\n'
-                + '[resource]\nid = "%s"\n'
-            )
-            % [cls, id]
-        )
-    )
+    f.store_string(body)
     f.close()
 
 
@@ -143,6 +139,110 @@ func test_scanner_class_filter_excludes_other_classes():
     TestHelper.assert_true(found.has("keep"), "matching class included")
     TestHelper.assert_true(not found.has("drop"), "non-matching class excluded")
     _rmrf(LAYER_FIXTURE)
+
+
+func test_scanner_etype_filter_matches_entity_type():
+    var ctrl := _make_controller()
+    _rmrf(LAYER_FIXTURE)
+    DirAccess.make_dir_recursive_absolute(LAYER_FIXTURE + "/a")
+    _write_tres(LAYER_FIXTURE + "/a/veh.tres", "EntityData", "veh", EntityData.EntityType.VEHICLE)
+    _write_tres(LAYER_FIXTURE + "/a/inf.tres", "EntityData", "inf", EntityData.EntityType.INFANTRY)
+    var found: Dictionary = {}
+    ctrl._scan_tres(LAYER_FIXTURE + "/a/", "EntityData", found, EntityData.EntityType.VEHICLE)
+    TestHelper.assert_true(found.has("veh"), "matching entity_type included")
+    TestHelper.assert_true(not found.has("inf"), "non-matching entity_type excluded")
+    _rmrf(LAYER_FIXTURE)
+
+
+func test_scanner_accepts_tres_remap_names():
+    var ctrl := _make_controller()
+    _rmrf(LAYER_FIXTURE)
+    DirAccess.make_dir_recursive_absolute(LAYER_FIXTURE + "/a")
+    _write_tres(LAYER_FIXTURE + "/a/thing.tres.remap", "Thing", "thing")
+    var found: Dictionary = {}
+    ctrl._scan_tres(LAYER_FIXTURE + "/a/", "Thing", found)
+    TestHelper.assert_true(found.has("thing"), "remap-suffixed file is listed")
+    (
+        TestHelper
+        . assert_eq(
+            String(found["thing"]["path"]),
+            LAYER_FIXTURE + "/a/thing.tres",
+            "stored load path strips .remap",
+        )
+    )
+    _rmrf(LAYER_FIXTURE)
+
+
+func test_tres_entity_type_reads_header():
+    var ctrl := _make_controller()
+    var path := "res://games/ts/entities/structures/gdi/gdi_power_plant.tres"
+    (
+        TestHelper
+        . assert_eq(
+            ctrl._tres_entity_type(path),
+            EntityData.EntityType.BUILDING,
+            "building entity_type from header",
+        )
+    )
+    var no_type := "res://games/ts/terrain_objects/cliff01_n.tres"
+    TestHelper.assert_eq(ctrl._tres_entity_type(no_type), -1, "absent entity_type is -1")
+
+
+func test_terrain_footprint_bounds_known_real_tile():
+    var cliff := load("res://games/ts/terrain_objects/cliff01_n.tres") as TerrainObject
+    TestHelper.assert_true(cliff != null, "cliff01_n loads")
+    if cliff == null:
+        return
+    var b := TerrainObject.footprint_bounds(cliff)
+    TestHelper.assert_eq(b.position, Vector3(0, 0, 0), "cliff01_n min cell/min height at origin")
+    TestHelper.assert_eq(b.size, Vector3(2, 4, 3), "cliff01_n spans 2x4x3 lattice units")
+    var ramp := load("res://games/ts/terrain_objects/ramp01_n.tres") as TerrainObject
+    TestHelper.assert_true(ramp != null, "ramp01_n loads")
+    if ramp == null:
+        return
+    var rb := TerrainObject.footprint_bounds(ramp)
+    TestHelper.assert_eq(rb.position.y, 0, "ramp01_n min height 0")
+    TestHelper.assert_true(rb.size.y > 0, "ramp01_n has a height span")
+    TestHelper.assert_true(
+        rb.size.x >= 3 and rb.size.z >= 3, "ramp01_n footprint spans multiple cells"
+    )
+
+
+func test_all_theater_variants_resolve_to_glb_submeshes():
+    var resolution := TerrainCatalog.resolve_art(
+        "cliff01_n", TerrainCatalog.get_active_theater_id()
+    )
+    TestHelper.assert_true(
+        resolution.valid and not resolution.glb_path.is_empty(), "cliff01 resolves"
+    )
+    if not resolution.valid or resolution.glb_path.is_empty():
+        return
+    var scene := load(resolution.glb_path) as PackedScene
+    TestHelper.assert_true(scene != null, "GLB loads")
+    if scene == null:
+        return
+    var instance := scene.instantiate()
+    var names: Array[String] = []
+    _collect_glb_names(instance, names)
+    instance.free()
+    TestHelper.assert_true(not names.is_empty(), "GLB has submesh node names")
+    var missing: Array[String] = []
+    for object_id in TerrainCatalog.get_all_objects():
+        var res := TerrainCatalog.resolve_art(String(object_id), "temperate")
+        if res.valid and not names.has(res.submesh_id):
+            missing.append("%s -> %s" % [object_id, res.submesh_id])
+    TestHelper.assert_eq(
+        missing.size(), 0, "every catalog variant resolves to an existing GLB submesh"
+    )
+    for entry in missing:
+        print("    missing: " + entry)
+
+
+func _collect_glb_names(node: Node, names: Array[String]) -> void:
+    if node is MeshInstance3D:
+        names.append(String((node as MeshInstance3D).name).trim_suffix("_3D"))
+    for child in node.get_children():
+        _collect_glb_names(child, names)
 
 
 # --- Terrain footprint / overlay geometry ------------------------------------

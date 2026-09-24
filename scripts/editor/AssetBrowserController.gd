@@ -44,9 +44,10 @@ const _OVERLAY_NAMES := {
 
 ## Category registry. Each row: label, source dirs under each data_set root
 ## (or image_dirs for raw textures), expected script_class (`cls`), preview mode,
-## and an optional EntityData.EntityType guard (`etype`) checked on load.
-## Adding a category is one row. Entity categories key off subdirectories whose
-## names already map 1:1 to the entity type (structures/infantry/vehicles/...).
+## and an optional EntityData.EntityType guard (`etype`) enforced at scan time
+## from the resource header. Adding a category is one row. Entity categories
+## still key off subdirectories (structures/infantry/vehicles/...) so faction
+## nesting works; `etype` is a hard filter on top.
 const CATEGORIES: Array = [
     {
         "label": "Terrain Objects",
@@ -159,6 +160,7 @@ var _current_mode := MODE_MODEL
 var _terrain_object: TerrainObject = null
 var _foundation := Vector2i.ZERO
 var _game_changed_connected := false
+var _fog_was_enabled := true
 
 var _preview_bounds := AABB()
 var _object_center := Vector3.ZERO
@@ -216,14 +218,18 @@ func _ready() -> void:
 func _exit_tree() -> void:
     if _game_changed_connected and GameContext.game_changed.is_connected(_on_game_changed):
         GameContext.game_changed.disconnect(_on_game_changed)
-    _set_fog_overlay(true)
+    _set_fog_overlay(_fog_was_enabled)
 
 
 ## The browser is a standalone dev scene: keep gameplay world overlays (the
 ## fog-of-war/shroud plane) from draping over the inspected asset. Restored on
-## exit so the autoload is left as found.
+## exit to whatever state was active when the browser entered.
 func _suppress_gameplay_overlays() -> void:
-    _set_fog_overlay(false)
+    var fog := get_node_or_null("/root/FogRenderer")
+    if fog != null and fog.has_method("set_overlay_enabled"):
+        _fog_was_enabled = bool(fog.call("set_overlay_enabled", false))
+    else:
+        _set_fog_overlay(false)
 
 
 func _set_fog_overlay(enabled: bool) -> void:
@@ -266,8 +272,10 @@ func _unhandled_input(event: InputEvent) -> void:
         var mb := event as InputEventMouseButton
         if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
             zoom(-1.0)
+            get_viewport().set_input_as_handled()
         elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
             zoom(1.0)
+            get_viewport().set_input_as_handled()
     elif event is InputEventMouseMotion:
         var motion := event as InputEventMouseMotion
         if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and not _auto_rotate:
@@ -441,6 +449,9 @@ func rotate_free(delta_yaw_deg: float, delta_pitch_deg: float) -> void:
 
 func set_camera_mode(mode: int) -> void:
     _camera_mode = CAM_PERSPECTIVE if mode == CAM_PERSPECTIVE else CAM_ISOMETRIC
+    if is_isometric():
+        _object_pitch = 0.0
+        _apply_object_transform()
     _frame_camera()
     _sync_camera_button()
 
@@ -518,11 +529,13 @@ func _rebuild_categories() -> void:
     _category_option.clear()
     for cat in CATEGORIES:
         if not _category_has_source(cat):
+            push_warning("AssetBrowser: no source for category '%s'" % cat["label"])
             continue
         _categories.append(cat)
         _category_option.add_item(String(cat["label"]))
     if _categories.is_empty():
-        _asset_option.clear()
+        if _asset_option != null:
+            _asset_option.clear()
         _show_message("No assets for game '%s'" % current_game_id())
         return
     _category_option.select(0)
@@ -578,9 +591,10 @@ static func _join(root: String, sub: String) -> String:
 
 func _scan_category(cat: Dictionary) -> Array[Dictionary]:
     var found: Dictionary = {}
+    var etype := int(cat.get("etype", -1))
     for root in _data_set_roots():
         for d in cat.get("dirs", []):
-            _scan_tres(_join(root, d), String(cat.get("cls", "")), found)
+            _scan_tres(_join(root, d), String(cat.get("cls", "")), found, etype)
         for d in cat.get("image_dirs", []):
             _scan_images(_join(root, d), found)
     var out: Array[Dictionary] = []
@@ -590,7 +604,9 @@ func _scan_category(cat: Dictionary) -> Array[Dictionary]:
     return out
 
 
-func _scan_tres(dir_path: String, cls_filter: String, found: Dictionary) -> void:
+func _scan_tres(
+    dir_path: String, cls_filter: String, found: Dictionary, etype_filter: int = -1
+) -> void:
     var dir := DirAccess.open(dir_path)
     if dir == null:
         return
@@ -600,14 +616,23 @@ func _scan_tres(dir_path: String, cls_filter: String, found: Dictionary) -> void
         if file_name.begins_with("."):
             file_name = dir.get_next()
             continue
-        var full := dir_path.path_join(file_name)
         if dir.current_is_dir():
-            _scan_tres(full + "/", cls_filter, found)
-        elif file_name.ends_with(".tres"):
-            var path := full.trim_suffix(".remap")
-            if cls_filter.is_empty() or _tres_class(path) == cls_filter:
-                var id := _tres_id(path)
-                found[id] = {"id": id, "path": path}
+            _scan_tres(dir_path.path_join(file_name) + "/", cls_filter, found, etype_filter)
+        else:
+            var resource_path := file_name.trim_suffix(".remap")
+            if not resource_path.ends_with(".tres"):
+                file_name = dir.get_next()
+                continue
+            var disk_path := dir_path.path_join(file_name)
+            var load_path := dir_path.path_join(resource_path)
+            if not cls_filter.is_empty() and _tres_class(disk_path) != cls_filter:
+                file_name = dir.get_next()
+                continue
+            if etype_filter >= 0 and _tres_entity_type(disk_path) != etype_filter:
+                file_name = dir.get_next()
+                continue
+            var id := _tres_id(disk_path)
+            found[id] = {"id": id, "path": load_path}
         file_name = dir.get_next()
     dir.list_dir_end()
 
@@ -668,6 +693,22 @@ static func _tres_id(path: String) -> String:
         return path.get_file().get_basename()
     var id := rest.substr(0, end)
     return id if not id.is_empty() else path.get_file().get_basename()
+
+
+## Reads `entity_type = N` from the resource header (0-based EntityType enum).
+## Returns -1 when absent so non-entity resources never match a filter.
+static func _tres_entity_type(path: String) -> int:
+    var header := _tres_header(path)
+    var idx := header.find("\nentity_type = ")
+    if idx == -1:
+        return -1
+    var rest := header.substr(idx + 15)
+    var end := 0
+    while end < rest.length() and rest[end] >= "0" and rest[end] <= "9":
+        end += 1
+    if end == 0:
+        return -1
+    return int(rest.substr(0, end))
 
 
 # --- Preview ---
@@ -860,6 +901,7 @@ func _preview_image(path: String) -> void:
     if tex == null:
         _show_message("Not a texture: %s" % path.get_file())
         return
+    _current_resource = tex
     _image_rect.texture = tex
     _image_rect.visible = true
 
@@ -894,7 +936,11 @@ func _finalize_object() -> void:
     if _preview_bounds.size == Vector3.ZERO:
         _object_center = Vector3.ZERO
     _center_object_children(_object_center)
-    _object_root.position = Vector3(0.0, _object_center.y, 0.0)
+    # Children are now centered on the root origin; lift so the AABB's lowest
+    # point sits at world y=0 (ground grid). Rotation about the root stays
+    # rotation about the bounds center.
+    var ground_y := _preview_bounds.size.y * 0.5 if _preview_bounds.size != Vector3.ZERO else 0.0
+    _object_root.position = Vector3(0.0, ground_y, 0.0)
     _object_yaw = deg_to_rad(_base_yaw_deg)
     _object_pitch = 0.0
     _apply_object_transform()
@@ -1171,6 +1217,7 @@ func _line_material(name: String, color: Color) -> ORMMaterial3D:
         return _cached_materials[name]
     var mat := ORMMaterial3D.new()
     mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     mat.albedo_color = color
     _cached_materials[name] = mat
     return mat
@@ -1317,6 +1364,7 @@ func _hide_all_previews() -> void:
 
 
 func _show_message(text: String) -> void:
+    push_warning("AssetBrowser: " + text)
     if _message_label != null:
         _message_label.text = text
         _message_label.visible = true
@@ -1411,8 +1459,12 @@ static func _cell_key_less(a: Variant, b: Variant) -> bool:
 
 
 func _is_pointer_over_hud() -> bool:
+    # Only swallow input over interactive HUD chrome (selectors/buttons), not the
+    # always-on info panel — otherwise resting the mouse there kills shortcuts.
     var hovered := get_viewport().gui_get_hovered_control()
-    return hovered != null
+    if hovered == null:
+        return false
+    return hovered is BaseButton or hovered is LineEdit or hovered is OptionButton
 
 
 # --- HUD construction ---
