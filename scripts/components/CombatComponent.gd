@@ -63,6 +63,9 @@ class FireChannel:
 
 var _channels: Array[FireChannel] = []
 var _target: Node3D = null
+## Target's foundation, resolved once on set_target so range/approach/facing can
+## measure to the nearest footprint point without a node lookup per tick.
+var _target_foundation: FoundationComponent = null
 var _attack_active: bool = false
 var _rotation_completed: bool = false
 var _mc_connected: bool = false
@@ -171,6 +174,15 @@ func get_target() -> Node3D:
 
 func set_target(entity: Node3D, hold_ground: bool = false) -> void:
     _target = entity
+    _target_foundation = null
+    if entity:
+        # Match GuardComponent's classifier: only structures get footprint
+        # geometry, so a multi-cell non-structure measures to its origin.
+        var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+        if stats and stats.is_structure():
+            _target_foundation = (
+                entity.get_node_or_null("FoundationComponent") as FoundationComponent
+            )
     _attack_active = true
     _rotation_completed = false
     _hold_ground = hold_ground
@@ -192,6 +204,7 @@ func set_target(entity: Node3D, hold_ground: bool = false) -> void:
 func clear_target() -> void:
     _disconnect_health_signal()
     _target = null
+    _target_foundation = null
     _attack_active = false
     _rotation_completed = false
     _hold_ground = false
@@ -324,13 +337,24 @@ func _aim_turrets(delta: float) -> void:
         if not channel.yaw_free:
             continue
         for socket_id in channel.socket_ids:
-            _turret.slew(socket_id, _target.global_position, delta)
+            _turret.slew(socket_id, _effective_target_pos(), delta)
+
+
+## Engagement point on the target: the nearest point of a building's foundation
+## footprint so range/approach/facing stop at the wall instead of the footprint
+## center. Point targets (units, 1x1 buildings) use the entity origin.
+func _effective_target_pos() -> Vector3:
+    if _target_foundation and is_instance_valid(_target_foundation):
+        return _target_foundation.nearest_world_point(global_position)
+    if is_instance_valid(_target):
+        return _target.global_position
+    return global_position
 
 
 func _horizontal_distance() -> float:
     if not is_instance_valid(_target):
         return INF
-    var to_target := _target.global_position - global_position
+    var to_target := _effective_target_pos() - global_position
     return Vector3(to_target.x, 0.0, to_target.z).length()
 
 
@@ -372,7 +396,7 @@ func _tick_channel(channel: FireChannel, delta: float, body_aligned: bool, close
     if channel.yaw_free and _turret:
         var aimed := true
         for socket_id in channel.socket_ids:
-            if not _turret.slew(socket_id, _target.global_position, delta):
+            if not _turret.slew(socket_id, _effective_target_pos(), delta):
                 aimed = false
         channel.aimed = aimed
     else:
@@ -462,7 +486,7 @@ func _is_facing_target(delta: float) -> bool:
         return true
     if mc.is_moving() and not mc.is_waiting():
         return false
-    _rotation_completed = mc.face_toward(_target.global_position, delta)
+    _rotation_completed = mc.face_toward(_effective_target_pos(), delta)
     return _rotation_completed
 
 
@@ -555,7 +579,8 @@ func _move_toward_target(force: bool = false) -> void:
     if not weapon:
         return
     var range_world := weapon.attack_range * CellUtil.CELL_SIZE
-    var to_target := _target.global_position - global_position
+    var target_pos := _effective_target_pos()
+    var to_target := target_pos - global_position
     var horizontal_distance := Vector3(to_target.x, 0.0, to_target.z).length()
     if horizontal_distance <= range_world:
         return
@@ -565,7 +590,7 @@ func _move_toward_target(force: bool = false) -> void:
         # then nudge off any airborne jumpjets already there so the group
         # spreads dynamically instead of stacking on one point.
         var approach_dir := Vector3(to_target.x, 0.0, to_target.z).normalized()
-        var base_pos := _target.global_position - approach_dir * range_world
+        var base_pos := target_pos - approach_dir * range_world
         stop_pos = (
             base_pos
             + _air_repulsion(entity.global_position, _nearby_airborne_jumpjets(entity), range_world)
@@ -573,15 +598,12 @@ func _move_toward_target(force: bool = false) -> void:
         # Never push an attacker out of firing range: pull any overshoot
         # back onto the range circle so it fires on arrival instead of
         # bouncing back to re-approach.
-        var stop_offset := _target.global_position - stop_pos
+        var stop_offset := target_pos - stop_pos
         if stop_offset.length() > range_world:
-            stop_pos = _target.global_position - stop_offset.normalized() * range_world
+            stop_pos = target_pos - stop_offset.normalized() * range_world
     else:
         var angle := atan2(to_target.x, to_target.z)
-        stop_pos = (
-            _target.global_position
-            - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
-        )
+        stop_pos = target_pos - Vector3(sin(angle) * range_world, 0.0, cos(angle) * range_world)
         # A chase stop can land inside a building footprint when the enemy hugs
         # a wall: relocate to the nearest passable cell so the destination is
         # never blocked before the move is even issued.
@@ -592,23 +614,16 @@ func _move_toward_target(force: bool = false) -> void:
         # Pull it back inside the range circle so the attacker fires on arrival
         # instead of idling out of range and re-planning forever. If it still
         # cannot be kept in range and passable, back off like a failed path.
-        var re_to_target := _target.global_position - stop_pos
+        var re_to_target := target_pos - stop_pos
         var re_dist := Vector3(re_to_target.x, 0.0, re_to_target.z).length()
         if re_dist > range_world + 0.01:
             var approach := Vector3(to_target.x, 0.0, to_target.z).normalized()
             var inner := maxf(range_world - CellUtil.CELL_SIZE, range_world * 0.5)
-            stop_pos = _target.global_position - approach * inner
+            stop_pos = target_pos - approach * inner
             stop_pos = CellUtil.cell_to_world(
                 mc.find_nearest_free_cell(CellUtil.world_to_cell(stop_pos))
             )
-            var re2 := (
-                Vector3(
-                    _target.global_position.x - stop_pos.x,
-                    0.0,
-                    _target.global_position.z - stop_pos.z,
-                )
-                . length()
-            )
+            var re2 := Vector3(target_pos.x - stop_pos.x, 0.0, target_pos.z - stop_pos.z).length()
             if re2 > range_world + 0.01:
                 _chase_retry_after = _now() + CHASE_RETRY_BACKOFF
                 return

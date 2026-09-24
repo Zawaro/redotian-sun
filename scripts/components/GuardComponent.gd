@@ -8,6 +8,15 @@ class_name GuardComponent extends Node
 ## Seconds between hood scans.
 const SCAN_INTERVAL: float = 0.3
 
+## Extra hood cells beyond the weapon-range radius. SpatialHash indexes each
+## entity at its centre cell, so a building whose centre sits outside weapon
+## range but whose nearest footprint edge is inside it would be missed. The
+## largest foundation in content is 6x6 (half-extent 3 cells); the margin is 4,
+## not 3, to absorb cell rounding (an axis-aligned centre at range + 6 can land
+## in a cell one index further out), after which the nearest footprint point is
+## measured. Bump if content grows wider than 6 cells.
+const BUILDING_HOOD_MARGIN_CELLS: int = 4
+
 var _parent: Node3D = null
 var _combat: CombatComponent = null
 var _mc: MovementController = null
@@ -104,7 +113,7 @@ func _find_nearest_enemy() -> Node3D:
     if own_id < 0:
         return null
     var origin := _parent.global_position
-    var r_cells := maxi(1, ceili(range_world / CellUtil.CELL_SIZE))
+    var r_cells := maxi(1, ceili(range_world / CellUtil.CELL_SIZE)) + BUILDING_HOOD_MARGIN_CELLS
     var center := CellUtil.world_to_cell(origin)
     var range_sq := range_world * range_world
     var nearest: Node3D = null
@@ -125,7 +134,14 @@ func _find_nearest_enemy() -> Node3D:
                     continue
                 if other.get_node_or_null("HealthComponent") == null:
                     continue
-                var to_other := other.global_position - origin
+                # Buildings are in range when their nearest footprint point is,
+                # matching CombatComponent range checking.
+                var other_pos := other.global_position
+                if other_stats.is_structure():
+                    var fc := other.get_node_or_null("FoundationComponent") as FoundationComponent
+                    if fc:
+                        other_pos = fc.nearest_world_point(origin)
+                var to_other := other_pos - origin
                 var dist_sq := Vector3(to_other.x, 0.0, to_other.z).length_squared()
                 if dist_sq <= range_sq and dist_sq < nearest_dist:
                     nearest_dist = dist_sq

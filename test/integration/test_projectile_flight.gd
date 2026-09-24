@@ -98,6 +98,37 @@ func _make_shooter() -> Node3D:
     return entity
 
 
+## A multi-cell building target: centre-anchored 2x2 hitbox (matching
+## EntityFactory's default, since no content sets hitbox_size) plus a
+## FoundationComponent, so range/engagement geometry takes the building path.
+func _make_building(player_id: int, foundation: Vector2i, pos: Vector3) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "Building_P%d" % player_id
+    entity.position = pos
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = player_id
+    stats.entity_type = EntityData.EntityType.BUILDING
+    entity.add_child(stats)
+    var health := HealthComponent.new()
+    health.name = "HealthComponent"
+    health.max_health = 100
+    health.current_health = 100
+    entity.add_child(health)
+    var hitbox := HITBOX_SCENE.instantiate() as HitboxComponent
+    hitbox.name = "HitboxComponent"
+    hitbox.health_component = health
+    hitbox.collision_layer = HitboxComponent.LAYER_HITBOX_BUILDING
+    hitbox.size = Vector3(2, 2, 2)
+    entity.add_child(hitbox)
+    var fc := FoundationComponent.new()
+    fc.name = "FoundationComponent"
+    fc.foundation = foundation
+    entity.add_child(fc)
+    _tree().root.add_child(entity)
+    return entity
+
+
 func _spawn_visible(
     shooter: Node3D, target: Node3D, pos: Vector3, heading: Vector3, speed: float
 ) -> ProjectileController:
@@ -421,6 +452,34 @@ func test_max_range_fizzle_deals_no_damage():
         )
     )
     _cleanup([shooter, victim, p])
+    _restore_rules()
+
+
+func test_physical_projectile_damages_large_building_from_edge_range():
+    # Regression (#360): the attacker stops at weapon range from the nearest
+    # footprint edge, but the projectile flies to the footprint centre. Without
+    # extending reach, a physical shot fizzles at weapon range before the wall.
+    # 4x4 building at x=16 (near edge 12, centre 16), weapon range 6 cells = 12.
+    _inject_test_rules()
+    var shooter := _make_shooter()
+    var building := _make_building(1, Vector2i(4, 4), Vector3(16, 0, 0))
+    var weapon := _make_weapon(20, 6.0)
+    weapon.speed = 12.0
+    var p := PROJECTILE_SCENE.instantiate() as ProjectileController
+    p.setup(_make_data(), weapon, shooter, building)
+    _tree().root.add_child(p)
+    p.global_position = Vector3.ZERO
+    p._heading = Vector3(1, 0, 0)
+    _tick(p, 120)
+    TestHelper.assert_true(p._detonated, "projectile reaches and detonates on the building")
+    (
+        TestHelper
+        . assert_true(
+            (building.get_node("HealthComponent") as HealthComponent).current_health < 100,
+            "physical projectile damages a 4x4 building fired from nearest-edge range",
+        )
+    )
+    _cleanup([shooter, building, p])
     _restore_rules()
 
 

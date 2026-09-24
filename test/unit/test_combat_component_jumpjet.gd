@@ -318,3 +318,54 @@ func test_grounded_jumpjet_near_attack_walks():
     TestHelper.assert_eq(
         zone, MovementController.VerticalState.GROUND, "near attack stays grounded"
     )
+
+
+func _make_building_target(foundation: Vector2i) -> Node3D:
+    var entity := Node3D.new()
+    entity.name = "BuildingTarget"
+    var stats := StatsComponent.new()
+    stats.name = "StatsComponent"
+    stats.player_id = 1
+    stats.entity_type = EntityData.EntityType.BUILDING
+    entity.add_child(stats)
+    var fc := FoundationComponent.new()
+    fc.name = "FoundationComponent"
+    fc.foundation = foundation
+    entity.add_child(fc)
+    return entity
+
+
+func test_jumpjet_attack_approaches_building_nearest_point():
+    # Same approach semantics as the unit case, but the stop is measured from the
+    # nearest footprint edge: 4x4 at x=30 -> near edge x=26, stop at 26 - range.
+    var root: Node = Engine.get_main_loop().root
+    var pair: Array = _make_jumpjet_combat()
+    var entity: Node3D = pair[0]
+    var mc: MovementController = pair[1]
+    var cc: CombatComponent = pair[2]
+    root.add_child(entity)
+    mc._parent = entity
+    mc._state = MovementController.State.IDLE
+    mc._vertical_state = MovementController.VerticalState.AIR
+    entity.global_position = Vector3(0.0, 0.0, 0.0)
+    var building := _make_building_target(Vector2i(4, 4))
+    root.add_child(building)
+    building.global_position = Vector3(30.0, 0.0, 0.0)
+    var weapon := cc.get_current_weapon()
+    var range_world := weapon.attack_range * CellUtil.CELL_SIZE
+    cc.set_target(building)
+    cc._move_toward_target()
+    var dest: Vector3 = mc._waypoints[mc._waypoints.size() - 1]
+    var nearest_x := 30.0 - 4.0
+    root.remove_child(entity)
+    root.remove_child(building)
+    entity.free()
+    building.free()
+    TestHelper.assert_true(
+        absf(dest.x - (nearest_x - range_world)) < 0.8,
+        "airborne attacker stops at weapon range from the nearest footprint edge (got %s)" % dest
+    )
+    TestHelper.assert_true(
+        dest.x < nearest_x - range_world + 0.5,
+        "attacker does not overshoot toward the building centre"
+    )

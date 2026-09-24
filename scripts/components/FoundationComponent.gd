@@ -79,6 +79,23 @@ func get_bib_cells(origin_cell: Vector2i) -> Array[Vector2i]:
     return cells
 
 
+## World-space point on the foundation footprint nearest to `from`. The footprint
+## is the axis-aligned XZ rectangle centered on the owning entity, so this is a
+## per-axis clamp — no cell walk. Rotation is ignored, matching foundation cell
+## registration; a rotation-aware query would replace this method alone.
+func nearest_world_point(from: Vector3) -> Vector3:
+    var entity := get_parent() as Node3D
+    if entity == null:
+        return from
+    var center := entity.global_position
+    var half := Vector3(foundation.x, 0.0, foundation.y) * CellUtil.CELL_SIZE * 0.5
+    return Vector3(
+        clampf(from.x, center.x - half.x, center.x + half.x),
+        center.y,
+        clampf(from.z, center.z - half.z, center.z + half.z),
+    )
+
+
 func is_buildable(origin_cell: Vector2i) -> bool:
     return FoundationComponent.footprint_buildable(foundation, origin_cell)
 
