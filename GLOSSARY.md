@@ -196,6 +196,7 @@ are 45°-rotated rectangles, i.e. diamonds.
 | deploy / undeploy | Vehicle↔building transformation via `deploys_into` / `undeploys_into`. | [deploy-undeploy](openspec/specs/deploy-undeploy/spec.md) |
 | stop command | Halts all selected units' activity; overridden by any later order. | [stop-command](openspec/specs/stop-command/spec.md) |
 | fog-gated targeting | Enemy targets only orderable when revealed through shroud/fog. | [order-system](openspec/specs/order-system/spec.md) |
+| enemy selection | Non-local entities are selectable for viewing only: a selection never mixes local and non-local owners, and a non-local selection contributes no cursor or orders. | [selection-manager](openspec/specs/selection-manager/spec.md) · [order-system](openspec/specs/order-system/spec.md) |
 | exit | Production spawn point config (`spawn_offset`, `exit_offset`, `exit_facing`); rally point destination follows. | [production-exit](openspec/specs/production-exit/spec.md) |
 | load / unload | Infantry entering (boarding) vs ejecting from a transport. Load requires a stationary transport with free seats and never queues; unload runs via the deploy command and ejects one passenger per interval. | [add-transport-passengers](openspec/changes/add-transport-passengers/specs/transport-passengers/spec.md) |
 
