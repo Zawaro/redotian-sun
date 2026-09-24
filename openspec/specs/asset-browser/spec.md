@@ -93,7 +93,7 @@ The browser SHALL preview the selected asset using the mode declared by its cate
 - **THEN** the image view displays the texture
 
 ### Requirement: Static framing camera with projection modes
-The browser SHALL use a preview-owned `Camera3D` that never orbits, and SHALL NOT use any gameplay camera, `CameraController`, gameplay panning, or map-bounds clamping. The camera SHALL sit at the gameplay isometric vantage (45-degree yaw, 30-degree pitch down) in both projection modes. The browser SHALL provide an Isometric mode (orthographic projection matching the gameplay camera) and a Perspective mode (perspective projection at the same vantage), toggled by an InputMap action and a HUD button. Zoom SHALL change the orthographic `size` in Isometric mode and the view distance in Perspective mode, clamped in both. The camera SHALL auto-frame the selected asset on selection and SHALL remain stationary whenever no zoom input is applied.
+The browser SHALL use a preview-owned `Camera3D` that never orbits, and SHALL NOT use any gameplay camera, `CameraController`, gameplay panning, or map-bounds clamping. The camera SHALL sit at the gameplay isometric vantage (45-degree yaw, 30-degree pitch down) in both projection modes. The browser SHALL provide an Isometric mode (orthographic projection matching the gameplay camera) and a Perspective mode (perspective projection at the same vantage), toggled by an InputMap action and a HUD button. Zoom SHALL change the orthographic `size` in Isometric mode and the view distance in Perspective mode, clamped in both. The camera SHALL compute its default zoom once on first load and again when the projection mode toggles, SHALL preserve the user's zoom across asset changes, and SHALL remain stationary whenever no zoom input is applied.
 
 #### Scenario: Isometric matches the gameplay angle
 - **WHEN** the browser starts
@@ -110,6 +110,10 @@ The browser SHALL use a preview-owned `Camera3D` that never orbits, and SHALL NO
 #### Scenario: Camera is stable when idle
 - **WHEN** no zoom input is applied across frames
 - **THEN** the camera transform does not change
+
+#### Scenario: Zoom persists across asset changes
+- **WHEN** the user zooms and then selects a different asset
+- **THEN** the orthographic size (or perspective distance) is unchanged
 
 ### Requirement: Asset rotation
 All rotation SHALL turn the selected asset around its bounding-box center rather than moving the camera, so the directional light and world environment stay fixed. In Isometric mode rotation SHALL be yaw-only (Y axis), preserving the upright isometric view. In Perspective mode rotation SHALL be yaw plus pitch (no roll), with pitch clamped to avoid gimbal flip. The browser SHALL provide continuous rotation (drag and an auto-rotate toggle) and discrete 90-degree yaw steps (button and InputMap action). On selection the asset SHALL be grounded so its lowest point sits at the world origin and the ground grid reads correctly. Any base art rotation SHALL fold into the asset's starting yaw.
