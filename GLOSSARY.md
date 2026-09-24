@@ -156,6 +156,8 @@ are 45°-rotated rectangles, i.e. diamonds.
 | `weight` | Crush pairing + ice-breakage threshold (`ice_cracking_weight`). Explicitly not a speed factor. | [entity-data](openspec/specs/entity-data/spec.md) · [ice-drowning](openspec/specs/ice-drowning/spec.md) |
 | hitscan | Damage applied instantly at fire time, no projectile travel. | [combat-firing](openspec/specs/combat-firing/spec.md) |
 | threat posed | AI targeting priority hint on EntityData. | [combat-firing](openspec/specs/combat-firing/spec.md) |
+| acquisition range | Mode A guard scan radius: longest `weapon.attack_range * CellUtil.CELL_SIZE` (horizontal). Mode B (sight radius) deferred to #444. | [guard-auto-engage](openspec/changes/add-guard-auto-engage/specs/guard-auto-engage/spec.md) |
+| hold ground | `CombatComponent.set_target(..., hold_ground=true)`: fire without chasing; clears if target leaves weapon range. Player orders default `false` (chase). | [combat-firing](openspec/changes/add-guard-auto-engage/specs/combat-firing/spec.md) |
 | socket | Named 3D attachment point on `ArtData.sockets` (a turret hardpoint, or a future anchor). Owns a `pivot` Transform3D, `yaw_free` capability, barrel length, and placeholder size; behavior references it by string id. | [turret-system change](openspec/specs/turrets/spec.md) · scripts/data/SocketData.gd |
 | weapon mount group | Per-unit binding of one weapon to one or more sockets plus its firing discipline. A weapon absent from every group is body-mounted. | [turret-system change](openspec/specs/turrets/spec.md) · scripts/data/WeaponMountGroupData.gd |
 | salvo | Fire discipline: every socket in a mount group fires on the same tick. | [turret-system change](openspec/specs/turrets/spec.md) |

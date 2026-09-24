@@ -67,6 +67,9 @@ var _attack_active: bool = false
 var _rotation_completed: bool = false
 var _mc_connected: bool = false
 var _combat_move: bool = false
+## Stand-and-shoot: when true, never issue chase/approach moves; if the target
+## leaves weapon range the engagement is cleared instead (Mode A guard #261).
+var _hold_ground: bool = false
 var _connected_health_target: Node3D = null
 var _fire_count: int = 0
 ## Grid cell of the target when the current chase leg was planned. A leg is
@@ -166,10 +169,11 @@ func get_target() -> Node3D:
     return _target
 
 
-func set_target(entity: Node3D) -> void:
+func set_target(entity: Node3D, hold_ground: bool = false) -> void:
     _target = entity
     _attack_active = true
     _rotation_completed = false
+    _hold_ground = hold_ground
     _chase_retry_after = 0.0
     _logged_unreachable = null
     _reset_channel_runtime()
@@ -181,7 +185,8 @@ func set_target(entity: Node3D) -> void:
             mc.cancel_move_retain_vertical()
         else:
             mc.stop()
-    _move_toward_target(true)
+    if not hold_ground:
+        _move_toward_target(true)
 
 
 func clear_target() -> void:
@@ -189,6 +194,7 @@ func clear_target() -> void:
     _target = null
     _attack_active = false
     _rotation_completed = false
+    _hold_ground = false
     _logged_unreachable = null
     _reset_channel_runtime()
 
@@ -264,17 +270,17 @@ func _physics_process(delta: float) -> void:
         return
     if not _attack_active or not _target:
         return
-    if not is_instance_valid(_target):
-        clear_target()
-        return
-    if _channels.is_empty():
+    if not is_instance_valid(_target) or _channels.is_empty():
         clear_target()
         return
     if not _target_in_range():
-        # Keep turrets trained on the target while closing, so they track
-        # continuously instead of freezing until the target re-enters range.
-        _aim_turrets(delta)
-        _move_toward_target()
+        if _hold_ground:
+            clear_target()
+        else:
+            # Keep turrets trained on the target while closing, so they track
+            # continuously instead of freezing until the target re-enters range.
+            _aim_turrets(delta)
+            _move_toward_target()
         return
     var close := _horizontal_distance() <= CellUtil.CELL_SIZE
     # Body-facing is evaluated once per tick for body/fixed channels so
