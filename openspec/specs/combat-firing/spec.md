@@ -3,7 +3,7 @@
 CombatComponent resolves enemy targets into attack orders, tracks the current target, enforces per-weapon cooldowns, measures engagement range, applies hitscan damage through warhead armor multipliers, and coordinates movement toward out-of-range targets.
 ## Requirements
 ### Requirement: CombatComponent tracks attack target
-CombatComponent SHALL maintain a `_target: Node3D` reference set via `set_target(entity)`. The target SHALL persist across `_physics_process` ticks until explicitly cleared via `clear_target()` or the target becomes invalid.
+CombatComponent SHALL maintain a `_target: Node3D` reference set via `set_target(entity, hold_ground := false)`. The optional `hold_ground` flag SHALL default to `false` so existing player-order and test call sites are unchanged. When `hold_ground` is true, CombatComponent SHALL treat the engagement as stand-and-shoot: it SHALL NOT issue chase/approach moves, and when the target's horizontal distance exceeds the longest weapon range on a `_physics_process` tick it SHALL clear the target and stop attacking. The target SHALL persist across `_physics_process` ticks until explicitly cleared via `clear_target()`, the target becomes invalid, or (hold-ground only) the target leaves weapon range.
 
 #### Scenario: Set target
 - **WHEN** `set_target(entity)` is called with a valid enemy entity
@@ -16,6 +16,14 @@ CombatComponent SHALL maintain a `_target: Node3D` reference set via `set_target
 #### Scenario: Target dies (health reaches zero)
 - **WHEN** the target's HealthComponent emits `health_zero`
 - **THEN** CombatComponent SHALL clear `_target` and stop attacking
+
+#### Scenario: Hold-ground target leaves range
+- **WHEN** the active target was set with `hold_ground = true` and its horizontal distance exceeds `max(weapon.attack_range) * CellUtil.CELL_SIZE`
+- **THEN** CombatComponent SHALL clear `_target` and SHALL NOT call `_move_toward_target`
+
+#### Scenario: Default hold_ground preserves chase
+- **WHEN** `set_target(entity)` is called without the second argument (or with `false`) and the target is out of range
+- **THEN** CombatComponent SHALL behave exactly as before this change (stop current move, approach toward the target)
 
 ### Requirement: Fire rate cooldown per weapon
 CombatComponent SHALL maintain one cooldown timer per weapon mount group (a body-mounted weapon with no mount group is its own group). After a group fires, its timer SHALL be set to `weapon.rate_of_fire / 30.0` seconds, treating `rate_of_fire` as the original Tiberian Sun `ROF=` rearm-delay frames at the engine's 30 fps logic rate. A group SHALL NOT fire while its cooldown timer is positive. Groups evaluate independently, so a unit with several weapons or several turret mounts fires each on its own schedule.
