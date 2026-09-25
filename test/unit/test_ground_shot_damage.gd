@@ -139,6 +139,17 @@ func _health_of(entity: Node3D) -> int:
     return hc.current_health if hc else -1
 
 
+## Reproduces EntityFactory.create_entity's damage choke-point wiring for a
+## hand-built test entity, so per-victim impact reports can be observed.
+func _wire_impact_reports(entity: Node3D) -> void:
+    var hc := entity.get_node_or_null("HealthComponent") as HealthComponent
+    if hc == null:
+        return
+    hc.damage_taken.connect(
+        func(amount: int, dtype: String) -> void: _ef._on_entity_damaged(entity, dtype, amount)
+    )
+
+
 func _shooter_at(cell: Vector2i) -> Array:
     var shooter := _make_shooter()
     _place(shooter, CellUtil.cell_to_world(cell))
@@ -465,6 +476,85 @@ func test_ground_blast_resolves_one_cell_for_both_passes():
     _restore_rules()
     TestHelper.assert_eq(occupant_health, 100 - DAMAGE, "occupant resolved at the ordered cell")
     TestHelper.assert_eq(bridge_health, 100 - DAMAGE, "overlay resolved at the ordered cell too")
+
+
+func test_mixed_entity_and_overlay_hit_plays_one_impact_report():
+    # One ground detonation can damage an entity occupant and a cell overlay.
+    # The overlay must not fire a second per-victim impact report at the same
+    # point (two FX/sounds for one blast).
+    if not _sh or not _ef:
+        TestHelper.fail("SpatialHash/EntityFactory not injected")
+        return
+    _inject_rules()
+    var pos := CellUtil.cell_to_world(SHOOTER_CELL)
+    var occupant := _make_entity(1, pos + Vector3(0.3, 0.0, 0.3))
+    var bridge := _make_bridge(EntityData.BridgeKind.LOW, false, pos)
+    _wire_impact_reports(occupant)
+    _wire_impact_reports(bridge)
+    var setup := _shooter_at(SHOOTER_CELL + Vector2i(4, 0))
+    var cc: CombatComponent = setup[1]
+    _rebuild()
+    var reports: Array[String] = []
+    var on_report := func(dtype: String, _p: Vector3) -> void: reports.append(dtype)
+    _ef.impact_played.connect(on_report)
+    cc.set_ground_target(pos)
+    cc._fire_weapon(_make_weapon("WALL"), null)
+    _ef.impact_played.disconnect(on_report)
+    _cleanup()
+    _restore_rules()
+    TestHelper.assert_eq(reports.size(), 1, "one detonation plays one impact report")
+
+
+func test_incapable_warhead_scans_no_overlays():
+    # A warhead that cannot damage walls/ice or tiberium must resolve no
+    # overlays, so the shot pays no registry scan.
+    if not _sh:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _inject_rules()
+    var pos := CellUtil.cell_to_world(SHOOTER_CELL)
+    _make_bridge(EntityData.BridgeKind.LOW, false, pos)
+    _make_tiberium(pos)
+    _rebuild()
+    _sh.register_resource_cell(SHOOTER_CELL)
+    var rules: GlobalRules = _ef.get_global_rules()
+    var plain: WarheadData = rules.get_warhead("PLAIN")
+    var wall: WarheadData = rules.get_warhead("WALL")
+    var none: Array = _sh.find_cell_overlays(SHOOTER_CELL, plain)
+    var some: Array = _sh.find_cell_overlays(SHOOTER_CELL, wall)
+    _cleanup()
+    _restore_rules()
+    TestHelper.assert_true(none.is_empty(), "warhead that can damage nothing skips every overlay")
+    TestHelper.assert_eq(some.size(), 1, "wall warhead still finds the LOW bridge span")
+
+
+func test_ground_projectile_fizzles_at_max_range():
+    # A ground shot has no live target to invalidate it, so it must respect max
+    # range on its own; otherwise a non-converging shot orbits forever.
+    if not _sh:
+        TestHelper.fail("SpatialHash not injected")
+        return
+    _inject_rules()
+    var shooter := _make_shooter()
+    _place(shooter, CellUtil.cell_to_world(SHOOTER_CELL + Vector2i(4, 0)))
+    _rebuild()
+    var data := ProjectileData.new()
+    data.targets_ground = true
+    var weapon := _make_weapon("PLAIN")
+    weapon.attack_range = 1.0
+    var projectile := CombatComponent.PROJECTILE_SCENE.instantiate() as ProjectileController
+    _track(projectile)
+    projectile.setup(data, weapon, shooter, null, Vector3.ZERO)
+    Engine.get_main_loop().root.add_child(projectile)
+    projectile.global_position = Vector3(1000.0, 0.0, 0.0)
+    projectile._heading = Vector3.LEFT
+    projectile._armed = true
+    projectile._traveled = 10.0
+    projectile._physics_process(0.016)
+    var freed := projectile.is_queued_for_deletion()
+    _cleanup()
+    _restore_rules()
+    TestHelper.assert_true(freed, "a ground shot past max range is consumed")
 
 
 func test_building_edge_cell_resolves_its_occupant():

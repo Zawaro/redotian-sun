@@ -169,8 +169,13 @@ func _physics_process(delta: float) -> void:
     _update_visual_facing()
     if not target_valid:
         var remaining := global_position.distance_to(_last_known_target_pos)
+        # Ground shots have no live target to invalidate them, so they must be
+        # consumed at max range; otherwise a non-converging guided ground shot
+        # orbits forever (the entity-path range guard below is unreachable).
+        if _ground_shot and _traveled >= _max_range:
+            queue_free()
         # Reached the point, or started past it and moved away from it.
-        if remaining <= advance or (_prev_target_dist >= 0.0 and remaining > _prev_target_dist):
+        elif remaining <= advance or (_prev_target_dist >= 0.0 and remaining > _prev_target_dist):
             if _ground_shot:
                 _detonate_on(null)
             else:

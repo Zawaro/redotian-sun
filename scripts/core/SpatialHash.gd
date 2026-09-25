@@ -575,6 +575,10 @@ func find_cell_overlays(cell: Vector2i, warhead: WarheadData, exclude: Node3D = 
     var result: Array = []
     if warhead == null or not is_inside_tree():
         return result
+    # A warhead that cannot hurt walls/ice or tiberium can damage no overlay, so
+    # skip the registry scans entirely — most shots carry such a warhead.
+    if not warhead.can_damage_walls and not warhead.can_damage_tiberium:
+        return result
     var tree := get_tree()
     if tree == null:
         return result
