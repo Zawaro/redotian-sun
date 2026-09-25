@@ -56,7 +56,7 @@ enum BridgeKind { NONE, LOW, HIGH, RAIL }
 
 ## Movement
 @export_group("Movement")
-## Movement speed in cells per tick. 0 = immobile.
+## Movement speed as the TS `Speed` value: leptons per game frame. 0 = immobile.
 @export var speed: float = 0.0
 ## Movement zone — which terrain types this entity can traverse (e.g., "foot", "track", "float").
 @export var movement_zone: String = ""
