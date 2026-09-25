@@ -526,6 +526,41 @@ func test_cell_click_highlights_terrain_cell():
     _finish()
 
 
+func test_fx_category_lists_and_previews():
+    if not _ensure_scene():
+        _finish()
+        return
+    var fx_index := -1
+    for i in _controller.get_category_count():
+        if _controller.get_category_label(i) == "FX":
+            fx_index = i
+            break
+    TestHelper.assert_true(fx_index >= 0, "FX category is present")
+    _controller.select_category(fx_index)
+    TestHelper.assert_true(_controller.get_asset_count() >= 1, "FX category lists effects")
+    _controller.select_asset(0)
+    TestHelper.assert_eq(_controller.get_preview_mode(), 4, "FX preview mode is active")
+    TestHelper.assert_true(_controller._fx_row.visible, "FX replay transport is shown")
+    TestHelper.assert_true(
+        _controller.get_object_root().get_child_count() > 0, "FX effect added to the preview stage"
+    )
+    var first: Node = _controller.get_object_root().get_child(0)
+    var first_id: int = first.get_instance_id()
+    _controller.replay_asset()
+    var second: Node = _controller.get_object_root().get_child(0)
+    TestHelper.assert_true(second.get_instance_id() != first_id, "replay spawns a fresh effect")
+    _finish()
+
+
+func test_fx_invalid_selection_shows_empty_state():
+    if not _ensure_scene():
+        _finish()
+        return
+    _controller._preview_fx("res://games/ts/fx/__missing__.tres")
+    TestHelper.assert_true(_controller._message_label.visible, "invalid FX shows the empty state")
+    _finish()
+
+
 func test_cleanup_frees_scene():
     if _scene != null:
         var tree := Engine.get_main_loop() as SceneTree

@@ -448,9 +448,12 @@ func _fire_channel(channel: FireChannel) -> void:
 
 func _fire_socket(channel: FireChannel, index: int) -> void:
     var muzzle := Vector3.INF
+    var muzzle_basis := Basis()
     if _turret and index < channel.socket_ids.size():
-        muzzle = _turret.get_muzzle_world_transform(channel.socket_ids[index]).origin
-    _fire_weapon(channel.weapon, _target, muzzle)
+        var muzzle_xform := _turret.get_muzzle_world_transform(channel.socket_ids[index])
+        muzzle = muzzle_xform.origin
+        muzzle_basis = muzzle_xform.basis
+    _fire_weapon(channel.weapon, _target, muzzle, muzzle_basis)
 
 
 func _rof_seconds(weapon: WeaponData) -> float:
@@ -490,7 +493,12 @@ func _is_facing_target(delta: float) -> bool:
     return _rotation_completed
 
 
-func _fire_weapon(weapon: WeaponData, target: Node3D, muzzle_origin: Vector3 = Vector3.INF) -> void:
+func _fire_weapon(
+    weapon: WeaponData,
+    target: Node3D,
+    muzzle_origin: Vector3 = Vector3.INF,
+    muzzle_basis: Basis = Basis()
+) -> void:
     if not muzzle_origin.is_finite():
         muzzle_origin = _body_muzzle_origin(weapon)
     var projectile_data: ProjectileData = _resolve_projectile(weapon)
@@ -500,16 +508,18 @@ func _fire_weapon(weapon: WeaponData, target: Node3D, muzzle_origin: Vector3 = V
         _apply_hitscan_damage(weapon, target)
     _fire_count += 1
     _play_fire_sound(weapon)
+    _play_muzzle_fx(weapon, muzzle_origin, muzzle_basis)
     weapon_fired.emit(weapon, target)
 
 
-## Body-mounted muzzle: entity position offset by the weapon fire offset. FLH
-## art data + turret-relative rotation belong to #326.
+## Body-mounted muzzle: the entity transform composed with the weapon's local
+## fire offset (FLH), so the offset rotates with the body. Per-unit ArtData FLH
+## belongs to #326.
 func _body_muzzle_origin(weapon: WeaponData) -> Vector3:
     var shooter := get_parent() as Node3D
     if shooter == null:
-        return global_position + weapon.fire_offset
-    return shooter.global_position + weapon.fire_offset
+        return global_transform * weapon.fire_offset
+    return shooter.global_transform * weapon.fire_offset
 
 
 ## Resolves weapon.projectile through the GlobalRules registry; null when the
@@ -564,6 +574,16 @@ func _play_fire_sound(weapon: WeaponData) -> void:
     if report.is_empty():
         return
     AudioManager.play_report(report.split(",", false), global_position)
+
+
+## Plays the weapon's one-shot muzzle effect at the world muzzle transform
+## (origin + socket yaw for turret mounts, identity basis for body mounts), so
+## directional particle effects fire along the barrel. Fog gating lives in
+## FxSystem.
+func _play_muzzle_fx(weapon: WeaponData, muzzle_origin: Vector3, muzzle_basis: Basis) -> void:
+    if weapon == null or weapon.muzzle_fx == null:
+        return
+    FxSystem.play(weapon.muzzle_fx, Transform3D(muzzle_basis, muzzle_origin))
 
 
 func _move_toward_target(force: bool = false) -> void:

@@ -81,6 +81,7 @@ func test_in_scope_categories_present():
         "Terrain Art",
         "SFX",
         "Voices",
+        "FX",
         "Cameos / UI",
     ]:
         TestHelper.assert_true(labels.has(expected), "registry contains '%s'" % expected)
@@ -100,6 +101,28 @@ func test_tres_id_falls_back_to_filename():
     var ctrl := _make_controller()
     var path := "res://games/ts/theaters/temperate.tres"
     TestHelper.assert_eq(ctrl._tres_id(path), "temperate", "id from file when header id absent")
+
+
+func test_tres_id_reads_past_512_byte_header():
+    # FX resources embed SpriteFrames/materials before [resource], pushing the
+    # authored id past the 512-byte header cap used for class detection.
+    var ctrl := _make_controller()
+    (
+        TestHelper
+        . assert_eq(
+            ctrl._tres_id("res://games/ts/fx/muzzle_flash_small.tres"),
+            "MuzzleFlashSmall",
+            "reads id past the header cap",
+        )
+    )
+    (
+        TestHelper
+        . assert_eq(
+            ctrl._tres_id("res://games/ts/fx/bullet_hit_small.tres"),
+            "BulletHitSmall",
+            "reads id past the header cap for a particle effect",
+        )
+    )
 
 
 func test_join_normalizes_slashes():

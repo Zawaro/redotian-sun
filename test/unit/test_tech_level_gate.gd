@@ -32,7 +32,7 @@ var _pm: Node = null
 
 
 func _ps() -> Node:
-    var ps := Engine.get_main_loop().root.get_node_or_null("PrerequisiteSystem")
+    var ps: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("PrerequisiteSystem")
     if ps == null:
         TestHelper.fail("PrerequisiteSystem autoload not present")
     return ps

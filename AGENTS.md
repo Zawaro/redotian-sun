@@ -18,7 +18,7 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | Main scene | `scenes/MainScene.tscn` |
 | Viewport | 1920×1080, stretch mode = viewport |
 
-### Autoloads (30 singletons, all registered in `project.godot`)
+### Autoloads (31 singletons, all registered in `project.godot`)
 
 | Singleton | Script | Purpose |
 |-----------|--------|---------|
@@ -52,6 +52,7 @@ Canonical terms live in [`GLOSSARY.md`](GLOSSARY.md) — read it before writing 
 | `AudioManager` | `scripts/core/AudioManager.gd` | Audio buses, SFX/voice playback |
 | `ShroudSystem` | `scripts/core/ShroudSystem.gd` | Per-player fog-of-war grid |
 | `FogRenderer` | `scripts/core/FogRenderer.gd` | Renders the fog-of-war overlay |
+| `FxSystem` | `scripts/core/FxSystem.gd` | Plays one-shot visual effects (`FxData`), fog-gated |
 
 ## Folder Structure
 
@@ -210,7 +211,7 @@ Use typed `signal_name.emit(args)` — never `emit_signal("name", args)`.
 - **PR titles**: Conventional prefix + issue number in parentheses — `fix: building ignores moving entities (#59)`, `feat: async model loading (#60)`. The branch already has the number, but PR title must include it too.
 - **Naming**: PascalCase for classes/scenes, snake_case for vars/funcs. Scene files mirror script names (e.g., `HealthComponent.tscn` ↔ `scripts/components/HealthComponent.gd`).
 - **Scene composition**: Component scenes (`components/*.tscn`) are instantiated as children of entity scenes. Core systems have dedicated scene instances in the gameplay hierarchy.
-- **Autoloads**: 30 autoloads registered in `project.godot`; `GameContext` must stay **first** (consumers pull the active game in their own `_ready()`). Add new singletons via project settings, not hardcoded references.
+- **Autoloads**: 31 autoloads registered in `project.godot`; `GameContext` must stay **first** (consumers pull the active game in their own `_ready()`). Add new singletons via project settings, not hardcoded references.
 - **Input roles**: Right-click = deselect / cancel only (clears selection, exits modes, cancels production). Left-click = select / act (selects entities, issues orders, starts production). Never issue unit commands on right-click.
 - **UID files**: Redot generates `.uid` files (e.g., `MyScript.gd.uid`) alongside scripts and scenes. These are valid parts of the codebase and MUST be committed. Always `git add` both the script and its `.uid` file together.
 

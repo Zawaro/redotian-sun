@@ -401,6 +401,13 @@ func is_shroud_enabled() -> bool:
     return rules != null and rules.shroud_enabled
 
 
+## True once a terrain grid has been initialized. Fog gates that read
+## `is_cell_visible_to_local` should treat "not ready" as ungated, so scenes
+## without a shroud grid do not suppress effects.
+func is_grid_ready() -> bool:
+    return _cell_count > 0
+
+
 func is_fog_enabled() -> bool:
     var rules := GlobalRules.get_current()
     return rules != null and rules.fog_of_war
