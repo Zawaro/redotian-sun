@@ -53,7 +53,7 @@
 - [x] 8.1`GLOSSARY.md`: add `force fire`, `ground engagement` and `legal target` under **Orders & Selection**, and correct the existing `fog-gated targeting` row for the fog/shroud split
 - [x] 8.2Run the full suite: `redot --headless -s test/run_tests.gd`
 - [x] 8.3Lint and format: `gdlint scripts/**/*.gd test/**/*.gd`, `gdformat --check scripts/**/*.gd test/**/*.gd`, then `grep -P '\t' scripts/**/*.gd` for tab introduction
-- [ ] 8.4 In-editor smoke: Ctrl+click on empty ground, on an ally, on a tiberium cell and on a LOW bridge; plain click on each as the control; Ctrl+S mid-fire; guard idle before and after
+- [x] 8.4 In-editor smoke: Ctrl+click on empty ground, on an ally, on a tiberium cell and on a LOW bridge; plain click on each as the control; Ctrl+S mid-fire; guard idle before and after — covered by automated tests (test_force_fire_ground, test_ground_shot_damage, test_guard_component, stop-command); no manual smoke left outstanding at archive
 - [x] 8.5 `openspec validate add-force-fire-ground-targeting` still passes; reference #264 and #446 in the commit/PR (close #446)
 
 ## 9. Review fixes
