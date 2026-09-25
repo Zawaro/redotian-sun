@@ -63,6 +63,15 @@ class FireChannel:
 
 var _channels: Array[FireChannel] = []
 var _target: Node3D = null
+## Engagement point in world space — the source of truth for a ground
+## engagement (no entity) and the fallback for an entity one. Read through
+## _engagement_pos(), never directly.
+var _target_pos: Vector3 = Vector3.ZERO
+## Whether the engagement was entered through an entity rather than a position.
+## A freed entity reference compares equal to null but is still not a valid
+## instance, so the tick-time validity check needs this to tell "the target
+## vanished" apart from "there never was one".
+var _target_is_entity: bool = false
 ## Target's foundation, resolved once on set_target so range/approach/facing can
 ## measure to the nearest footprint point without a node lookup per tick.
 var _target_foundation: FoundationComponent = null
@@ -172,17 +181,57 @@ func get_target() -> Node3D:
     return _target
 
 
+## True while any engagement is live — an entity target or a ground position.
+## Consumers that only care "is this unit busy attacking" must use this rather
+## than get_target(), which is null for force-fire at the ground.
+func is_engaged() -> bool:
+    return _attack_active
+
+
+## World point the engagement is firing at, for a target line drawn to it: the
+## entity's own position for an entity target (its centre, tracked as it moves)
+## or the ordered cell centre for a ground engagement. This is the centre, not
+## the footprint-nearest aim point — range/facing use `_effective_target_pos()`.
+func get_engagement_position() -> Vector3:
+    return _engagement_pos()
+
+
 func set_target(entity: Node3D, hold_ground: bool = false) -> void:
+    if entity == null:
+        # A null here would engage at whatever position the previous target left
+        # behind. Use set_ground_target() for a position, clear_target() to end.
+        push_error("CombatComponent: set_target(null) — use set_ground_target() or clear_target()")
+        return
     _target = entity
+    _target_is_entity = true
     _target_foundation = null
-    if entity:
-        # Match GuardComponent's classifier: only structures get footprint
-        # geometry, so a multi-cell non-structure measures to its origin.
-        var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
-        if stats and stats.is_structure():
-            _target_foundation = (
-                entity.get_node_or_null("FoundationComponent") as FoundationComponent
-            )
+    _target_pos = entity.global_position
+    # Match GuardComponent's classifier: only structures get footprint
+    # geometry, so a multi-cell non-structure measures to its origin.
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and stats.is_structure():
+        _target_foundation = entity.get_node_or_null("FoundationComponent") as FoundationComponent
+    _begin_engagement(hold_ground)
+
+
+## Ground engagement: fire at a world position with no entity target. The
+## engagement repeats on cooldown until a player move, the Stop command, or the
+## shooter's death — a position never invalidates itself.
+func set_ground_target(pos: Vector3, hold_ground: bool = false) -> void:
+    _target = null
+    _target_is_entity = false
+    _target_foundation = null
+    # Fire at the cell centre, not the exact click: the impact point stays put
+    # whether or not an entity stands there. Y is kept so a deck-level pick
+    # still aims at the deck surface.
+    var center := CellUtil.cell_to_world(CellUtil.world_to_cell(pos))
+    _target_pos = Vector3(center.x, pos.y, center.z)
+    _begin_engagement(hold_ground)
+
+
+## Shared engagement entry: both set_target() and set_ground_target() reset the
+## same runtime state, stop the current move and, unless hold-ground, approach.
+func _begin_engagement(hold_ground: bool) -> void:
     _attack_active = true
     _rotation_completed = false
     _hold_ground = hold_ground
@@ -204,6 +253,8 @@ func set_target(entity: Node3D, hold_ground: bool = false) -> void:
 func clear_target() -> void:
     _disconnect_health_signal()
     _target = null
+    _target_is_entity = false
+    _target_pos = Vector3.ZERO
     _target_foundation = null
     _attack_active = false
     _rotation_completed = false
@@ -249,15 +300,36 @@ func get_order_for_target(
     target_pos: Vector3,
     modifiers: Dictionary,
 ) -> OrderResult:
-    if not target or weapons.is_empty():
+    if weapons.is_empty():
         return null
-    var force_attack: bool = modifiers.get(OrderResult.MOD_FORCE_ATTACK, false)
+    var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+    # Force-fire bypasses both the "is there a target at all" test and the
+    # ownership test: ground cells, allies, own units and neutrals are all
+    # legal targets while the modifier is held.
+    if modifiers.get(OrderResult.MOD_FORCE_ATTACK, false):
+        if target == null:
+            return OrderResult.new(
+                CursorState.Type.ATTACK,
+                30,
+                null,
+                target_pos,
+                queued,
+                func(): set_ground_target(target_pos),
+            )
+        return OrderResult.new(
+            CursorState.Type.ATTACK,
+            30,
+            target,
+            target_pos,
+            queued,
+            func(): _attack(target),
+        )
+    if target == null:
+        return null
     var stats := target.get_node_or_null("StatsComponent") as StatsComponent
     if stats and stats.player_id >= 0:
         var local_id := PlayerManager.get_local_player_id()
-        var is_enemy := PlayerManager.is_enemy(stats.player_id, local_id)
-        if is_enemy or force_attack:
-            var queued: bool = modifiers.get(OrderResult.MOD_QUEUED, false)
+        if PlayerManager.is_enemy(stats.player_id, local_id):
             return OrderResult.new(
                 CursorState.Type.ATTACK,
                 30,
@@ -281,9 +353,16 @@ func _physics_process(delta: float) -> void:
         # Powered down: hold fire and freeze the engagement — no acquisition,
         # no shots, no chase moves. The target is kept so restoration resumes.
         return
-    if not _attack_active or not _target:
+    if not _attack_active:
         return
-    if not is_instance_valid(_target) or _channels.is_empty():
+    # An entity target can vanish (freed node); a ground position cannot, so
+    # the validity check must not apply to it or the engagement clears each tick.
+    # Note a freed entity reads as `== null`, so the entity/ground distinction
+    # comes from _target_is_entity rather than from the reference itself.
+    if _target_is_entity and not is_instance_valid(_target):
+        clear_target()
+        return
+    if _channels.is_empty():
         clear_target()
         return
     if not _target_in_range():
@@ -331,7 +410,7 @@ func _needs_body_facing() -> bool:
 ## Slews every yaw-free mount at the target. Used on the chase path (target out
 ## of range); in-range ticks aim via _tick_channel.
 func _aim_turrets(delta: float) -> void:
-    if _turret == null or not is_instance_valid(_target):
+    if _turret == null or not _attack_active:
         return
     for channel in _channels:
         if not channel.yaw_free:
@@ -340,19 +419,29 @@ func _aim_turrets(delta: float) -> void:
             _turret.slew(socket_id, _effective_target_pos(), delta)
 
 
-## Engagement point on the target: the nearest point of a building's foundation
-## footprint so range/approach/facing stop at the wall instead of the footprint
-## center. Point targets (units, 1x1 buildings) use the entity origin.
-func _effective_target_pos() -> Vector3:
-    if _target_foundation and is_instance_valid(_target_foundation):
-        return _target_foundation.nearest_world_point(global_position)
+## Raw engagement point: the entity's origin while one is held, otherwise the
+## ordered ground position (or this entity when idle, so no caller ever reads a
+## stale coordinate).
+func _engagement_pos() -> Vector3:
     if is_instance_valid(_target):
         return _target.global_position
+    if _attack_active:
+        return _target_pos
     return global_position
 
 
+## Engagement point on the target: the nearest point of a building's foundation
+## footprint so range/approach/facing stop at the wall instead of the footprint
+## center. Point targets (units, 1x1 buildings) and ground positions use the
+## entity origin / ordered position directly.
+func _effective_target_pos() -> Vector3:
+    if _target_foundation and is_instance_valid(_target_foundation):
+        return _target_foundation.nearest_world_point(global_position)
+    return _engagement_pos()
+
+
 func _horizontal_distance() -> float:
-    if not is_instance_valid(_target):
+    if not _attack_active:
         return INF
     var to_target := _effective_target_pos() - global_position
     return Vector3(to_target.x, 0.0, to_target.z).length()
@@ -542,7 +631,7 @@ func _spawn_projectile(
     var projectile := PROJECTILE_SCENE.instantiate() as ProjectileController
     if not projectile:
         return
-    projectile.setup(data, weapon, shooter, target)
+    projectile.setup(data, weapon, shooter, target, _engagement_pos())
     projectile.set_spawn_origin(muzzle_origin)
     var container: Node = null
     var tree := shooter.get_tree()
@@ -558,15 +647,76 @@ func _spawn_projectile(
 
 
 func _apply_hitscan_damage(weapon: WeaponData, target: Node3D) -> void:
-    var health := target.get_node_or_null("HealthComponent") as HealthComponent
-    if not health:
-        return
-    var target_stats := target.get_node_or_null("StatsComponent") as StatsComponent
-    var target_armor := target_stats.armor if target_stats else "none"
-    var damage := GlobalRules.compute_warhead_damage(
-        get_effective_damage(weapon), weapon.warhead, target_armor
-    )
-    health.take_damage(damage, weapon.warhead, get_parent() as Node3D)
+    # Impact point, not aim point: a building reads on the nearest footprint
+    # point (so effects land on the wall), a ground shot on the cell centre.
+    var impact_pos := _engagement_pos() if target == null else _victim_impact_pos(target)
+    var victim := target
+    if victim == null and SpatialHash.instance:
+        # Ground engagement: the shot lands on the cell's occupant instead.
+        victim = SpatialHash.instance.resolve_cell_victim(
+            CellUtil.world_to_cell(impact_pos), impact_pos, get_parent() as Node3D
+        )
+    var entity_hit := false
+    if victim != null and not SpatialHash.is_overlay_entity(victim):
+        var health := victim.get_node_or_null("HealthComponent") as HealthComponent
+        if health:
+            entity_hit = true
+            var target_stats := victim.get_node_or_null("StatsComponent") as StatsComponent
+            var target_armor := target_stats.armor if target_stats else "none"
+            var damage := GlobalRules.compute_warhead_damage(
+                get_effective_damage(weapon), weapon.warhead, target_armor
+            )
+            health.take_damage(damage, weapon.warhead, get_parent() as Node3D, impact_pos)
+    # An overlay (tiberium/bridge/ice) is left to the warhead-gated overlay pass:
+    # a warhead without the matching flag deals no damage but the impact effect
+    # still plays through the fallback below.
+    var overlay_hit := _damage_cell_overlays(weapon, impact_pos, victim if entity_hit else null)
+    if not entity_hit and not overlay_hit:
+        EntityFactory.play_impact_effects_at(weapon.warhead, impact_pos)
+
+
+## World point a direct hit on `entity` reads on: the nearest footprint point of
+## a structure facing the shooter, otherwise the entity origin.
+func _victim_impact_pos(entity: Node3D) -> Vector3:
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    if stats and stats.is_structure():
+        var fc := entity.get_node_or_null("FoundationComponent") as FoundationComponent
+        if fc:
+            return fc.nearest_world_point(global_position)
+    return entity.global_position
+
+
+## Applies the warhead's cell-overlay damage (bridge, ice, tiberium) at the
+## impact cell. Returns true when at least one overlay took the hit, so the
+## caller knows whether the warhead's own impact effects already played through
+## the damage choke point.
+func _damage_cell_overlays(weapon: WeaponData, impact_pos: Vector3, exclude: Node3D) -> bool:
+    if SpatialHash.instance == null:
+        return false
+    var rules := GlobalRules.get_current()
+    if rules == null:
+        return false
+    var warhead := rules.get_warhead(weapon.warhead)
+    if warhead == null:
+        return false
+    var shooter := get_parent() as Node3D
+    var applied := false
+    for overlay in SpatialHash.instance.find_cell_overlays(
+        CellUtil.world_to_cell(impact_pos), warhead, exclude
+    ):
+        var health := overlay.get_node_or_null("HealthComponent") as HealthComponent
+        if health == null:
+            continue
+        var overlay_stats := overlay.get_node_or_null("StatsComponent") as StatsComponent
+        var overlay_armor := overlay_stats.armor if overlay_stats else "none"
+        var damage := GlobalRules.compute_warhead_damage(
+            get_effective_damage(weapon), weapon.warhead, overlay_armor
+        )
+        if damage <= 0:
+            continue
+        health.take_damage(damage, weapon.warhead, shooter)
+        applied = true
+    return applied
 
 
 func _play_fire_sound(weapon: WeaponData) -> void:
@@ -648,7 +798,7 @@ func _move_toward_target(force: bool = false) -> void:
                 _chase_retry_after = _now() + CHASE_RETRY_BACKOFF
                 return
     _combat_move = true
-    _chase_leg_enemy_cell = CellUtil.world_to_cell(_target.global_position)
+    _chase_leg_enemy_cell = CellUtil.world_to_cell(_engagement_pos())
     _last_chase_replan_time = _now()
     mc.set_target_position(stop_pos, false, true)
 
@@ -699,11 +849,13 @@ func _connect_mc_signal() -> void:
 
 
 func _connect_health_signal() -> void:
+    # Disconnect unconditionally and first: an entity → ground transition leaves
+    # _target null, so bailing before the disconnect would leave the previous
+    # entity's health_zero wired up — and its death would then clear_target()
+    # out from under the player's ground engagement.
+    _disconnect_health_signal()
     if not _target:
         return
-    if _connected_health_target == _target:
-        return
-    _disconnect_health_signal()
     _connected_health_target = _target
     var hc := _target.get_node_or_null("HealthComponent") as HealthComponent
     if hc:
@@ -758,13 +910,13 @@ func _should_replan(mc: MovementController) -> bool:
     var now := _now()
     if now < _chase_retry_after:
         return false
-    if not is_instance_valid(_target):
+    if not _attack_active:
         return false
     if not mc.is_moving() or mc.is_waiting():
         return true
     if now - _last_chase_replan_time < CHASE_REPLAN_MIN_INTERVAL:
         return false
-    return CellUtil.world_to_cell(_target.global_position) != _chase_leg_enemy_cell
+    return CellUtil.world_to_cell(_engagement_pos()) != _chase_leg_enemy_cell
 
 
 func _now() -> float:

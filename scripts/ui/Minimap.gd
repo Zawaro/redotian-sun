@@ -773,6 +773,7 @@ func _handle_click(cell: Vector2i) -> void:
     MouseHandler.play_order_voices(orders, selection)
     for order in orders:
         order.execute.call()
+    MouseHandler.acknowledge_target_lines(selection)
 
 
 ## True while a building or free-placement mode is active; both suppress minimap

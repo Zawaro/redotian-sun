@@ -165,6 +165,124 @@ func test_move_line_endpoint_tracks_attack_target():
     )
 
 
+func test_move_line_endpoint_tracks_ground_engagement():
+    # Force-fire ground: the line must end on the ordered cell (the firing
+    # target), not the approach stop position the unit is pathfinding to.
+    var entity := Node3D.new()
+    (Engine.get_main_loop() as SceneTree).root.add_child(entity)
+    var cc := CombatComponent.new()
+    entity.add_child(cc)
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    mc._waypoints = PackedVector3Array([Vector3(2, 0, 3)])
+    var sc := SelectComponent.new()
+    sc._combat_component = cc
+    sc._movement_controller = mc
+    var click := Vector3(12.4, 0.0, 7.6)
+    cc.set_ground_target(click)
+    var expected := CellUtil.cell_to_world(CellUtil.world_to_cell(click))
+    var endpoint := sc._get_move_line_endpoint()
+    sc.free()
+    entity.free()
+    (
+        TestHelper
+        . assert_true(
+            endpoint == expected,
+            "ground line ends on the ordered cell: got %s, expected %s" % [endpoint, expected],
+        )
+    )
+
+
+func test_player_order_flashes_target_line():
+    # An in-range ground force-fire emits no movement signal; the order funnel's
+    # acknowledgement must flash the line the moment the player issues it.
+    var entity := Node3D.new()
+    (Engine.get_main_loop() as SceneTree).root.add_child(entity)
+    var cc := CombatComponent.new()
+    cc.name = "CombatComponent"
+    entity.add_child(cc)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    mc._state = MovementController.State.IDLE
+    var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    entity.add_child(sc)
+    sc.set_is_selected(true)
+    var before: bool = sc._move_line_timer.time_left == 0.0
+    cc.set_ground_target(Vector3(12.4, 0.0, 7.6))
+    sc.acknowledge_order()
+    var flashed: bool = sc._move_line_timer.time_left > 0.0
+    sc.set_is_selected(false)
+    entity.free()
+    TestHelper.assert_true(before, "line is not flashing before the order")
+    TestHelper.assert_true(flashed, "player order flashes the target line")
+
+
+func test_auto_engagement_does_not_flash_target_line():
+    # Guard auto-acquire (hold_ground) must not surface the line on its own;
+    # selecting the engaged entity afterwards still shows it.
+    var entity := Node3D.new()
+    (Engine.get_main_loop() as SceneTree).root.add_child(entity)
+    var cc := CombatComponent.new()
+    cc.name = "CombatComponent"
+    entity.add_child(cc)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    mc._state = MovementController.State.IDLE
+    var sc := SELECT_COMPONENT_SCENE.instantiate() as SelectComponent
+    entity.add_child(sc)
+    sc.set_is_selected(true)
+    var enemy := Node3D.new()
+    (Engine.get_main_loop() as SceneTree).root.add_child(enemy)
+    enemy.global_position = Vector3(4, 0, 0)
+    cc.set_target(enemy, true)
+    var auto_flash: bool = sc._move_line_timer.time_left > 0.0
+    sc.set_is_selected(false)
+    sc.set_is_selected(true)
+    var reselect_flash: bool = sc._move_line_timer.time_left > 0.0
+    sc.set_is_selected(false)
+    entity.free()
+    enemy.free()
+    TestHelper.assert_true(not auto_flash, "auto-acquired engagement does not flash the line")
+    TestHelper.assert_true(reselect_flash, "reselecting the engaged entity shows the line")
+
+
+func test_building_line_ends_at_entity_centre_not_footprint():
+    # The target line touches the middle of a building, not the nearest
+    # footprint edge (that point is only for range/facing and impact effects).
+    var entity := Node3D.new()
+    (Engine.get_main_loop() as SceneTree).root.add_child(entity)
+    var cc := CombatComponent.new()
+    entity.add_child(cc)
+    var mc := MovementController.new()
+    entity.add_child(mc)
+    var sc := SelectComponent.new()
+    sc._combat_component = cc
+    sc._movement_controller = mc
+    var building := Node3D.new()
+    (Engine.get_main_loop() as SceneTree).root.add_child(building)
+    building.global_position = Vector3(20, 0, 20)
+    var stats := StatsComponent.new()
+    stats.entity_type = EntityData.EntityType.BUILDING
+    building.add_child(stats)
+    var fc := FoundationComponent.new()
+    fc.foundation = Vector2i(3, 3)
+    building.add_child(fc)
+    cc.set_target(building)
+    var endpoint := sc._get_move_line_endpoint()
+    sc.free()
+    entity.free()
+    building.free()
+    (
+        TestHelper
+        . assert_true(
+            endpoint == Vector3(20, 0, 20),
+            "building line ends at the entity centre: got %s" % endpoint,
+        )
+    )
+
+
 func test_reselect_shows_line_for_stationary_attacker():
     # An in-range attacker (not moving) that is deselected and re-selected must
     # still show the move line pointing at the enemy — movement alone is not

@@ -17,6 +17,10 @@ signal killed(killer: Node3D)
 
 ## Last entity to deal damage to this one, used for kill credit.
 var last_attacker: Node3D = null
+## World point the damage landed at, when the caller knows it (a weapon impact).
+## Vector3.INF when unknown; impact-effect placement falls back to the entity
+## origin, so non-combat damage (crush, drowning) stays unchanged.
+var last_impact_pos: Vector3 = Vector3.INF
 
 
 func configure(data: EntityData) -> void:
@@ -25,10 +29,13 @@ func configure(data: EntityData) -> void:
         current_health = data.spawn_health if data.spawn_health > 0 else data.strength
 
 
-func take_damage(damage: int, damage_type: String = "", source: Node3D = null) -> void:
+func take_damage(
+    damage: int, damage_type: String = "", source: Node3D = null, impact_pos: Vector3 = Vector3.INF
+) -> void:
     if damage <= 0 or current_health <= 0:
         return
     last_attacker = source
+    last_impact_pos = impact_pos
     var applied := _apply_veteran_armor(damage)
     current_health -= applied
     damage_taken.emit(applied, damage_type)

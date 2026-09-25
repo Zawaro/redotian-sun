@@ -519,6 +519,133 @@ func get_crushable_enemies_on_cell(cell: Vector2i, player_id: int) -> Array:
     return result
 
 
+## Nearest entity a ground shot can hit: the occupant of `cell` at any level
+## that has a HealthComponent and a combat entity_type (infantry, vehicle,
+## aircraft, building), closest to `impact_pos` in 3D. Only the shooter is
+## exempt — allies and neutrals qualify, matching how a blast in the original
+## spares the object credited with the shot. Terrain and overlay entities are
+## never occupants; bridge, ice and tiberium go through find_cell_overlays().
+func resolve_cell_victim(cell: Vector2i, impact_pos: Vector3, shooter: Node3D) -> Node3D:
+    var best: Node3D = null
+    var best_dist := INF
+    for entry in _grid.get(CellUtil.cell_key(cell), []):
+        var entry_node: Node3D = entry["node"]
+        if not is_instance_valid(entry_node) or entry_node == shooter:
+            continue
+        var entry_type: int = entry["entity_type"]
+        if (
+            entry_type != EntityData.EntityType.INFANTRY
+            and entry_type != EntityData.EntityType.VEHICLE
+            and entry_type != EntityData.EntityType.AIRCRAFT
+            and entry_type != EntityData.EntityType.BUILDING
+        ):
+            continue
+        if entry_node.get_node_or_null("HealthComponent") == null:
+            continue
+        var dist := entry_node.global_position.distance_squared_to(impact_pos)
+        if dist < best_dist:
+            best_dist = dist
+            best = entry_node
+    if best == null:
+        # A building is indexed in _grid only at its centre cell, so a shot at
+        # an edge cell of a large structure finds nothing above. Its footprint
+        # registry is keyed by every cell it covers.
+        var footprint: Variant = _building_cells.get(CellUtil.cell_key(cell))
+        var building := footprint as Node3D
+        if (
+            building != null
+            and is_instance_valid(building)
+            and building != shooter
+            and building.get_node_or_null("HealthComponent") != null
+        ):
+            best = building
+    return best
+
+
+## Overlays in `cell` a warhead may damage: a destructible LOW normal bridge
+## span, ice (only present while the `breakable_ice` feature is on) and tiberium
+## — each gated on the warhead flag that maps to it in the original. `exclude`
+## is the shot's own entity target, which the caller has already damaged.
+##
+## None of these are `_grid` entries: OVERLAY and 1x1 TERRAIN entities never
+## join the "entities" group, so they are read from the registries that do know
+## about them — `_ice_cells` (keyed by cell), the small "bridge" group, and the
+## `_resource_cells` probe that gates the "resources" scan.
+func find_cell_overlays(cell: Vector2i, warhead: WarheadData, exclude: Node3D = null) -> Array:
+    var result: Array = []
+    if warhead == null or not is_inside_tree():
+        return result
+    var tree := get_tree()
+    if tree == null:
+        return result
+    for bridge in tree.get_nodes_in_group("bridge"):
+        var bridge_node := bridge as Node3D
+        if not is_instance_valid(bridge_node) or bridge_node == exclude:
+            continue
+        if CellUtil.world_to_cell(bridge_node.global_position) != cell:
+            continue
+        if _overlay_damage_allowed(bridge_node, warhead):
+            result.append(bridge_node)
+    for ice in _ice_cells.get(CellUtil.cell_key(cell), []):
+        var ice_node := ice as Node3D
+        if not is_instance_valid(ice_node) or ice_node == exclude:
+            continue
+        if _overlay_damage_allowed(ice_node, warhead):
+            result.append(ice_node)
+    # Tiberium is an OVERLAY entity, so only the boolean resource-cell index
+    # knows the cell has any. One dictionary probe keeps the common empty-cell
+    # shot O(1).
+    if warhead.can_damage_tiberium and has_resource_cell(cell):
+        for resource in tree.get_nodes_in_group("resources"):
+            var resource_node := resource as Node3D
+            if not is_instance_valid(resource_node) or resource_node == exclude:
+                continue
+            if CellUtil.world_to_cell(resource_node.global_position) != cell:
+                continue
+            if _overlay_damage_allowed(resource_node, warhead):
+                result.append(resource_node)
+    return result
+
+
+## True when `node` is a cell overlay — a bridge span, ice sheet or resource —
+## rather than a combat entity. Overlay damage belongs to the warhead-gated
+## `find_cell_overlays()` pass, so direct shots must not damage one through the
+## entity path (a tiberium shot only lands when `can_damage_tiberium` is set).
+static func is_overlay_entity(node: Node3D) -> bool:
+    if node == null:
+        return false
+    return (
+        node.get_node_or_null("BridgeComponent") != null
+        or node.get_node_or_null("IceComponent") != null
+        or node.get_node_or_null("ResourceComponent") != null
+    )
+
+
+## Per-overlay warhead gate. `can_damage_walls` is the game's Wall=yes: it
+## covers both bridge spans and ice cracking in the original. Tiberium has its
+## own flag. Ice is only reachable while its IceComponent exists, which
+## EntityFactory attaches only when the `breakable_ice` feature is on.
+func _overlay_damage_allowed(node: Node3D, warhead: WarheadData) -> bool:
+    var bridge := node.get_node_or_null("BridgeComponent")
+    if bridge != null:
+        if not warhead.can_damage_walls:
+            return false
+        var data: Variant = bridge.call("get_bridge_cell_data")
+        if not data is Dictionary or (data as Dictionary).is_empty():
+            return false
+        var bridge_data := data as Dictionary
+        return (
+            int(bridge_data["bridge_kind"]) == EntityData.BridgeKind.LOW
+            and not bool(bridge_data["is_end"])
+        )
+    if node.get_node_or_null("IceComponent") != null:
+        return warhead.can_damage_walls
+    if node.get_node_or_null("ResourceComponent") != null:
+        var resource := node.get_node_or_null("ResourceComponent")
+        return warhead.can_damage_tiberium and resource.get("resource_category") == "tiberium"
+    return false
+
+
 ## True when any mobile entity occupies the cell. `level >= 0` restricts to that
 ## surface; the no-level call resolves to ground (level 0), so ground building,
 ## deploy, and transport queries ignore a deck occupant above. Pass `level == -1`
@@ -568,9 +695,18 @@ func get_reserved() -> Dictionary:
     return _reserved
 
 
-func register_building_cells(cells: Array[Vector2i]) -> void:
+## Records a building's footprint cells. Values hold the owning entity when the
+## caller knows it (FoundationComponent does) so a shot landing on an edge cell
+## of a large structure can still find its occupant — `_grid` only indexes a
+## building at its centre cell. Consumers treat this as a set: they read keys
+## and never values.
+func register_building_cells(cells: Array[Vector2i], node: Node3D = null) -> void:
     for cell in cells:
-        _building_cells[CellUtil.cell_key(cell)] = true
+        var key := CellUtil.cell_key(cell)
+        # A later node-less registration (placement preview, deploy transition)
+        # must not clobber the entity FoundationComponent recorded.
+        if node != null or not _building_cells.has(key):
+            _building_cells[key] = node
 
 
 func register_bib_cells(cells: Array[Vector2i]) -> void:
