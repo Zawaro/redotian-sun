@@ -24,7 +24,12 @@ var _weapon: WeaponData
 var _shooter: Node3D
 var _shooter_player_id: int = -1
 var _target: Node3D
+## Ordered impact point. Always valid: for an entity target it tracks the
+## entity, for a ground (force-fire) shot it is the point the player picked.
 var _last_known_target_pos: Vector3 = Vector3.ZERO
+## True when the shot was ordered at a position rather than an entity, so it
+## detonates on arrival instead of vanishing when the entity is gone.
+var _ground_shot: bool = false
 var _heading: Vector3 = Vector3.FORWARD
 var _speed: float = 0.0
 var _max_range: float = 0.0
@@ -44,7 +49,15 @@ var _has_spawn_origin: bool = false
 
 ## Configures the projectile before it enters the tree. Call once. Node
 ## children are applied in _ready, so setup only stores pure values.
-func setup(data: ProjectileData, weapon: WeaponData, shooter: Node3D, target: Node3D) -> void:
+## `target_pos` is the ordered impact point; pass it for ground shots so the
+## projectile has somewhere to fly when there is no entity to track.
+func setup(
+    data: ProjectileData,
+    weapon: WeaponData,
+    shooter: Node3D,
+    target: Node3D,
+    target_pos: Vector3 = Vector3.INF,
+) -> void:
     _data = data
     _weapon = weapon
     _shooter = shooter
@@ -63,6 +76,9 @@ func setup(data: ProjectileData, weapon: WeaponData, shooter: Node3D, target: No
             var hx := fc.foundation.x * CellUtil.CELL_SIZE * 0.5
             var hz := fc.foundation.y * CellUtil.CELL_SIZE * 0.5
             _max_range += Vector2(hx, hz).length()
+    elif target_pos.is_finite():
+        _last_known_target_pos = target_pos
+        _ground_shot = true
     var shooter_stats := (
         shooter.get_node_or_null("StatsComponent") as StatsComponent if shooter else null
     )
@@ -109,14 +125,16 @@ func _ready() -> void:
     _aim_heading_at_target()
 
 
-## Points the heading at the target from the spawn position. Without this the
-## heading stays at Vector3.FORWARD: non-guided projectiles fly pure -Z and
+## Points the heading at the impact point from the spawn position. Without this
+## the heading stays at Vector3.FORWARD: non-guided projectiles fly pure -Z and
 ## guided ones instantly overshoot-detonate when the target starts out behind
-## them (distance increases during the first frames).
+## them (distance increases during the first frames). Falls back to the ordered
+## position so ground shots aim somewhere too.
 func _aim_heading_at_target() -> void:
-    if not is_instance_valid(_target):
-        return
-    var to_target := _target.global_position - global_position
+    var aim := _last_known_target_pos
+    if is_instance_valid(_target):
+        aim = _target.global_position
+    var to_target := aim - global_position
     if not to_target.is_zero_approx():
         _heading = to_target.normalized()
 
@@ -134,7 +152,7 @@ func _physics_process(delta: float) -> void:
     if target_valid:
         target_pos = _target.global_position
         _last_known_target_pos = target_pos
-    if target_valid and _data.is_guided:
+    if (target_valid or _ground_shot) and _data.is_guided:
         _steer_toward(target_pos, delta)
     if not _armed:
         # Unarmed projectiles ignore every hitbox: no cast, no proximity.
@@ -150,8 +168,17 @@ func _physics_process(delta: float) -> void:
     global_position += _heading * advance
     _update_visual_facing()
     if not target_valid:
-        if global_position.distance_to(_last_known_target_pos) <= advance:
-            queue_free()
+        var remaining := global_position.distance_to(_last_known_target_pos)
+        # Reached the point, or started past it and moved away from it.
+        if remaining <= advance or (_prev_target_dist >= 0.0 and remaining > _prev_target_dist):
+            if _ground_shot:
+                _detonate_on(null)
+            else:
+                # The entity this shot was aimed at is gone: consume the shot
+                # without a blast, the long-standing behaviour for a dead target.
+                queue_free()
+        else:
+            _prev_target_dist = remaining
         return
     var dist := global_position.distance_to(target_pos)
     if dist <= SNAP_DISTANCE:
@@ -165,7 +192,7 @@ func _physics_process(delta: float) -> void:
         queue_free()
 
 
-## Invisible family: no flight. Jump onto the victim and detonate at once —
+## Invisible family: no flight. Jump onto the impact point and detonate at once —
 ## the same tick the legacy hitscan path applied damage, so behavior is
 ## preserved exactly. No physics-frame dependency.
 func _teleport_detonate() -> void:
@@ -173,6 +200,9 @@ func _teleport_detonate() -> void:
         global_position = _target.global_position
         _last_known_target_pos = global_position
         _detonate_on(_target)
+    elif _ground_shot:
+        global_position = _last_known_target_pos
+        _detonate_on(null)
     else:
         queue_free()
 
@@ -235,34 +265,105 @@ func _is_valid_victim(entity: Node3D) -> bool:
 
 
 ## Applies the payload to the victim through the HitboxComponent pipeline,
-## emits impacted, and frees the projectile. Detonations within a cell of the
-## victim snap the blast onto the victim's center so hits read as hits.
+## emits impacted, and frees the projectile. `victim` may be null: a ground shot
+## then resolves the impact cell's occupant (the shooter excluded, allies
+## included) and, failing that, hits nothing but the cell's overlays.
 func _detonate_on(victim: Node3D) -> void:
     if _detonated:
         return
     _detonated = true
+    # One blast, one point. A ground shot stays on the ordered cell centre even
+    # when an occupant is resolved there, so the impact never drifts onto the
+    # occupant. A building reads on the nearest footprint point facing the
+    # shooter rather than its centre, matching how range/approach measure.
     var final_pos := global_position
-    if (
+    if victim == null and _ground_shot:
+        final_pos = _last_known_target_pos
+        victim = _resolve_ground_victim(final_pos)
+    elif is_instance_valid(victim) and _is_structure(victim):
+        var fc := victim.get_node_or_null("FoundationComponent") as FoundationComponent
+        if fc and is_instance_valid(_shooter):
+            final_pos = fc.nearest_world_point(_shooter.global_position)
+    elif (
         is_instance_valid(victim)
         and global_position.distance_to(victim.global_position) <= SNAP_RADIUS
     ):
         final_pos = victim.global_position
+    var amount := 0
+    if is_instance_valid(victim):
+        amount = _compute_damage_for(victim)
     _payload = {
-        "amount": _compute_damage_for(victim),
+        "amount": amount,
         "type": _weapon.warhead,
         "source": _shooter,
         "position": final_pos,
     }
-    if is_instance_valid(victim):
+    var entity_hit := false
+    if is_instance_valid(victim) and not SpatialHash.is_overlay_entity(victim):
         var hitbox := victim.get_node_or_null("HitboxComponent") as HitboxComponent
-        if hitbox:
+        if hitbox and hitbox.health_component:
             hitbox.receive_damage_source(self)
+            entity_hit = true
         else:
             var health := victim.get_node_or_null("HealthComponent") as HealthComponent
             if health:
-                health.take_damage(_payload["amount"], _payload["type"], _payload["source"])
+                health.take_damage(
+                    _payload["amount"], _payload["type"], _payload["source"], final_pos
+                )
+                entity_hit = true
+    # An overlay (tiberium/bridge/ice) is not an entity hit: the warhead-gated
+    # overlay pass owns it, so a warhead without the matching flag deals no
+    # damage while the impact effect still plays through the fallback below.
+    var overlay_hit := _damage_cell_overlays(final_pos, victim if entity_hit else null)
+    if not entity_hit and not overlay_hit:
+        EntityFactory.play_impact_effects_at(_weapon.warhead, final_pos)
     impacted.emit(final_pos)
     queue_free()
+
+
+## Whether `entity` is a structure, matching CombatComponent's foundation
+## classifier (only structures measure to a footprint).
+func _is_structure(entity: Node3D) -> bool:
+    var stats := entity.get_node_or_null("StatsComponent") as StatsComponent
+    return stats != null and stats.is_structure()
+
+
+## Nearest combat entity standing in the blast cell, or null. Terrain and
+## overlay entities are never occupants — bridge, ice and tiberium are handled
+## by the cell-overlay pass instead.
+func _resolve_ground_victim(impact_pos: Vector3) -> Node3D:
+    if SpatialHash.instance == null:
+        return null
+    return SpatialHash.instance.resolve_cell_victim(
+        CellUtil.world_to_cell(impact_pos), impact_pos, _shooter
+    )
+
+
+## Applies the warhead's cell-overlay damage (bridge, ice, tiberium) at the
+## impact cell. Returns true when at least one overlay took the hit, so impact
+## effects are not played twice through the damage choke point.
+func _damage_cell_overlays(impact_pos: Vector3, exclude: Node3D) -> bool:
+    if SpatialHash.instance == null:
+        return false
+    var rules := GlobalRules.get_current()
+    if rules == null:
+        return false
+    var warhead := rules.get_warhead(_weapon.warhead)
+    if warhead == null:
+        return false
+    var applied := false
+    for overlay in SpatialHash.instance.find_cell_overlays(
+        CellUtil.world_to_cell(impact_pos), warhead, exclude
+    ):
+        var health := overlay.get_node_or_null("HealthComponent") as HealthComponent
+        if health == null:
+            continue
+        var damage := _compute_damage_for(overlay)
+        if damage <= 0:
+            continue
+        health.take_damage(damage, _weapon.warhead, _shooter)
+        applied = true
+    return applied
 
 
 ## Mirrors the legacy hitscan math: shooter veteran boost via the dispatcher's

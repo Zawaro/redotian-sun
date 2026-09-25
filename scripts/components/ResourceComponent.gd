@@ -1,6 +1,9 @@
 class_name ResourceComponent extends Node
 
 @export var resource_type_id: String = ""
+## EntityData.resource_category ("tiberium", "tiberium_tree", …). Consumers use
+## it to tell harvestable crystal patches from tiberium trees.
+@export var resource_category: String = ""
 @export var regrowth_rate: float = -1.0
 ## How many times this crystal has spread to adjacent cells. Capped by GlobalRules.spread_max.
 @export var spread_count: int = 0
@@ -15,6 +18,7 @@ static var _mat_cache: Dictionary = {}
 
 func configure(data: EntityData) -> void:
     resource_type_id = data.resource_type_id
+    resource_category = data.resource_category
     regrowth_rate = data.resource_regrowth_rate
 
 
@@ -22,11 +26,27 @@ func _ready() -> void:
     var root := get_parent() as Node3D
     if root and not root.is_in_group("resources"):
         root.add_to_group("resources")
+    # Warhead damage hits the backing HealthComponent directly; mirror it back
+    # into the authoritative bale amount so a damaged cell yields less tiberium.
+    var health := _get_health()
+    if health and not health.damage_taken.is_connected(_on_damage_taken):
+        health.damage_taken.connect(_on_damage_taken)
     _ensure_visual_nodes.call_deferred()
     _update_visual.call_deferred()
     # Defer cell registration so the entity's global_position is settled
     # (important for spawned resources where position is set after add_child).
     _register_cell.call_deferred()
+
+
+## Syncs bales from the post-damage health so warhead damage reduces the
+## harvestable amount. `collect()`/`add_bales()` write health directly (not via
+## take_damage), so they never re-enter here.
+func _on_damage_taken(_amount: int, _damage_type: String) -> void:
+    var health := _get_health()
+    if health == null:
+        return
+    _bales = _health_to_bales(float(health.current_health))
+    _update_visual()
 
 
 func _exit_tree() -> void:

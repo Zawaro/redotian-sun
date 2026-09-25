@@ -1192,3 +1192,49 @@ func test_hotkey_stop_skips_enemy_selection():
     TestHelper.assert_true(
         enemy_untouched, "stop hotkey never commands a selected enemy (issue #166)"
     )
+
+
+func test_hotkey_stop_clears_engagement():
+    # stop-command's "Stop during combat" scenario: Stop reverts an engaged
+    # unit to idle (entity target or ground position) while leaving guard free
+    # to acquire again. mc.stop() alone never does this — an engaged unit
+    # firing at a fixed point is IDLE, so no movement signal fires.
+    if _sm == null:
+        TestHelper.fail("SelectionManager not injected")
+        return
+    _bounds_setup()
+    var pm := get_node_or_null("/root/PlayerManager")
+    var local_pid: int = pm.get_local_player_id() if pm else 0
+    var local := _make_owner_entity(local_pid)
+    var combat := CombatComponent.new()
+    combat.name = "CombatComponent"
+    local.add_child(combat)
+    var target := _make_owner_entity(local_pid + 1)
+
+    var mh := MOUSE_HANDLER_SCENE.instantiate() as MouseHandler
+    _sm.add_child(mh)
+    mh.selection_manager = _sm
+
+    _sm.deselect_all()
+    _sm.select_entity(_select_comp_of(local))
+
+    combat.set_target(target)
+    var engaged_before: bool = combat.is_engaged()
+    mh.apply_selection_hotkey(true)
+    var entity_cleared: bool = not combat.is_engaged() and combat.get_target() == null
+
+    combat.set_ground_target(local.global_position + Vector3(4.0, 0.0, 0.0))
+    var ground_before: bool = combat.is_engaged()
+    mh.apply_selection_hotkey(true)
+    var ground_cleared: bool = not combat.is_engaged()
+
+    mh.queue_free()
+    _sm.remove_child(target)
+    target.free()
+    _sm.remove_child(local)
+    local.free()
+    _bounds_teardown()
+    TestHelper.assert_true(engaged_before, "unit was engaged before Stop")
+    TestHelper.assert_true(entity_cleared, "Stop ends an entity fire mission")
+    TestHelper.assert_true(ground_before, "ground engagement active before Stop")
+    TestHelper.assert_true(ground_cleared, "Stop ends a ground engagement")

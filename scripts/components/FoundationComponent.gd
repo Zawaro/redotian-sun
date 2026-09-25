@@ -32,7 +32,7 @@ func _ready() -> void:
     var non_bib_cells: Array[Vector2i] = _registered_cells.duplicate()
     for bib in _registered_bib_cells:
         non_bib_cells.erase(bib)
-    SpatialHash.instance.register_building_cells(non_bib_cells)
+    SpatialHash.instance.register_building_cells(non_bib_cells, entity)
     if not _registered_bib_cells.is_empty():
         SpatialHash.instance.register_bib_cells(_registered_bib_cells)
 

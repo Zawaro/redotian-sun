@@ -396,6 +396,10 @@ func test_target_invalidated_no_crash():
     cc._physics_process(0.1)
     cc._physics_process(0.1)
     TestHelper.assert_eq(cc._target, null, "invalid target cleared")
+    # A freed reference already compares equal to null, so the assertion above
+    # passes even when the engagement was never torn down. _attack_active is
+    # what distinguishes "cleared" from "still firing at a stale point".
+    TestHelper.assert_true(not cc._attack_active, "stale entity engagement is torn down")
     remove_child(entity)
     entity.free()
 
@@ -1652,3 +1656,191 @@ func test_close_range_fires_without_turning():
     TestHelper.assert_true(fired[0], "close target fires despite yaw (deadzone)")
     TestHelper.assert_true(absf(yaw) < 0.01, "body did not turn for deadzone shot")
     TestHelper.assert_true(true, "vertical separation ignored for yaw")
+
+
+# --- ground engagement (force-fire) ---
+
+
+func _add_to_tree(entity: Node3D, pos: Vector3) -> void:
+    Engine.get_main_loop().root.add_child(entity)
+    entity.global_position = pos
+
+
+func _remove_from_tree(entity: Node3D) -> void:
+    if entity.is_inside_tree():
+        entity.get_parent().remove_child(entity)
+    entity.free()
+
+
+func test_order_force_attack_ground_returns_attack():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var pos := Vector3(8.0, 0.0, 4.0)
+    var order := cc.get_order_for_target(
+        null, Vector2i.ZERO, pos, {OrderResult.MOD_FORCE_ATTACK: true}
+    )
+    TestHelper.assert_true(order != null, "force-fire on ground -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.ATTACK, "ground cursor -> ATTACK")
+    TestHelper.assert_eq(order.priority, 30, "ground force-fire priority -> 30")
+    TestHelper.assert_true(order.target == null, "ground force-fire holds no entity target")
+    TestHelper.assert_eq(order.target_pos, pos, "ground force-fire carries the ordered position")
+    order.execute.call()
+    TestHelper.assert_true(cc.is_engaged(), "executing the order engages")
+    TestHelper.assert_true(cc.get_target() == null, "ground engagement holds no entity target")
+    var expected_center := CellUtil.cell_to_world(CellUtil.world_to_cell(pos))
+    (
+        TestHelper
+        . assert_eq(
+            cc._target_pos,
+            Vector3(expected_center.x, pos.y, expected_center.z),
+            "engagement snaps the ordered position to the cell centre",
+        )
+    )
+    cc.clear_target()
+    entity.free()
+
+
+func test_order_force_attack_ground_unarmed_returns_null():
+    var entity := _make_combat_entity(false, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var order := cc.get_order_for_target(
+        null, Vector2i.ZERO, Vector3.ZERO, {OrderResult.MOD_FORCE_ATTACK: true}
+    )
+    TestHelper.assert_true(order == null, "unarmed entity never force-fires")
+    entity.free()
+
+
+func test_order_force_attack_neutral_returns_attack():
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    var target := _make_target(-1)
+    var order := cc.get_order_for_target(
+        target, Vector2i.ZERO, Vector3.ZERO, {OrderResult.MOD_FORCE_ATTACK: true}
+    )
+    TestHelper.assert_true(order != null, "force-fire on neutral -> order not null")
+    TestHelper.assert_eq(order.cursor, CursorState.Type.ATTACK, "neutral cursor -> ATTACK")
+    entity.free()
+    target.free()
+
+
+func test_ground_engagement_fires_in_range():
+    _inject_test_rules()
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    _add_to_tree(entity, Vector3.ZERO)
+    var fired := [0]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D) -> void: fired[0] += 1)
+    cc.set_ground_target(Vector3(4.0, 0.0, 0.0))
+    cc._physics_process(0.016)
+    var health_missing := cc.get_target() == null
+    TestHelper.assert_eq(fired[0], 1, "ground engagement fires in range")
+    TestHelper.assert_true(health_missing, "no entity target while firing at ground")
+    _remove_from_tree(entity)
+    _restore_rules()
+
+
+func test_ground_engagement_repeats_across_cooldowns():
+    _inject_test_rules()
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    _add_to_tree(entity, Vector3.ZERO)
+    var fired := [0]
+    cc.weapon_fired.connect(func(_w: WeaponData, _t: Node3D) -> void: fired[0] += 1)
+    cc.set_ground_target(Vector3(4.0, 0.0, 0.0))
+    for i in 4:
+        cc._physics_process(0.05)
+    TestHelper.assert_true(fired[0] >= 2, "repeats on each elapsed cooldown without re-issue")
+    TestHelper.assert_true(cc.is_engaged(), "still engaged after repeated fire")
+    _remove_from_tree(entity)
+    _restore_rules()
+
+
+func test_ground_engagement_survives_many_ticks():
+    _inject_test_rules()
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    _add_to_tree(entity, Vector3.ZERO)
+    cc.set_ground_target(Vector3(4.0, 0.0, 0.0))
+    for i in 120:
+        cc._physics_process(0.016)
+    TestHelper.assert_true(cc.is_engaged(), "ground engagement never self-terminates")
+    TestHelper.assert_true(cc.get_target() == null, "still no entity target")
+    _remove_from_tree(entity)
+    _restore_rules()
+
+
+func test_ground_engagement_approaches_when_out_of_range():
+    _inject_test_rules()
+    var setup: Array = _make_moving_ground_attacker()
+    if setup.is_empty():
+        _restore_rules()
+        return
+    var entity: Node3D = setup[0]
+    var cc: CombatComponent = setup[2]
+    cc.set_ground_target(Vector3(40.0, 0.0, 0.0))
+    # _combat_move is consumed by the movement_started signal the approach move
+    # itself emits, so assert on the chase anchor it writes alongside it.
+    var chased := cc._chase_leg_enemy_cell == CellUtil.world_to_cell(Vector3(40.0, 0.0, 0.0))
+    TestHelper.assert_true(cc.is_engaged(), "engaged while out of range")
+    TestHelper.assert_true(chased, "an approach move was issued for the ground point")
+    _remove_from_tree(entity)
+    _restore_rules()
+
+
+func test_player_move_clears_ground_engagement():
+    if _ts == null:
+        TestHelper.fail("TerrainSystem not injected")
+        return
+    _ts.init_grid(32, 32)
+    var entity := _make_combat_entity(true, 0)
+    add_child(entity)
+    var mc := MovementController.new()
+    mc.name = "MovementController"
+    entity.add_child(mc)
+    mc._parent = entity
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    entity.global_position = Vector3(1, 0, 1)
+    cc.set_ground_target(Vector3(9, 0, 9))
+    TestHelper.assert_true(cc.is_engaged(), "ground engagement active before the move")
+    mc.set_target_position(Vector3(5, 0, 5))
+    TestHelper.assert_true(not cc.is_engaged(), "player move clears the ground engagement")
+    _ts.clear()
+    remove_child(entity)
+    entity.free()
+
+
+func test_entity_to_ground_transition_detaches_health_signal():
+    # Regression: set_ground_target() nulls _target, so _connect_health_signal()
+    # used to bail before disconnecting the previous entity — its death then
+    # called clear_target() and cancelled the player's ground engagement.
+    _inject_test_rules()
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    _add_to_tree(entity, Vector3.ZERO)
+    var old_target := _make_target_with_health(1, 100)
+    _add_to_tree(old_target, Vector3(4.0, 0.0, 0.0))
+    cc.set_target(old_target)
+    cc.set_ground_target(Vector3(8.0, 0.0, 0.0))
+    var hc := old_target.get_node("HealthComponent") as HealthComponent
+    var still_connected: bool = hc.health_zero.is_connected(cc._on_target_health_zero)
+    hc.health_zero.emit()
+    var survived: bool = cc.is_engaged() and cc.get_target() == null
+    _remove_from_tree(old_target)
+    _remove_from_tree(entity)
+    _restore_rules()
+    TestHelper.assert_true(not still_connected, "old target's health_zero is detached")
+    TestHelper.assert_true(survived, "ground engagement survives the old target dying")
+
+
+func test_set_target_null_is_rejected():
+    # A null entity would engage at whatever position the previous target left
+    # behind, so the entry point refuses it (push_error + return).
+    var entity := _make_combat_entity(true, 0)
+    var cc := entity.get_node("CombatComponent") as CombatComponent
+    cc.set_ground_target(Vector3(6.0, 0.0, 2.0))
+    var pos_before: Vector3 = cc._target_pos
+    cc.set_target(null)
+    var unchanged: bool = cc._target_pos == pos_before and cc.is_engaged()
+    cc.clear_target()
+    entity.free()
+    TestHelper.assert_true(unchanged, "set_target(null) is rejected and leaves state untouched")

@@ -117,6 +117,23 @@ func _on_entity_death(entity: Node3D, data: EntityData = null) -> void:
 func _on_entity_damaged(entity: Node3D, damage_type: String, amount: int) -> void:
     if damage_type.is_empty() or not is_instance_valid(entity) or amount <= 0:
         return
+    var position := entity.global_position
+    var health := entity.get_node_or_null("HealthComponent") as HealthComponent
+    # Weapons report the exact impact point (nearest footprint point on a
+    # building, cell centre on a force-fire ground shot); everything else falls
+    # back to the entity origin.
+    if health and health.last_impact_pos.is_finite():
+        position = health.last_impact_pos
+    play_impact_effects_at(damage_type, position)
+
+
+## Plays a warhead's impact report and visual effect at a world point. Shared by
+## the damage choke point above and by shots that land on nothing — a force-fire
+## into empty ground still bangs. The warhead is resolved from the damage type,
+## so non-warhead damage (crush, drowning) is silent.
+static func play_impact_effects_at(damage_type: String, position: Vector3) -> void:
+    if damage_type.is_empty():
+        return
     var rules := GlobalRules.get_current()
     if not rules:
         return
@@ -124,9 +141,9 @@ func _on_entity_damaged(entity: Node3D, damage_type: String, amount: int) -> voi
     if not warhead:
         return
     if warhead.impact_fx != null:
-        FxSystem.play(warhead.impact_fx, Transform3D(Basis(), entity.global_position))
+        FxSystem.play(warhead.impact_fx, Transform3D(Basis(), position))
     if not warhead.sound_impact.is_empty():
-        AudioManager.play_random(warhead.sound_impact.split(",", false), entity.global_position)
+        AudioManager.play_random(warhead.sound_impact.split(",", false), position)
 
 
 func register_data_set(path: String) -> void:

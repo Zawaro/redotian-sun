@@ -18,8 +18,9 @@ func get_cursor(
     if bounds.blocked:
         return CursorState.Type.GENERIC_BLOCKED
     var effective := _fog_filter_target(target, target_cell, modifiers)
+    var ground_modifiers := _ground_shroud_gate(effective.target, bounds.pos, effective.modifiers)
     return active_generator.get_cursor(
-        effective.target, effective.target_cell, bounds.pos, effective.modifiers
+        effective.target, effective.target_cell, bounds.pos, ground_modifiers
     )
 
 
@@ -33,8 +34,9 @@ func get_orders(
     if bounds.blocked:
         return []
     var effective := _fog_filter_target(target, target_cell, modifiers)
+    var ground_modifiers := _ground_shroud_gate(effective.target, bounds.pos, effective.modifiers)
     return active_generator.get_orders(
-        effective.target, effective.target_cell, bounds.pos, effective.modifiers
+        effective.target, effective.target_cell, bounds.pos, ground_modifiers
     )
 
 
@@ -76,6 +78,27 @@ func _fog_filter_target(target: Node3D, target_cell: Vector2i, modifiers: Dictio
     var filtered := modifiers.duplicate()
     filtered.erase(OrderResult.MOD_FORCE_ATTACK)
     return {"target": null, "target_cell": target_cell, "modifiers": filtered}
+
+
+## Shroud gate for force-fire ground orders. Fog (explored but not currently
+## visible) does NOT block firing at terrain — only shroud (never explored) does,
+## degrading the order to a plain move the way the original's MoveToShroud key
+## does. Deliberately keyed on the shroud cover alone, not on
+## GlobalRules.fog_of_war, and applied only while the modifier is held so plain
+## ground orders are untouched.
+func _ground_shroud_gate(target: Node3D, ground_pos: Vector3, modifiers: Dictionary) -> Dictionary:
+    if target != null:
+        return modifiers
+    if not modifiers.get(OrderResult.MOD_FORCE_ATTACK, false):
+        return modifiers
+    if not ShroudSystem.is_shroud_enabled() or not ShroudSystem.is_grid_ready():
+        return modifiers
+    var cell := CellUtil.world_to_cell(ground_pos)
+    if ShroudSystem.is_explored(PlayerManager.get_local_player_id(), cell):
+        return modifiers
+    var filtered := modifiers.duplicate()
+    filtered.erase(OrderResult.MOD_FORCE_ATTACK)
+    return filtered
 
 
 ## Sell/repair mode is derived from the active generator's type — no parallel

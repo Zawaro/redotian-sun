@@ -11,6 +11,13 @@ var _ts: Node = null
 const RANGE_CELLS: float = 5.0
 const RANGE_WORLD: float = RANGE_CELLS * CellUtil.CELL_SIZE
 
+## Vision fixture: GuardComponent only acquires what the scanning house can see
+## (#446), so placed entities must sit in cells their house has explored. Cells
+## are unexplored by default in these suites. Reset afterwards so later suites
+## do not inherit explored state from this one.
+const VISION_PLAYERS: Array[int] = [0, 1, 2, 3]
+const VISION_RADIUS: int = 6
+
 
 func _make_weapon(range_cells: float = RANGE_CELLS) -> WeaponData:
     var w := WeaponData.new()
@@ -94,6 +101,14 @@ func _place(root: Node, entity: Node3D, pos: Vector3) -> void:
     root.add_child(entity)
     entity.global_position = pos
     entity.add_to_group("entities")
+    var cell := CellUtil.world_to_cell(pos)
+    for pid in VISION_PLAYERS:
+        ShroudSystem.explore_area(pid, cell, VISION_RADIUS)
+
+
+func _reset_vision() -> void:
+    for pid in VISION_PLAYERS:
+        ShroudSystem.cover_shroud(pid)
 
 
 func _rebuild() -> void:
@@ -118,6 +133,7 @@ func _cleanup(entities: Array) -> void:
     if _sh:
         _sh.rebuild()
     _restore_teams()
+    _reset_vision()
 
 
 func test_factory_attaches_guard_when_armed():
@@ -593,3 +609,145 @@ func test_guard_acquires_building_corner_diagonal():
         combat.get_target(), building, "guard acquires a diagonal building by its nearest corner"
     )
     _cleanup([unit, building])
+
+
+func test_enemy_in_unexplored_cell_not_acquired():
+    # Visibility gate (#446): a hostile inside weapon range but in a cell the
+    # scanning house has never explored is not a candidate.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(0)
+    var enemy := _make_enemy(1)
+    _place(root, unit, Vector3(0, 0, 0))
+    _place(root, enemy, Vector3(RANGE_WORLD - 1.0, 0, 0))
+    _rebuild()
+    # Shroud everything for the scanning house, then reveal only its own cell.
+    _reset_vision()
+    ShroudSystem.explore_area(0, CellUtil.world_to_cell(unit.global_position), 1)
+    var enemy_cell := CellUtil.world_to_cell(enemy.global_position)
+    TestHelper.assert_true(
+        not ShroudSystem.is_explored(0, enemy_cell), "fixture: enemy cell stays unexplored"
+    )
+    _tick_guard(unit)
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    TestHelper.assert_true(combat.get_target() == null, "shrouded enemy not acquired")
+    _cleanup([unit, enemy])
+
+
+func test_engaged_target_leaving_visibility_is_retained():
+    # Acquisition is the only visibility test: once held, the engagement
+    # survives the target walking out of sight.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(0)
+    var enemy := _make_enemy(1)
+    _place(root, unit, Vector3(0, 0, 0))
+    _place(root, enemy, Vector3(RANGE_WORLD - 1.0, 0, 0))
+    _rebuild()
+    _tick_guard(unit)
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    TestHelper.assert_eq(combat.get_target(), enemy, "acquired while visible")
+    _reset_vision()
+    _tick_guard(unit)
+    _tick_guard(unit)
+    TestHelper.assert_eq(
+        combat.get_target(), enemy, "engagement retained after the target leaves visibility"
+    )
+    _cleanup([unit, enemy])
+
+
+func test_computer_owned_guard_uses_own_visibility():
+    # The scanning house's own shroud decides, never the local player's: a
+    # computer-owned unit must not be blinded by (or benefit from) the human
+    # player's fog.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(1)
+    var enemy := _make_enemy(0)
+    _place(root, unit, Vector3(0, 0, 0))
+    _place(root, enemy, Vector3(RANGE_WORLD - 1.0, 0, 0))
+    _rebuild()
+    _reset_vision()
+    var enemy_cell := CellUtil.world_to_cell(enemy.global_position)
+    ShroudSystem.explore_area(0, enemy_cell, VISION_RADIUS)
+    _tick_guard(unit)
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    (
+        TestHelper
+        . assert_true(
+            combat.get_target() == null,
+            "computer house blind to a cell only the local player has explored",
+        )
+    )
+    ShroudSystem.explore_area(1, enemy_cell, VISION_RADIUS)
+    _tick_guard(unit)
+    TestHelper.assert_eq(
+        combat.get_target(), enemy, "acquired once the scanning house itself sees it"
+    )
+    _cleanup([unit, enemy])
+
+
+func test_guard_does_not_steal_ground_engagement():
+    # is_engaged() — not a non-null target — is what suppresses the scan, so a
+    # force-fire ground engagement (target == null) is not overwritten.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(0)
+    var enemy := _make_enemy(1)
+    _place(root, unit, Vector3(0, 0, 0))
+    _place(root, enemy, Vector3(RANGE_WORLD - 1.0, 0, 0))
+    _rebuild()
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    combat.set_ground_target(Vector3(40, 0, 0))
+    TestHelper.assert_true(combat.is_engaged(), "ground engagement is active")
+    TestHelper.assert_true(combat.get_target() == null, "ground engagement holds no entity target")
+    _tick_guard(unit)
+    TestHelper.assert_true(combat.get_target() == null, "guard did not steal the ground engagement")
+    TestHelper.assert_true(combat.is_engaged(), "ground engagement still active after a scan")
+    _cleanup([unit, enemy])
+
+
+func test_guard_visibility_uses_footprint_point():
+    # Visibility is judged at the same footprint point the range test uses: a
+    # structure whose in-range edge is visible while its centre cell sits in
+    # shroud must still be acquired.
+    if _sh == null or _pm == null:
+        TestHelper.fail("SpatialHash/PlayerManager not injected")
+        return
+    _set_teams(0, 1)
+    var rules := GlobalRules.get_current()
+    var saved_shroud: bool = rules.shroud_enabled if rules else false
+    if rules:
+        rules.shroud_enabled = true
+    var root: Node = Engine.get_main_loop().root
+    var unit := _make_unit(0)
+    var building := _make_building_enemy(1, Vector2i(4, 4))
+    _place(root, unit, Vector3(-12, 0, 0))
+    _place(root, building, Vector3(0, 0, 0))
+    _rebuild()
+    _reset_vision()
+    var fc := building.get_node("FoundationComponent") as FoundationComponent
+    var edge_cell := CellUtil.world_to_cell(fc.nearest_world_point(unit.global_position))
+    var centre_cell := CellUtil.world_to_cell(building.global_position)
+    ShroudSystem.explore_area(0, edge_cell, 1)
+    var centre_dark: bool = not ShroudSystem.is_explored(0, centre_cell)
+    _tick_guard(unit)
+    var combat := unit.get_node("CombatComponent") as CombatComponent
+    var acquired: bool = combat.get_target() == building
+    _cleanup([unit, building])
+    if rules:
+        rules.shroud_enabled = saved_shroud
+    TestHelper.assert_true(centre_dark, "fixture: the building centre cell stays unexplored")
+    TestHelper.assert_true(acquired, "visible footprint edge acquires a shrouded-centre building")

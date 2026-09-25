@@ -89,6 +89,13 @@ func apply_selection_hotkey(is_stop: bool) -> void:
             var mc := entity.get_node_or_null("MovementController") as MovementController
             if mc:
                 mc.stop()
+            # Stop ends the engagement outright: a unit firing at a fixed point
+            # (or a ground position) is IDLE, so mc.stop() is a no-op and never
+            # emits movement_started. clear_target() reverts it to idle while
+            # leaving GuardComponent free to acquire again.
+            var combat := entity.get_node_or_null("CombatComponent") as CombatComponent
+            if combat:
+                combat.clear_target()
     if is_stop:
         selection_manager._pending_moves.clear()
         selection_manager._pending_index = 0
@@ -318,6 +325,8 @@ func _handle_left_click_normal(camera: Camera3D, mouse_pos: Vector2, shift_press
             play_order_voices(orders, selection_manager)
             for order in orders:
                 order.execute.call()
+            if not orders.is_empty():
+                acknowledge_target_lines(selection_manager)
 
 
 func _try_execute_orders(
@@ -329,7 +338,19 @@ func _try_execute_orders(
     play_order_voices(orders, selection_manager)
     for order in orders:
         order.execute.call()
+    acknowledge_target_lines(selection_manager)
     return true
+
+
+## Flashes the move/attack target line for the selection when the player issues
+## an order. Called only from the player order paths (world click, minimap), so
+## automatic moves and guard auto-acquisition never surface the line on their own.
+static func acknowledge_target_lines(selection_manager: SelectionManager) -> void:
+    if selection_manager == null:
+        return
+    for sc in selection_manager.selected_entities:
+        if is_instance_valid(sc):
+            sc.acknowledge_order()
 
 
 ## Shared order-confirmation voice playback, used by both the world click path

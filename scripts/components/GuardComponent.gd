@@ -82,13 +82,34 @@ func _resolve_siblings() -> bool:
 func _is_blocked() -> bool:
     if not is_instance_valid(_parent):
         return true
-    if _combat and _combat.get_target() != null:
+    # Engagement, not entity target: a force-fire ground engagement keeps
+    # get_target() null but must still stop the scan from stealing it.
+    if _combat and _combat.is_engaged():
         return true
     if _mc and _mc.is_moving():
         return true
     if _power and not _power.is_online:
         return true
     return false
+
+
+## Visibility of `cell` to the owning player, mirroring
+## ShroudSystem.is_cell_visible_to_local but for an arbitrary house — a
+## computer-owned unit must be judged by its own shroud, never the local
+## player's. Cells outside the playable diamond are not tracked by the shroud
+## grid at all (ShroudSystem._revealable), so there is nothing to be blind
+## about and they count as visible. Ungated while no grid exists so scenes
+## without one still engage.
+func _is_visible_to_owner(cell: Vector2i, own_id: int) -> bool:
+    if not ShroudSystem.is_grid_ready():
+        return true
+    if not BoundsSystem.is_in_play_area(cell):
+        return true
+    if ShroudSystem.is_visible(own_id, cell):
+        return true
+    if not ShroudSystem.is_explored(own_id, cell):
+        return not ShroudSystem.is_shroud_enabled()
+    return not ShroudSystem.is_fog_enabled()
 
 
 ## Longest weapon range in world units; 0 when no weapons (never acquires).
@@ -135,12 +156,19 @@ func _find_nearest_enemy() -> Node3D:
                 if other.get_node_or_null("HealthComponent") == null:
                     continue
                 # Buildings are in range when their nearest footprint point is,
-                # matching CombatComponent range checking.
+                # matching CombatComponent range checking. Visibility is judged
+                # at that same point, so a structure whose in-range corner is
+                # visible is still acquired when its centre sits in shroud.
                 var other_pos := other.global_position
                 if other_stats.is_structure():
                     var fc := other.get_node_or_null("FoundationComponent") as FoundationComponent
                     if fc:
                         other_pos = fc.nearest_world_point(origin)
+                # Acquisition is the only visibility test: a candidate the
+                # owning player cannot see is not a candidate. Once acquired,
+                # the engagement is kept even if the target later leaves sight.
+                if not _is_visible_to_owner(CellUtil.world_to_cell(other_pos), own_id):
+                    continue
                 var to_other := other_pos - origin
                 var dist_sq := Vector3(to_other.x, 0.0, to_other.z).length_squared()
                 if dist_sq <= range_sq and dist_sq < nearest_dist:

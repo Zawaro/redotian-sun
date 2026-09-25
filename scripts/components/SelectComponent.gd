@@ -194,14 +194,14 @@ func _ready():
             _rally_component.rally_point_changed.connect(_on_rally_point_changed)
 
     # Move target line — green line from a moving unit to its destination cell,
-    # drawn via the shared MoveLineRenderer (registered while the line is shown).
+    # drawn via the shared MoveLineRenderer. It flashes on a player order
+    # (acknowledge_order) or when the entity is (re)selected while busy; it
+    # never appears on its own for automatic moves or auto-acquired targets.
     var entity := get_parent()
     if entity:
         _movement_controller = entity.get_node_or_null("MovementController") as MovementController
         _combat_component = entity.get_node_or_null("CombatComponent") as CombatComponent
         if _movement_controller:
-            _movement_controller.movement_started.connect(_on_movement_started)
-
             var timer := Timer.new()
             timer.name = "MoveTargetLineTimer"
             timer.one_shot = true
@@ -437,16 +437,21 @@ func set_is_selected(value: bool):
 
 
 func _update_move_line_on_select() -> void:
-    # Show the line while the unit is moving OR while it has an active attack
-    # target, so an in-range attacker re-selected mid-fight still shows it.
+    # Show the line while the unit is moving OR while it has an active combat
+    # engagement (entity or ground), so an in-range attacker re-selected
+    # mid-fight still shows it.
     if is_selected and _movement_controller:
-        if _movement_controller.is_moving() or _has_active_attack_target():
+        if _movement_controller.is_moving() or _is_engaged():
             _show_move_line()
             return
     _hide_move_line()
 
 
-func _on_movement_started() -> void:
+## Player-issued order acknowledgement: flash the target line. Only the order
+## funnel calls this. Automatic behaviour — guard auto-acquire, harvester
+## auto-seek, docking, combat chase — never does, so its line appears only when
+## the entity is selected.
+func acknowledge_order() -> void:
     if is_selected:
         _show_move_line()
 
@@ -469,15 +474,16 @@ func _hide_move_line() -> void:
         _unregister_line()
 
 
-func _has_active_attack_target() -> bool:
-    return _combat_component != null and is_instance_valid(_combat_component.get_target())
+func _is_engaged() -> bool:
+    return _combat_component != null and _combat_component.is_engaged()
 
 
 func _get_move_line_endpoint() -> Vector3:
-    # While attacking, point the line at the enemy entity (tracking it as it
-    # moves) instead of the fixed approach stop position.
-    if _has_active_attack_target():
-        return _combat_component.get_target().global_position
+    # While engaged, point the line at the firing target (tracking an entity as
+    # it moves, or the ordered ground cell) instead of the approach stop
+    # position the unit is pathfinding to.
+    if _is_engaged():
+        return _combat_component.get_engagement_position()
     return _movement_controller.get_target_position()
 
 
@@ -528,10 +534,7 @@ func _line_alpha() -> float:
 
 
 func _move_line_active() -> bool:
-    return (
-        _movement_controller != null
-        and (_movement_controller.is_moving() or _has_active_attack_target())
-    )
+    return _movement_controller != null and (_movement_controller.is_moving() or _is_engaged())
 
 
 func _rally_line_active() -> bool:

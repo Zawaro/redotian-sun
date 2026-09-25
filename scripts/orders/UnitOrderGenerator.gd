@@ -1,5 +1,10 @@
 class_name UnitOrderGenerator extends OrderGenerator
 
+## Priority of the synthesized ground MOVE. Force-fire keeps only component
+## orders that outrank it, so a component's own MOVE cannot displace the
+## request_move()-based one with its formation, queue and target-level handling.
+const GROUND_MOVE_PRIORITY: int = 5
+
 static var _singleton: UnitOrderGenerator = null
 
 
@@ -28,6 +33,16 @@ func get_cursor(
                 return CursorState.Type.SELECT
             return CursorState.Type.DEFAULT
         if not target:
+            # Force-fire turns a bare cell into a fire target: resolve the same
+            # way the entity branch does so the cursor mirrors the order that
+            # would actually be issued. Without the modifier this stays on the
+            # untouched MOVE/undeploy path below.
+            if modifiers.get(OrderResult.MOD_FORCE_ATTACK, false):
+                var forced := OrderResolver.resolve_single(
+                    locals, target, target_cell, target_pos, modifiers
+                )
+                if forced and forced.priority > GROUND_MOVE_PRIORITY:
+                    return forced.cursor
             if _has_undeployable(sm):
                 var result := OrderResolver.resolve_single(
                     locals, target, target_cell, target_pos, modifiers
@@ -70,6 +85,20 @@ func get_orders(
     var result: Array[OrderResult] = []
     var target_level: int = int(modifiers.get(OrderResult.MOD_TARGET_LEVEL, 0))
     if not target:
+        # Force-fire: let components answer for the cell instead of
+        # unconditionally synthesizing a move. Only orders above the plain
+        # movement priority are kept — a component's own MOVE would bypass
+        # formation, queued and target-level handling in request_move().
+        if modifiers.get(OrderResult.MOD_FORCE_ATTACK, false):
+            var forced := OrderResolver.resolve_all(
+                locals, target, target_cell, target_pos, modifiers
+            )
+            var attacks: Array[OrderResult] = []
+            for order in forced:
+                if order.priority > GROUND_MOVE_PRIORITY:
+                    attacks.append(order)
+            if not attacks.is_empty():
+                return attacks
         if _has_undeployable(sm):
             result = OrderResolver.resolve_all(locals, target, target_cell, target_pos, modifiers)
         elif _has_movable(sm):
