@@ -109,18 +109,24 @@ func _on_entity_death(entity: Node3D, data: EntityData = null) -> void:
     entity.queue_free()
 
 
-## Plays the victim's warhead impact report at the victim position. The warhead is
-## resolved from the damage type, so non-warhead damage (crush, drowning) is silent.
-func _on_entity_damaged(entity: Node3D, damage_type: String) -> void:
-    if damage_type.is_empty() or not is_instance_valid(entity):
+## Plays the victim's warhead impact report and visual effect at the victim
+## position. The warhead is resolved from the damage type, so non-warhead damage
+## (crush, drowning) is silent. This is the single damage choke point, so it
+## covers both projectile and hitscan hits. A zero applied amount (e.g. veteran
+## armor rounding a hit to nothing) is skipped so no impact plays on a no-op hit.
+func _on_entity_damaged(entity: Node3D, damage_type: String, amount: int) -> void:
+    if damage_type.is_empty() or not is_instance_valid(entity) or amount <= 0:
         return
     var rules := GlobalRules.get_current()
     if not rules:
         return
     var warhead := rules.get_warhead(damage_type)
-    if not warhead or warhead.sound_impact.is_empty():
+    if not warhead:
         return
-    AudioManager.play_random(warhead.sound_impact.split(",", false), entity.global_position)
+    if warhead.impact_fx != null:
+        FxSystem.play(warhead.impact_fx, Transform3D(Basis(), entity.global_position))
+    if not warhead.sound_impact.is_empty():
+        AudioManager.play_random(warhead.sound_impact.split(",", false), entity.global_position)
 
 
 func register_data_set(path: String) -> void:
@@ -173,7 +179,8 @@ func create_entity(entity_id: String, overrides: Dictionary = {}) -> Node3D:
     if health:
         health.health_zero.connect(func() -> void: _on_entity_death(entity, data))
         health.damage_taken.connect(
-            func(_amount: int, damage_type: String) -> void: _on_entity_damaged(entity, damage_type)
+            func(amount: int, damage_type: String) -> void:
+                _on_entity_damaged(entity, damage_type, amount)
         )
 
     # Cell occupancy — all except OVERLAY, and TERRAIN without foundation.

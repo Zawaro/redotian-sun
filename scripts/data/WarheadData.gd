@@ -50,6 +50,8 @@ class_name WarheadData extends Resource
 @export var deform_threshold: int = 0
 ## Whether the projectile renders as a bright/glowing effect on impact.
 @export var bright: bool = false
+## One-shot effect played at the victim on each damaging hit. Null = no effect.
+@export var impact_fx: FxData = null
 
 ## Audio
 @export_group("Audio")

@@ -104,7 +104,7 @@ func _ready() -> void:
         return
     _apply_tint()
     global_position = (
-        _spawn_origin if _has_spawn_origin else _shooter.global_position + _weapon.fire_offset
+        _spawn_origin if _has_spawn_origin else _shooter.global_transform * _weapon.fire_offset
     )
     _aim_heading_at_target()
 

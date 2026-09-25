@@ -219,6 +219,15 @@ are 45°-rotated rectangles, i.e. diamonds.
 | damaged clip | `AnimClipData.damaged_model_path`: a separate GLB shown in place of an `ACTIVE` clip at health ≤ 50%, reverting above. | [art-component change](openspec/changes/art-component-animation-engine/specs/art-component/spec.md) |
 | theater variant | With `ArtData.new_theater`, an art path resolves to `<name>_<theater>.<ext>` (e.g. `gdi_conyard01_snow.glb`) when that file exists, else the generic path. Suffix is the full theater id, not the TS letter. | [art-component change](openspec/changes/art-component-animation-engine/specs/art-component/spec.md) · scripts/data/ArtData.gd |
 
+## Visual Effects (FX)
+
+| Term | Meaning | Where |
+|------|---------|-------|
+| `FxData` | One one-shot visual effect as a `.tres`: `kind` is `SPRITE` (animated billboard via `SpriteFrames`, PNG sequence or sprite sheet) or `PARTICLES` (embedded `ParticleProcessMaterial` + draw material). Purely visual — no audio field. | [fx-system](openspec/specs/fx-system/spec.md) · scripts/data/FxData.gd |
+| `FxSystem` | Autoload that plays one-shot effects (`play(fx, transform)`) with a deterministic duration timer, and gates them to fog: no spawn in shroud/fog, live effects freeze while hidden. | [fx-system](openspec/specs/fx-system/spec.md) · scripts/core/FxSystem.gd |
+| muzzle flash | One-shot effect played at a weapon's muzzle on each shot (`WeaponData.muzzle_fx`). | [combat-firing](openspec/specs/combat-firing/spec.md) |
+| impact FX | One-shot effect played at a victim on each damaging hit (`WarheadData.impact_fx`), fired from the shared damage choke point so it covers projectile and hitscan hits. | [entity-factory](openspec/specs/entity-factory/spec.md) |
+
 ## Data Fields (high-drift picks)
 
 Full dictionaries: scripts/data/*.gd. Only ambiguous pairs listed here.

@@ -58,6 +58,11 @@ class_name WeaponData extends Resource
 ## Separate from per-shot damage; applied while the weapon is active.
 @export var ambient_damage: int = 0
 
+## Visual effects
+@export_group("Visual Effects")
+## One-shot effect played at the muzzle on each shot. Null = no effect.
+@export var muzzle_fx: FxData = null
+
 ## Special weapon types
 @export_group("Special Weapon Types")
 ## Fires a hitscan railgun beam (instant hit, no projectile travel).

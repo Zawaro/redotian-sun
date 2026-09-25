@@ -47,6 +47,7 @@ UnitMeshRenderer="*res://scripts/core/UnitMeshRenderer.gd"
 AudioManager="*res://scripts/core/AudioManager.gd"
 ShroudSystem="*res://scripts/core/ShroudSystem.gd"
 FogRenderer="*res://scripts/core/FogRenderer.gd"
+FxSystem="*res://scripts/core/FxSystem.gd" ; Connects to ShroudSystem.state_changed in _ready — keep after ShroudSystem
 
 [display]
 

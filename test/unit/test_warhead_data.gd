@@ -75,3 +75,14 @@ func test_sound_impact_default_and_round_trip():
     TestHelper.assert_eq(wh.sound_impact, "", "sound_impact defaults empty")
     wh.sound_impact = "EXPNEW06,EXPNEW10"
     TestHelper.assert_eq(wh.sound_impact, "EXPNEW06,EXPNEW10", "sound_impact round-trips")
+
+
+func test_impact_fx_default_and_assignment():
+    var wh := WarheadData.new()
+    TestHelper.assert_eq(wh.impact_fx, null, "impact_fx defaults to null")
+    var effect := FxData.new()
+    effect.id = "HitPuff"
+    effect.kind = FxData.Kind.PARTICLES
+    effect.process_material = ParticleProcessMaterial.new()
+    wh.impact_fx = effect
+    TestHelper.assert_eq(wh.impact_fx, effect, "impact_fx accepts an assigned FxData")

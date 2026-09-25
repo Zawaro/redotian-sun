@@ -13,6 +13,7 @@ const MODE_MODEL := 0
 const MODE_TERRAIN := 1
 const MODE_AUDIO := 2
 const MODE_IMAGE := 3
+const MODE_FX := 4
 
 const CAM_ISOMETRIC := 0
 const CAM_PERSPECTIVE := 1
@@ -120,6 +121,7 @@ const CATEGORIES: Array = [
     },
     {"label": "SFX", "dirs": ["audio"], "cls": "AudioData", "mode": MODE_AUDIO},
     {"label": "Voices", "dirs": ["audio"], "cls": "VoiceData", "mode": MODE_AUDIO},
+    {"label": "FX", "dirs": ["fx"], "cls": "FxData", "mode": MODE_FX},
     {
         "label": "Cameos / UI",
         "image_dirs": ["assets/cameos", "assets/ui"],
@@ -197,6 +199,7 @@ var _cell_list: VBoxContainer = null
 var _message_label: Label = null
 var _image_rect: TextureRect = null
 var _audio_row: HBoxContainer = null
+var _fx_row: HBoxContainer = null
 var _audio_label: Label = null
 var _play_button: Button = null
 var _stop_button: Button = null
@@ -522,6 +525,12 @@ func is_audio_playing() -> bool:
     return _audio_player != null and _audio_player.playing
 
 
+## Replays the current asset. For an FX effect this plays it again from the
+## start; for other modes it re-runs their preview.
+func replay_asset() -> void:
+    _refresh_asset()
+
+
 # --- Game / category / asset rebuilds ---
 
 
@@ -739,12 +748,20 @@ static func _tres_class(path: String) -> String:
     return rest.substr(0, end)
 
 
+## Reads the authored `id = "..."` from anywhere in the resource. Sub-resources
+## (SpriteFrames, materials) can push the [resource] block past the 512-byte
+## `_tres_header` cap, so this reads the whole file instead. Falls back to the
+## file basename when no id is present.
 static func _tres_id(path: String) -> String:
-    var header := _tres_header(path)
-    var idx := header.find('\nid = "')
+    var f := FileAccess.open(path, FileAccess.READ)
+    if f == null:
+        return path.get_file().get_basename()
+    var content := f.get_as_text()
+    f.close()
+    var idx := content.find('\nid = "')
     if idx == -1:
         return path.get_file().get_basename()
-    var rest := header.substr(idx + 7)
+    var rest := content.substr(idx + 7)
     var end := rest.find('"')
     if end == -1:
         return path.get_file().get_basename()
@@ -791,6 +808,8 @@ func _refresh_asset() -> void:
             _preview_audio(path)
         MODE_IMAGE:
             _preview_image(path)
+        MODE_FX:
+            _preview_fx(path)
     _update_info(_current_resource)
 
 
@@ -962,6 +981,27 @@ func _preview_image(path: String) -> void:
     _current_resource = tex
     _image_rect.texture = tex
     _image_rect.visible = true
+
+
+## Plays the selected FxData on the preview stage. Effects ignore fog gating in
+## the browser (no gameplay grid here) and parent under the object root so they
+## are cleared with the rest of the preview.
+func _preview_fx(path: String) -> void:
+    var effect := load(path) as FxData
+    _current_resource = effect
+    if effect == null:
+        _show_message("Not an FxData: %s" % path.get_file())
+        return
+    var errors := effect.validate()
+    if not errors.is_empty():
+        _show_message("Invalid FX: %s" % path.get_file())
+        return
+    var node := FxSystem.play(effect, Transform3D(Basis(), Vector3.ZERO), true, _object_root)
+    if node == null:
+        _show_message("FX did not play: %s" % path.get_file())
+        return
+    _visual_node = node
+    _fx_row.visible = true
 
 
 func _get_glb_scene(path: String) -> PackedScene:
@@ -1558,6 +1598,8 @@ func _hide_all_previews() -> void:
         _image_rect.visible = false
     if _audio_row != null:
         _audio_row.visible = false
+    if _fx_row != null:
+        _fx_row.visible = false
     if _message_label != null:
         _message_label.visible = false
     if _world_overlays != null:
@@ -1778,6 +1820,18 @@ func _build_hud() -> void:
     _stop_button.text = "Stop"
     _stop_button.pressed.connect(stop_audio)
     _audio_row.add_child(_stop_button)
+
+    _fx_row = HBoxContainer.new()
+    _fx_row.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+    _fx_row.offset_bottom = -24.0
+    _fx_row.visible = false
+    _hud.add_child(_fx_row)
+
+    var replay_button := Button.new()
+    replay_button.text = "Replay"
+    replay_button.tooltip_text = "Play the effect again"
+    replay_button.pressed.connect(replay_asset)
+    _fx_row.add_child(replay_button)
 
     var panel := PanelContainer.new()
     panel.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
