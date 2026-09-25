@@ -763,8 +763,10 @@ func _handle_click(cell: Vector2i) -> void:
         BoundsSystem.center_camera_on_cell(cell)
         return
     var target: Node3D = _cell_targets.get(cell) as Node3D
-    var world := CellUtil.cell_to_world(cell)
+    var target_level := _top_surface_level(cell)
+    var world := _ground_order_pos(cell, target_level)
     var modifiers := MouseHandler.build_modifiers(Input.is_key_pressed(KEY_SHIFT))
+    modifiers[OrderResult.MOD_TARGET_LEVEL] = target_level
     var orders := OrderSystem.get_orders(target, cell, world, modifiers)
     if orders.is_empty():
         BoundsSystem.center_camera_on_cell(cell)
@@ -774,6 +776,21 @@ func _handle_click(cell: Vector2i) -> void:
     for order in orders:
         order.execute.call()
     MouseHandler.acknowledge_target_lines(selection)
+
+
+## Top walkable surface level on a cell (0 when no deck covers it).
+func _top_surface_level(cell: Vector2i) -> int:
+    var levels := TerrainSystem.get_cell_surface_levels(cell)
+    return levels[levels.size() - 1] if not levels.is_empty() else 0
+
+
+## World point a minimap order aims at: the cell centre at its top walkable
+## surface, so a click on a bridge cell targets the deck (matching the main
+## viewport's raycast pick) instead of the ground beneath it.
+func _ground_order_pos(cell: Vector2i, level: int) -> Vector3:
+    var world := CellUtil.cell_to_world(cell)
+    world.y = TerrainSystem.get_cell_surface_height(cell, level)
+    return world
 
 
 ## True while a building or free-placement mode is active; both suppress minimap

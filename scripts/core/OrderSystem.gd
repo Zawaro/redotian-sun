@@ -18,7 +18,7 @@ func get_cursor(
     if bounds.blocked:
         return CursorState.Type.GENERIC_BLOCKED
     var effective := _fog_filter_target(target, target_cell, modifiers)
-    var ground_modifiers := _ground_shroud_gate(effective.target, bounds.pos, effective.modifiers)
+    var ground_modifiers := _ground_shroud_gate(effective.target, target_pos, effective.modifiers)
     return active_generator.get_cursor(
         effective.target, effective.target_cell, bounds.pos, ground_modifiers
     )
@@ -34,7 +34,7 @@ func get_orders(
     if bounds.blocked:
         return []
     var effective := _fog_filter_target(target, target_cell, modifiers)
-    var ground_modifiers := _ground_shroud_gate(effective.target, bounds.pos, effective.modifiers)
+    var ground_modifiers := _ground_shroud_gate(effective.target, target_pos, effective.modifiers)
     return active_generator.get_orders(
         effective.target, effective.target_cell, bounds.pos, ground_modifiers
     )

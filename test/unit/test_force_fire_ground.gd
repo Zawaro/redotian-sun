@@ -264,6 +264,34 @@ func test_force_fire_allowed_in_explored_fogged_cell():
     TestHelper.assert_true(issued, "force-fire into fog is still issued")
 
 
+func test_force_fire_outside_diamond_judges_clicked_cell_not_clamp():
+    # The shroud gate must judge the clicked cell, not the bounds-clamped edge:
+    # a Ctrl+click outside the order diamond into shroud stays a move even when
+    # the clamped edge cell is explored.
+    if not _setup(true, false):
+        return
+    var unit := _make_unit(true, 0)
+    var sc := _select(unit)
+    var far := CellUtil.cell_to_world(Vector2i(-100, -100))
+    var clamped := BoundsSystem.clamp_to_visible_diamond(far, BoundsSystem.ORDER_EDGE_INSET)
+    var edge_cell := CellUtil.world_to_cell(clamped)
+    ShroudSystem.explore_area(0, edge_cell, 1)
+    var edge_explored: bool = ShroudSystem.is_explored(0, edge_cell)
+    var clicked_shrouded: bool = not ShroudSystem.is_explored(0, CellUtil.world_to_cell(far))
+    var orders := OrderSystem.get_orders(null, Vector2i.ZERO, far, _force())
+    var cursor := OrderSystem.get_cursor(null, Vector2i.ZERO, far, _force())
+    var degraded: bool = (
+        orders.size() == 1
+        and orders[0].cursor == CursorState.Type.MOVE
+        and cursor == CursorState.Type.MOVE
+    )
+    _deselect(unit, sc)
+    _teardown()
+    TestHelper.assert_true(edge_explored, "fixture: clamped edge cell is explored")
+    TestHelper.assert_true(clicked_shrouded, "fixture: clicked cell is shroud-covered")
+    TestHelper.assert_true(degraded, "out-of-diamond force-fire into shroud degrades to a move")
+
+
 func test_shroud_gate_does_not_depend_on_fog_of_war():
     # shroud on, fog off: the gate must still refuse an unexplored cell.
     if not _setup(true, false):
