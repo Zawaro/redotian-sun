@@ -1,5 +1,12 @@
 class_name GlobalRules extends Resource
 
+## Tiberian Sun movement geometry: one cell is 256 leptons, and TS advances
+## `2.56 * Speed` leptons per game frame. 2.56 is the linear scale factor
+## (`256/100`); TS's surrounding `min(Speed,100)` / `min(...,255)` clamp is not
+## modeled because it only binds at Speed >= 99.6, far above authored TS data.
+const LEPTONS_PER_CELL: float = 256.0
+const TS_SPEED_FACTOR: float = 2.56
+
 @export_group("Timebase")
 ## Logic frames per second the content's tick-based values (weapon
 ## rate_of_fire) are authored against.
@@ -147,8 +154,10 @@ class_name GlobalRules extends Resource
 ## Projectile registry — maps projectile id to ProjectileData resource.
 @export var projectiles: Dictionary = {}
 ## Fallback flight speed in world units per second when neither
-## ProjectileData.speed_override nor WeaponData.speed is set.
-@export var default_projectile_speed: float = 12.0
+## ProjectileData.speed_override nor WeaponData.speed is set. 24 = the 2x TS time
+## base movement also uses, keeping the default projectile faster than the
+## fastest unit (Orca Fighter, Speed 20 -> 12 u/s).
+@export var default_projectile_speed: float = 24.0
 ## Degrees per second per unit of ProjectileData.homing_turn_rate.
 @export var homing_turn_per_sec_per_unit: float = 60.0
 
@@ -188,6 +197,16 @@ static func get_current() -> GlobalRules:
     if entity_factory and entity_factory.has_method("get_global_rules"):
         return entity_factory.get_global_rules() as GlobalRules
     return null
+
+
+## Converts a Tiberian Sun `Speed` value (leptons per game frame) to world units
+## per second for MovementController. TS advances `2.56 * Speed` leptons per
+## frame with 256 leptons per cell; the project runs its logic at `logic_fps`
+## (30 = the established 2x TS time base), so this equals `0.6 * Speed` by
+## default. Sole authority for the conversion — movement code must not duplicate
+## the constant.
+func speed_to_units_per_second(speed: float) -> float:
+    return speed * TS_SPEED_FACTOR * logic_fps * CellUtil.CELL_SIZE / LEPTONS_PER_CELL
 
 
 func get_armor_ids() -> Array[String]:

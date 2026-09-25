@@ -112,6 +112,10 @@ var _land_on_arrival: bool = false
 var _exact_target: bool = false
 var _ice_cracking_weight: float = 2.0
 var _weight: float = 1.0
+## Raw `EntityData.speed` (TS leptons/frame) stashed by `configure()`. -1 means
+## the controller was not configured (scene/editor/test), so `move_speed` keeps
+## its export default.
+var _speed_leptons: float = -1.0
 
 ## Ramp state for Accelerate/Decelerate flags
 var _ramp_speed: float = 0.0
@@ -123,6 +127,23 @@ func configure(data: EntityData) -> void:
     locomotor = data.locomotor
     movement_zone = data.movement_zone
     rotation_speed = data.rotation_speed
+    _speed_leptons = data.speed
+    _apply_speed()
+
+
+## Resolves the unit's base `move_speed` from `EntityData.speed` (TS leptons
+## per frame) through the GlobalRules conversion. Idempotent and called from
+## both `configure()` (rules may not resolve yet) and `_ready()` (rules now
+## known), so either call order leaves the converted value in force. May resolve
+## and cache `_rules` itself when called before `_ready()`. A bare controller
+## that was never configured keeps its export default.
+func _apply_speed() -> void:
+    if _speed_leptons < 0.0:
+        return
+    if not _rules:
+        _rules = GlobalRules.get_current()
+    if _rules:
+        move_speed = _rules.speed_to_units_per_second(_speed_leptons)
 
 
 ## Slews the entity body toward a world position without touching waypoints or
@@ -166,6 +187,7 @@ func _ready() -> void:
         _weight = stats.weight
         _veteran_speed_mult = _get_veteran_speed_mult(stats.veteran_level)
     _resolve_locomotor()
+    _apply_speed()
 
 
 func _resolve_locomotor() -> void:
